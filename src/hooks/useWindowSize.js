@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import ExecutionEnviornment from "@docusaurus/ExecutionEnvironment";
 
 export default function useWindowSize() {
+  
   const [size, setSize] = useState(ExecutionEnviornment.canUseDOM ? {
     width: window.innerWidth,
     height: window.innerHeight
