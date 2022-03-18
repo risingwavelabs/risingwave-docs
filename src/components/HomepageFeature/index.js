@@ -7,6 +7,7 @@ import AddToDriveIcon from '@mui/icons-material/AddToDrive';
 import BalanceIcon from '@mui/icons-material/Balance';
 import BatteryCharging80Icon from '@mui/icons-material/BatteryCharging80';
 import useWindowSize from "../../hooks/useWindowSize";
+import Translate from '@docusaurus/Translate';
 
 const data = [
   {
@@ -55,9 +56,9 @@ function FeatureContentBox(props) {
     <FeatureTextSlotBox className="text--center">
       <div style={{ display: "flex", direction: "row", alignItems: "center" }}>
         {props.icon}
-        <span style={{ marginLeft: "5px", fontWeight: "bold", fontSize: "1.2rem" }}>{props.title}</span>
+        <span style={{ marginLeft: "5px", fontWeight: "bold", fontSize: "1.2rem" }}><Translate>{props.title}</Translate></span>
       </div>
-      <span style={{ fontWeight: "lighter" }}>{props.text}</span>
+      <span style={{ fontWeight: "lighter" }}><Translate>{props.text}</Translate></span>
     </FeatureTextSlotBox>
   )
 }
