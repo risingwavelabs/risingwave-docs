@@ -11,7 +11,7 @@ const config = {
   url: 'https://singularity-data.com',
   baseUrl: '/',
   trailingSlash: true,
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.ico',
   organizationName: 'RisingWave Community', // Usually your GitHub org/user name.
@@ -23,7 +23,14 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
+          lastVersion: 'current',
           sidebarPath: require.resolve('./sidebars.js'),
+          versions: {
+            current: {
+              label: 'Next',
+              path: '/next',
+            }
+          },
           // Please change this to your repo.
           editUrl: 'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
         },
@@ -36,6 +43,10 @@ const config = {
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
         },
+        googleAnalytics: {
+          trackingID: 'myID',
+          anonymizeIP: true
+        }
       }),
     ],
   ],
@@ -57,6 +68,15 @@ const config = {
             label: 'Tutorial',
           },
           {to: '/blog', label: 'Blog', position: 'left'},
+          {
+            type: 'docsVersionDropdown',
+            docsPluginId: 'default',
+            position: 'right'
+          },
+          {
+            type: 'localeDropdown',
+            position: 'right',
+          },
           {
             href: 'https://github.com/singularity-data/risingwave-dev',
             label: 'GitHub',
@@ -109,7 +129,39 @@ const config = {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
       },
+      algolia: {
+        // The application ID provided by Algolia
+        appId: 'app_id',
+  
+        // Public API key: it is safe to commit it
+        apiKey: 'api_key',
+  
+        indexName: 'index_name',
+  
+        // Optional: see doc section below
+        contextualSearch: true,
+  
+        // Optional: Specify domains where the navigation should occur through window.location instead on history.push. Useful when our Algolia config crawls multiple documentation sites and we want to navigate with window.location.href to them.
+        externalUrlRegex: 'external\\.com|domain\\.com',
+  
+        // Optional: Algolia search parameters
+        searchParameters: {},
+  
+        // Optional: path for search page that enabled by default (`false` to disable it)
+        searchPagePath: 'search',
+  
+        //... other Algolia params
+      },
+      metadata: [{name: 'keywords', content: 'doc, blog'}],
+      items: [
+        { label: 'Next', to: 'docs/next/intro' },
+        { label: '1.0.0', to: 'docs/1.0.0/intro' }
+      ],
     }),
+    i18n: {
+      defaultLocale: 'en',
+      locales: ['en', 'fr'],
+    },
 };
 
 module.exports = config;

@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import styles from './index.module.css';
+// import styles from './index.module.css';
 import HomePageWave from '../components/HomePageWave';
 import LogoSvg from "@site/static/img/logo.svg";
 import HomepageFeature from '../components/HomepageFeature';
 import HomepageBanner from '../components/HomepageBanner';
-import HomepageIntro from '../components/HomepageIntro';
+// import HomepageIntro from '../components/HomepageIntro';
 import useWindowSize from '../hooks/useWindowSize';
 import { Button } from '@mui/material';
 import styled from '@emotion/styled';
+import Translate from '@docusaurus/Translate';
 
 const ButtonGroup = styled("div")((props) => ({
   display: "flex",
@@ -32,7 +33,7 @@ const HeroBanner = styled("div")(() => ({
 }))
 
 function HomepageHeader() {
-  const { siteConfig } = useDocusaurusContext();
+  const { siteMetadata } = useDocusaurusContext();
 
   const windowSize = useWindowSize();
 
@@ -46,12 +47,12 @@ function HomepageHeader() {
       </div>
       <ButtonGroup windoWidth={windowSize.width}>
         <Link
-          to="/docs/intro">
-          <Button variant="contained" sx={{ width: 200, margin: "5px" }}>Get Started</Button>
+          to={`/docs/${siteMetadata.siteVersion}/intro`}>
+          <Button variant="contained" sx={{ width: 200, margin: "5px" }}><Translate>Get Started</Translate></Button>
         </Link>
         <Link
-          to="/docs/intro">
-          <Button variant="outlined" sx={{ width: 200, margin: "5px" }}>Try Demo</Button>
+          to={`/docs/${siteMetadata.siteVersion}/intro`}>
+          <Button variant="outlined" sx={{ width: 200, margin: "5px" }}><Translate>Try Demo</Translate></Button>
         </Link>
       </ButtonGroup>
     </HeroBanner>
