@@ -64,6 +64,7 @@ Or **try Docusaurus immediately** with **[Docusaurus Versioning](https://docusau
 
 A typical versioned doc site looks like below:
 
+```
 website
 ├── sidebars.json        # sidebar for the current docs version
 ├── docs                 # docs directory for the current docs version
@@ -85,6 +86,7 @@ website
 │   └── version-1.0.0-sidebars.json
 ├── docusaurus.config.js
 └── package.json
+```
 
 The versions.json file is a list of version names, ordered from newest to oldest.
 
@@ -119,6 +121,7 @@ Or **try Docusaurus immediately** with **[Docusaurus Versioning](https://docusau
 
 A typical versioned doc site looks like below:
 
+```
 RISINGWAVE-DOCS/i18n
 └── fr
     ├── code.json  # Any text label present in the React code
@@ -139,6 +142,7 @@ RISINGWAVE-DOCS/i18n
     └── docusaurus-theme-classic # translation data the classic theme needs
         ├── footer.json   # Text labels in your footer theme config
         └── navbar.json   # Text labels in your navbar theme config
+```
 
 The JSON files are initialized with ```the docusaurus write-translations``` CLI command. Each plugin sources its own translated content under the corresponding folder, while the code.json file defines all text labels used in the React code.
 
