@@ -86,7 +86,7 @@ export default function HomepageFeature() {
           </div>
           <FeatureTextBoxMobile>
             {data.map((v, i) =>
-              <FeatureContentBox key={i} icon={v.icon} title={v.title} text={v.text} />
+              <FeatureContentBox key={i} icon={v.icon} title={v.title} text={v.text}/>
             )}
           </FeatureTextBoxMobile>
         </>}
