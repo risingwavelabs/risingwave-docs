@@ -16,7 +16,7 @@ const FormHeaderTitle = styled("div")(() => ({
 
 const FormDivContainer = styled("div")(() => ({
   marginLeft: "10px",
-  marginRight: "20px",
+  marginRight: "50px",
   width: "320px",
   minWidth: "320px",
   fontWeight: "bold",
@@ -105,6 +105,14 @@ const FeedbackForm = (props) => {
       <Label>
         Or, <a style={{}} href="https://github.com/github/docs/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
           learn how to contribute.
+        </a>
+      </Label>
+      <FormHeaderTitle style={{marginTop: "70px"}}>
+        Still need help?
+      </FormHeaderTitle>
+      <Label>
+        <a style={{}} href="https://github.com/github/docs/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
+          Ask the Gihub Commnuity
         </a>
       </Label>
     </FormDivContainer>

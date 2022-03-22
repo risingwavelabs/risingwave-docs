@@ -24,7 +24,12 @@ export default function EditThisPage({editUrl}) {
     //     Edit this page
     //   </Translate>
     // </a>
-    <FeedbackForm editUrl={editUrl}>
-    </FeedbackForm>
+    <>
+      <a style={{ fontSize: "18px", fontWeight: "bold", marginLeft: "10px"}} href="https://github.com/singularity-data/risingwave-docs/issues/new" target="_blank" rel="noopener">
+        Subject an issue
+      </a>
+      <FeedbackForm editUrl={editUrl}>
+      </FeedbackForm>
+    </>
   );
 }
