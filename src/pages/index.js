@@ -26,10 +26,11 @@ const HeroBanner = styled("div")(() => ({
   overflow: "hidden",
   padding: "1rem",
   height: "calc(100vh - 350px)",
+  minHeight: '350px',
   display: "flex",
   flexDirection: "column",
   justifyContent: "center",
-  alignItems: "center"
+  alignItems: "center",
 }))
 
 function HomepageHeader() {
@@ -70,6 +71,7 @@ export default function Home() {
       <main>
         <div style={{
           height: "100vh",
+          minHeight: "700px",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between"
