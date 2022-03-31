@@ -2,9 +2,7 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
-
-Let's discover **Docusaurus in less than 5 minutes**.
+* To learn about what RisingWave is and its architecture, see [Overview](Overview.md).
 
 ## Getting Started
 
