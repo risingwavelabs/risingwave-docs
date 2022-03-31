@@ -7,7 +7,7 @@ slug: /sources
 
 ## What are sources?
 
-Sources specify how RisingWave can connect to the streaming services you use and what the format and structure of the incoming data will be. Once you use [`CREATE SOURCE`](/sources/#create-source) to establish the connection, RisingWave can ingest and then process the received data.
+Sources specify how RisingWave can connect to the streaming services you use and what the format and structure of the incoming data will be. Once you use [`CREATE SOURCE`](/#create-source) to establish the connection, RisingWave can ingest and then process the received data.
 A source consists of the components below.
 
 ## Supported data sources
