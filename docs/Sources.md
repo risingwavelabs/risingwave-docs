@@ -60,7 +60,7 @@ ROW FORMAT 'json|protobuf'
 |kafka.consumer.group	|None	|String	|Name of the Kafka consumer group	|True|
 
 Here is an example of connecting RisingWave to a Kafka broker to read data from individual topics.
-```s q l
+```sql
 CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
    column1 varchar,
    column2 integer,
