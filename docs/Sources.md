@@ -52,7 +52,7 @@ ROW FORMAT 'json|protobuf'
 |Field|	Default|	Type|	Description|	Required?|
 |---|---|---|---|---|
 |kafka.topic|None|String|Address of the Kafka topic. One source can only correspond to one topic.|True
-|kafka.bootstrap.servers	|None	|String	|Address of the Kafka broker. Format-ip:port,ip:port	|True|
+|kafka.bootstrap.servers	|None	|String	|Address of the Kafka broker. Format: 'ip:port,ip:port'	|True|
 |kafka.scan.startup.mode	|earliest	|String	|The Kafka consumer starts consuming data from the commit offset. This includes two values: 'earliest' and 'latest'.	|False
 |kafka.time.offset	|None	|Int64	|Specify the offset in seconds from a certain point of time.	|False|
 |kafka.consumer.group	|None	|String	|Name of the Kafka consumer group	|True|
@@ -67,7 +67,7 @@ WITH (
    'connector'='kafka'
    'kafka.topic'='',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
-   'kafka.scan.startup.mode'='earliest|latest',
+   'kafka.scan.startup.mode'='latest',
    'kafka.time.offset'='140000000'
    'kafka.consumer.group'='XXX_CONSUMER_NAME'
 )
@@ -114,7 +114,7 @@ WITH (
    'pulsar.topic'='',
    'pulsar.service.url'='pulsar://localhost:6650/',
    'pulsar.admin.url'='XXXX'
-   'pulsar.scan.startup.mode'='earliest|latest',
+   'pulsar.scan.startup.mode'='latest',
    'pulsar.time.offset'='140000000'
 )
 ROW FORMAT 'protobuf' 
@@ -209,7 +209,7 @@ WITH (
    'connector'='kafka',
    'kafka.topic'='user_test_topic',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
-   'kafka.scan.startup.mode'='earliest|latest',
+   'kafka.scan.startup.mode'='earliest',
    'kafka.consumer.group'='XXX_CONSUMER_NAME'
 ) 
 ROW FORMAT 'debezium-json';
