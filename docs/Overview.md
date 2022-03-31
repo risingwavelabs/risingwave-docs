@@ -1,7 +1,6 @@
-
-
-Overview (draft)
-
+---
+sidebar_postion: 1
+---
 RisingWave is a cloud-native streaming database that uses SQL as the interface language. It is designed to reduce the complexity and cost of developing and using a stream processing platform so that developers can build applications more efficiently. It ingests streaming data, performs the processing that you specify (aggregates, joins, maps, enrichment, etc.), and dynamically updates the results. As a streaming database, RisingWave stores the results so that users can access them in real-time.
 
 RisingWave ingests data from sources like Kafka, Apache Pulsar, Amazon Kinesis, Redpanda, and materialized CDC sources.
