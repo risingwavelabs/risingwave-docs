@@ -5,14 +5,12 @@ description: Supported data sources and how to connect RisingWave to them.
 slug: /sources
 ---
 
-## What are sources?
 
-Sources specify how RisingWave can connect to the streaming services you use and what the format and structure of the incoming data will be. Once you use [`CREATE SOURCE`](/#create-source) to establish the connection, RisingWave can ingest and then process the received data.
-A source consists of the components below.
+Sources refer to resources that RisingWave can read data from. You use [`CREATE SOURCE`](/#connect-to-a-source) to establish the connection to a source. Once a connection is established, RisingWave will ingest and process the received data.
 
-## Supported data sources
+## Supported sources
 
-RisingWave ingests data from streaming platforms and materialized CDC sources listed below.
+RisingWave supports the following sources:
 
 | Source | Version | Data format | Materialized? | Limitations |
 |---------|---------|---------|---------|---------|
@@ -24,16 +22,16 @@ RisingWave ingests data from streaming platforms and materialized CDC sources li
 |MySQL CDC|	5.7, 8.0|	JSON|	Materialized only|	Must have primary key|
 
 
-## CREATE SOURCE
+## Connect to a source
 
-`CREATE SOURCE` connects RisingWave to a data source.
+`CREATE SOURCE` connects RisingWave to a data source. Click the tabs to see the syntax, options, and sample queries for the supported sources.
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 
 <Tabs>
-  <TabItem value="kafka-redpanda" label="Kafka & Redpanda" default>
+  <TabItem value="kafka&redpanda" label="Kafka & Redpanda" default>
 
 You can use the SQL statement below to connect RisingWave to a Kafka broker.
 
@@ -138,7 +136,7 @@ WITH (
    'connector'='kinesis',
    'field_name'='value', ...
 ) 
-ROW FORMAT 'json';
+ROW FORMAT 'json|protobuf';
 ```
 #### `WITH` options
 
