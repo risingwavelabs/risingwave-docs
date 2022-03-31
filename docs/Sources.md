@@ -1,7 +1,7 @@
 ---
 id: sources
 title: Sources
-description: sources
+description: Supported data sources and how to connect RisingWave to them.
 slug: /sources
 ---
 
@@ -33,12 +33,12 @@ import TabItem from '@theme/TabItem';
 
 
 <Tabs>
-  <TabItem value="Kafka & Redpanda" label="kafka&redpanda" default>
+  <TabItem value="kafka-redpanda" label="Kafka & Redpanda" default>
 
 You can use the SQL statement below to connect RisingWave to a Kafka broker.
 
 ### Syntax
-```SQL
+```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
    column_name data_type,[COMMENT col_comment], ...
 )
@@ -60,7 +60,7 @@ ROW FORMAT 'json|protobuf'
 |kafka.consumer.group	|None	|String	|Name of the Kafka consumer group	|True|
 
 Here is an example of connecting RisingWave to a Kafka broker to read data from individual topics.
-```SQL
+```s q l
 CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
    column1 varchar,
    column2 integer,
@@ -78,7 +78,7 @@ ROW FORMAT 'json'
 ```
   </TabItem>
 
-  <TabItem value="Pulsar" label="pulsar">
+  <TabItem value="pulsar" label="Pulsar">
 
 You can use the SQL statement below to connect RisingWave to a Pulsa broker.
 
@@ -106,7 +106,7 @@ ROW FORMAT 'json|protobuf'
 
 Here is an example of connecting RisingWave to a Pulsar broker to read data from individual topics.
 
-```SQL
+```sql
 CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
    column1 string,
    column2 integer,
@@ -124,13 +124,13 @@ ROW FORMAT 'protobuf'
 ```
   </TabItem>
 
-  <TabItem value="Kinesis" label="kinesis">
+  <TabItem value="kinesis" label="Kinesis">
    
 You can use the SQL statement below to connect RisingWave to Kinesis Data Streams.
 
 ### Syntax
 
-```SQL
+```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
    column_name data_type,[COMMENT col_comment], ...
 ) 
@@ -155,7 +155,7 @@ ROW FORMAT 'json';
 
 Here is an example of connecting RisingWave to Kinesis Data Streams to read data from individual streams.
 
-```SQL
+```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
    column1 varchar,
    column2 integer,
@@ -201,7 +201,7 @@ XXX
 
 Here is an example of connecting RisingWave to a CDC service to read data from individual streams.
 
-```SQL
+```sql
 CREATE MATERIALIZED SOURCE [IF NOT EXISTS] source_name (
    column1 varchar,
    column2 integer,
