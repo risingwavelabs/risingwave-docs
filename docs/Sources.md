@@ -83,7 +83,7 @@ ROW FORMAT 'json'
 You can use the SQL statement below to connect RisingWave to a Pulsa broker.
 
 ### Syntax
-
+```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
    column_name data_type,[COMMENT col_comment], ...
 )
@@ -93,7 +93,7 @@ WITH (
 )
 ROW FORMAT 'json|protobuf' 
 [ROW SCHEMA LOCATION 'local_file://path'];
-
+```
 #### `WITH` options
 
 |Field|	Default|	Type|	Description|	Required?|
@@ -184,7 +184,7 @@ Currently, RisingWave only supports materialized CDC sources with primary keys.
 :::
 
 ### Syntax
-
+```sql
 CREATE MATERIALIZED SOURCE [IF NOT EXISTS] source_name (
    column_name data_type [PRIMARY KEY],[COMMENT col_comment], ...
    PRIMARY KEY (column_1, column_2)
@@ -194,7 +194,7 @@ WITH (
    'field_name'='value', ...
 ) 
 ROW FORMAT 'debezium-json';
-
+```
 #### `WITH` options
 
 XXX
