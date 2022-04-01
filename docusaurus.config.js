@@ -27,7 +27,7 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js'),
           versions: {
             current: {
-              label: '',
+              label: 'Next',
               path: '/next',
             }
           },
