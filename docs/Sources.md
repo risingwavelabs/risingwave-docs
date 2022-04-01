@@ -35,7 +35,7 @@ import TabItem from '@theme/TabItem';
 
 You can use the SQL statement below to connect RisingWave to a Kafka broker.
 
-### Syntax
+#### Syntax
 ```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
    column_name data_type,[COMMENT col_comment], ...
@@ -57,6 +57,7 @@ ROW FORMAT 'json|protobuf'
 |kafka.time.offset	|None	|Int64	|Specify the offset in seconds from a certain point of time.	|False|
 |kafka.consumer.group	|None	|String	|Name of the Kafka consumer group	|True|
 
+#### Example
 Here is an example of connecting RisingWave to a Kafka broker to read data from individual topics.
 ```sql
 CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
@@ -69,7 +70,7 @@ WITH (
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
    'kafka.scan.startup.mode'='latest',
    'kafka.time.offset'='140000000'
-   'kafka.consumer.group'='XXX_CONSUMER_NAME'
+   'kafka.consumer.group'='demo_consumer_name'
 )
 ROW FORMAT 'json' 
 [ROW SCHEMA LOCATION 'local_file://path'];
@@ -80,7 +81,7 @@ ROW FORMAT 'json'
 
 You can use the SQL statement below to connect RisingWave to a Pulsa broker.
 
-### Syntax
+#### Syntax
 ```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
    column_name data_type,[COMMENT col_comment], ...
@@ -102,6 +103,7 @@ ROW FORMAT 'json|protobuf'
 |pulsar.scan.startup.mode	|earliest	|String	|The Pulsar consumer starts consuming data from the commit offset. This includes two values: 'earliest' and 'latest'.	|False|
 |pulsar.time.offset	|None	|Int64	|Specify the offset in seconds from a certain point of time.	|False|
 
+#### Example
 Here is an example of connecting RisingWave to a Pulsar broker to read data from individual topics.
 
 ```sql
@@ -126,7 +128,7 @@ ROW FORMAT 'protobuf'
    
 You can use the SQL statement below to connect RisingWave to Kinesis Data Streams.
 
-### Syntax
+#### Syntax
 
 ```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
@@ -151,6 +153,7 @@ ROW FORMAT 'json|protobuf';
 |kinesis.assumerole.arn	|None	|String		|False|
 |kinesis.assumerole.external_id	|None	|String	|The [external id](https://aws.amazon.com/blogs/security/how-to-use-external-id-when-granting-access-to-your-aws-resources/) used to authorize access to third-party resources	|False|
 
+#### Example
 Here is an example of connecting RisingWave to Kinesis Data Streams to read data from individual streams.
 
 ```sql
@@ -163,9 +166,9 @@ WITH (
    'kinesis.stream.name'='kafka',
    'kinesis.stream.region'='user_test_topic',
    'kinesis.endpoint'='172.10.1.1:9090,172.10.1.2:9090',
-   'kinesis.credentials.session_token'='xxx',
-   'kinesis.assumerole.arn'='xxx',
-   'kinesis.assumerole.external_id'='xxx'
+   'kinesis.credentials.session_token'='AQoEXAMPLEH4aoAH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh3c/L To6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4IgRmpRV3z rkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15fjrBs2+cTQtp Z3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE',
+   'kinesis.assumerole.arn'='arn:aws-cn:iam::602389639824:role/demo_role',
+   'kinesis.assumerole.external_id'='demo_external_id'
 ) 
 ROW FORMAT 'json';
 ```
@@ -181,7 +184,7 @@ Currently, RisingWave only supports materialized CDC sources with primary keys.
 
 :::
 
-### Syntax
+#### Syntax
 ```sql
 CREATE MATERIALIZED SOURCE [IF NOT EXISTS] source_name (
    column_name data_type [PRIMARY KEY],[COMMENT col_comment], ...
@@ -197,6 +200,7 @@ ROW FORMAT 'debezium-json';
 
 XXX
 
+#### Example
 Here is an example of connecting RisingWave to a CDC service to read data from individual streams.
 
 ```sql
@@ -210,7 +214,7 @@ WITH (
    'kafka.topic'='user_test_topic',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
    'kafka.scan.startup.mode'='earliest',
-   'kafka.consumer.group'='XXX_CONSUMER_NAME'
+   'kafka.consumer.group'='demo_consumer_name'
 ) 
 ROW FORMAT 'debezium-json';
 ```
