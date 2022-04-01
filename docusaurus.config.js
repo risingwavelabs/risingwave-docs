@@ -74,10 +74,6 @@ const config = {
             position: 'right'
           },
           {
-            type: 'localeDropdown',
-            position: 'right',
-          },
-          {
             href: 'https://github.com/singularity-data/risingwave-dev',
             label: 'GitHub',
             position: 'right',
@@ -153,15 +149,7 @@ const config = {
         //... other Algolia params
       },
       metadata: [{name: 'keywords', content: 'doc, blog'}],
-      items: [
-        { label: 'Next', to: 'docs/next/intro' },
-        { label: '1.0.0', to: 'docs/1.0.0/intro' }
-      ],
     }),
-    i18n: {
-      defaultLocale: 'en',
-      locales: ['en', 'fr'],
-    },
 };
 
 module.exports = config;
