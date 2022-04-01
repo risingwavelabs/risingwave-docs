@@ -6,7 +6,7 @@ slug: /sources
 ---
 
 
-Sources refer to resources that RisingWave can read data from. You use [`CREATE SOURCE`](/#connect-to-a-source) to establish the connection to a source. Once a connection is established, RisingWave will ingest and process the received data.
+Sources are resources that RisingWave can read data from. You use [`CREATE SOURCE`](/#connect-to-a-source) to establish the connection to a source. Once a connection is established, RisingWave will ingest and process the received data.
 
 ## Supported sources
 
