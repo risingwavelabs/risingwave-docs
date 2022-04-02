@@ -74,10 +74,6 @@ const config = {
             position: 'right'
           },
           {
-            type: 'localeDropdown',
-            position: 'right',
-          },
-          {
             href: 'https://github.com/singularity-data/risingwave',
             label: 'GitHub',
             position: 'right',
@@ -156,10 +152,6 @@ const config = {
         { label: 'Latest', to: 'docs/latest/intro' },
       ],
     }),
-    i18n: {
-      defaultLocale: 'en',
-      locales: ['en'],
-    },
 };
 
 module.exports = config;
