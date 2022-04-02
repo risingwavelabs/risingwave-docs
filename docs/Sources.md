@@ -3,6 +3,7 @@ id: sources
 title: Sources
 description: Supported data sources and how to connect RisingWave to them.
 slug: /sources
+sidebar-position: 3
 ---
 
 
