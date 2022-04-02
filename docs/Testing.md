@@ -47,12 +47,11 @@ If you use Homebrew, run the following commands to install the dependencies.
 brew install java11 cmake protobuf openssl postgresql tmux
 ```
 ```
-curl —proto ‘=https' —tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
+curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
 ```
   </TabItem>
 
-  <TabItem value="linux" label="Linux" default>
-Linux
+  <TabItem value="linux" label="Linux">
 
 ```
 sudo apt update
