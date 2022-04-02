@@ -10,3 +10,63 @@ slug: /testing
 ### Testing3
 # Testing1
 #### Testing4
+
+macOS
+
+If you use Homebrew, run the following commands to install the dependencies.
+
+```
+brew install java11 cmake protobuf openssl postgresql tmux
+```
+```
+curl —proto ‘=https' —tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
+```
+
+Linux
+
+```
+sudo apt update
+
+sudo apt upgrade
+
+sudo apt install openjdk-11-jdk
+
+sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
+
+sudo apt install postgresql-client
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+<Tabs>
+  <TabItem value="macos" label="macOS" default>
+
+If you use Homebrew, run the following commands to install the dependencies.
+
+```
+brew install java11 cmake protobuf openssl postgresql tmux
+```
+```
+curl —proto ‘=https' —tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
+```
+  </TabItem>
+
+  <TabItem value="linux" label="Linux" default>
+Linux
+
+```
+sudo apt update
+
+sudo apt upgrade
+
+sudo apt install openjdk-11-jdk
+
+sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
+
+sudo apt install postgresql-client
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+  </TabItem>
+
+</Tabs>
