@@ -37,6 +37,8 @@ sudo apt install postgresql-client
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
 <Tabs>
   <TabItem value="macos" label="macOS" default>
