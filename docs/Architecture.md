@@ -1,5 +1,9 @@
 ---
 sidebar_postion: 2
+id: architecture
+title: Architecture
+slug: /architecture
+
 ---
 
 
