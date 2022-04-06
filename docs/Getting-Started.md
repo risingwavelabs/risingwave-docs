@@ -66,7 +66,7 @@ import TabItem from '@theme/TabItem';
 
 
 ```
-brew install java11 cmake protobuf openssl postgresql tmux
+brew install cmake protobuf openssl postgresql tmux
 ```
 
 ```
@@ -77,15 +77,21 @@ curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) 
 
 ```
 sudo apt update
+```
 
+```
 sudo apt upgrade
+```
 
-sudo apt install openjdk-11-jdk
-
+```
 sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
+```
 
+```
 sudo apt install postgresql-client
+```
 
+```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 </TabItem>
