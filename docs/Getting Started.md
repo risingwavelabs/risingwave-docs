@@ -4,8 +4,7 @@ title: Getting Started
 description: Basic steps for starting and using RisingWave.
 slug: /getting-started
 ---
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+
 
 This guide will walk you through the basic steps for starting and using RisingWave. 
 
@@ -48,38 +47,40 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
     * PostgreSQL client (>=14.1)
     * Tmux
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
     <Tabs>
      <TabItem value="macos" label="macOS" default>
 
-    If you use Homebrew, run the following commands to install the dependencies.
+        If you use Homebrew, run the following commands to install the dependencies.
 
-    ```
-    brew install java11 cmake protobuf openssl postgresql tmux
-    ```
-    ```
-    curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
-    ```
-    </TabItem>
+        ```
+        brew install java11 cmake protobuf openssl postgresql tmux
+        ```
+        ```
+        curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
+        ```
+     </TabItem>
 
-    <TabItem value="linux" label="Linux">
+     <TabItem value="linux" label="Linux">
 
-    ```
-    sudo apt update
+        ```
+        sudo apt update
 
-    sudo apt upgrade
+        sudo apt upgrade
 
-    sudo apt install openjdk-11-jdk
+        sudo apt install openjdk-11-jdk
 
-    sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
+        sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
 
-    sudo apt install postgresql-client
+        sudo apt install postgresql-client
 
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    ```
-    </TabItem>
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+        ```
+     </TabItem>
 
-    </Tabs>
+     </Tabs>
 
 1. Start RisingWave.
 
