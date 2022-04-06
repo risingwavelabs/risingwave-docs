@@ -4,7 +4,8 @@ title: Getting Started
 description: Basic steps for starting and using RisingWave.
 slug: /getting-started
 ---
-
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
 This guide will walk you through the basic steps for starting and using RisingWave. 
 
@@ -47,8 +48,6 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
     * PostgreSQL client (>=14.1)
     * Tmux
 
-    import Tabs from '@theme/Tabs';
-    import TabItem from '@theme/TabItem';
 
     <Tabs>
      <TabItem value="macos" label="macOS" default>
