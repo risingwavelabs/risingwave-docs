@@ -49,35 +49,36 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+
 <div style={{marginLeft:"3rem"}}>
 <Tabs>
 <TabItem value="macos" label="macOS" default>
 
-    Run the following commands to install the dependencies.
+If you use Homebrew, run the following commands to install the dependencies.
 
-    ```
-    brew install java11 cmake protobuf openssl postgresql tmux
-    ```
-    ```
-    curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
-    ```
-    </TabItem>
+```
+brew install java11 cmake protobuf openssl postgresql tmux
+```
 
-    <TabItem value="linux" label="Linux">
+```
+curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
+```
+</TabItem>
+<TabItem value="linux" label="Linux">
 
-    ```
-    sudo apt update
+```
+sudo apt update
 
-    sudo apt upgrade
+sudo apt upgrade
 
-    sudo apt install openjdk-11-jdk
+sudo apt install openjdk-11-jdk
 
-    sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
+sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
 
-    sudo apt install postgresql-client
+sudo apt install postgresql-client
 
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    ```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 </TabItem>
 </Tabs>
 </div>
