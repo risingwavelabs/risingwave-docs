@@ -41,14 +41,14 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
 
     RisingWave has the following dependencies. Ensure the dependencies are installed before starting RisingWave.
 
-<div style={{marginLeft:"2rem"}}>
 * Rust
 * CMake
 * Protocol Buffers
 * OpenSSL
 * PostgreSQL client (14.1 or higher)
 * Tmux
-</div>
+
+Select your operating system and run the following commands to install the dependencies.
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -57,7 +57,6 @@ import TabItem from '@theme/TabItem';
 <Tabs>
 <TabItem value="macos" label="macOS" default>
 
-If you use Homebrew, run the following commands to install the dependencies.
 
 ```
 brew install java11 cmake protobuf openssl postgresql tmux
@@ -150,9 +149,8 @@ RisingWave uses Postgres-compatible SQL as the interface to manage and query dat
 * Create a materialized view from an existing materialized view
 * Get values of a materialized view
 
-To create a table:
 
-```sql
+```sql title="To create a table:"
 CREATE TABLE t2 (v1 INT NOT NULL, v2 INT NOT NULL, v3 INT NOT NULL);
 ```
 
@@ -161,21 +159,18 @@ CREATE TABLE t2 (v1 INT NOT NULL, v2 INT NOT NULL, v3 INT NOT NULL);
 CREATE MATERIALIZED VIEW mv2 AS SELECT(avg(v1), 1) AS avg_v1, SUM(v2) AS sum_v2, COUNT(v3) AS count_v3 FROMt1;
 ```
 
-To create a materialized view from a source:
 
-```sql
+```sql title="To create a materialized view from a source:"
 CREATE MATERIALIZED VIEW debezium_json_mysql_mv AS SELECT * FROM debezium_json_mysql_source;
 ```
 
-To create a materialized view from existing materialized views:
 
-```sql
+```sql title="To create a materialized view from existing materialized views:"
 CREATE MATERIALIZED VIEW m4 AS SELECT m1.v1, m1.v2, m2.v1, m2.v2 FROM m1 JOIN m2 ON m1.v1 = m2.v1;
 ```
 
-To get the latest values of a materialized view:
 
-```sql
+```sql title="To get the latest values of a materialized view:"
 FLUSH;
 SELECT * FROM m4;
 ```
