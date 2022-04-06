@@ -1,6 +1,5 @@
 ---
 id: intro
-title: Introduction
 slug: /intro
 sidebar_position: 1
 ---
@@ -13,19 +12,23 @@ RisingWave ingests data from sources like Kafka, Apache Pulsar, Amazon Kinesis, 
 
 ## What can you do with RisingWave?
 
+Everything you do in RisingWave is via Postgres-compatible SQL. You can:
 
+* Collect and transform data from streams
+* Create materialized views for the data that need to be incrementally aggregated
+* Query for data in RisingWave, including persisted data and data you add or import to RisingWave.
 
 ## How does RisingWave work?
+
+**SQL as the interface language**
+
+RisingWave makes it easy to manage streams and data. All you need to interact with RisingWave is Postgres-compatible SQL. No Java or Scala codes are needed.
 
 **Real-time results via materialized views**
 
 With RisingWave, you define the data you need as materialized views. As new data come in, RisingWave only performs incremental aggregations as the results for previous events have already been calculated, thus reducing the processing time significantly. To further lower the latency, we optimized the storage processing logic for complex computations and high-concurrency scenarios. Queries can be processed and results can be delivered with low latency even in these demanding circumstances.
 
 Results of materialized views are stored in RisingWave. You can issue a query to find out the latest result of a materialized view.
-
-**SQL as the interface language**
-
-RisingWave makes it easy to manage streams and data. All you need to interact with RisingWave is Postgres-compatible SQL. No Java or Scala codes are needed.
 
 **Elastic and cost-effective**
 
