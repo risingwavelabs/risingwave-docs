@@ -40,17 +40,20 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
 2. Install dependencies.
 
     RisingWave has the following dependencies. Ensure the dependencies are installed before starting RisingWave.
-    * Rust
-    * CMake
-    * Protocol Buffers
-    * OpenSSL
-    * PostgreSQL client (14.1 or higher)
-    * Tmux
+
+<div style={{marginLeft:"2rem"}}>
+* Rust
+* CMake
+* Protocol Buffers
+* OpenSSL
+* PostgreSQL client (14.1 or higher)
+* Tmux
+</div>
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-<div style={{marginLeft:"3rem"}}>
+<div style={{marginLeft:"2rem"}}>
 <Tabs>
 <TabItem value="macos" label="macOS" default>
 
@@ -138,7 +141,7 @@ For supported streaming sources and SQL examples, please see [Sources](Sources.m
 
 ## Query and manage data
 
-RisingWave uses Postgres-compatible SQL as the interface to manage and query data. Let's see a few examples 
+RisingWave uses Postgres-compatible SQL as the interface to manage and query data. Let's see a few examples:
 
 * Create a table
 * Create a materialized view from tables
@@ -153,9 +156,8 @@ To create a table:
 CREATE TABLE t2 (v1 INT NOT NULL, v2 INT NOT NULL, v3 INT NOT NULL);
 ```
 
-To create a materialized view from tables:
 
-```sql
+```sql title="To create a materialized view from tables:"
 CREATE MATERIALIZED VIEW mv2 AS SELECT(avg(v1), 1) AS avg_v1, SUM(v2) AS sum_v2, COUNT(v3) AS count_v3 FROMt1;
 ```
 
