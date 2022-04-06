@@ -37,53 +37,52 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
     git clone https://github.com/singularity-data/risingwave.git
     ```
 
-1. Install dependencies.
+2. Install dependencies.
 
     RisingWave has the following dependencies. Ensure the dependencies are installed before starting RisingWave.
-    * Java 11 (Note: Please use Java 11 as it is the only version we tested.)
     * Rust
     * CMake
     * Protocol Buffers
     * OpenSSL
-    * PostgreSQL client (>=14.1)
+    * PostgreSQL client (14.1 or higher)
     * Tmux
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+<div style={{marginLeft:"3rem"}}>
+<Tabs>
+<TabItem value="macos" label="macOS" default>
 
-    <Tabs>
-     <TabItem value="macos" label="macOS" default>
+    Run the following commands to install the dependencies.
 
-        Run the following commands to install the dependencies.
+    ```
+    brew install java11 cmake protobuf openssl postgresql tmux
+    ```
+    ```
+    curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
+    ```
+    </TabItem>
 
-        ```
-        brew install java11 cmake protobuf openssl postgresql tmux
-        ```
-        ```
-        curl -proto '=https' -tlsv1.2 -sSf https://sh.rustup.rs (https://sh.rustup.rs/) | sh
-        ```
-     </TabItem>
+    <TabItem value="linux" label="Linux">
 
-     <TabItem value="linux" label="Linux">
+    ```
+    sudo apt update
 
-        ```
-        sudo apt update
+    sudo apt upgrade
 
-        sudo apt upgrade
+    sudo apt install openjdk-11-jdk
 
-        sudo apt install openjdk-11-jdk
+    sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
 
-        sudo apt install make build-essential cmake protobuf-compiler curl openssl libssl-dev pkg-config
+    sudo apt install postgresql-client
 
-        sudo apt install postgresql-client
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    ```
+</TabItem>
+</Tabs>
+</div>
 
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-        ```
-     </TabItem>
-
-     </Tabs>
-
-1. Start RisingWave.
+3. Start RisingWave.
 
     To start RisingWave, in the terminal, navigate to the directory where RisingWave is downloaded, and run the following command.
     ```
@@ -106,7 +105,7 @@ import TabItem from '@theme/TabItem';
     ./risedev kill
     ```
 
-1. After RisingWave services are started, start the PostgreSQL interactive shell.
+4. After RisingWave services are started, start the PostgreSQL interactive shell.
     ```
     psql -h localhost -p 4566 -d dev
     ```
