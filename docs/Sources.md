@@ -66,14 +66,13 @@ CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
 )
 WITH (
    'connector'='kafka'
-   'kafka.topic'='',
+   'kafka.topic'='demo_topic',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
    'kafka.scan.startup.mode'='latest',
    'kafka.time.offset'='140000000'
    'kafka.consumer.group'='demo_consumer_name'
 )
 ROW FORMAT 'json' 
-[ROW SCHEMA LOCATION 'local_file://path'];
 ```
   </TabItem>
 
@@ -91,7 +90,6 @@ WITH (
    'field_name'='value', ...
 )
 ROW FORMAT 'json|protobuf' 
-[ROW SCHEMA LOCATION 'local_file://path'];
 ```
 #### `WITH` options
 
@@ -113,14 +111,14 @@ CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
 )
 WITH (
    'connector'='pulsar'
-   'pulsar.topic'='',
+   'pulsar.topic'='demo_topic',
    'pulsar.service.url'='pulsar://localhost:6650/',
-   'pulsar.admin.url'='XXXX'
+   'pulsar.admin.url'='http://localhost:8080'
    'pulsar.scan.startup.mode'='latest',
    'pulsar.time.offset'='140000000'
 )
 ROW FORMAT 'protobuf' 
-[ROW SCHEMA LOCATION 'local_file://path'];
+ROW SCHEMA LOCATION 'https://[bucket_name].s3-us-west-2.amazonaws.com/demo.proto';
 ```
   </TabItem>
 

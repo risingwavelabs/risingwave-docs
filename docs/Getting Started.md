@@ -54,7 +54,7 @@ import TabItem from '@theme/TabItem';
     <Tabs>
      <TabItem value="macos" label="macOS" default>
 
-        If you use Homebrew, run the following commands to install the dependencies.
+        Run the following commands to install the dependencies.
 
         ```
         brew install java11 cmake protobuf openssl postgresql tmux
@@ -99,7 +99,7 @@ import TabItem from '@theme/TabItem';
 
     :::
 
-    All services in RisingWave will be started. In this version, all nodes are hosted in your local environment.
+    All services in RisingWave will be started. In the current version, all nodes are hosted in your local environment.
 
     You can stop RisingWave with the following command.
     ```
@@ -150,32 +150,32 @@ RisingWave uses Postgres-compatible SQL as the interface to manage and query dat
 To create a table:
 
 ```sql
-create table t2 (v1 int not null, v2 int not null, v3 int not null);
+CREATE TABLE t2 (v1 INT NOT NULL, v2 INT NOT NULL, v3 INT NOT NULL);
 ```
 
 To create a materialized view from tables:
 
 ```sql
-Create materialized view mv2 as select round(avg(v1), 1) as avg_v1, sum(v2) as sum_v2, count(v3) as count_v3 from t1;
+CREATE MATERIALIZED VIEW mv2 AS SELECT(avg(v1), 1) AS avg_v1, SUM(v2) AS sum_v2, COUNT(v3) AS count_v3 FROMt1;
 ```
 
 To create a materialized view from a source:
 
 ```sql
-create materialized view debezium_json_mysql_mv as select * from debezium_json_mysql_source;
+CREATE MATERIALIZED VIEW debezium_json_mysql_mv AS SELECT * FROM debezium_json_mysql_source;
 ```
 
 To create a materialized view from existing materialized views:
 
 ```sql
-create materialized view m4 as select m1.v1, m1.v2, m2.v1, m2.v2 from m1 join m2 on m1.v1 = m2.v1;
+CREATE MATERIALIZED VIEW m4 AS SELECT m1.v1, m1.v2, m2.v1, m2.v2 FROM m1 JOIN m2 ON m1.v1 = m2.v1;
 ```
 
 To get the latest values of a materialized view:
 
 ```sql
-flush;
-select * from m4;
+FLUSH;
+SELECT * FROM m4;
 ```
 
 For the complete list of supported SQL statements, see [SQL](SQL.md).
