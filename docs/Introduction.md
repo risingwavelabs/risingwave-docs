@@ -7,7 +7,7 @@ sidebar_position: 1
 
 ## What is RisingWave?
 
-RisingWave is a cloud-native streaming database that uses SQL as the interface language. It is designed to reduce the complexity and cost of developing and using a stream processing platform so that developers can build applications more efficiently. It ingests streaming data, performs the processing that you specify (aggregates, joins, maps, enrichment, etc.), and dynamically updates the results. As a streaming database, RisingWave stores the results so that users can access them in real-time.
+RisingWave is a cloud-native streaming database that uses SQL as the interface. It is designed to reduce the complexity and cost of developing and using a stream processing platform so that developers can build applications more efficiently. It ingests streaming data, performs the processing that you specify (aggregates, joins, maps, enrichment, etc.), and dynamically updates the results. As a streaming database, RisingWave stores the results so that users can access them in real-time.
 
 RisingWave ingests data from sources like Kafka, Apache Pulsar, Amazon Kinesis, Redpanda, and materialized CDC sources.
 
@@ -21,13 +21,13 @@ Everything you do in RisingWave is via Postgres-compatible SQL. You can:
 
 ## How does RisingWave work?
 
-- See [Getting Started](Getting Started.md) to learn about how to get started with RisingWave. 
+- See [Getting Started](Getting-Started.md) to learn about how to get started with RisingWave. 
 - For the architecture of RisingWave, see [Architecture](Architecture.md).
 - To learn about the supported stream sources and how to connect to the sources, see [Sources](Sources.md).
 - For the supported SQL data types, operators, and statements, see [SQL](SQL.md).
 
 
-### SQL as the interface language
+### SQL as the interface
 
 RisingWave makes it easy to manage streams and data. All you need to interact with RisingWave is Postgres-compatible SQL. No Java or Scala codes are needed.
 
