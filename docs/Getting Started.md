@@ -81,7 +81,6 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
 
     </Tabs>
 
-
 1. Start RisingWave.
 
     To start RisingWave, in the terminal, navigate to the directory where RisingWave is downloaded, and run the following command.
@@ -104,7 +103,6 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
     ```
     ./risedev kill
     ```
-
 
 1. After RisingWave services are started, start the PostgreSQL interactive shell.
     ```
