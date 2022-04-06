@@ -17,16 +17,23 @@ This guide will walk you through the basic steps for starting and using RisingWa
 
 ### Pre-built library (Linux x86_64)
 
-```
-// Download the pre-built library
-wget https://github.com/singularity-data/risingwave/releases/download/v0.1.4/risingwave-v0.1.4-unknown-linux.tar.gz
+1. Download the pre-built library.
 
-// Unzip the library
-tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
+    ```
+    wget https://github.com/singularity-data/risingwave/releases/download/v0.1.4/risingwave-v0.1.4-unknown-linux.tar.gz
+    ```
 
-// Start RisingWave in testing mode.
-./risingwave playground
-```
+1. Unzip the library.
+
+    ```
+    tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
+    ```
+
+1. Start RisingWave in testing mode.
+
+    ```
+    ./risingwave playground
+    ```
 
 ### Build from code (macOS & Linux)
 
@@ -41,12 +48,12 @@ tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
 
     RisingWave has the following dependencies. Ensure the dependencies are installed before starting RisingWave.
 
-* Rust
-* CMake
-* Protocol Buffers
-* OpenSSL
-* PostgreSQL client (14.1 or higher)
-* Tmux
+    * Rust
+    * CMake
+    * Protocol Buffers
+    * OpenSSL
+    * PostgreSQL client (14.1 or higher)
+    * Tmux
 
 Select your operating system and run the following commands to install the dependencies.
 
@@ -151,22 +158,38 @@ RisingWave uses Postgres-compatible SQL as the interface to manage and query dat
 
 
 ```sql title="To create a table:"
-CREATE TABLE t2 (v1 INT NOT NULL, v2 INT NOT NULL, v3 INT NOT NULL);
+CREATE TABLE t2 (
+    v1 INT NOT NULL, 
+    v2 INT NOT NULL, 
+    v3 INT NOT NULL
+);
 ```
 
 
 ```sql title="To create a materialized view from tables:"
-CREATE MATERIALIZED VIEW mv2 AS SELECT(avg(v1), 1) AS avg_v1, SUM(v2) AS sum_v2, COUNT(v3) AS count_v3 FROMt1;
+CREATE MATERIALIZED VIEW mv2 
+AS 
+    SELECT
+        (AVG(v1), 1) AS avg_v1, 
+        SUM(v2) AS sum_v2, 
+        COUNT(v3) AS count_v3 
+    FROM t1;
 ```
 
 
 ```sql title="To create a materialized view from a source:"
-CREATE MATERIALIZED VIEW debezium_json_mysql_mv AS SELECT * FROM debezium_json_mysql_source;
+CREATE MATERIALIZED VIEW debezium_json_mysql_mv 
+AS 
+    SELECT * FROM debezium_json_mysql_source;
 ```
 
 
 ```sql title="To create a materialized view from existing materialized views:"
-CREATE MATERIALIZED VIEW m4 AS SELECT m1.v1, m1.v2, m2.v1, m2.v2 FROM m1 JOIN m2 ON m1.v1 = m2.v1;
+CREATE MATERIALIZED VIEW m4 
+AS 
+    SELECT m1.v1, m1.v2, m2.v1, m2.v2 
+    FROM m1 
+    JOIN m2 ON m1.v1 = m2.v1;
 ```
 
 
