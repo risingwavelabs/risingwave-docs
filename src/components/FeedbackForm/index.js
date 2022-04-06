@@ -7,7 +7,7 @@ import ContributeIcon from "@site/static/img/git_contribute.svg";
 import useWindowSize from "../../hooks/useWindowSize";
 import axios from 'axios'
 
-const FORM_ENDPOINT = "http://localhost:8080/api/feedbacks";
+const FORM_ENDPOINT = "http://localhost:80/api/v1/feedbacks";
 
 const FormHeaderTitle = styled("div")(() => ({
   fontSize: "18px;",
@@ -79,21 +79,6 @@ const FeedbackForm = (props) => {
       like: Number(formData.like)
     })
     .then((response) => {
-      // It's likely a spam/bot request, so bypass it to validate via captcha
-      if (response.status === 422) {
-        Object.keys(formData).forEach((key) => {
-          const el = document.createElement("input");
-          el.type = "hidden";
-          el.name = key;
-          el.value = formData[key];
-
-          e.target.appendChild(el);
-        });
-
-        e.target.submit();
-        throw new Error("Please finish the captcha challenge");
-      }
-
       if (response.status !== 200) {
         throw new Error(response.statusText);
       }
