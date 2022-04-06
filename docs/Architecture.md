@@ -14,4 +14,4 @@ RisingWave includes these key components:
 * A meta server that coordinates the operations between the serving layer and the processing layer.
 * A persistence layer that stores data to and retrieves data from object storage like S3.
 
-[Image: archi_external.png]
+![images/archi_external.png]
