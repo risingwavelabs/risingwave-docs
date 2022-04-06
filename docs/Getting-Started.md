@@ -55,7 +55,7 @@ This guide will walk you through the basic steps for starting and using RisingWa
     * PostgreSQL client (14.1 or higher)
     * Tmux
 
-Select your operating system and run the following commands to install the dependencies.
+    Select your operating system and run the following commands to install the dependencies.
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
