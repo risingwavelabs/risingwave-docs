@@ -41,11 +41,6 @@ const sidebars = {
     label: `Sources`,
   },
   {
-    type: `doc`,
-    id: `architecture`,
-    label: `Architecture`,
-  },
-  {
     type: `category`,
     label: `SQL`,
     collapsible: true,
