@@ -13,7 +13,7 @@ title: Operators and functions
 * NOT
 * IS [NOT] {TRUE | FALSE}
 
-Comparison operators
+## Comparison operators
 
 * &lt; (less than)
 * &gt; (greater than)
