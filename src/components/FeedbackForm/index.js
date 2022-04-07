@@ -4,9 +4,10 @@ import ThumbUpOffAltIcon from '@mui/icons-material/ThumbUpOffAlt';
 import ThumbDownOffAltIcon from '@mui/icons-material/ThumbDownOffAlt';
 import { Button } from '@mui/material';
 import ContributeIcon from "@site/static/img/git_contribute.svg";
-import useWindowSize from "../hooks/useWindowSize";
+import useWindowSize from "../../hooks/useWindowSize";
+import axios from 'axios'
 
-const FORM_ENDPOINT = "";
+const FORM_ENDPOINT = "http://localhost:80/api/v1/feedbacks";
 
 const FormHeaderTitle = styled("div")(() => ({
   fontSize: "18px;",
@@ -40,56 +41,52 @@ const LabelOptional = styled("span")(() => ({
 const FeedbackForm = (props) => {
   const size = useWindowSize();
   const [status, setStatus] = useState('');
+  const [formData, setFormData] = useState({
+    email: "",
+    description: "",
+    like: true
+  });
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  }
+  const handleLike = (e) => {
+    setFormData({
+      ...formData,
+      like: !formData.like
+    });
+  }
+  const valid = () => {
+    if(!formData.email)  {
+      alert('Required Email');
+      return false;
+    }  
+    if(!formData.description)  {
+      alert('Required Message');
+      return false;
+    }  
+    return true;
+  }
   const handleSubmit = (e) => {
     e.preventDefault();
+    if(!valid()) return;
 
-    // Anything you need to inject dynamically
-    const injectedData = {
-      
-    };
-    const inputs = e.target.elements;
-    const data = {};
-
-    for (let i = 0; i < inputs.length; i++) {
-      if (inputs[i].name) {
-        data[inputs[i].name] = inputs[i].value;
-      }
-    }
-
-    Object.assign(data, injectedData);
-
-    fetch(FORM_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
+    axios.post(FORM_ENDPOINT, {
+      email: formData.email,
+      description: formData.description,
+      like: Number(formData.like)
     })
-      .then((response) => {
-        // It's likely a spam/bot request, so bypass it to validate via captcha
-        if (response.status === 422) {
-          Object.keys(injectedData).forEach((key) => {
-            const el = document.createElement("input");
-            el.type = "hidden";
-            el.name = key;
-            el.value = injectedData[key];
+    .then((response) => {
+      if (response.status !== 200) {
+        throw new Error(response.statusText);
+      }
 
-            e.target.appendChild(el);
-          });
-
-          e.target.submit();
-          throw new Error("Please finish the captcha challenge");
-        }
-
-        if (response.status !== 200) {
-          throw new Error(response.statusText);
-        }
-
-        return response.json();
-      })
-      .then(() => setStatus("We'll be in touch soon."))
-      .catch((err) => setStatus(err.toString()));
+      return response;
+    })
+    .then(() => setStatus("We'll be in touch soon."))
+    .catch((err) => setStatus(err.toString()));
   };
 
   const Contribute = (
@@ -146,18 +143,18 @@ const FeedbackForm = (props) => {
     >
       <FormDivContainer>
         <FormHeaderTitle>Did this doc help you?</FormHeaderTitle>
-        <Button variant="contained" color="primary" style={{marginRight: "5px"}}>
+        <Button variant={formData.like? "contained": "outlined"} color="primary" style={{marginRight: "5px"}} onClick={handleLike}>
           <ThumbUpOffAltIcon />
         </Button>
-        <Button variant="outlined">
+        <Button variant={!formData.like? "contained": "outlined"} onClick={handleLike}>
           <ThumbDownOffAltIcon />
         </Button>
         <Label>Let us know what we do well.<LabelOptional>Optional</LabelOptional></Label>
-        <textarea placeholder="" name="message" required cols={38} rows={5} style={{borderRadius: "5px", padding: "10px"}}/>
+        <textarea value={formData.description} onChange={handleChange} placeholder="" name="description" required cols={38} rows={5} style={{borderRadius: "5px", padding: "10px"}}/>
         <Label><span>If we can contact you with more questions, please enter your email address.</span>
           <LabelOptional>Optional</LabelOptional>
         </Label>
-        <input type="email" placeholder="email@example.com" name="email" required style={{width: "320px",borderRadius: "5px", padding: "10px"}}/>
+        <input value={formData.email} onChange={handleChange} type="email" placeholder="email@example.com" name="email" required style={{width: "320px",borderRadius: "5px", padding: "10px"}}/>
         <Label><span style={{ opacity: "0.5"}}>If you need a reply, please contact support instead.</span>
         </Label>
         <Button variant="outlined" style={{float: "right", fontWeight: "bold"}} onClick={handleSubmit}>
