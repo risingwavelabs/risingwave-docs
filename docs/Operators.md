@@ -13,21 +13,21 @@ title: Operators and functions
 
 Comparison operators
 
-* < (less than)
-* > (greater than)
+* &lt; (less than)
+* &gt; (greater than)
 * = (equal)
-* <= (less than or equal to)
-* >= (greater than or equal to)
-* <> / != (not equal)
+* &lt;= (less than or equal to)
+* &gt;= (greater than or equal to)
+* &lt;&gt; / != (not equal)
 * BETWEEN
 * IS [NOT] NULL
 
 ## Mathematical functions and operators
 
 * neg
-* + (addition)
-* - (subtraction)
-* * (multiplication)
+* \+ (addition)
+* \- (subtraction)
+* \* (multiplication)
 * / (division; results are truncated for integers)
 * % (remainder; valid for smallint/int/bigint)
 * ROUND(numeric, int) → numeric
@@ -48,7 +48,6 @@ Comparison operators
 |Function|Return Type|Description|Example|Result|
 |---|---|---|---|---|
 |replace ( string varchar, from varchar, to varchar )|varchar|Replaces all occurrences in string of substring from with substring to.|replace('abcdefabcdef', 'cd', 'XX')|abXXefabXXef|
-|substr ( string varchar, start integer [, count integer ] )|varchar|Extracts the substring of string starting at the start-th character, and extending for count characters if that is specified.| A:`substr('alphabet', 3)`; B:`substr('alphabet', 3, 2)`| A:`phabet`; B:`ph`|
 |trim ( string varchar )|varchar|Removes the longest string containing only spaces from the start and end of string.|trim(' trim ')	|trim|
 |ltrim ( string varchar )|varchar|Removes the longest string containing only spaces from the start of string.|ltrim(' test')|test|
 |rtrim ( string varchar ) |varchar|Removes the longest string containing only spaces from the end of string|rtrim('test ')|test|
