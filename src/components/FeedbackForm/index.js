@@ -7,7 +7,8 @@ import ContributeIcon from "@site/static/img/git_contribute.svg";
 import useWindowSize from "../../hooks/useWindowSize";
 import axios from 'axios'
 
-const FORM_ENDPOINT = "http://localhost:80/api/v1/feedbacks";
+// const FORM_ENDPOINT = "http://localhost:80/api/v1/feedbacks";
+const FORM_ENDPOINT = "http://api.site.singularity-data.com/api/v1/feedbacks";
 
 const FormHeaderTitle = styled("div")(() => ({
   fontSize: "18px;",
