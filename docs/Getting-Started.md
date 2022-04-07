@@ -204,7 +204,7 @@ FLUSH;
 SELECT * FROM m4;
 ```
 
-For the complete list of supported SQL statements, see [SQL](SQL.md).
+For the complete list of supported SQL statements, see [Statements](Statements.md).
 
 
 
