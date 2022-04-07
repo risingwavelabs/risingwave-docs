@@ -4,6 +4,8 @@ slug: /sql-data-types
 title: Data types
 ---
 
+
+
 RisingWave supportes the following data types.
 
 |Type|Aliases|Description|

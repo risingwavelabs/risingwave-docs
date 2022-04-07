@@ -4,6 +4,8 @@ slug: /sql-operators-functions
 title: Operators and functions
 ---
 
+
+
 ## Logical operators
 
 * AND
@@ -51,6 +53,7 @@ Comparison operators
 |trim ( string varchar )|varchar|Removes the longest string containing only spaces from the start and end of string.|trim(' trim ')	|trim|
 |ltrim ( string varchar )|varchar|Removes the longest string containing only spaces from the start of string.|ltrim(' test')|test|
 |rtrim ( string varchar ) |varchar|Removes the longest string containing only spaces from the end of string|rtrim('test ')|test|
+|substr ( string varchar, start integer [, count integer ] )|varchar|Extracts the substring of string starting at the start-th character, and extending for count characters if that is specified.| `substr('alphabet', 3)`; `substr('alphabet', 3, 2)`| `phabet`;`ph`|
 |upper ( varchar )|varchar|Converts the string to all upper case.|upper('tom')|TOM|
 |lower ( varchar )|varchar|Converts the string to all lower case.|lower('TOM')|tom|
 |position ( string varchar, substring varchar )|integer	|Returns first starting index of the specified substring within string, or zero if it is not present.|position('high', 'ig')|2|
