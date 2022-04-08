@@ -1,6 +1,6 @@
 ---
 id: getting-started
-title: Getting Started
+title: Getting started
 description: Basic steps for starting and using RisingWave.
 slug: /getting-started
 sidebar_position: 2
