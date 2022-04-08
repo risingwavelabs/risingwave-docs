@@ -1,6 +1,6 @@
 ---
 id: getting-started
-title: Getting Started
+title: Getting started
 description: Install and start RisingWave.
 slug: /getting-started
 sidebar_position: 2
@@ -9,11 +9,11 @@ sidebar_position: 2
 
 This guide will walk you through the installation of RisingWave. 
 
-- [Install and Start RisingWave](#install-and-start-risingwave)
+- [Install and start RisingWave](#install-and-start-risingwave)
 - [Connect to a streaming source](#connect-to-a-streaming-source)
 - [Query and manage data](#query-and-manage-data)
 
-## Install and Start RisingWave
+## Install and start RisingWave
 
 ### Pre-built library (Linux)
 
