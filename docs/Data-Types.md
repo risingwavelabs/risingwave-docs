@@ -6,7 +6,7 @@ title: Data types
 
 
 
-RisingWave supportes the following data types.
+RisingWave supports the following data types:
 
 |Type|Aliases|Description|
 |---|---|-------|

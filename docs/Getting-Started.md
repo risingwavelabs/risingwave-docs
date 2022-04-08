@@ -1,24 +1,24 @@
 ---
 id: getting-started
-title: Getting started
-description: Basic steps for starting and using RisingWave.
+title: Getting Started
+description: Install and start RisingWave.
 slug: /getting-started
 sidebar_position: 2
 ---
 
 
-This guide will walk you through the basic steps for starting and using RisingWave. 
+This guide will walk you through the installation of RisingWave. 
 
-- [Install and start RisingWave](#install-and-start-risingwave)
+- [Install and Start RisingWave](#install-and-start-risingwave)
 - [Connect to a streaming source](#connect-to-a-streaming-source)
 - [Query and manage data](#query-and-manage-data)
 
-## Install and start RisingWave
+## Install and Start RisingWave
 
-### Pre-built library (Linux x86_64)
+### Pre-built library (Linux)
 
 1. Download the pre-built library.
-
+ 
     ```
     wget https://github.com/singularity-data/risingwave/releases/download/v0.1.4/risingwave-v0.1.4-unknown-linux.tar.gz
     ```
@@ -29,30 +29,29 @@ This guide will walk you through the basic steps for starting and using RisingWa
     tar xvf risingwave-v0.1.4-unknown-linux.tar.gz
     ```
 
-1. Start RisingWave in testing mode.
+1. Start RisingWave in the test mode.
 
     ```
     ./risingwave playground
     ```
 
-### Build from code (macOS & Linux)
+### Compile from source (Linux & macOS)
 
-1. Download the source code of RisingWave from this GitHub repository: https://github.com/singularity-data/risingwave.
+1. Download the source code of RisingWave.
 
-    Alternatively, you can run this command in your terminal to download RisingWave to your environment.
     ```
     git clone https://github.com/singularity-data/risingwave.git
     ```
 
 2. Install dependencies.
 
-    RisingWave has the following dependencies. Ensure the dependencies are installed before starting RisingWave.
+    RisingWave has the following dependencies. Please ensure all the dependencies have been installed before starting RisingWave.
 
     * Rust
     * CMake
     * Protocol Buffers
     * OpenSSL
-    * PostgreSQL client (14.1 or higher)
+    * PostgreSQL terminal (14.1 or higher)
     * Tmux
 
     Select your operating system and run the following commands to install the dependencies.
