@@ -11,7 +11,10 @@ RisingWave is a cloud-native streaming database that uses SQL as the interface. 
 
 RisingWave takes data from sources like Apache Kafka, Apache Pulsar, Amazon Kinesis, Redpanda, and materialized CDC sources.
 
-<image src="images/archi_simple.png" width="650">
+<img
+  src={require('./images/archi_simple.png').default}
+  alt="RisingWave Architecture"
+/>
 
 ## What can you do with RisingWave?
 
