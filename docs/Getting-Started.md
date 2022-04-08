@@ -67,7 +67,7 @@ import TabItem from '@theme/TabItem';
 ```
 brew install cmake protobuf openssl postgresql tmux
 ```
-
+Run one of the following cammands to install [rustup](https://rustup.rs):
 ```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
@@ -151,7 +151,7 @@ CREATE SOURCE KAFKA_TOPIC_1 (
 )
 with (
    'connector'='kafka'
-   'kafka.topic'='',
+   'kafka.topic'='demo_topic',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
    'kafka.scan.startup.mode'='earliest|latest',
    'kafka.time.offset'='140000000'
