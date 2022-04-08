@@ -35,7 +35,7 @@ const Label = styled("div")(() => ({
 }));
 
 const LabelOptional = styled("span")(() => ({
-  opacity : 0.5,
+  opacity: 0.5,
   fontSize: "15px;",
   float: "right"
 }));
@@ -174,49 +174,55 @@ const FeedbackForm = (props) => {
     );
   }
   return (
-    <form
-      style={{
-        width: "100%", 
-        marginTop: "15px",
-        display: size.width >= 768? "flex": "block"
-      }}
-    >
-      <FormDivContainer>
-        <FormHeaderTitle>Did this doc help you?</FormHeaderTitle>
-        <Button variant={formData.like? "contained": "outlined"} color="primary" className="buttonIcon" onClick={handleLike}>
-          <ThumbUpOffAltIcon />
-        </Button>
-        <Button variant={!formData.like? "contained": "outlined"} onClick={handleLike}>
-          <ThumbDownOffAltIcon />
-        </Button>
-        <Label>Let us know what we do well.<LabelOptional>Optional</LabelOptional></Label>
-        <textarea value={formData.description} onChange={handleChange} placeholder="" name="description" required cols={38} rows={5} className="formInput"/>
-        <Label><span>If we can contact you with more questions, please enter your email address.</span>
-          <LabelOptional>Optional</LabelOptional>
-        </Label>
-        <input value={formData.email} onChange={handleChange} type="email" placeholder="email@example.com" name="email" className="formInput" required/>
-        <Label><span style={{ opacity: "0.5"}}>If you need a reply, please contact support instead.</span>
-        </Label>
-        <Button variant="contained" className="sendButton" onClick={handleSubmit}>
-          Send
-        </Button>
-        <Button variant="outlined" className="closeButton" onClick={handleCancel}>
-          Cancel
-        </Button>
-      </FormDivContainer>
-      {Contribute}
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-    </form>
+    <>
+      <form
+        action={FORM_ENDPOINT}
+        method="POST"
+        target="_blank"
+        style={{
+          width: "100%",
+          marginTop: "15px",
+          display: size.width >= 768 ? "flex" : "block"
+        }}
+      >
+        <FormDivContainer>
+          <FormHeaderTitle>Did this doc help you?</FormHeaderTitle>
+          <Button variant={formData.like ? "contained" : "outlined"} color="primary" style={{ marginRight: "5px" }} onClick={handleLike}>
+            <ThumbUpOffAltIcon />
+          </Button>
+          <Button variant={!formData.like ? "contained" : "outlined"} onClick={handleLike}>
+            <ThumbDownOffAltIcon />
+          </Button>
+          <Label>Let us know what we do well.<LabelOptional>Optional</LabelOptional></Label>
+          <textarea value={formData.description} onChange={handleChange} placeholder="" name="description" required cols={38} rows={5} style={{ borderRadius: "5px", padding: "10px" }} />
+          <Label><span>If we can contact you with more questions, please enter your email address.</span>
+            <LabelOptional>Optional</LabelOptional>
+          </Label>
+          <input value={formData.email} onChange={handleChange} type="email" placeholder="email@example.com" name="email" required style={{ width: "320px", borderRadius: "5px", padding: "10px" }} />
+          <Label><span style={{ opacity: "0.5" }}>If you need a reply, please contact support instead.</span>
+          </Label>
+          <Button variant="outlined" style={{ float: "right", fontWeight: "bold" }} onClick={handleSubmit}>
+            Send
+          </Button>
+          <Button color="primary" style={{ float: "right", marginRight: "25px", fontWeight: "bold" }}>
+            Cancel
+          </Button>
+        </FormDivContainer>
+        {Contribute}
+        <ToastContainer
+          position="top-center"
+          autoClose={5000}
+          hideProgressBar
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+      </form>
+    </>
+
   );
 };
 

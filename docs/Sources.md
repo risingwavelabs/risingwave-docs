@@ -6,7 +6,7 @@ slug: /sources
 ---
 
 
-Sources are resources that RisingWave can read data from. You use [`CREATE SOURCE`](/#connect-to-a-source) to establish the connection to a source. Once a connection is established, RisingWave will ingest and process the received data.
+Sources are resources that RisingWave can read data from. You use [`CREATE SOURCE`](#connect-to-a-source) to establish the connection to a source. Once a connection is established, RisingWave will ingest and process the received data.
 
 ## Supported sources
 
@@ -38,14 +38,14 @@ You can use the SQL statement below to connect RisingWave to a Kafka broker.
 #### Syntax
 ```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
-   column_name data_type,[COMMENT col_comment], ...
+   column_name data_type,...
 )
 WITH (
    'connector'='kafka',
    'field_name'='value', ...
 )
-ROW FORMAT 'json|protobuf' 
-[ROW SCHEMA LOCATION 'local_file://path'];
+ROW FORMAT 'JSON | PROTOBUF MESSAGE 'main_message'' 
+[ROW SCHEMA LOCATION 's3://path'];
 ```
 #### `WITH` options
 
@@ -66,14 +66,13 @@ CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
 )
 WITH (
    'connector'='kafka'
-   'kafka.topic'='',
+   'kafka.topic'='demo_topic',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
    'kafka.scan.startup.mode'='latest',
    'kafka.time.offset'='140000000'
    'kafka.consumer.group'='demo_consumer_name'
 )
 ROW FORMAT 'json' 
-[ROW SCHEMA LOCATION 'local_file://path'];
 ```
   </TabItem>
 
@@ -84,14 +83,13 @@ You can use the SQL statement below to connect RisingWave to a Pulsa broker.
 #### Syntax
 ```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
-   column_name data_type,[COMMENT col_comment], ...
+   column_name data_type, ...
 )
 WITH (
    'connector'='pulsar',
    'field_name'='value', ...
 )
 ROW FORMAT 'json|protobuf' 
-[ROW SCHEMA LOCATION 'local_file://path'];
 ```
 #### `WITH` options
 
@@ -113,14 +111,14 @@ CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
 )
 WITH (
    'connector'='pulsar'
-   'pulsar.topic'='',
+   'pulsar.topic'='demo_topic',
    'pulsar.service.url'='pulsar://localhost:6650/',
-   'pulsar.admin.url'='XXXX'
+   'pulsar.admin.url'='http://localhost:8080'
    'pulsar.scan.startup.mode'='latest',
    'pulsar.time.offset'='140000000'
 )
 ROW FORMAT 'protobuf' 
-[ROW SCHEMA LOCATION 'local_file://path'];
+ROW SCHEMA LOCATION 'https://[bucket_name].s3-us-west-2.amazonaws.com/demo.proto';
 ```
   </TabItem>
 
@@ -132,7 +130,7 @@ You can use the SQL statement below to connect RisingWave to Kinesis Data Stream
 
 ```sql
 CREATE [MATERIALIZED] SOURCE [IF NOT EXISTS] source_name (
-   column_name data_type,[COMMENT col_comment], ...
+   column_name data_type, ...
 ) 
 WITH (
    'connector'='kinesis',
@@ -146,11 +144,11 @@ ROW FORMAT 'json|protobuf';
 |---|---|---|---|---|
 |kinesis.stream.name	|None	|String|	The stream name identifies the stream.	|True|
 |kinesis.stream.region	|None	|String|	AWS service region. For example, US East (N. Virginia).	|True|
-|kinesis.endpoint	|None	|String	|The URL of the entry point for the AWS Kinesis service|
+|kinesis.endpoint	|None	|String	|The URL of the entry point for the AWS Kinesis service| False|
 |kinesis.credentials.access	|None	|String	|Indicates the Access key ID of AWS. Must appear in pairs with kinesis.credentials.secret.	|False|
 |kinesis.credentials.secret	|None	|String	|Indicates the secret access key of AWS. Must appear in pairs with kinesis.credentials.access.	|False|
 |kinesis.credentials.session_token	|None	|String	|The session token associated with the credentials. Temporary Session Credentials.	|False|
-|kinesis.assumerole.arn	|None	|String		|False|
+|kinesis.assumerole.arn	|None	|String |The Amazon Resource Name (ARN) of the role to assume.		|False|
 |kinesis.assumerole.external_id	|None	|String	|The [external id](https://aws.amazon.com/blogs/security/how-to-use-external-id-when-granting-access-to-your-aws-resources/) used to authorize access to third-party resources	|False|
 
 #### Example
@@ -187,7 +185,7 @@ Currently, RisingWave only supports materialized CDC sources with primary keys.
 #### Syntax
 ```sql
 CREATE MATERIALIZED SOURCE [IF NOT EXISTS] source_name (
-   column_name data_type [PRIMARY KEY],[COMMENT col_comment], ...
+   column_name data_type [PRIMARY KEY], ...
    PRIMARY KEY (column_1, column_2)
 ) 
 WITH (
@@ -198,7 +196,15 @@ ROW FORMAT 'debezium-json';
 ```
 #### `WITH` options
 
-XXX
+
+|Field|	Default|	Type|	Description|	Required?|
+|---|---|---|---|---|
+|kafka.topic|None|String|Address of the Kafka topic. One source can only correspond to one topic.|True
+|kafka.bootstrap.servers	|None	|String	|Address of the Kafka broker. Format: 'ip:port,ip:port'	|True|
+|kafka.scan.startup.mode	|earliest	|String	|The Kafka consumer starts consuming data from the commit offset. This includes two values: 'earliest' and 'latest'.	|False
+|kafka.time.offset	|None	|Int64	|Specify the offset in seconds from a certain point of time.	|False|
+|kafka.consumer.group	|None	|String	|Name of the Kafka consumer group	|True|
+
 
 #### Example
 Here is an example of connecting RisingWave to a CDC service to read data from individual streams.
