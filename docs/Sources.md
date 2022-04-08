@@ -1,16 +1,26 @@
 ---
 id: sources
 title: Sources
-description: Supported data sources and how to connect RisingWave to them.
+description: Supported data sources and how to connect RisingWave to the sources.
 slug: /sources
 ---
 
 
-Sources are resources that RisingWave can read data from. You use [`CREATE SOURCE`](#connect-to-a-source) to establish the connection to a source. Once a connection is established, RisingWave will ingest and process the received data.
+Sources are resources that RisingWave can read data from. You use [`CREATE SOURCE`](#connect-to-a-source) to establish the connection to a source. Once a connection is established, RisingWave will start to process the received data.
 
 ## Supported sources
 
-RisingWave supports the following sources:
+Please see below for the streaming sources that RisingWave supports. 
+
+:::info
+
+The default stream connector frontend has a temporary limitation. It only accepts Amazon Kinesis. To connect to other sources, you need to use the legacy stream connector frontend. To run RisingWave with the legacy stream connector frontend, ensure that you have Java 11 installed in your environment, and run the following command in your terminal:
+    ```
+    ./risedev configure enable legacy-frontend
+    ```
+
+:::
+
 
 | Source | Version | Data format | Materialized? | Limitations |
 |---------|---------|---------|---------|---------|
