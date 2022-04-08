@@ -13,4 +13,4 @@ If you are not familiar with writing and formatting on GitHub, get started by re
 
 # Visit our official doc site
 
-Check out the published user docs at [RisingWave Docs](https://singularity-data.com/risingwave-docs/).
+Check out the published user docs at [RisingWave Docs](https://www.risingwave.dev/).
