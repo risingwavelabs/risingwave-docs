@@ -12,16 +12,6 @@ Sources are resources that RisingWave can read data from. You use [`CREATE SOURC
 
 Please see below for the streaming sources that RisingWave supports. 
 
-:::info
-
-The default stream connector frontend has a temporary limitation. It only accepts Amazon Kinesis. To connect to other sources, you need to use the legacy stream connector frontend. To run RisingWave with the legacy stream connector frontend, ensure that you have Java 11 installed in your environment, and run the following command in your terminal:
-    ```
-    ./risedev configure enable legacy-frontend
-    ```
-
-:::
-
-
 | Source | Version | Data format | Materialized? | Limitations |
 |---------|---------|---------|---------|---------|
 |Kafka|0.11.0 or higher	|JSON, protobuf|	Materialized & non-materialized|-
@@ -30,6 +20,14 @@ The default stream connector frontend has a temporary limitation. It only accept
 |Kinesis|	Latest|	JSON, protobuf|	Materialized & non-materialized|	-
 |PostgreSQL CDC|	10, 11, 12, 13, 14|	JSON|	Materialized only|	Must have primary key|
 |MySQL CDC|	5.7, 8.0|	JSON|	Materialized only|	Must have primary key|
+
+:::info
+
+The default stream connector frontend has a temporary limitation. It only accepts Amazon Kinesis. To connect to other sources, you need to use the legacy stream connector frontend. To run RisingWave with the legacy stream connector frontend, ensure that you have Java 11 installed in your environment, and run the following command in your terminal:
+
+`./risedev configure enable legacy-frontend`
+
+:::
 
 
 ## Connect to a source

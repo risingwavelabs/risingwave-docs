@@ -115,14 +115,11 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
     All services in RisingWave will be started. In the current version, all nodes are hosted in your local environment.
 
-    :::info
 
-    The default stream connector frontend has a temporary limitation. It only accepts Amazon Kinesis. To connect to other sources, you need to use the legacy stream connector frontend. To run RisingWave with the legacy stream connector frontend, ensure that you have Java 11 installed in your environment, and run the following command in your terminal:
+    **Note**: The default stream connector frontend has a temporary limitation. It only accepts Amazon Kinesis. To connect to other sources, you need to use the legacy stream connector frontend. To run RisingWave with the legacy stream connector frontend, ensure that you have Java 11 installed in your environment, and run the following command in your terminal:
     ```
     ./risedev configure enable legacy-frontend
     ```
-
-    :::
 
     You can stop RisingWave with the following command.
     ```
