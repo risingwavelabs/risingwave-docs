@@ -169,8 +169,7 @@ RisingWave uses Postgres-compatible SQL as the interface to manage and query dat
 
 * Create a table
 * Create a materialized view from tables
-* Create a materialized view from a stream
-* Create a materialized view from
+* Create a materialized view from a source
 * Create a materialized view from an existing materialized view
 * Get values of a materialized view
 
