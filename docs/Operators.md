@@ -49,15 +49,15 @@ title: Operators and functions
 
 |Function|Return Type|Description|Example|Result|
 |---|---|---|---|---|
-|replace ( string varchar, from varchar, to varchar )|varchar|Replaces all occurrences in string of substring from with substring to.|replace('abcdefabcdef', 'cd', 'XX')|abXXefabXXef|
-|trim ( string varchar )|varchar|Removes the longest string containing only spaces from the start and end of string.|trim(' trim ')	|trim|
-|ltrim ( string varchar )|varchar|Removes the longest string containing only spaces from the start of string.|ltrim(' test')|test|
-|rtrim ( string varchar ) |varchar|Removes the longest string containing only spaces from the end of string|rtrim('test ')|test|
+|replace ( string varchar, from varchar, to varchar )|varchar|Replaces all occurrences in string of substring from with substring to.|`replace('abcdefabcdef', 'cd', 'XX')`|`abXXefabXXef`|
+|trim ( string varchar )|varchar|Removes the longest string containing only spaces from the start and end of string.|`trim(' trim ')`	|`trim`|
+|ltrim ( string varchar )|varchar|Removes the longest string containing only spaces from the start of string.|`ltrim(' test')`|`test`|
+|rtrim ( string varchar ) |varchar|Removes the longest string containing only spaces from the end of string|`rtrim('test ')`|`test`|
 |substr ( string varchar, start integer [, count integer ] )|varchar|Extracts the substring of string starting at the start-th character, and extending for count characters if that is specified.| `substr('alphabet', 3)`; `substr('alphabet', 3, 2)`| `phabet`;`ph`|
-|upper ( varchar )|varchar|Converts the string to all upper case.|upper('tom')|TOM|
-|lower ( varchar )|varchar|Converts the string to all lower case.|lower('TOM')|tom|
-|position ( string varchar, substring varchar )|integer	|Returns first starting index of the specified substring within string, or zero if it is not present.|position('high', 'ig')|2|
-|length ( varchar )	|integer|Returns the number of characters in the string.|length('jose')|4|
+|upper ( varchar )|varchar|Converts the string to all upper case.|`upper('tom')`|`TOM`|
+|lower ( varchar )|varchar|Converts the string to all lower case.|`lower('TOM')`|`tom`|
+|position ( string varchar, substring varchar )|integer	|Returns first starting index of the specified substring within string, or zero if it is not present.|`position('high', 'ig')`|`2`|
+|length ( varchar )	|integer|Returns the number of characters in the string.|`length('jose')`|`4`|
 
 ## String matching operators
 
@@ -88,7 +88,7 @@ ESCAPE is not supported yet. We are unable to match a literal underscore or perc
 
 `extract(field from source) → numeric`
 
-Extract the value of a data or timestamp. field is one of: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, DOY, DOW.  source is of type date or timestamp
+Extract the value of a data or timestamp. `field` is one of: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, DOY, DOW. `source` is of type date or timestamp.
 
 `date + interval → timestamp`
 
