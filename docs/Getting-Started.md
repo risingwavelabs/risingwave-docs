@@ -7,15 +7,15 @@ sidebar_position: 2
 ---
 
 
-This guide will walk you through the installation of RisingWave. 
+This guide will help you get started with RisingWave. We will cover: 
 
-- [Install and start RisingWave](#install-and-start-risingwave)
+- [Install and run RisingWave](#install-and-start-risingwave)
 - [Connect to a streaming source](#connect-to-a-streaming-source)
 - [Query and manage data](#query-and-manage-data)
 
-## Install and start RisingWave
+## Install and run RisingWave
 
-### Pre-built library (Linux)
+### Use the pre-built library (Linux)
 
 1. Download the pre-built library.
  
@@ -35,7 +35,7 @@ This guide will walk you through the installation of RisingWave.
     ./risingwave playground
     ```
 
-### Compile from source (Linux & macOS)
+### Build from source (Linux & macOS)
 
 1. Download the source code of RisingWave.
 
@@ -97,30 +97,39 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 </Tabs>
 </div>
 
-3. Start RisingWave.
+3. Run RisingWave.
 
-    To start RisingWave, in the terminal, navigate to the directory where RisingWave is downloaded, and run the following command.
+    To run RisingWave, in the terminal, navigate to the directory where RisingWave is downloaded, and run the following command.
     ```
-    ./risedev dev # Starting RisingWave in production mode
+    ./risedev dev # Running RisingWave in the production mode
     ```
     or
     ```
-    ./risedev playground # starting RisingWave in testing mode. 
+    ./risedev playground # Running RisingWave in the test mode. 
     ```
     :::tip
 
-    RisingWave has two running modes: testing mode and production mode. In the testing mode, all nodes will be started in one process. Use the testing mode if need to do some quick tests. In the production mode, the meta node, compute node, and the serving node are started in three separate processes. 
+    RisingWave has two running modes: test mode and production mode. In the test mode, all nodes will be started in one process. Use the test mode if need to do some quick tests. In the production mode, the meta node, compute node, and the serving node are started in three separate processes. 
 
     :::
 
     All services in RisingWave will be started. In the current version, all nodes are hosted in your local environment.
+
+    :::info
+
+    The default stream connector frontend has a temporary limitation. It only accepts Amazon Kinesis. To connect to other sources, you need to use the legacy stream connector frontend. To run RisingWave with the legacy stream connector frontend, ensure that you have Java 11 installed in your environment, and run the following command in your terminal:
+    ```
+    ./risedev configure enable legacy-frontend
+    ```
+
+    :::
 
     You can stop RisingWave with the following command.
     ```
     ./risedev kill
     ```
 
-4. After RisingWave services are started, start the PostgreSQL interactive shell.
+4. After RisingWave services are started, run the PostgreSQL interactive terminal.
     ```
     psql -h localhost -p 4566 -d dev
     ```
