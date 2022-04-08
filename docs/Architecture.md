@@ -15,7 +15,4 @@ RisingWave includes these key components:
 * A persistence layer that stores data to and retrieves data from object storage like S3.
 
 
-<img
-  src={require('./images/archi_external.png').default}
-  alt="RisingWave Architecture"
-/>
+
