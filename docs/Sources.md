@@ -42,7 +42,7 @@ import TabItem from '@theme/TabItem';
 <Tabs>
   <TabItem value="kafka&redpanda" label="Kafka & Redpanda" default>
 
-You can use the SQL statement below to connect RisingWave to a Kafka broker.
+You can use the SQL statement below to connect RisingWave to a Kafka/Redpanda broker.
 
 #### Syntax
 ```sql
@@ -74,11 +74,11 @@ CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
    column2 integer,
 )
 WITH (
-   'connector'='kafka'
+   'connector'='kafka',
    'kafka.topic'='demo_topic',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
    'kafka.scan.startup.mode'='latest',
-   'kafka.time.offset'='140000000'
+   'kafka.time.offset'='140000000',
    'kafka.consumer.group'='demo_consumer_name'
 )
 ROW FORMAT 'json' 
@@ -119,10 +119,10 @@ CREATE MATERIALIZED SOURCE IF NOT EXISTS source_abc (
    column2 integer,
 )
 WITH (
-   'connector'='pulsar'
+   'connector'='pulsar',
    'pulsar.topic'='demo_topic',
    'pulsar.service.url'='pulsar://localhost:6650/',
-   'pulsar.admin.url'='http://localhost:8080'
+   'pulsar.admin.url'='http://localhost:8080',
    'pulsar.scan.startup.mode'='latest',
    'pulsar.time.offset'='140000000'
 )

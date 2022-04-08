@@ -20,9 +20,9 @@ RisingWave accepts data from sources like Apache Kafka, Apache Pulsar, Amazon Ki
 
 Everything you do in RisingWave is via Postgres-compatible SQL. You can:
 
-* Collect and transform data from streams
-* Create materialized views for the data that need to be incrementally aggregated
-* Query for data in RisingWave, including persisted data and data you add or import to RisingWave
+* Collect and transform data from streams.
+* Create materialized views for the data that need to be incrementally aggregated.
+* Query for data in RisingWave, including persisted data and data you add or import to RisingWave.
 
 ## How does RisingWave work?
 

@@ -150,11 +150,11 @@ CREATE SOURCE KAFKA_TOPIC_1 (
    COLUMN_NAME DATA_TYPE, ...
 )
 with (
-   'connector'='kafka'
+   'connector'='kafka',
    'kafka.topic'='demo_topic',
    'kafka.bootstrap.servers'='172.10.1.1:9090,172.10.1.2:9090',
    'kafka.scan.startup.mode'='earliest|latest',
-   'kafka.time.offset'='140000000'
+   'kafka.time.offset'='140000000',
    'kafka.consumer.group'='XXX_CONSUMER_NAME'
 )
 ROW FORMAT 'json' 
