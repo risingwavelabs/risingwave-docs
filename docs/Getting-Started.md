@@ -141,7 +141,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ## Connect to a streaming source
 
-You use `CREATE SOURCE` statement to connect to a streaming source.
+Use `CREATE SOURCE` statement to connect to a streaming source.
 
 To connect to a Kafka topic: 
 
@@ -158,7 +158,7 @@ with (
    'kafka.consumer.group'='XXX_CONSUMER_NAME'
 )
 ROW FORMAT 'json' 
-[ROW SCHEMA LOCATION 'local_file://path'];
+[ROW SCHEMA LOCATION 's3://path'];
 ```
 
 For supported streaming sources and SQL examples, please see [Sources](Sources.md).
