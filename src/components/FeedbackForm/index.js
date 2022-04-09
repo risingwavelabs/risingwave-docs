@@ -2,26 +2,31 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import ThumbUpOffAltIcon from '@mui/icons-material/ThumbUpOffAlt';
 import ThumbDownOffAltIcon from '@mui/icons-material/ThumbDownOffAlt';
-import { Button } from '@mui/material';
+import { Button, IconButton } from '@mui/material';
 import ContributeIcon from "@site/static/img/git_contribute.svg";
 import useWindowSize from "../../hooks/useWindowSize";
-import axios from 'axios'
-
-const FORM_ENDPOINT = "http://localhost:80/api/v1/feedbacks";
+import { sendFeedback } from "@site/src/api/feedback";
+import { toast } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
+import AdjustIcon from '@mui/icons-material/Adjust';
+import 'react-toastify/dist/ReactToastify.css';
+import "./index.css"
+import useBaseUrl from '@docusaurus/useBaseUrl'
+import { Link } from 'react-router-dom';
 
 const FormHeaderTitle = styled("div")(() => ({
   fontSize: "18px;",
-  fontWeight: "bold",
-  marginBottom: "15px",
+  fontWeight: 100,
+  marginBottom: "5px",
+  opacity: 0.4
 }));
 
 const FormDivContainer = styled("div")(() => ({
-  marginLeft: "10px",
-  marginRight: "50px",
-  width: "320px",
-  minWidth: "320px",
+  // marginLeft: "10px",
+  // marginRight: "50px",
+  // width: "320px",
+  // minWidth: "320px",
   fontWeight: "bold",
-  height: "430px",
   float: "left",
   marginBottom: "40px"
 }));
@@ -42,9 +47,9 @@ const FeedbackForm = (props) => {
   const size = useWindowSize();
   const [status, setStatus] = useState('');
   const [formData, setFormData] = useState({
-    email: "",
     description: "",
-    like: true
+    like: false,
+    unlike: false
   });
   const handleChange = (e) => {
     setFormData({
@@ -55,62 +60,94 @@ const FeedbackForm = (props) => {
   const handleLike = (e) => {
     setFormData({
       ...formData,
-      like: !formData.like
+      like: !formData.like,
+      unlike: false
     });
   }
-  const valid = () => {
-    if (!formData.email) {
-      alert('Required Email');
-      return false;
-    }
-    if (!formData.description) {
-      alert('Required Message');
-      return false;
-    }
-    return true;
+  const handleUnLike = (e) => {
+    setFormData({
+      ...formData,
+      unlike: !formData.unlike,
+      like: false
+    });
   }
-  const handleSubmit = (e) => {
+  const validation = () => {
+    if(!formData.description)  {
+      return {
+        success: false,
+        msg: 'Please fill out all required fields 😥'
+      };
+    }  
+    return {
+      success: true
+    };
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!valid()) return;
+    try {
+      const valid = validation();
+      if(valid.success) {
+        await sendFeedback(formData.description, Number(formData.like));
+        setStatus("We'll be in touch soon.")
+      }
+      else {
+        toast.error(valid.msg, {
+          position: "top-center",
+          autoClose: 2000,
+          hideProgressBar: true,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
+      }
+    } catch (e) {
+      toast.error('Someting went wrong 😥', {
+        position: "top-center",
+        autoClose: 2000,
+        hideProgressBar: true,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
 
-    axios.post(FORM_ENDPOINT, {
-      email: formData.email,
-      description: formData.description,
-      like: Number(formData.like)
-    })
-      .then((response) => {
-        if (response.status !== 200) {
-          throw new Error(response.statusText);
-        }
+      setStatus(err.toString());
+    };
+  }
 
-        return response;
-      })
-      .then(() => setStatus("We'll be in touch soon."))
-      .catch((err) => setStatus(err.toString()));
-  };
+  const handleCancel = (e) => {
+    e.preventDefault();
+    setStatus("");
+    setFormData({
+      description: "",
+      like: false,
+      unlike: false,
+    });
+  }
 
   const Contribute = (
-    <FormDivContainer>
-      <FormHeaderTitle>Help us make these docs great!</FormHeaderTitle>
-      <Label>
-        All GitHub docs are open source. See something that's wrong or unclear?
-        Submit a pull request.
-      </Label>
-      <Button variant="outlined" style={{ fontWeight: "bold", marginTop: "15px" }} onClick={() => window.open(props.editUrl)}>
-        <ContributeIcon style={{ marginRight: "5px" }} />Make a contribution
-      </Button>
-      <Label>
-        Or, <a style={{}} href="https://github.com/github/docs/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
-          learn how to contribute.
-        </a>
-      </Label>
-      <FormHeaderTitle style={{ marginTop: "70px" }}>
-        Still need help?
+    <FormDivContainer  style={{float: "right"}}>
+      <FormHeaderTitle style={{ marginTop: "10px", direction: 'rtl'}}>
+        Can't wait to see you on
       </FormHeaderTitle>
-      <Label>
-        <a style={{}} href="https://github.com/github/docs/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
-          Ask the Gihub Commnuity
-        </a>
+      <Label style={{ direction: 'rtl'}}>
+        <Button className="icon-button" color="primary">
+          <a href="https://github.com/singularity-data">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/github.png")}/>
+          </a>
+        </Button>
+        <Button className="icon-button" color="primary">
+          <a href="https://twitter.com/SingularityData">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/twitter.png")}/>
+          </a>
+        </Button>
+        <Button className="icon-button" color="primary">
+          <a href="https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/slack.png")}/>
+          </a>
+        </Button>
       </Label>
     </FormDivContainer>
   );
@@ -118,9 +155,8 @@ const FeedbackForm = (props) => {
   if (status) {
     return (
       <div style={{
-        width: "100%",
+        width: "100%", 
         marginTop: "15px",
-        display: size.width >= 768 ? "flex" : "block"
       }}>
         <FormDivContainer>
           <div className="text-2xl">Thank you!</div>
@@ -130,43 +166,68 @@ const FeedbackForm = (props) => {
       </div>
     );
   }
+
   return (
     <>
-      {/* <form
-        action={FORM_ENDPOINT}
-        method="POST"
-        target="_blank"
+      <form
         style={{
           width: "100%",
           marginTop: "15px",
-          display: size.width >= 768 ? "flex" : "block"
+          border: "solid 1px rgb(235, 232, 232)"
         }}
       >
-        <FormDivContainer>
-          <FormHeaderTitle>Did this doc help you?</FormHeaderTitle>
+        <FormDivContainer style={{float: "left", marginTop: "10px"}}>
+          <FormHeaderTitle>Was the doc helpful?</FormHeaderTitle>
           <Button variant={formData.like ? "contained" : "outlined"} color="primary" style={{ marginRight: "5px" }} onClick={handleLike}>
             <ThumbUpOffAltIcon />
           </Button>
-          <Button variant={!formData.like ? "contained" : "outlined"} onClick={handleLike}>
+          <Button variant={formData.unlike ? "contained" : "outlined"} color="primary" onClick={handleUnLike}>
             <ThumbDownOffAltIcon />
           </Button>
-          <Label>Let us know what we do well.<LabelOptional>Optional</LabelOptional></Label>
-          <textarea value={formData.description} onChange={handleChange} placeholder="" name="description" required cols={38} rows={5} style={{ borderRadius: "5px", padding: "10px" }} />
-          <Label><span>If we can contact you with more questions, please enter your email address.</span>
-            <LabelOptional>Optional</LabelOptional>
-          </Label>
-          <input value={formData.email} onChange={handleChange} type="email" placeholder="email@example.com" name="email" required style={{ width: "320px", borderRadius: "5px", padding: "10px" }} />
-          <Label><span style={{ opacity: "0.5" }}>If you need a reply, please contact support instead.</span>
-          </Label>
-          <Button variant="outlined" style={{ float: "right", fontWeight: "bold" }} onClick={handleSubmit}>
-            Send
+          <div style={{ width: "320px"}}>
+            {formData.like? (<>
+              <Label className="inputLabel">Share your thoughts about using RisingWave with us.<LabelOptional>Optional</LabelOptional></Label>
+            </>): ""} 
+            {formData.unlike? (<>
+              <Label><span className="inputLabel">Got feedback? We'd love to hear it.</span>
+                <LabelOptional>Optional</LabelOptional>
+              </Label>
+            </>): ""}
+
+            {(formData.like || formData.unlike)? (<div style={{height: "170px"}}>
+              <textarea value={formData.description} onChange={handleChange} placeholder="" name="description" required cols={38} rows={5} style={{ borderRadius: "5px", padding: "10px" }} />
+              <Label><span style={{ opacity: "0.5" }}></span>
+              </Label>
+              <Button variant="outlined" style={{ float: "right", fontWeight: "bold" }} onClick={handleSubmit}>
+                Send
+              </Button>
+              <Button color="primary" style={{ float: "right", marginRight: "25px", fontWeight: "bold" }} onClick={handleCancel}>
+                Cancel
+              </Button>
+            </div>): ""}
+          </div>
+          <FormHeaderTitle style={{ marginTop: "17px" }}>Help us make this doc better!</FormHeaderTitle>
+          <Button variant="outlined" className="ajustButton" onClick={() => window.open("https://github.com/singularity-data/risingwave-docs/issues/new")}>
+            <AdjustIcon className="buttonIcon"/>File an issue
           </Button>
-          <Button color="primary" style={{ float: "right", marginRight: "25px", fontWeight: "bold" }}>
-            Cancel
+          <Button variant="outlined" className="contributeButton" onClick={() => window.open(props.editUrl)}>
+            <ContributeIcon className="buttonIcon"/>Edit this page
           </Button>
+
         </FormDivContainer>
         {Contribute}
-      </form> */}
+        <ToastContainer
+          position="top-center"
+          autoClose={5000}
+          hideProgressBar
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+      </form>
     </>
 
   );
