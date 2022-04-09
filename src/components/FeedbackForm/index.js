@@ -133,14 +133,20 @@ const FeedbackForm = (props) => {
         Can't wait to see you on
       </FormHeaderTitle>
       <Label style={{ direction: 'rtl'}}>
-        <Button className="icon-button" component={Link} to="/about" color="primary">
-          <img className="icon-button-img" src={useBaseUrl("/img/home/github.png")}/>
+        <Button className="icon-button" color="primary">
+          <a href="https://github.com/singularity-data">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/github.png")}/>
+          </a>
         </Button>
-        <Button className="icon-button" component={Link} to="/about" color="primary">
-          <img className="icon-button-img" src={useBaseUrl("/img/home/twitter.png")}/>
+        <Button className="icon-button" color="primary">
+          <a href="https://twitter.com/SingularityData">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/twitter.png")}/>
+          </a>
         </Button>
-        <Button className="icon-button" component={Link} to="/about" color="primary">
-          <img className="icon-button-img" src={useBaseUrl("/img/home/slack.png")}/>
+        <Button className="icon-button" color="primary">
+          <a href="https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/slack.png")}/>
+          </a>
         </Button>
       </Label>
     </FormDivContainer>
