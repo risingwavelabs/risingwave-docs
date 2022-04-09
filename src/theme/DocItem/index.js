@@ -59,7 +59,7 @@ export default function DocItem(props) {
           <DocVersionBanner />
           <div className={styles.docItemContainer}>
             <article>
-              <DocBreadcrumbs />
+              {/* <DocBreadcrumbs /> */}
               <DocVersionBadge />
 
               {canRenderTOC && (
