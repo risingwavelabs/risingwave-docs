@@ -12,7 +12,6 @@ import AdjustIcon from '@mui/icons-material/Adjust';
 import 'react-toastify/dist/ReactToastify.css';
 import "./index.css"
 import useBaseUrl from '@docusaurus/useBaseUrl'
-import { Link } from 'react-router-dom';
 
 const FormHeaderTitle = styled("div")(() => ({
   fontSize: "18px;",
@@ -128,14 +127,14 @@ const FeedbackForm = (props) => {
   }
 
   const Contribute = (
-    <FormDivContainer  style={{float: "right"}}>
-      <FormHeaderTitle style={{ marginTop: "10px", direction: 'rtl'}}>
+    <FormDivContainer  style={{float: size.width > 650? "right": "left"}}>
+      <FormHeaderTitle style={{ marginTop: "10px"}}>
         Can't wait to see you on
       </FormHeaderTitle>
-      <Label style={{ direction: 'rtl'}}>
+      <Label style={{ direction: 'rtl', width: size.width > 650? "200px": "170px"}}>
         <Button className="icon-button" color="primary">
-          <a href="https://github.com/singularity-data">
-            <img className="icon-button-img" src={useBaseUrl("/img/home/github.png")}/>
+          <a href="https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/slack.png")}/>
           </a>
         </Button>
         <Button className="icon-button" color="primary">
@@ -143,9 +142,9 @@ const FeedbackForm = (props) => {
             <img className="icon-button-img" src={useBaseUrl("/img/home/twitter.png")}/>
           </a>
         </Button>
-        <Button className="icon-button" color="primary">
-          <a href="https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw">
-            <img className="icon-button-img" src={useBaseUrl("/img/home/slack.png")}/>
+        <Button className={size.width <= 650? "icon-button first-icon-button": "icon-button"} color="primary">
+          <a href="https://github.com/singularity-data">
+            <img className="icon-button-img" src={useBaseUrl("/img/home/github.png")}/>
           </a>
         </Button>
       </Label>
@@ -210,9 +209,9 @@ const FeedbackForm = (props) => {
           <Button variant="outlined" className="ajustButton" onClick={() => window.open("https://github.com/singularity-data/risingwave-docs/issues/new")}>
             <AdjustIcon className="buttonIcon"/>File an issue
           </Button>
-          <Button variant="outlined" className="contributeButton" onClick={() => window.open(props.editUrl)}>
+          {/* <Button variant="outlined" className="contributeButton" onClick={() => window.open(props.editUrl)}>
             <ContributeIcon className="buttonIcon"/>Edit this page
-          </Button>
+          </Button> */}
 
         </FormDivContainer>
         {Contribute}
