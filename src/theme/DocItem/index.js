@@ -15,6 +15,7 @@ import TOC from "@theme/TOC";
 import TOCCollapsible from "@theme/TOCCollapsible";
 import Heading from "@theme/Heading";
 import styles from "./styles.module.css";
+import Stack from "@mui/material/Stack";
 import { Button } from "@mui/material";
 import BorderColorIcon from "@mui/icons-material/BorderColor";
 import { ThemeClassNames, useWindowSize } from "@docusaurus/theme-common";
@@ -106,25 +107,29 @@ export default function DocItem(props) {
 
                 <DocContent />
               </div>
-
-              <DocItemFooter {...props} />
             </article>
 
-            <Button
-              className={styles.requestButton}
-              variant="text"
-              onClick={() => window.open(requestIssueUrl)}
-              startIcon={<BorderColorIcon />}
+            <Stack
+              className={styles.docItemFooter}
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              spacing={2}
             >
-              Request docs changes
-            </Button>
+              <Button
+                className={styles.requestButton}
+                variant="text"
+                onClick={() => window.open(requestIssueUrl)}
+                startIcon={<BorderColorIcon />}
+              >
+                Request docs changes
+              </Button>
+              <DocItemFooter {...props} />
+            </Stack>
 
             <DocPaginator previous={metadata.previous} next={metadata.next} />
             {metadata.editUrl && (
-              <div
-                className="col margin-top--sm"
-                style={{ padding: "0!mportant" }}
-              >
+              <div className="col margin-top--sm" style={{ padding: "0" }}>
                 <FeedbackForm editUrl={metadata.editUrl} />
               </div>
             )}
