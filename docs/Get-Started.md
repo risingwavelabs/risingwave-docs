@@ -52,13 +52,13 @@ You can install and run RisingWave from a Docker image. Currently, only x86-64 p
 
 Ensure you have Docker intalled on your machine. For installation instructions, see [Install Docker](https://docs.docker.com/get-docker/).
 
-1. Download the docker ccontainer image of the latest nightly build of RisingWave. 
+1. Download the docker container image of the latest nightly build of RisingWave. 
     
     ```sh
     docker pull ghcr.io/singularity-data/risingwave:latest
     ```
 
-2. Run RisingWave from the docker image.
+2. Run RisingWave from the Docker image.
     ```sh
     docker run -it ghcr.io/singularity-data/risingwave:latest playground
     ```
@@ -181,7 +181,7 @@ For supported streaming sources and SQL examples, please see [Sources](Sources.m
 
 RisingWave uses Postgres-compatible SQL as the interface to manage and query data.
 
-Before start, ensure that you have connected to RisingWave via `psql`. 
+Before we start, ensure that you have connected to RisingWave via `psql`. 
 
 Now let us create a table to store data about taxi trips.
 
