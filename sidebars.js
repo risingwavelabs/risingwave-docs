@@ -92,7 +92,7 @@ const sidebars = {
           type: 'ref',
           label: 'CREATE SOURCE',
           id: 'sql/commands/create-source',
-          }
+          }, 'sql/commands/sql-create-table', 'sql/commands/sql-select'
         ]
         },
       ],
