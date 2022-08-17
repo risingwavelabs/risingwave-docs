@@ -19,7 +19,7 @@ RisingWave supports the following data types:
 |double precision|double|Double precision floating-point number (8 bytes)|
 |character varying|varchar, string|Variable-length character string. We do not support specifying the maximum length as of now.|
 |date| |Calendar date (year, month, day)|
-|time| |Time of day (no time zone)|
+|time without time zone|time|Time of day (no time zone)|
 |timestamp without time zone|timestamp|Date and time (no time zone)|
 |timestamp with time zone | |Timestamp with time zone|
 |interval| |Time span. Input in string format. Units include: second/seconds/s, minute/minutes/min/m, hour/hours/hr/h, day/days/d, month/months/mon, and year/years/yr/y.<p>Examples:</p><p>`interval '4 hour'` → `04:00:00` <br /> `interval '3 day'` → `3 days 00:00:00`</p>|
