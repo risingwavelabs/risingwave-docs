@@ -10,10 +10,6 @@ sidebar_position: 2
 This guide will help you get started with RisingWave. We will cover: 
 
 - [Install and run RisingWave](#install-and-run-risingwave)
-  - [Use the pre-built library (Linux)](#use-the-pre-built-library-linux)
-  - [Install and run from a Docker image (Linux & macOS)](#install-and-run-from-a-docker-image-linux--macos)
-  - [Set up a multi-node cluster via Docker (Linux & macOS)](#set-up-a-multi-node-cluster-via-docker-linux--macos)
-  - [Build from source (Linux & macOS)](#build-from-source-linux--macos)
 - [Connect to RisingWave](#connect-to-risingwave)
 - [Connect to a streaming source](#connect-to-a-streaming-source)
 - [Query and manage data](#query-and-manage-data)
@@ -22,14 +18,10 @@ This guide will help you get started with RisingWave. We will cover:
 
 You can run RisingWave in these ways:
 
-- [Install and run RisingWave](#install-and-run-risingwave)
-  - [Use the pre-built library (Linux)](#use-the-pre-built-library-linux)
-  - [Install and run from a Docker image (Linux & macOS)](#install-and-run-from-a-docker-image-linux--macos)
-  - [Set up a multi-node cluster via Docker (Linux & macOS)](#set-up-a-multi-node-cluster-via-docker-linux--macos)
-  - [Build from source (Linux & macOS)](#build-from-source-linux--macos)
-- [Connect to RisingWave](#connect-to-risingwave)
-- [Connect to a streaming source](#connect-to-a-streaming-source)
-- [Query and manage data](#query-and-manage-data)
+- [Use the pre-built library (Linux)](#use-the-pre-built-library-linux)
+- [Install and run from a Docker image (Linux & macOS)](#install-and-run-from-a-docker-image-linux--macos)
+- [Set up a multi-node cluster via Docker (Linux & macOS)](#set-up-a-multi-node-cluster-via-docker-linux--macos)
+- [Build from the source code (Linux & macOS)](#build-from-source-linux--macos)
 
 ### Use the pre-built library (Linux)
 
@@ -182,7 +174,7 @@ You can now issue SQL queries to manage your streams and data.
 
 ## Connect to a streaming source
 
-For supported streaming sources and sample SQL statements, see [CREATE SOURCE](/sql/commands/sql-create-source.md).
+For supported streaming sources and sample SQL statements, see [CREATE SOURCE](/sql/commands/create-source.md).
 
 ## Query and manage data
 
