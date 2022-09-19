@@ -28,13 +28,13 @@ You can run RisingWave in these ways:
 1. Download the pre-built library.
  
     ```shell
-    wget https://github.com/risingwavelabs/risingwave/releases/download/v0.1.11/risingwave-v0.1.11-x86_64-unknown-linux.tar.gz
+    wget https://github.com/risingwavelabs/risingwave/releases/download/v0.1.12/risingwave-v0.1.12-x86_64-unknown-linux.tar.gz
     ```
 
 2. Unzip the library.
 
     ```shell
-    tar xvf risingwave-v0.1.11-x86_64-unknown-linux.tar.gz
+    tar xvf risingwave-v0.1.12-x86_64-unknown-linux.tar.gz
     ```
 
 3. Run RisingWave.
