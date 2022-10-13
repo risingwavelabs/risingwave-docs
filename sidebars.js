@@ -114,7 +114,14 @@ const sidebars = {
         {type: 'ref', 
         label: 'Use time window functions', 
         id: 'sql/functions-operators/sql-function-time-window'
-        }
+        },
+
+        {
+          type: 'doc',
+          id: 'guides/nested-columns-arrays',
+          label: 'Define and access nested columns',
+        },
+        
       ]
     },
 
