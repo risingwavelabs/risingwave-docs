@@ -148,7 +148,19 @@ const sidebars = {
         type: 'doc',
         id: 'sql/sql-data-types',
         label: 'Data types',
-    }, 
+      },
+      {
+        type: 'category',
+        label: 'Queries',
+        items: 
+        [
+          {
+            type: 'doc',
+            id: 'sql/queries/sql-queries-top-n',
+            label: 'Top-N',
+          },
+        ]
+      },  
       {
       type: 'category',
       label: 'Functions and operators',
