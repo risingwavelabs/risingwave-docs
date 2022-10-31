@@ -33,6 +33,14 @@ ROW SCHEMA LOCATION 'local_or_remote_location';
 
 ### Formats
 
+Specify the format of the stream in the `ROW FORMAT` section of your statement.
+
+|Format|Syntax| Notes|
+|---|---|---|
+|Avro|`ROW FORMAT AVRO MESSAGE 'main_message' ROW SCHEMA LOCATION 'local_or_remote_location'`| Message and schema location are required.|
+|JSON| `ROW FORMAT JSON`| |
+|Protobuf|`ROW FORMAT AVRO MESSAGE 'main_message' ROW SCHEMA LOCATION 'local_or_remote_location'`|Message and schema location are required.|
+
 
 ## Example
 Here is an example of connecting RisingWave to a Pulsar broker to read data from individual topics.
@@ -40,7 +48,6 @@ Here is an example of connecting RisingWave to a Pulsar broker to read data from
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-<div style={{marginLeft:"2rem"}}>
 <Tabs>
 <TabItem value="avro" label="Avro" default>
 
@@ -96,4 +103,3 @@ ROW SCHEMA LOCATION 'https://demo_bucket_name.s3-us-west-2.amazonaws.com/demo.pr
 ```
 </TabItem>
 </Tabs>
-</div>
