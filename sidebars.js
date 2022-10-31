@@ -119,7 +119,7 @@ const sidebars = {
         {
           type: 'doc',
           id: 'guides/nested-columns-arrays',
-          label: 'Define and access nested columns',
+          label: 'Specify nested columns and arrays',
         },
         
       ]
@@ -141,25 +141,18 @@ const sidebars = {
             id: 'sql/syntax/sql-syntax-value-exp',
             label: 'Value expressions',
           },
-        
+         // {
+           // type: 'doc',
+           // id: 'sql/syntax/top-n-by-group',
+           // label: 'Top-N by group',
+         // },
+
         ]
-        },
+      },
       {
         type: 'doc',
         id: 'sql/sql-data-types',
         label: 'Data types',
-      },
-      {
-        type: 'category',
-        label: 'Queries',
-        items: 
-        [
-          {
-            type: 'doc',
-            id: 'sql/queries/sql-queries-top-n',
-            label: 'Top-N',
-          },
-        ]
       },  
       {
       type: 'category',
