@@ -101,6 +101,11 @@ const sidebars = {
           id: 'tutorials/clickstream-analysis',
           label: 'Clickstream analysis',
         },
+        {
+          type: 'doc',
+          id: 'tutorials/live-stream-metrics-analysis',
+          label: 'Live stream metrics analysis',
+        },
       ]
     },
 
