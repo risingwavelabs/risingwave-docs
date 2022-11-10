@@ -10,7 +10,7 @@ Use the `CREATE TABLE` command to create a new table.
 ## Syntax
 
 ```sql
-CREATE TABLE table_name (col_name data_type [, col_name data_type ...])
+CREATE TABLE table_name (col_name data_type [, col_name data_type ...]);
 ```
 
 ## Parameters
@@ -29,7 +29,7 @@ The statement below creates a table that has three columns.
 CREATE TABLE taxi_trips(
     id VARCHAR,
     distance DOUBLE PRECISION,
-    duration DOUBLE PRECISION
+    city VARCHAR
 );
 ```
 
