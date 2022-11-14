@@ -227,6 +227,24 @@ const sidebars = {
     },
 
     {
+      type: 'category',
+      label: `Client libraries`,
+      collapsible: true,
+      collapsed: true,
+      items:
+      [{
+        type: 'doc',
+        id: 'dev/python-client-libraries',
+        label: 'Python',
+      },
+      {
+        type: 'doc',
+        id: 'dev/java-client-libraries',
+        label: 'Java',
+      }]
+    },
+
+    {
       type: 'doc',
       id: 'release-notes',
       label: 'Release notes'
