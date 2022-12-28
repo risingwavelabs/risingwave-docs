@@ -207,6 +207,10 @@ const sidebars = {
           id: 'guides/nested-columns-arrays',
           label: 'Specify nested columns and arrays',
         },
+        {
+          type: 'doc',
+          id: 'guides/install-psql-without-postgresql',
+        },
         
       ]
     },
