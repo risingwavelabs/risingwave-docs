@@ -69,8 +69,8 @@ To ingest data streams, you should [create sources](sql-create-source.md) instea
 ## Syntax
 
 ```sql
-CREATE TABLE table_name (
-    col_name data_type [ PRIMARY KEY ],
+CREATE TABLE [ IF NOT EXISTS ] table_name (
+    col_name data_type [ PRIMARY KEY ], 
     ...
     [ PRIMARY KEY (col_name, ... ) ]
 );
@@ -103,7 +103,7 @@ CREATE TABLE taxi_trips(
 The statement below creates a table that includes nested tables.
 
 ```sql
-CREATE TABLE taxi_trips(
+CREATE TABLE IF NOT EXISTS taxi_trips(
     id VARCHAR,
     distance DOUBLE PRECISION,
     duration DOUBLE PRECISION,
