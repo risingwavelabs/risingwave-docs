@@ -197,6 +197,11 @@ const sidebars = {
       [
         {
         type: 'doc',
+        label: 'Overview',
+        id: 'rw-integration-summary',
+        },
+        {
+        type: 'doc',
         label: 'Grafana',
         id: 'guides/grafana-integration'
         },
