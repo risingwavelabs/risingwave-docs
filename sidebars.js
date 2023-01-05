@@ -402,6 +402,21 @@ const sidebars = {
     },
 
     {
+      type: 'category',
+      label: 'Manage RisingWave',
+      collapsible: true,
+      collapsed: true,
+      items: 
+      [ 
+        {
+          type: 'doc',
+          id: 'manage/meta-backup',
+        },
+        
+      ]
+    },
+
+    {
       type: 'doc',
       id: 'release-notes',
       label: 'Release notes'
