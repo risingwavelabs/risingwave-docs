@@ -35,3 +35,10 @@ All WITH options are required.
 |kafka.topic|Address of the Kafka topic. One sink can only correspond to one topic.|
 |format	| Data format. Allowed formats: `‘append-only’`, `‘debezium’`.|
 
+
+
+:::note
+
+Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive.
+
+:::
