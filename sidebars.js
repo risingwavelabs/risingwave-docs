@@ -174,6 +174,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          label: 'Astra Streaming',
+          id: 'guides/connector-astra-streaming',
+        },
+        {
+          type: 'doc',
           label: 'Load generator',
           id: 'create-source/create-source-datagen',
         },
