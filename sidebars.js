@@ -214,6 +214,11 @@ const sidebars = {
         label: 'Grafana',
         id: 'guides/grafana-integration'
         },
+        {
+        type: 'doc',
+        label: 'Superset',
+        id: 'guides/superset-integration'
+        }
       ]
     },
 

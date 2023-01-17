@@ -74,6 +74,7 @@ ROW SCHEMA LOCATION [ 'location' | CONFLUENT SCHEMA REGISTRY 'schema_registry_ur
 RisingWave decodes JSON directly from external sources. When creating a source from streams in JSON, you need to define the schema of the source within the parentheses after the source name, and specify the format in the `ROW FORMAT` section. You can directly reference data fields in the JSON payload by their names as column names in the schema. 
 
 Syntax:
+
 ```sql
 ROW FORMAT JSON
 ```
@@ -97,7 +98,7 @@ protoc -I=$include_path --include_imports --descriptor_set_out=schema.pb schema.
 
 Syntax:
 ```sql
-ROW FORMAT AVRO 
+ROW FORMAT PROTOBUF 
 MESSAGE 'main_message' 
 ROW SCHEMA LOCATION [ 'location' | CONFLUENT SCHEMA REGISTRY 'schema_registry_url' ]
 ```
