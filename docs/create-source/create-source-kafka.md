@@ -123,6 +123,26 @@ ROW SCHEMA LOCATION 'https://demo_bucket_name.s3-us-west-2.amazonaws.com/demo.pr
 </TabItem>
 </Tabs>
 
+## Query Kafka timestamp
+
+For each Kafka source created, the virtual column, `_rw_kafka_timestamp`, will also exist. This column includes the timestamp of the Kafka message.
+
+You can include this column in your views or materialized views to display the Kafka timestamp. Here is an example.
+
+```sql
+CREATE MATERIALIZED VIEW v1 AS
+SELECT _rw_kafka_timestamp, col1
+FROM source_name;
+```
+
+If directly querying from the source, you can use `_rw_kafka_timestamp` to filter messages sent within a specific time period. For example, the following query only selects messages sent in the past 10 minutes.
+
+```sql
+SELECT * FROM source_name
+WHERE _rw_kafka_timestamp > now() - interval '10 minute';
+```
+
+
 ## Read schemas from locations
 
 RisingWave supports reading schemas from a Web location in `http://...`, `https://...`, or `S3://...` format, or a Confluent Schema Registry for Kafka data in Avro or Protobuf format.
