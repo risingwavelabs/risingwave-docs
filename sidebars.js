@@ -95,10 +95,9 @@ const sidebars = {
         },
       ]
     },
-
     {
       type: 'category',
-      label: 'Tutorials',
+      label: 'Use cases',
       collapsible: true,
       collapsed: true,
       items: [
@@ -147,11 +146,7 @@ const sidebars = {
           label: 'Overview',
           id: 'data-ingestion',
         },
-        {
-          type: 'doc',
-          label: 'CDC',
-          id: 'create-source/create-source-cdc',
-        },
+     
         {
           type: 'doc',
           label: 'Kafka',
@@ -176,6 +171,21 @@ const sidebars = {
           type: 'doc',
           label: 'Astra Streaming',
           id: 'guides/connector-astra-streaming',
+        },
+        {
+          type: 'doc',
+          label: 'MySQL CDC',
+         id: 'guides/ingest-from-mysql-cdc'
+        },
+         {
+          type: 'doc',
+          label: 'PostgreSQL CDC',
+         id: 'guides/ingest-from-postgres-cdc'
+        },
+          {
+          type: 'doc',
+          label: 'CDC via Kafka',
+          id: 'create-source/create-source-cdc',
         },
         {
           type: 'doc',
