@@ -21,7 +21,7 @@ const sidebars = {
   MainSidebar: [
     {
       type: 'category',
-      label: 'Introduction',
+      label: 'About RisingWave',
       collapsible: true,
       collapsed: false,
       items: [
@@ -41,7 +41,13 @@ const sidebars = {
           type: 'doc',
           id: 'key-concepts',
           label: 'Key concepts and terms',
-        }
+        },
+
+        {
+          type: 'doc',
+          label: 'Overview',
+          id: 'rw-integration-summary',
+          },
       ]
     },
 
@@ -216,14 +222,9 @@ const sidebars = {
 
     {
       type: 'category',
-      label: 'Integrations',
+      label: 'Data visualization',
       items:
       [
-        {
-        type: 'doc',
-        label: 'Overview',
-        id: 'rw-integration-summary',
-        },
         {
         type: 'doc',
         label: 'Grafana',
