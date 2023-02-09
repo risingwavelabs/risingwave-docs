@@ -45,7 +45,7 @@ const sidebars = {
 
         {
           type: 'doc',
-          label: 'Overview',
+          label: 'Integrations',
           id: 'rw-integration-summary',
           },
       ]
