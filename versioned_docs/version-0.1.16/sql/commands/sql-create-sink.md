@@ -25,7 +25,8 @@ WITH (
 
 ## Parameters
 
-All WITH options are required.
+All `WITH` options are required.
+
 |Parameter or clause| Description|
 |---|---|
 |sink_name| Name of the sink to be created.|
