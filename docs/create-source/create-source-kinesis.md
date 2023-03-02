@@ -13,7 +13,7 @@ When creating a source, you can choose to persist the data from the source in Ri
 
 ```sql
 CREATE {TABLE | SOURCE} [ IF NOT EXISTS ] source_name 
-[schema_definition]
+[ schema_definition ]
 WITH (
    connector='kinesis',
    connector_parameter='value', ...
@@ -22,6 +22,71 @@ ROW FORMAT data_format
 [ MESSAGE 'message' ]
 [ ROW SCHEMA LOCATION 'location' ];
 ```
+
+
+
+import rr from '@theme/RailroadDiagram'
+
+export const svg = rr.Diagram(
+    rr.Stack(
+        rr.Sequence(
+            rr.Choice(1,
+                rr.Terminal('CREATE TABLE'),
+                rr.Terminal('CREATE SOURCE')
+            ),
+            rr.Optional(rr.Terminal('IF NOT EXISTS')),
+            rr.NonTerminal('source_name', 'wrap')
+        ),
+        rr.Optional(rr.NonTerminal('schema_definition', 'skip')),
+        rr.Sequence(
+            rr.Terminal('WITH'),
+            rr.Terminal('('),
+            rr.Stack(
+                rr.Stack(
+                    rr.Sequence(
+                        rr.Terminal('connector'),
+                        rr.Terminal('='),
+                        rr.NonTerminal('kinesis', 'skip'),
+                        rr.Terminal(','),
+                    ),
+                    rr.OneOrMore(
+                        rr.Sequence(
+                            rr.NonTerminal('connector_parameter', 'skip'),
+                            rr.Terminal('='),
+                            rr.NonTerminal('value', 'skip'),
+                            rr.Terminal(','),
+                        ),
+                    ),
+                ),
+                rr.Terminal(')'),
+            ),
+        ),
+        rr.Sequence(
+            rr.Terminal('ROW FORMAT'),
+            rr.NonTerminal('data_format', 'skip'),
+        ),
+        rr.Optional(
+            rr.Sequence(
+                rr.Terminal('MESSAGE'),
+                rr.NonTerminal('message', 'skip'),
+            ),
+        ),
+        rr.Optional(
+            rr.Sequence(
+                rr.Terminal('ROW SCHEMA LOCATION'),
+                rr.Terminal('location'),
+            ),
+        ),
+        rr.Terminal(';'),
+    )
+);
+
+
+<drawer SVG={svg} />
+
+
+
+
 
 **schema_definition**:
 ```sql

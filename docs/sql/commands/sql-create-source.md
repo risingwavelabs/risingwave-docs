@@ -20,9 +20,74 @@ WITH (
    connector_parameter='value', ...
 )
 ROW FORMAT data_format 
-[MESSAGE 'message']
-[ROW SCHEMA LOCATION [ 'location' | CONFLUENT SCHEMA REGISTRY 'schema_registry_url' ]];
+[ MESSAGE 'message' ]
+[ ROW SCHEMA LOCATION [ 'location' | CONFLUENT SCHEMA REGISTRY 'schema_registry_url' ] ];
 ```
+
+import rr from '@theme/RailroadDiagram'
+
+export const svg = rr.Diagram(
+   rr.Stack(
+      rr.Sequence(
+         rr.Terminal('CREATE SOURCE'),
+         rr.Optional(rr.Terminal('IF NOT EXISTS')),
+         rr.NonTerminal('source_name', 'skip'),     
+      ),
+      rr.Optional(rr.NonTerminal('schema_definition', 'skip')),
+      rr.Sequence(
+         rr.Terminal('WITH'),
+         rr.Terminal('('),
+         rr.Stack(
+            rr.Stack(
+               rr.Sequence(
+                  rr.Terminal('connector'),
+                  rr.Terminal('='),
+                  rr.NonTerminal('connector_name', 'skip'),
+                  rr.Terminal(','),
+               ),
+               rr.OneOrMore(
+                  rr.Sequence(
+                     rr.NonTerminal('connector_parameter', 'skip'),
+                     rr.Terminal('='),
+                     rr.NonTerminal('value', 'skip'),
+                     rr.Terminal(','),
+                  ),
+               ),
+            ),
+            rr.Terminal(')'),
+         ),
+      ),
+      rr.Stack(
+         rr.Sequence(
+            rr.Terminal('ROW FORMAT'),
+            rr.NonTerminal('data_format', 'skip'),
+         ),
+         rr.Optional(
+            rr.Sequence(
+               rr.Terminal('MESSAGE'),
+               rr.NonTerminal('message', 'skip'),
+            ),
+         ),
+         rr.Optional(
+            rr.Sequence(
+               rr.Terminal('ROW SCHEMA LOCATION'),
+               rr.Choice(1,
+                  rr.Terminal('location'),
+                  rr.Sequence(
+                     rr.Terminal('CONFLUENT SCHEMA REGISTRY'),
+                     rr.NonTerminal('schema_registry_url', 'skip'),
+                  ),
+               ),
+            ),
+         ),
+         rr.Terminal(';'),
+      ),
+   )
+);
+
+<drawer SVG={svg} />
+
+
 
 :::note
 
@@ -67,7 +132,7 @@ Syntax:
 ```sql
 ROW FORMAT AVRO 
 MESSAGE 'main_message' 
-ROW SCHEMA LOCATION [ 'location' | CONFLUENT SCHEMA REGISTRY 'schema_registry_url' ]
+ROW SCHEMA LOCATION { 'location' | CONFLUENT SCHEMA REGISTRY 'schema_registry_url' }
 ```
 
 ### JSON
