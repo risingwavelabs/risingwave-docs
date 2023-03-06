@@ -28,10 +28,10 @@ First, clone the [risingwave-demo](https://github.com/singularity-data/risingwav
 git clone https://github.com/risingwavelabs/risingwave-demo.git
 ```
 
-Now navigate to the live-stream directory and start the demo cluster from the docker compose file.
+Now navigate to the `livestream` directory and start the demo cluster from the docker compose file.
 
 ```
-cd risingwave-demo/live-stream
+cd risingwave-demo/livestream
 docker-compose up -d
 ```
 
