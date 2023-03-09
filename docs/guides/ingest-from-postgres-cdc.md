@@ -1,7 +1,7 @@
 ---
  id: ingest-from-postgres-cdc
  title: Ingest data from PostgreSQL CDC
- description: Describes how to ngest data from PostgreSQL CDC.
+ description: Describes how to ingest data from PostgreSQL CDC.
  slug: /ingest-from-postgres-cdc
 ---
 
