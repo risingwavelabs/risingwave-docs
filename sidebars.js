@@ -166,6 +166,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          label: 'Confluent Cloud',
+          id: 'guides/confluent-kafka-source',
+        },
+        {
+          type: 'doc',
           label: 'Redpanda',
           id: 'create-source/create-source-redpanda',
         },
