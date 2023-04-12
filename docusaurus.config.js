@@ -29,6 +29,7 @@ const config = {
             keywords: ["note", "tip", "info", "caution", "danger"],
           },
           sidebarPath: require.resolve("./sidebars.js"),
+          sidebarCollapsible: false,
           showLastUpdateAuthor: false,
           showLastUpdateTime: true,
           versions: {
@@ -77,6 +78,7 @@ const config = {
         },
         theme: {
           customCss: [
+            require.resolve("./src/css/fonts.css"),
             require.resolve("./src/css/custom.css"),
             require.resolve("./src/css/buttons.css"),
           ],
@@ -99,14 +101,14 @@ const config = {
       docs: {
         sidebar: {
           hideable: true,
-          autoCollapseCategories: true,
+          autoCollapseCategories: false,
         },
       },
       navbar: {
         title: "",
         logo: {
           alt: "RisingWave Logo",
-          src: "img/logo-title.svg",
+          src: "img/logo-title.png",
         },
         items: [
           // {
