@@ -1,9 +1,6 @@
 // @ts-check
 // Note: type annotations allow type checking and IDEs autocompletion
 
-const lightCodeTheme = require("prism-react-renderer/themes/github");
-const darkCodeTheme = require("prism-react-renderer/themes/dracula");
-
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "RisingWave",
@@ -83,14 +80,21 @@ const config = {
             require.resolve("./src/css/buttons.css"),
           ],
         },
-        // googleAnalytics: {
-        //   trackingID: 'myID',
-        //   anonymizeIP: true
-        // }
       }),
     ],
   ],
-
+  plugins: [
+    [
+      "@docusaurus/plugin-content-docs",
+      /** @type {import('@docusaurus/plugin-content-docs').Options} */
+      {
+        id: "cloud",
+        path: "cloud",
+        routeBasePath: "cloud",
+        sidebarPath: require.resolve("./sidebarCloud.js"),
+      },
+    ],
+  ],
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
@@ -111,13 +115,18 @@ const config = {
           src: "img/logo-title.png",
         },
         items: [
-          // {
-          //   type: 'doc',
-          //   docId: 'intro',
-          //   position: 'left',
-          //   label: 'Docs',
-          // },
-          // {to: '/blog', label: 'Blog', position: 'left'},
+          {
+            type: "doc",
+            docId: "intro",
+            position: "left",
+            label: "RisingWave Database",
+          },
+          {
+            to: "/cloud/intro",
+            label: "RisingWave Cloud",
+            position: "left",
+            activeBaseRegex: `/cloud/`,
+          },
           {
             type: "docsVersionDropdown",
             docsPluginId: "default",
@@ -168,7 +177,7 @@ const config = {
         //     ],
         //   },
         // ],
-        copyright: `Copyright © ${new Date().getFullYear()} RisingWave Community.`,
+        copyright: `Copyright © ${new Date().getFullYear()} RisingWave Community`,
       },
       prism: {
         additionalLanguages: ["sql", "java"],
