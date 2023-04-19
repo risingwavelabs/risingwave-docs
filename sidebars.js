@@ -255,7 +255,7 @@ const sidebars = {
             },
             {
               type: 'doc',
-              label: 'CDC via Kafka',
+              label: 'CDC via event streaming systems',
               id: 'create-source/create-source-cdc',
             },
             {
