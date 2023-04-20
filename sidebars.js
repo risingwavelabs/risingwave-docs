@@ -291,6 +291,11 @@ const sidebars = {
               label: 'MySQL',
               id: 'guides/sink-to-mysql-with-jdbc'
             },
+             {
+              type: 'doc',
+              label: 'PostgreSQL',
+              id: 'guides/sink-to-postgres'
+            },
             {
               type: 'doc',
               label: 'Apache Iceberg',
@@ -318,8 +323,6 @@ const sidebars = {
         }
       ]
     },
-
-
     {
       type: 'category',
       label: 'Develop',
