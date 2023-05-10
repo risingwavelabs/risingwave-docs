@@ -315,6 +315,11 @@ const sidebars = {
             },
             {
               type: 'doc',
+              label: 'TiDB',
+              id: 'guides/sink-to-tidb'
+            },
+            {
+              type: 'doc',
               label: 'Apache Iceberg',
               id: 'guides/sink-to-iceberg'
             }
