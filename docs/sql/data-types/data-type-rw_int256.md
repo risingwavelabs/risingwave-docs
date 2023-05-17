@@ -46,7 +46,7 @@ Or convert `rw_int256` to `double`.
 
 Returns the number of non-null rows.
 
-```sql title=Signature
+```sql title=Syntax
 count ( [ DISTINCT ] rw_int256 ) -> bigint
 ```
 
@@ -61,7 +61,7 @@ SELECT count(v) FROM t;
 
 Returns the minimum value in a set of values.
 
-```sql title=Signature
+```sql title=Syntax
 min ( rw_int256 ) -> rw_int256
 ```
 
@@ -76,7 +76,7 @@ SELECT min(v) FROM t;
 
 Returns the maximum value in a set of values.
 
-```sql title=Signature
+```sql title=Syntax
 max ( rw_int256 ) -> rw_int256
 ```
 
@@ -92,7 +92,7 @@ SELECT max(v) FROM t;
 
 Returns the sum of all input values.
 
-```sql title=Signature
+```sql title=Syntax
 sum ( [ DISTINCT ] rw_int256 ) -> rw_int256
 ```
 
@@ -107,7 +107,7 @@ SELECT sum(v) FROM t;
 
 Returns the average (arithmetic mean) of the selected values.
 
-```sql title=Signature
+```sql title=Syntax
 avg ( [ DISTINCT ] rw_int256 ) -> double
 ```
 
@@ -122,7 +122,7 @@ SELECT avg(v) FROM t;
 
 Converts a hexadecimal string to a 256-bit integer.
 
-```sql title=Signature
+```sql title=Syntax
 hex_to_int256 ( string ) -> rw_int256
 ```
 
