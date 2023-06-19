@@ -1,7 +1,7 @@
 ---
 id: risingwave-cloud
 title: RisingWave Cloud
-description: Manage fully-managed RisingWave clusters in with RisingWave Cloud.
+description: Run fully-managed RisingWave clusters with RisingWave Cloud.
 slug: /risingwave-cloud
 ---
 
