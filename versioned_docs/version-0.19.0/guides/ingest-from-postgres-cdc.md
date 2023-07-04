@@ -13,7 +13,7 @@ You can ingest CDC data from PostgreSQL into RisingWave in two ways:
 
 - Using the built-in PostgreSQL CDC connector
 
-  With this connector, RisingWave can connect to PostgreSQL directly to obtain data from the binlog without starting additional services.
+  With this connector, RisingWave can connect to PostgreSQL databases directly to obtain data from the binlog without starting additional services.
 
   :::caution Beta feature
   The built-in PostgreSQL CDC connector in RisingWave is currently in Beta. Please use with caution as stability issues may still occur. Its functionality may evolve based on feedback. Please report any issues encountered to our team.

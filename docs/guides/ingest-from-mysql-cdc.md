@@ -19,7 +19,7 @@ You can ingest CDC data from MySQL in two ways:
 
 - Using the built-in MySQL CDC connector
 
-  With this connector, RisingWave can connect to MySQL directly to obtain data from the binlog without starting additional services.
+  With this connector, RisingWave can connect to MySQL databases directly to obtain data from the binlog without starting additional services.
 
   :::caution Beta feature
   The built-in MySQL CDC connector in RisingWave is currently in Beta. Please use with caution as stability issues may still occur. Its functionality may evolve based on feedback. Please report any issues encountered to our team.

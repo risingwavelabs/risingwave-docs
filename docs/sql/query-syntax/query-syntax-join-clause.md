@@ -109,7 +109,7 @@ ON s1.id = s2.id and s1.window_start = s2.window_start;
 
 ## Interval joins
 
-Window joins require that the two sources have the exactly same watermarks. This requirement can be too strict in some scenarios. If you want to join two sources that have some time offset, you can create an interval join by specifying an accepted internval range based on watermarks.
+Window joins require that the two sources have the same window type and window size. This requirement can be too strict in some scenarios. If you want to join two sources that have some time offset, you can create an interval join by specifying an accepted internval range based on watermarks.
 
 The syntax of an interval join is:
 
