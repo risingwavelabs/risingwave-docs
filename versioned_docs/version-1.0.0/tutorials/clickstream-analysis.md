@@ -61,7 +61,7 @@ CREATE SOURCE user_behaviors (
     topic = 'user_behaviors',
     properties.bootstrap.server = 'message_queue:29092',
     scan.startup.mode = 'earliest'
-) ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 RisingWave is connected to the streams but has not started to consume data yet. For data to be processed, we need to define materialized views. After a materialized view is created, RisingWave will consume data from the specified offset.

@@ -28,9 +28,10 @@ WITH (
    connector='kafka',
    connector_parameter='value', ...
 )
-ROW FORMAT data_format 
-[ MESSAGE 'message' ]
-[ ROW SCHEMA LOCATION ['location' | CONFLUENT SCHEMA REGISTRY 'schema_registry_url' ] ];
+FORMAT data_format ENCODE data_encode (
+   message = 'message',
+   schema_location = 'location' | confluent_schema_registry = 'schema_registry_url'
+);
 ```
 
 import rr from '@theme/RailroadDiagram'
@@ -46,6 +47,21 @@ export const svg = rr.Diagram(
          rr.NonTerminal('source_name', 'skip'),
       ),
       rr.Optional(rr.NonTerminal('schema_definition', 'skip')),
+      rr.Sequence(
+         rr.Terminal('FORMAT'),
+         rr.NonTerminal('format', 'skip')
+      ),
+      rr.Sequence(
+         rr.Terminal('ENCODE'),
+         rr.NonTerminal('encode', 'skip'),
+         rr.Optional(
+            rr.Sequence(
+               rr.Terminal('('),
+               rr.NonTerminal('encode_parameter', 'skip'),
+               rr.Terminal(')'),
+            ),
+         ),
+      ),
       rr.Sequence(
          rr.Terminal('WITH'),
          rr.Terminal('('),
@@ -70,29 +86,7 @@ export const svg = rr.Diagram(
          ),
       ),
       rr.Stack(
-         rr.Sequence(
-            rr.Terminal('ROW FORMAT'),
-            rr.NonTerminal('data_format', 'skip'),
-         ),
-         rr.Optional(
-            rr.Sequence(
-               rr.Terminal('MESSAGE'),
-               rr.NonTerminal('message', 'skip'),
-            ),
-         ),
-         rr.Optional(
-            rr.Sequence(
-               rr.Terminal('ROW SCHEMA LOCATION'),
-               rr.Choice(1,
-                  rr.Terminal('location'),
-                  rr.Sequence(
-                     rr.Terminal('CONFLUENT SCHEMA REGISTRY'),
-                     rr.NonTerminal('schema_registry_url', 'skip'),
-                  ),
-               ),
-            ),
-         ),
-         rr.Terminal(';'),
+         rr.Terminal(';')
       ),
    )
 );
@@ -138,7 +132,8 @@ For materialized sources with primary key constraints, if a new data record with
 
 |Field|Notes|
 |---|---|
-|*data_format*| Data format. Supported formats: `JSON`, `AVRO`, `PROTOBUF`, `DEBEZIUM_JSON`, `DEBEZIUM_AVRO`, `MAXWELL`, `CANAL_JSON`, `UPSERT_JSON`, `UPSERT_AVRO`, `CSV`. |
+|*data_format*| Data format. Supported formats: , `DEBEZIUM`, `MAXWELL`, `CANAL`, `UPSERT`, `PLAIN`. |
+|*data_encode*| Data encode. Supported encodes: `JSON`, `AVRO`, `PROTOBUF`, `CSV`.|
 |*message* | Message name of the main Message in schema definition. Required for Protobuf.|
 |*location*| Web location of the schema file in `http://...`, `https://...`, or `S3://...` format. For Avro and Protobuf data, you must specify either a schema location or a schema registry but not both.|
 |*schema_registry_url*| Confluent Schema Registry URL. Example: `http://127.0.0.1:8081`. For Avro or Protobuf data, you must specify either a schema location or a Confluent Schema Registry but not both.|
@@ -165,9 +160,9 @@ WITH (
    properties.bootstrap.server='172.10.1.1:9090,172.10.1.2:9090',
    scan.startup.mode='latest',
    scan.startup.timestamp_millis='140000000'
-)
-ROW FORMAT AVRO 
-ROW SCHEMA LOCATION CONFLUENT SCHEMA REGISTRY 'http://127.0.0.1:8081';
+) FORMAT PLAIN ENCODE AVRO (
+   confluent_schema_registry = 'http://127.0.0.1:8081'
+);
 ```
 
 </TabItem>
@@ -182,8 +177,9 @@ WITH (
    schema.registry.username='your_schema_registry_username',
    schema.registry.password='your_schema_registry_password'
 )
-ROW FORMAT UPSERT_AVRO
-ROW SCHEMA LOCATION CONFLUENT SCHEMA REGISTRY 'http://127.0.0.1:8081';
+FORMAT UPSERT ENCODE AVRO (
+   confluent_schema_registry = 'http://127.0.0.1:8081'
+);
 ```
 
 </TabItem>
@@ -200,8 +196,7 @@ WITH (
    properties.bootstrap.server='172.10.1.1:9090,172.10.1.2:9090',
    scan.startup.mode='latest',
    scan.startup.timestamp_millis='140000000'
-)
-ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 </TabItem>
@@ -216,7 +211,7 @@ WITH (
    connector='kafka',
    properties.bootstrap.server='localhost:9092',
    topic='t1'
-) ROW FORMAT UPSERT_JSON;
+) FORMAT UPSERT ENCODE JSON;
 ```
 
 </TabItem>
@@ -230,9 +225,10 @@ WITH (
    properties.bootstrap.server='172.10.1.1:9090,172.10.1.2:9090',
    scan.startup.mode='latest',
    scan.startup.timestamp_millis='140000000'
-)
-ROW FORMAT PROTOBUF MESSAGE 'main_message'
-ROW SCHEMA LOCATION 'https://demo_bucket_name.s3-us-west-2.amazonaws.com/demo.proto';
+) FORMAT PLAIN ENCODE PROTOBUF (
+   message = 'main_message',
+   location = 'https://demo_bucket_name.s3-us-west-2.amazonaws.com/demo.proto'
+);
 ```
 
 </TabItem>
@@ -245,13 +241,15 @@ WITH (
    topic = 'kafka_csv_topic',
    properties.bootstrap.server = '127.0.0.1:29092',
    scan.startup.mode = 'earliest'
-) 
-ROW FORMAT csv WITHOUT HEADER DELIMITED BY ',';
+) FORMAT PLAIN ENCODE CSV (
+   without_header = 'true',
+   delimiter = ','
+);
 ```
 
-- CSV header is not supported when creating a table with Kafka connector. Add the `WITHOUT HEADER` option to the `ROW FORMAT` clause.
+- CSV header is not supported when creating a table with Kafka connector. Add the `without_header` option to the encode parameters.
 
-- The `DELIMITED BY` option specifies the delimiter character used in the CSV data.
+- The `delimiter` option specifies the delimiter character used in the CSV data.
 
 </TabItem>
 </Tabs>
@@ -288,7 +286,9 @@ protoc -I=$include_path --include_imports --descriptor_set_out=schema.pb schema.
 To specify a schema location, add this clause to a `CREATE SOURCE` statement.
 
 ```SQL
-ROW SCHEMA LOCATION 'location'
+ENCODE data_encode (
+   location = 'schema_location'
+)
 ```
 
 ## Read schemas from Schema Registry
@@ -300,7 +300,9 @@ RisingWave supports reading schemas from a Schema Registry. The latest schema w
 To specify the Schema Registry, add this clause to a `CREATE SOURCE` statement.
 
 ```sql
-ROW FORMAT LOCATION CONFLUENT SCHEMA REGISTRY 'schema_registry_url;
+ENCODE data_encode (
+   confluent_schema_registry = 'schema_registry_url'
+)
 ```
 
 To learn more about Confluent Schema Registry and how to set up a Schema Registry, refer to the [Confluent Schema Registry documentation](https://docs.confluent.io/platform/current/schema-registry/index.html).
@@ -330,14 +332,15 @@ CREATE SOURCE tcp_metrics_rw (
    metric_name VARCHAR,
    report_time TIMESTAMP,
    metric_value DOUBLE PRECISION
-) WITH (
+)
+WITH (
    connector = 'kafka',
    topic = 'tcp_metrics',
    properties.bootstrap.server = 'ip1:9092, ip2:9092',
    connection.name = 'my_connection',
    privatelink.targets = '[{"port": 8001}, {"port": 8002}]',
    scan.startup.mode = 'earliest'
-) ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 ## TLS/SSL encryption and SASL authentication
@@ -383,7 +386,7 @@ Here is an example of creating a materialized source encrypted with SSL without 
 CREATE TABLE IF NOT EXISTS source_1 (
    column1 varchar,
    column2 integer,
-)                  
+)
 WITH (
    connector='kafka',
    topic='quickstart-events',
@@ -394,8 +397,7 @@ WITH (
    properties.ssl.certificate.location='/home/ubuntu/kafka/secrets/client_risingwave_client.pem',
    properties.ssl.key.location='/home/ubuntu/kafka/secrets/client_risingwave_client.key',
    properties.ssl.key.password='abcdefgh'
-)                                                       
-ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 ### `SASL/PLAIN`
@@ -426,7 +428,7 @@ Here is an example of creating a source authenticated with SASL/PLAIN without SS
 CREATE SOURCE IF NOT EXISTS source_2 (
    column1 varchar,
    column2 integer,
-)                  
+)
 WITH (
    connector='kafka',
    topic='quickstart-events',
@@ -436,8 +438,7 @@ WITH (
    properties.security.protocol='SASL_PLAINTEXT',
    properties.sasl.username='admin',
    properties.sasl.password='admin-secret'
-)                                                           
-ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 This is an example of creating a source authenticated with SASL/PLAIN with SSL encryption.
@@ -446,7 +447,7 @@ This is an example of creating a source authenticated with SASL/PLAIN with SSL e
 CREATE SOURCE IF NOT EXISTS source_3 (
    column1 varchar,
    column2 integer,
-)                  
+)
 WITH (
    connector='kafka',
    topic='quickstart-events',
@@ -460,8 +461,7 @@ WITH (
    properties.ssl.certificate.location='/home/ubuntu/kafka/secrets/client_risingwave_client.pem',
    properties.ssl.key.location='/home/ubuntu/kafka/secrets/client_risingwave_client.key',
    properties.ssl.key.password='abcdefgh'
-)                                                           
-ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 ### `SASL/SCRAM`
@@ -492,7 +492,7 @@ Here is an example of creating a materialized source authenticated with SASL/SCR
 CREATE TABLE IF NOT EXISTS source_4 (
    column1 varchar,
    column2 integer,
-)                  
+)
 WITH (
    connector='kafka',
    topic='quickstart-events',
@@ -502,6 +502,5 @@ WITH (
    properties.security.protocol='SASL_PLAINTEXT',
    properties.sasl.username='admin',
    properties.sasl.password='admin-secret'
-)                                                       
-ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
