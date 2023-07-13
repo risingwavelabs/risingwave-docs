@@ -15,12 +15,14 @@ WITH (
    connector='s3',
    connector_parameter='value', ...
 )
-ROW FORMAT data_format
-[WITHOUT HEADER] [DELIMITED BY 'delimiter']; 
+FORMAT data_format ENCODE data_encode (
+   without_header = 'true' | 'false',
+   delimiter = 'delimiter'
+); 
 ```
 
 :::info
-For CSV data, specify the delimiter in the `DELIMITED BY` clause.
+For CSV data, specify the delimiter in the `delimiter` option in `ENCODE properties`.
 :::
 
 import rr from '@theme/RailroadDiagram'
@@ -33,6 +35,21 @@ export const svg = rr.Diagram(
             rr.NonTerminal('source_name', 'skip')
         ),
         rr.NonTerminal('schema_definition', 'skip'),
+        rr.Sequence(
+            rr.Terminal('FORMAT'),
+            rr.NonTerminal('format', 'skip')
+        ),
+        rr.Sequence(
+            rr.Terminal('ENCODE'),
+            rr.NonTerminal('encode', 'skip'),
+            rr.Optional(
+                rr.Sequence(
+                rr.Terminal('('),
+                rr.NonTerminal('encode_parameter', 'skip'),
+                rr.Terminal(')'),
+                ),
+            ),
+        ),
         rr.Sequence(
             rr.Terminal('WITH'),
             rr.Terminal('('),
@@ -56,23 +73,12 @@ export const svg = rr.Diagram(
                 rr.Terminal(')'),
             ),
         ),
-        rr.Sequence(
-            rr.Sequence(
-                rr.Terminal('ROW FORMAT'),
-                rr.NonTerminal('csv', 'skip'),
-            ),
-            rr.Optional(rr.Terminal('WITHOUT HEADER')),
-            rr.Terminal('DELIMITED BY'),
-            rr.Terminal(','),
-            rr.Terminal(';'),
-        ),
+        rr.Terminal(';'),
     )
 );
 
 
 <drawer SVG={svg} />
-
-
 
 
 
@@ -93,11 +99,18 @@ export const svg = rr.Diagram(
 |s3.credentials.access| Conditional. This field indicates the access key ID of AWS. It must be used with `s3.credentials.secret`. If not specified, RisingWave will automatically try to use `~/.aws/credentials`.|
 |s3.credentials.secret| Conditional. This field indicates the secret access key of AWS. It must be used wtih `s3.credentials.access`. If not specified, RisingWave will automatically try to use `~/.aws/credentials`.|
 |match_pattern| Conditional. This field is used to find object keys in `s3.bucket_name` that match the given pattern. Standard Unix-style glob syntax is supported. |
-|s3.endpoint_url| Conditional. The host URL for an S3-compatible object storage server. This allows users to use a different server instead of the standard S3 server. | 
+|s3.endpoint_url| Conditional. The host URL for an S3-compatible object storage server. This allows users to use a different server instead of the standard S3 server. |
 
 :::note
 Empty cells in CSV files will be parsed to `NULL`.
 :::
+
+|Field|Notes|
+|---|---|
+|*data_format*| Supported data format: `PLAIN`. |
+|*data_encode*| Supported data encodes: `CSV`, `JSON`. |
+|*without_header*| Whether the first line is header. Accepted values: `'true'`, `'false'`. Default: `'true'`.|
+|*delimiter*| How RisingWave splits contents. For `JSON` encode, the delimiter is `\n`. |
 
 ## Example
 Here are examples of connecting RisingWave to an S3 source to read data from individual streams.
@@ -114,13 +127,17 @@ CREATE TABLE s(
     name varchar,
     age int,
     primary key(id)
-) WITH (
+) 
+WITH (
     connector = 's3',
     s3.region_name = 'ap-southeast-2',
     s3.bucket_name = 'example-s3-source',
     s3.credentials.access = 'xxxxx',
     s3.credentials.secret = 'xxxxx'
-) ROW FORMAT CSV WITHOUT HEADER DELIMITED BY ',';
+) FORMAT PLAIN ENCODE CSV (
+    without_header = 'true',
+    delimiter = ','
+);
 ```
 
 </TabItem>
@@ -132,7 +149,8 @@ CREATE TABLE s3(
     name TEXT,
     age int,
     mark int,
-) WITH (
+)
+WITH (
     connector = 's3',
     match_pattern = '%Ring%*.ndjson',
     s3.region_name = 'ap-southeast-2',
@@ -140,7 +158,7 @@ CREATE TABLE s3(
     s3.credentials.access = 'xxxxx',
     s3.credentials.secret = 'xxxxx',
     s3.endpoint_url = 'https://s3.us-east-1.amazonaws.com'
-) ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 </TabItem>

@@ -20,12 +20,12 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
     [ PRIMARY KEY (col_name, ... ) ]
 )
 [ WITH (
-   connector='connector_name',
-   connector_parameter='value', ...
-)
-ROW FORMAT data_format 
-[MESSAGE 'message']
-[ROW SCHEMA LOCATION 'location'] ];
+    connector='connector_name',
+    connector_parameter='value', ...)]
+[FORMAT data_format ENCODE data_encode [ (
+    message='message',
+    row_schema_location='location', ...) ]
+];
 ```
 
 import rr from '@theme/RailroadDiagram'
@@ -55,13 +55,14 @@ export const svg = rr.Diagram(
         rr.Optional(
             rr.Stack(
                 rr.Sequence(
-                    rr.Terminal('WITH'),
+                    rr.Terminal('WITH clause'),
             ),
         ),
         ), rr.Terminal(';'),
         ),
     )
 );
+
 
 <drawer SVG={svg} />
 
@@ -94,21 +95,20 @@ export const svgTwo = rr.Diagram(
         ),
         rr.Stack(
             rr.Sequence(
-                rr.Terminal('ROW FORMAT'),
-                rr.NonTerminal('data_format', 'skip'),
+                rr.Terminal('FORMAT'),
+                rr.NonTerminal('format', 'skip')
             ),
-            rr.Optional(
-                rr.Sequence(
-                    rr.Terminal('MESSAGE'),
-                    rr.NonTerminal('message', 'skip'),
+            rr.Sequence(
+                rr.Terminal('ENCODE'),
+                rr.NonTerminal('encode', 'skip'),
+                rr.Optional(
+                    rr.Sequence(
+                    rr.Terminal('('),
+                    rr.NonTerminal('encode_parameter', 'skip'),
+                    rr.Terminal(')'),
+                    ),
                 ),
             ),
-            rr.Optional(
-                rr.Sequence(
-                    rr.Terminal('ROW SCHEMA LOCATION'),
-                    rr.NonTerminal('location', 'skip'),
-                ),
-            )
         ),
     )
 );
@@ -175,6 +175,5 @@ WITH (
    properties.bootstrap.server='172.10.1.1:9090,172.10.1.2:9090',
    scan.startup.mode='latest',
    scan.startup.timestamp_millis='140000000',
-)
-ROW FORMAT JSON;
+) FORMAT PLAIN ENCODE JSON;
 ```
