@@ -84,7 +84,7 @@ For tools or integrations that you would like to use but are not listed in the t
 
 |System | |Availability |
 |---|---|---|
-|Delta Lake| |Researching <voteNotify note="deltalake" />|
+|Delta Lake| |Available. See [Sink data from RisingWave to Delta Lake](/guides/sink-to-delta-lake.md)|
 |Apache Hudi| |Researching <voteNotify note="hudi" />|
 |Apache Iceberg| |Available. For details, see [Sink data from RisingWave to Apache Iceberg](/guides/sink-to-iceberg.md).|
 
