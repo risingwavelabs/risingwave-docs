@@ -118,7 +118,7 @@ When a source is created, RisingWave does not ingest data immediately. RisingWav
 
 ## Watermarks
 
-RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [`WATERMARK`](../sql-watermarks.md) clause should be used within the `schema_definition`. For more information on the syntax on how to create a watermark, see [Watermarks](../sql-watermarks.md).
+RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [`WATERMARK`](/transform/watermarks.md) clause should be used within the `schema_definition`. For more information on the syntax on how to create a watermark, see [Watermarks](/transform/watermarks.md).
 
 ## Change Data Capture (CDC)
 
