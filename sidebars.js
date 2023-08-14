@@ -506,20 +506,44 @@ const sidebars = {
               },
               items: [
                 {
-                  type: "doc",
-                  id: "sql/functions-operators/sql-function-logical",
-                  label: "Logical",
+                  type: 'doc',
+                  id: 'sql/functions-operators/sql-function-aggregate',
+                  label: 'Aggregate',
                 },
                 {
+                  type: "doc",
+                  id: "sql/functions-operators/sql-function-array",
+                  label: "Array",
+                },
+                  {
+                  type: "doc",
+                  id: "sql/functions-operators/sql-function-binarystring",
+                  label: "Binary string",
+                },
+                  {
+                  type: "doc",
+                  id: "sql/functions-operators/sql-function-cast",
+                  label: "Cast",
+                },
+                  {
+                  type: "doc",
+                  id: "sql/functions-operators/sql-function-conditional",
+                  label: "Conditional",
+                },
+                  {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-comparison",
                   label: "Comparison",
                 },
-
+                 {
+                  type: "doc",
+                  id: "sql/functions-operators/sql-function-datetime",
+                  label: "Date/time",
+                },
                 {
                   type: "doc",
-                  id: "sql/functions-operators/sql-function-cast",
-                  label: "Cast",
+                  id: "sql/functions-operators/sql-function-logical",
+                  label: "Logical",
                 },
                 {
                   type: "doc",
@@ -528,29 +552,20 @@ const sidebars = {
                 },
                 {
                   type: "doc",
-                  id: "sql/functions-operators/sql-function-binarystring",
-                  label: "Binary string",
+                  id: "sql/functions-operators/sql-function-set-functions",
+                  label: "Set functions",
+                },
+                {
+                  type: "doc",
+                  id: "sql/functions-operators/sql-function-set-operators",
+                  label: "Set operators",
                 },
                 {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-string",
                   label: "String",
                 },
-                {
-                  type: "doc",
-                  id: "sql/functions-operators/sql-function-datetime",
-                  label: "Date/time",
-                },
-                {
-                  type: "doc",
-                  id: "sql/functions-operators/sql-function-aggregate",
-                  label: "Aggregate",
-                },
-                {
-                  type: "doc",
-                  id: "sql/functions-operators/sql-function-conditional",
-                  label: "Conditional",
-                },
+              
                 {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-sys-admin",
@@ -560,21 +575,6 @@ const sidebars = {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-sys-info",
                   label: "System information",
-                },
-                {
-                  type: "doc",
-                  id: "sql/functions-operators/sql-function-array",
-                  label: "Array",
-                },
-                {
-                  type: "doc",
-                  id: "sql/functions-operators/sql-function-set-operators",
-                  label: "Set operators",
-                },
-                {
-                  type: "doc",
-                  id: "sql/functions-operators/sql-function-set-functions",
-                  label: "Set functions",
                 },
               ],
             },
