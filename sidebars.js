@@ -520,27 +520,27 @@ const sidebars = {
                   id: "sql/functions-operators/sql-function-array",
                   label: "Array",
                 },
-                  {
+                {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-binarystring",
                   label: "Binary string",
                 },
-                  {
+                {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-cast",
                   label: "Cast",
                 },
-                  {
+                {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-conditional",
                   label: "Conditional",
                 },
-                  {
+                {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-comparison",
                   label: "Comparison",
                 },
-                 {
+                {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-datetime",
                   label: "Date/time",
@@ -570,7 +570,7 @@ const sidebars = {
                   id: "sql/functions-operators/sql-function-string",
                   label: "String",
                 },
-              
+
                 {
                   type: "doc",
                   id: "sql/functions-operators/sql-function-sys-admin",
