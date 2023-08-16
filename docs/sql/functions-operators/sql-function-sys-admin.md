@@ -8,7 +8,7 @@ This page lists both RisingWave system administration functions and PostgreSQL s
 
 ## `current_setting()`
 
-Returns the current value of a specified system administration setting. This function corresponds to the SQL command `SHOW`.
+Returns the current value of a specified runtime parameter. This function corresponds to the SQL command `SHOW`.
 
 ```sql title=Example
 SELECT current_setting ('server_version');
@@ -21,14 +21,21 @@ SELECT current_setting ('server_version');
 
 ### Supported system administration settings
 
-We are adding more settings to the list. Currently, the following settings are supported:
+You can use the `SHOW ALL` command to get the complete list of runtime parameters and corresponding descriptions.
 
-- `server_version`
-- `server_version_num`
-- `timezone`
-- `query_mode`
-- `streaming_parallelism`
-- `batch_parallelism`
+## `set_config()`
+
+```sql title="Syntax"
+set_config ( setting_name text, new_value text, is_local boolean ) → text
+```
+
+Sets the parameter `setting_name` to `new_value`, and returns that value. If `is_local` is `true`, the new value will only apply during the current transaction. If you want the new value to apply for the rest of the current session, use `false` instead. This function corresponds to the SQL command `SET`.
+
+```sql title="Example"
+SELECT set_config('rw_implicit_flush', 'true', false);
+-------
+true
+```
 
 <!--
 ## `pg_terminate_backend()`

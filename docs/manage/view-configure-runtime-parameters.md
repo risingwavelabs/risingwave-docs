@@ -49,12 +49,14 @@ SHOW ALL;
 
 ## How to configure runtime parameters?
 
-You can use `SET` command to change the setting of a runtime parameter.
+You can use `SET` command or the `set_config()` function to change the setting of a runtime parameter.
 
-The syntax is:
+The syntax of the `SET` command is:
 
 ```sql
 SET parameter_name { TO | = } { value | 'value' };
 ```
 
 Where `parameter_name` is the name of the parameter, and `value` or `'value'` is the new value of the parameter.
+
+For details about the `set_config()` function, see [System administration functions](/sql/functions-operators/sql-function-sys-admin.md#set_config).
