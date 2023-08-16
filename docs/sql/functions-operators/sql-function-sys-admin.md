@@ -19,8 +19,6 @@ SELECT current_setting ('server_version');
 (1 row)
 ```
 
-### Supported system administration settings
-
 You can use the `SHOW ALL` command to get the complete list of runtime parameters and corresponding descriptions.
 
 ## `set_config()`
