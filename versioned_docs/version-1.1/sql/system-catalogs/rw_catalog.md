@@ -66,22 +66,6 @@ DESCRIBE rw_catalog.rw_meta_snapshot;
 (6 rows)
 ```
 
-```sql
-DESCRIBE rw_catalog.rw_relation_info;
-------RESULTS
-       Name       |  Type   
-------------------+---------
- schemaname       | varchar
- relationname     | varchar
- relationowner    | integer
- definition       | varchar
- relationtype     | varchar
- relationid       | integer
- relationtimezone | varchar
- fragments        | varchar
-(8 rows)
-```
-
 You can also retrieve the values of the catalogs. Please note that the schema (`rw_catalog`) is optional.
 
 ```sql
@@ -96,7 +80,7 @@ SELECT name, owner, definition FROM rw_tables;
 You can use two time-related fields, `created_at` and `initiated_at`, to retrieve the times when an object is created and initialized. This can be useful when you want learn about when a source or materialized view is created or initialized.
 
 ```sql
-SELECT name,initialized_at,created_at FROM rw_sources;
+SELECT name, initialized_at, created_at FROM rw_sources;
 ------RESULT
  name |        initialized_at         |          created_at
 ------+-------------------------------+-------------------------------
