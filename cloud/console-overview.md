@@ -5,7 +5,7 @@ description: The query console is the most intuitive and easy way to connect to 
 slug: /console-overview
 ---
 
-The query console is the most intuitive and easy way to interact with RisingWave, offering graphical tools for managing data and visualizing results.
+The query console is the most intuitive and easy way to interact with RisingWave, offering graphical tools for managing data and visualizing results. 1
 
 <img
 src={require('./images/console.png').default}
