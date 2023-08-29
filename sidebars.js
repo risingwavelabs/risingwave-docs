@@ -670,6 +670,10 @@ const sidebars = {
       items: [
         {
           type: "doc",
+          id: "manage/access-control",
+        },
+        {
+          type: "doc",
           id: "manage/monitor-risingwave-cluster",
         },
         {
