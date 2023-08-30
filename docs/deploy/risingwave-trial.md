@@ -110,7 +110,7 @@ To persist your data, start RisingWave with [Docker Compose](/deploy/risingwave-
 1. ### Extract the tarball
 
   ```shell
-  tar xvf risingwave-v1.0.0-x86_64-unknown-linux.tar.gz
+  tar xvf risingwave-v1.1.3-x86_64-unknown-linux.tar.gz
   ```
 
 1. ### Start RisingWave
