@@ -281,11 +281,6 @@ const sidebars = {
                   label: "Amazon MSK",
                   id: "guides/connector-amazon-msk",
                 },
-                {
-                  type: "doc",
-                  label: "Redpanda",
-                  id: "create-source/create-source-redpanda",
-                },
               ]
             },
             {
@@ -351,7 +346,11 @@ const sidebars = {
               label: "PostgreSQL CDC",
               id: "guides/ingest-from-postgres-cdc",
             },
-
+            {
+              type: "doc",
+              label: "Redpanda",
+              id: "create-source/create-source-redpanda",
+            },
           ],
         },
         {
