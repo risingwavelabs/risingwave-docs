@@ -278,7 +278,7 @@ const sidebars = {
       type: "category",
       label: "Transform data",
       collapsible: true,
-      collapsed: false,
+      collapsed: true,
       items: [
         {
           type: "doc",
