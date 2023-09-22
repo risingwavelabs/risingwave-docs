@@ -367,54 +367,62 @@ const sidebars = {
           label: "Overview",
         },
         {
-          type: "doc",
-          label: "Apache Kafka",
-          id: "guides/create-sink-kafka",
-        },
-        {
-          type: "doc",
-          label: "Apache Iceberg",
-          id: "guides/sink-to-iceberg",
-        },
-        {
-          type: "doc",
-          label: "AWS Kinesis",
-          id: "guides/sink-to-aws-kinesis",
-        },
-        {
-          type: "doc",
-          label: "Cassandra",
-          id: "guides/sink-to-cassandra",
-        },
-        {
-          type: "doc",
-          label: "ClickHouse",
-          id: "guides/sink-to-clickhouse",
-        },
-        {
-          type: "doc",
-          label: "Delta Lake",
-          id: "guides/sink-to-delta-lake",
-        },
-        {
-          type: "doc",
-          label: "Elasticsearch",
-          id: "guides/sink-to-elasticsearch",
-        },
-        {
-          type: "doc",
-          label: "MySQL",
-          id: "guides/sink-to-mysql-with-jdbc",
-        },
-        {
-          type: "doc",
-          label: "PostgreSQL",
-          id: "guides/sink-to-postgres",
-        },
-        {
-          type: "doc",
-          label: "TiDB",
-          id: "guides/sink-to-tidb",
+          type: "category",
+          label: "Sinks",
+          collapsible: true,
+          collapsed: true,
+          items: [
+            {
+              type: "doc",
+              label: "Apache Kafka",
+              id: "guides/create-sink-kafka",
+            },
+            {
+              type: "doc",
+              label: "Apache Iceberg",
+              id: "guides/sink-to-iceberg",
+            },
+            {
+              type: "doc",
+              label: "AWS Kinesis",
+              id: "guides/sink-to-aws-kinesis",
+            },
+            {
+              type: "doc",
+              label: "Cassandra",
+              id: "guides/sink-to-cassandra",
+            },
+            {
+              type: "doc",
+              label: "ClickHouse",
+              id: "guides/sink-to-clickhouse",
+            },
+            {
+              type: "doc",
+              label: "Delta Lake",
+              id: "guides/sink-to-delta-lake",
+            },
+            {
+              type: "doc",
+              label: "Elasticsearch",
+              id: "guides/sink-to-elasticsearch",
+            },
+            {
+              type: "doc",
+              label: "MySQL",
+              id: "guides/sink-to-mysql-with-jdbc",
+            },
+            {
+              type: "doc",
+              label: "PostgreSQL",
+              id: "guides/sink-to-postgres",
+            },
+            {
+              type: "doc",
+              label: "TiDB",
+              id: "guides/sink-to-tidb",
+            },
+          ],
         },
       ],
     },
