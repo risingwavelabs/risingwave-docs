@@ -65,9 +65,9 @@ Note that only S3-compatible object store is supported, such as AWS S3 or MinIO.
 
 ```sql
 CREATE TABLE demo_test(
+    user_id Int32,
     seq_id Int32,
-    seq_id Int32,
-    user_name String,
+    user_name String
 ) ENGINE = ReplacingMergeTree
 PRIMARY KEY (user_id);
 ```
