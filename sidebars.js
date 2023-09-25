@@ -340,6 +340,11 @@ const sidebars = {
       items: [
         {
           type: "doc",
+          label: "Beekeeper Studio",
+          id: "guides/beekeeper-integration",
+        },
+        {
+          type: "doc",
           label: "DBeaver",
           id: "guides/dbeaver-integration",
         },
