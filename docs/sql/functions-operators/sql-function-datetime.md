@@ -255,9 +255,11 @@ to_timestamp('2022 12 25', 'YYYY MM DD') → '2022-12-25 00:00:00+00:00'
 to_timestamp('2022-12-25 00:00:00.900006', 'YYYY-MM-DD HH24:MI:SS.US') → '2022-12-25 00:00:00.900006+00:00'
 
 to_timestamp('2022-12-25 00:00:00.906', 'YYYY-MM-DD HH24:MI:SS.MS') → '2022-12-25 00:00:00.906+00:00'
+
+to_timestamp('2023-07-11 20:01:00-07:00', 'YYYY-MM-DD HH24:MI:SSTZH:TZM') → '2023-07-12 03:01:00+00:00'
 ```
 
-## Template patterns for data / time formatting
+## Template patterns for date / time formatting
 
 For date and time formatting functions like `to_char`, `to_timestamp`, and `to_date`, the format needs to be specified by using the supported template patterns. Any text that is not a template pattern is simply copied verbatim.
 
@@ -268,7 +270,8 @@ Please see the table below for the template patterns supported in RisingWave.
 | `HH24` or `hh24`      | hour of day (00–23)        |
 | `HH12` or `hh12`      | hour of day (01–12)         |
 | `HH` or `hh`       | hour of day (01–12)        |
-| `AM`, `am`, `PM`, or `pm` |       meridiem indicator (without periods)  |
+| `AM`, `PM` |       meridiem indicator (without periods)  |
+| `am`, `pm` |       meridiem indicator (without periods)  |
 | `MI` or `mi`       | minute (00–59)        |
 | `SS` or `ss`        |     second (00–59)    |
 | `YYYY` or `yyyy`     |  year (4 or more digits)        |
@@ -277,13 +280,13 @@ Please see the table below for the template patterns supported in RisingWave.
 | `IY` or `iy`        | last 2 digits of ISO 8601 week-numbering year         |
 | `MM` or `mm`        | month number (01–12)        |
 | `Month`     |  full capitalized month name (blank-padded to 9 chars)         |
-| `Mon`    | abbreviated capitalized month name (3 chars in English, localized lengths vary)         |
+| `Mon`    | abbreviated capitalized month name (3 chars in English)         |
 | `DD` or `dd`   |  day of month (01–31)         |
 | `US` or `us`      |  microsecond (000000–999999)       |
 | `MS` or `ms`      | millisecond (000–999)        |
-| `TZH:TZM`, `tzh:tzm`, `TZHTZM` or `tzhtzm`   | time-zone hours and minutes. Example: <br /> `to_timestamp('2023-07-11 20:01:00-07:00', 'YYYY-MM-DD HH24:MI:SSTZH:TZM')`<br />
-→ `2023-07-12 03:01:00+00:00`     |
-| `TZH` or `tzh`      |time-zone hours      |
+| `TZH:TZM` or `tzh:tzm`| time-zone hours and minutes|
+|`TZHTZM` or `tzhtzm`   | time-zone hours and minutes   |
+| `TZH` or `tzh`      |Time-zone hours. This pattern works only in `to_timestamp`.   |
 
 ## Delaying execution functions
 
