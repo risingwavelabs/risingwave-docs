@@ -419,6 +419,11 @@ const sidebars = {
             },
             {
               type: "doc",
+              label: "NATS",
+              id: "guides/sink-to-nats",
+            },
+            {
+              type: "doc",
               label: "PostgreSQL",
               id: "guides/sink-to-postgres",
             },
