@@ -683,6 +683,11 @@ const sidebars = {
                   id: "sql/udf/udf-java",
                   label: "Java",
                 },
+                {
+                  type: "doc",
+                  id: "sql/udf/udf-foreign-data",
+                  label: "Foreign data",
+                },
               ],
             },
             {
