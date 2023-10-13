@@ -384,6 +384,11 @@ const sidebars = {
           items: [
             {
               type: "doc",
+              label: "Apache Doris",
+              id: "guides/sink-to-doris",
+            },
+            {
+              type: "doc",
               label: "Apache Kafka",
               id: "guides/create-sink-kafka",
             },
