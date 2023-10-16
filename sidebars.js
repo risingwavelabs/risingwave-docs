@@ -735,7 +735,7 @@ const sidebars = {
     },
     {
       type: "category",
-      label: "Deploy & Operate",
+      label: "Deploy & operate",
       collapsible: true,
       collapsed: true,
       items: [
