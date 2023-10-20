@@ -309,7 +309,7 @@ position('ing' in 'rising') → 4
 
 ### `regexp_count`
 
-Returns the number of times a POSIX regular expressions pattern appears in *input_string*. Optional flags include `i`, which stands for case-insensitive matching, and `c`, which represents case-sensitive matching.
+Returns the number of times a POSIX regular expressions pattern appears in *input_string*. Back reference, positive, negative lookahead, and positive, negative lookbehind are supported. Optional flags include `i`, which stands for case-insensitive matching, and `c`, which represents case-sensitive matching.
 
 ```bash title=Syntax
 regexp_count( input_string, pattern [, start_int [, optional_flag ]] ) → output_int
@@ -324,7 +324,7 @@ regexp_count('ABCABCAXYaxy', 'A.', 2, 'c') → 2
 
 ### `regexp_match`
 
-Returns a string array of captured substring(s) resulting from the first match of a POSIX regular expression pattern to a string. If there is no match, the result is NULL. Optional flags include `i`, which stands for case-insensitive matching, and `c`, which represents case-sensitive matching.
+Returns a string array of captured substring(s) resulting from the first match of a POSIX regular expression pattern to a string. If there is no match, the result is NULL. Back reference, positive, negative lookahead, and positive, negative lookbehind are supported. Optional flags include `i`, which stands for case-insensitive matching, and `c`, which represents case-sensitive matching.
 
 ```bash title=Syntax
 regexp_match( input_string, pattern [, optional_flag ] ) → matched_string[]
@@ -340,7 +340,7 @@ regexp_match('abc', 'Bc', 'ici') → {bc}
 
 ### `regexp_matches`
 
-Returns a set of string arrays of captured substring(s) resulting from matching a POSIX regular expression pattern to a string. Returns all matches by default. Optional flags include `i`, which stands for case-insensitive matching, and `c`, which represents case-sensitive matching.
+Returns a set of string arrays of captured substring(s) resulting from matching a POSIX regular expression pattern to a string. Returns all matches by default. Back reference, positive, negative lookahead, and positive, negative lookbehind are supported. Optional flags include `i`, which stands for case-insensitive matching, and `c`, which represents case-sensitive matching.
 
 ```bash title=Syntax
 regexp_matches( input_string, pattern [, optional_flag ] ) → set_of_matched_string[]
@@ -361,6 +361,8 @@ regexp_matches('abcabc', 'Bc', 'i') →
 ### `regexp_replace`
 
 Replaces the substring that is either the first match or, optionally, the N'th match to the POSIX regular expression *pattern* in the *input_string*, starting from the character index specified by the optional *start_integer*.
+
+Back reference, positive, negative lookahead, and positive, negative lookbehind are supported.
 
 Optional flags can modify the matching behavior:
 
@@ -454,6 +456,8 @@ rpad('42', 5) → '42    '
 rpad('42', 5, 'R') → '42RRR'
 ```
 
+---
+
 ### `rtrim`
 
 Equals to `trim (TRAILING)`.
@@ -467,6 +471,8 @@ rtrim(' cake ') → 'cake'
 rtrim('abcxyzabc', 'cba') → 'abcxyz'
 ```
 
+---
+
 ### `split_part`
 
 Splits the input string at occurrences of the delimiter string and returns the n'th field (counting from one), or when n is negative, returns the |n|'th-from-last field. When n is zero, returns an 'InvalidParameterValue' error. When the input delimiter string is an empty string, returns the input string if querying the first or last field. Otherwise, returns an empty string.
@@ -479,6 +485,8 @@ split_part( input_string, delimiter_string, int_n ) → varchar
 split_part('abc~@~def~@~ghi', '~@~', 2) → 'def'
 ```
 
+---
+
 ### `starts_with`
 
 Returns true if the input string starts with the specified prefix string, otherwise returns false.
@@ -490,6 +498,8 @@ starts_with( input_string, prefix_string ) → boolean
 ```bash title=Examples
 starts_with('RisingWave is powerful', 'Rising') → true
 ```
+
+---
 
 ### `substr`/`substring`
 
@@ -504,6 +514,8 @@ substr('alphabet', 3) → 'phabet';
 substring('alphabet', 3, 2) → 'ph'
 ```
 
+---
+
 ### `to_ascii`
 
 Returns the input string with non-ASCII characters replaced by their closest ASCII equivalents.
@@ -515,6 +527,8 @@ to_ascii( input_string ) → string
 ```bash title=Examples
 to_ascii('Café') → 'Cafe'
 ```
+
+---
 
 ### `to_hex`
 
@@ -529,6 +543,8 @@ to_hex(255) → 'ff'
 to_hex(123456789012345678) → '1b69b4ba630f34e'
 ```
 
+---
+
 ### `translate`
 
 Replaces each character in the *input_string* that matches a character in the *from_string* with the corresponding character in the *to_string*.
@@ -540,6 +556,8 @@ translate( input_string, from_string, to_string ) → output_string
 ```bash title=Examples
 translate('M1X3', '13', 'ae') → 'MaXe'
 ```
+
+---
 
 ### `trim`
 
@@ -562,6 +580,8 @@ trim(both from 'abcxyzabc', 'cba') → 'xyz'
 trim('abcxyzabc', 'cba') → 'xyz'
 ```
 
+---
+
 ### `upper`
 
 Converts the string to all uppercase.
@@ -573,6 +593,8 @@ upper( input_string ) → output_string
 ```bash title=Examples
 upper('tom') → 'TOM'
 ```
+
+---
 
 ## `LIKE` pattern matching expressions
 
