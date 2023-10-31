@@ -108,9 +108,7 @@ SELECT id, distance,
 
 Returns the first non-null value or null if all values are null.
 
-### Syntax
-
-```sql
+```sql title=Syntax
 COALESCE ( value [ , ... ] )
 ```
 
@@ -118,9 +116,7 @@ COALESCE ( value [ , ... ] )
 
 Returns null if *value1* equals to *value2*, otherwise returns *value1*.
 
-### Syntax
-
-```sql
+```sql title=Syntax
 NULLIF ( value1, value2 )
 ```
 
@@ -163,3 +159,4 @@ select least(v1, v2, v3) from t order by id;
 ------ results
 1, 2, 8, NULL
 ```
+
