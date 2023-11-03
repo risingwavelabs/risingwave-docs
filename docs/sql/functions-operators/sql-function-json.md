@@ -210,13 +210,9 @@ jsonb_object(array['a', null]) → {"a": null}
 
 ## JSON operators
 
-### `jsonb -> integer`
+### `jsonb -> integer → jsonb`
 
 Extracts the n'th element of a JSON array (array elements are indexed from zero, but negative integers count from the end).
-
-```bash title=Syntax
-jsonb -> integer → jsonb
-```
 
 ```sql title=Example
 SELECT'[{"a":"foo"},{"b":"bar"},{"c":"baz"}]'::jsonb -> 2;
@@ -224,13 +220,9 @@ SELECT'[{"a":"foo"},{"b":"bar"},{"c":"baz"}]'::jsonb -> 2;
  {"c":"baz"}
 ```
 
-### `jsonb -> varchar`
+### `jsonb -> varchar → jsonb`
 
 Extracts JSON object field with the given key.
-
-```bash title=Syntax
-jsonb -> varchar → jsonb
-```
 
 ```sql title=Example
 SELECT '{"a": {"b":"foo"}}'::jsonb -> 'a';
@@ -238,13 +230,9 @@ SELECT '{"a": {"b":"foo"}}'::jsonb -> 'a';
  {"b": "foo"}
 ```
 
-### `jsonb ->> integer`
+### `jsonb ->> integer → varchar`
 
 Extracts the n'th element of a JSON array, as text.
-
-```bash title=Syntax
-jsonb ->> integer → varchar
-```
 
 ```sql title=Example
 SELECT '[1,2,3]'::jsonb ->> 2;
@@ -252,13 +240,9 @@ SELECT '[1,2,3]'::jsonb ->> 2;
 3
 ```
 
-### `jsonb ->> varchar`
+### `jsonb ->> varchar → varchar`
 
 Extracts JSON object field with the given key, as text.
-
-```bash title=Syntax
-jsonb ->> varchar → varchar
-```
 
 ```sql title=Example
 SELECT '{"a":1,"b":2}'::jsonb ->> 'b';
@@ -266,15 +250,44 @@ SELECT '{"a":1,"b":2}'::jsonb ->> 'b';
 2
 ```
 
-### `(jsonb || jsonb) -> jsonb`
+### `jsonb - text → jsonb`
 
-Concatenates jsonb data type.
+Deletes a key (and its value) from a JSON object, or matching string value(s) from a JSON array.
 
-```bash title=Syntax
-(jsonb || jsonb) → jsonb
+```bash title=Examples
+'{"a": "b", "c": "d"}'::jsonb - 'a' → {"c": "d"}
+'["a", "b", "c", "b"]'::jsonb - 'b' → ["a", "c"]
 ```
 
-```sql title=Example
+### `jsonb - text[] → jsonb`
+
+Deletes all matching keys or array elements from a JSON object.
+
+```bash title=Example
+'{"a": "b", "c": "d"}'::jsonb - '{a,c}'::text[] → {}
+```
+
+### `jsonb - integer → jsonb`
+
+Deletes the array element with the specified index (negative integers counting from the end). Throws an error if JSON object is not an array.
+
+```bash title=Example
+'["a", "b"]'::jsonb - 1 → ["a"]
+```
+
+### `jsonb #- text[] → jsonb`
+
+Deletes the field or array element at the specified path, where path elements can be either field keys or array indexes.
+
+```bash title=Example
+'["a", {"b":1}]'::jsonb #- '{1,b}' → ["a", {}]
+```
+
+### `(jsonb || jsonb) -> jsonb`
+
+Concatenates jsonb data.
+
+```sql title=Examples
 SELECT '["a", "b"]'::jsonb || '["a", "d"]'::jsonb;  
 SELECT '{"a": "b"}'::jsonb || '{"c": "d"}'::jsonb;
 SELECT '[1, 2]'::jsonb || '3'::jsonb;
@@ -290,10 +303,6 @@ SELECT '{"a": "b"}'::jsonb || '42'::jsonb;
 
 This operator checks if the left `jsonb` value contains the right `jsonb` value. For a detailed description and examples about containment and existence, see [jsonb Containment and Existence](https://www.postgresql.org/docs/current/datatype-json.html) in PostgreSQL's documentation.
 
-```sql title=Syntax
-left_jsonb_value @> right_jsonb_value → BOOLEAN
-```
-
 ```bash title=Examples
 '[1, 2, 3]'::jsonb @> '[1, 3]'::jsonb → t
 
@@ -308,21 +317,13 @@ left_jsonb_value @> right_jsonb_value → BOOLEAN
 
 This operator checks if the left `jsonb` value is contained within the right `jsonb` value. For a detailed description and examples about containment and existence, see [jsonb Containment and Existence](https://www.postgresql.org/docs/current/datatype-json.html) in PostgreSQL's documentation.
 
-```sql title=Syntax
-left_jsonb_value <@ right_jsonb_value → BOOLEAN
-```
-
-```sql title=Examples
+```bash title=Examples
 '{"b":2}'::jsonb <@ '{"a":1, "b":2}'::jsonb → t
 ```
 
 ### `jsonb ? text -> boolean`
 
 This operator checks if a string exists as a top-level array element or object key within a `jsonb` value.
-
-```sql title=Syntax
-jsonb_value ? string → BOOLEAN
-```
 
 ```bash title=Examples
 '["foo", "bar", "baz"]'::jsonb ? 'bar' → t
@@ -340,10 +341,6 @@ jsonb_value ? string → BOOLEAN
 
 This operator checks if any string in an array exists as a top-level array element or object key within a `jsonb` value.
 
-```sql title=Syntax
-jsonb_value ?| text_array TEXT[] → BOOLEAN
-```
-
 ```sql title=Examples
 '{"a":1, "b":2, "c":3}'::jsonb ?| array['b', 'd'] → t
 
@@ -355,10 +352,6 @@ jsonb_value ?| text_array TEXT[] → BOOLEAN
 ### `json ?& text[] -> boolean`
 
 This operator checks if all strings in an array exist as top-level array elements or object keys within a `jsonb` value.
-
-```sql title=Syntax
-jsonb_value ?& text_array TEXT[] → BOOLEAN
-```
 
 ```sql title=Examples
 '{"a":1, "b":2, "c":3}'::jsonb ?& array['a', 'b'] → t
@@ -372,10 +365,6 @@ jsonb_value ?& text_array TEXT[] → BOOLEAN
 
 This operator extracts a nested value from a JSONB object using a text array of keys or indices.
 
-```sql title=Syntax
-jsonb_value #> text_array TEXT[] → JSONB
-```
-
 ```sql title=Examples
 '{"a": {"b": ["foo","bar"]}}'::jsonb #> '{a,b,1}'::text[] → "bar"
 
@@ -385,10 +374,6 @@ jsonb_value #> text_array TEXT[] → JSONB
 ### `jsonb #>> text[] -> text`
 
 This operator extracts a nested value as text from a JSONB object using a text array of keys or indices.
-
-```sql title=Syntax
-jsonb_value #>> text_array TEXT[] → TEXT
-```
 
 ```sql title=Examples
 '{"a": {"b": ["foo","bar"]}}'::jsonb #>> '{a,b,1}'::text[] → bar
