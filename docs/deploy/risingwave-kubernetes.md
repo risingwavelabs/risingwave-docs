@@ -76,7 +76,7 @@ Before the deployment, ensure that the following requirements are satisfied.
     Run the following command to install a specific version instead of the latest version.
 
     ```shell
-    # Replace ${VERSION} with the version you want to install, e.g., v0.4.0
+    # Replace ${VERSION} with the version you want to install, e.g., v1.3.0
     kubectl apply --server-side -f https://github.com/risingwavelabs/risingwave-operator/releases/download/${VERSION}/risingwave-operator.yaml
     ```
 
@@ -108,89 +108,275 @@ Before the deployment, ensure that the following requirements are satisfied.
 
 ## Deploy a RisingWave instance
 
-When deploying a RisingWave instance, you can choose from multiple object storage options to persist your data. Depending on the option you choose, the deployment instructions are different.
+RisingWave Kubernetes Operator extends the Kubernetes with CRDs (Custom Resource Definitions) to manage RisingWave. That means all you need to do is to create a RisingWave resource in your Kubernetes cluster, and the RisingWave Kubernetes Operator will take care of the rest.
+
+### Use the example resource files
+
+The RisingWave resource is a custom resource that defines a RisingWave cluster. In [this directory](https://github.com/risingwavelabs/risingwave-operator/blob/main/docs/manifests/risingwave), you can find resource examples that deploy RisingWave with different configurations of metadata store and state backend. Based on your requirements, you can use these resource files directly or as a reference for your customization. The [stable directory](https://github.com/risingwavelabs/risingwave-operator/tree/main/docs/manifests/stable/) contains resource files that we have tested compatibility with the latest released version of the RisingWave Operator:
+
+The resource files are named using the convention of "risingwave-<meta_store>-<state_backend>.yaml". For example, `risingwave-etcd-s3.yaml` means that this manifest file uses etcd as the meta storage and AWS S3 as the state backend. The resource files whose names do not contain `etcd` means that they use memory as the meta store, which does not persist meta node data and therefore has a risk of losing data. Note that for production deployments, you should use etcd as the metadata store. Therefore, please use a resource file that contains `etcd` in its name or choose a file that is in the `/stable/` directory.
+
+RisingWave supports using these systems or services as state backends.
+
+* MinIO
+* AWS S3
+* S3-compatible object storages
+* Google Cloud Storage
+* Azure Blob Storage
+
+You can [customize etcd as a separate cluster](#optional-customize-the-etcd-deployment), [customize the state backend](#optional-customize-the-state-backend), or [customize the state store directory](#optional-customize-the-state-store-directory).
+
+### Optional: Customize the etcd deployment
 
 RisingWave uses etcd for persisting data for meta nodes. It's important to note that etcd is highly sensitive to disk write latency. Slow disk performance can lead to increased etcd request latency and potentially impact the stability of the cluster. When planning your RisingWave deployment, follow the [etcd disk recommendations](/deploy/hardware-requirements.md#etcd).
 
-### Optional: Customize the state store directory
+We recommend using the [bitnami/etcd](https://github.com/bitnami/charts/blob/main/bitnami/etcd/README.md) Helm chart to deploy the etcd. Please save the following configuration as `etcd-values.yaml`.
 
-You can customize the directory for storing state data via the `spec: stateStore: dataDirectory` parameter in the `risingwave.yaml` file that you want to use to deploy a RisingWave instance. If you have multiple RisingWave instances, ensure the value of `dataDirectory` for the new instance is unique (the default value is `hummock`). Otherwise, the new RisingWave instance may crash. Save the changes to the `risingwave.yaml` file before running the `kubectl apply -f <...risingwave.yaml>` command. The directory path cannot be an absolute address, such as `/a/b`, and must be no longer than 180 characters.
+```yaml
+service:
+  ports:
+    client: 2379
+  peer: 2380
+
+replicaCount: 3
+
+resources:
+  limits:
+    cpu: 1
+    memory: 2Gi
+  requests:
+    cpu: 1
+    memory: 2Gi
+
+persistence:
+  # storageClass: default
+  size: 10Gi
+  accessModes: [ "ReadWriteOnce" ]
+
+auth:
+  rbac:
+    create: false
+    allowNoneAuthentication: true
+
+extraEnvVars:
+- name:  "ETCD_MAX_REQUEST_BYTES"
+  value: "104857600"
+- name:  "MAX_QUOTA_BACKEND_BYTES"
+  value: "8589934592"
+- name:  "ETCD_AUTO_COMPACTION_MODE"
+  value: "periodic"
+- name:  "ETCD_AUTO_COMPACTION_RETENTION"
+  value: "1m"
+- name:  "ETCD_SNAPSHOT_COUNT"
+  value: "10000"
+- name:  "ETCD_MAX_TXN_OPS"
+  value: "999999"
+```
+
+If you would like to specify the storage class of the persistent volume, uncomment the `# storageClass: default` and specify the right value.
+
+Then, run the following command to deploy the etcd cluster:
+
+```bash
+helm install -f etcd-values.yaml etcd bitnami/etcd
+```
+
+### Optional: Customize the state backend
+
+If you intend to customize a resource file, download the file to a local path and edit it:
+
+```curl
+curl https://raw.githubusercontent.com/risingwavelabs/risingwave-operator/main/docs/manifests/<sub-directory> -o risingwave.yaml
+```
+
+You can also create your own resoure file from scratch if you are familar with Kubernetes resource files.
+
+And then, apply the resource file by using the following command:
+
+ ```shell
+kubectl apply -f a.yaml      # relative path
+kubectl apply -f /tmp/a.yaml # absolute path
+```
+
+To customize the state backend of your RisingWave cluster, edit the `spec:stateStore` section under the RisingWave resource (`kind: RisingWave`).
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-<Tabs groupId="storage_selection">
-<TabItem value="s3" label="etcd+S3">
+<Tabs groupId="state_backend_options">
+<TabItem value="AWS S3" label="AWS S3">
 
-RisingWave supports using Amazon S3 as object storage for persistent data.
-
-**Steps:**
-
-1. Create a Secret with the name `s3-credentials`.
-
-    ```shell
-    kubectl create secret generic s3-credentials --from-literal AccessKeyID=${ACCESS_KEY} --from-literal SecretAccessKey=${SECRET_ACCESS_KEY}
-    ```
-
-1. On the S3 console, [create a bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html) with the name `risingwave` in the US East (N. Virginia) (`us-east-1`) region.
-
-1. Deploy a RisingWave instance with S3 as the object storage.
-
-    ```shell
-    kubectl apply -f https://raw.githubusercontent.com/risingwavelabs/risingwave-operator/main/docs/manifests/stable/persistent/s3/risingwave.yaml
-    ```
-
-    <details>
-    <summary>Click here if you wish to customize the name and region of the S3 bucket</summary>
-
-    Before executing the above command, customize the S3 bucket according to your specific requirements by following these steps.
-
-    1. Download the manifest file from the link above.
-
-    1. Open the downloaded file and modify the necessary fields, such as the bucket name and region according to your preferences.
-
-    1. Save the modified file to your local file system.
-
-    1. Replace the URL in the command with the local file path of the modified manifest file and then run the command. For example:
-
-        ```shell
-        kubectl apply -f a.yaml      # relative path
-        kubectl apply -f /tmp/a.yaml # absolute path
-        ```
-
-    </details>
+```yaml
+spec:
+  stateStore:
+    # Prefix to objects in the object stores or directory in file system. Default to "hummock".
+    dataDirectory: hummock
+    
+    # Declaration of the S3 state store backend.
+    s3:
+      # Region of the S3 bucket.
+      region: us-east-1
+      
+      # Name of the S3 bucket.
+      bucket: risingwave
+      
+      # Credentials to access the S3 bucket.
+      credentials:
+        # Name of the Kubernetes secret that stores the credentials.
+        secretName: s3-credentials
+        
+        # Key of the access key ID in the secret.
+        accessKeyRef: AWS_ACCESS_KEY_ID
+        
+        # Key of the secret access key in the secret.
+        secretAccessKeyRef: AWS_SECRET_ACCESS_KEY
+        
+        # Optional, set it to true when the credentials can be retrieved 
+        # with the service account token, e.g., running inside the EKS.
+        # 
+        # useServiceAccount: true 
+```
 
 </TabItem>
-<TabItem value="minio" label="etcd+MinIO">
-
-RisingWave supports using MinIO as object storage for persistent data.
+<TabItem value="minio" label="MinIO">
 
 :::note
 The performance of MinIO is closely tied to the disk performance of the node where it is hosted. We have observed that AWS EBS does not perform well in our tests. For optimal performance, we recommend using S3 or a compatible cloud service.
 :::
 
-Run the following command to deploy a RisingWave instance with MinIO as the object storage.
-
-```shell
-kubectl apply -f https://raw.githubusercontent.com/risingwavelabs/risingwave-operator/main/docs/manifests/stable/persistent/minio/risingwave.yaml
+```yaml
+spec:
+  stateStore:
+    # Prefix to objects in the object stores or directory in file system. Default to "hummock".
+    dataDirectory: hummock
+    
+    # Declaration of the MinIO state store backend.
+    minio:
+      # Endpoint of the MinIO service.
+      endpoint: risingwave-minio:9301
+      
+      # Name of the MinIO bucket.
+      bucket: hummock001
+      
+      # Credentials to access the MinIO bucket.
+      credentials:
+        # Name of the Kubernetes secret that stores the credentials.
+        secretName: minio-credentials
+        
+        # Key of the username ID in the secret.
+        usernameKeyRef: username
+        
+        # Key of the password key in the secret.
+        passwordKeyRef: password 
 ```
 
 </TabItem>
-<TabItem value="hdfs" label="etcd+HDFS">
+<TabItem value="s3-compatible" label="S3-compatible">
 
-RisingWave supports using HDFS as object storage for persistent data.
+```yaml
+spec:
+  stateStore:
+    # Prefix to objects in the object stores or directory in file system. Default to "hummock".
+    dataDirectory: hummock
+    
+    # Declaration of the S3 compatible state store backend.
+    s3:
+      # Endpoint of the S3 compatible object storage. Two variables are supported:
+      # - ${BUCKET}: name of the S3 bucket.
+      # - ${REGION}: name of the region.
+      endpoint: ${BUCKET}.cos.${REGION}.myqcloud.com
+      
+      # Region of the S3 compatible bucket.
+      region: ap-guangzhou
+      
+      # Name of the S3 compatible bucket.
+      bucket: risingwave
+      
+      # Credentials to access the S3 compatible bucket.
+      credentials:
+        # Name of the Kubernetes secret that stores the credentials.
+        secretName: cos-credentials
+        
+        # Key of the access key ID in the secret.
+        accessKeyRef: ACCESS_KEY_ID
+        
+        # Key of the secret access key in the secret.
+        secretAccessKeyRef: SECRET_ACCESS_KEY
+```
 
-Deploy a RisingWave instance with HDFS as the object storage.
+</TabItem>
 
-```shell
-kubectl apply -f https://raw.githubusercontent.com/risingwavelabs/risingwave-operator/main/docs/manifests/risingwave/risingwave-etcd-hdfs.yaml
+<TabItem value="azure-blob" label="Azure Blob Storage">
+
+```yaml
+Explain
+spec:
+  stateStore:
+    # Prefix to objects in the object stores or directory in file system. Default to "hummock".
+    dataDirectory: hummock
+    
+    # Declaration of the Google Cloud Storage state store backend.
+    azureBlob:
+      # Endpoint of the Azure Blob service.
+      endpoint: https://you-blob-service.blob.core.windows.net
+      
+      # Working directory root of the Azure Blob service.
+      root: risingwave
+      
+      # Container name of the Azure Blob service.
+      container: risingwave
+    
+      # Credentials to access the Google Cloud Storage bucket.
+      credentials:
+        # Name of the Kubernetes secret that stores the credentials.
+        secretName: gcs-credentials
+        
+        # Key of the account name in the secret.
+        accountNameRef: AccountName
+        
+        # Key of the account name in the secret.
+        accountKeyRef: AccountKey
+```
+
+</TabItem>
+
+<TabItem value="google-cloud-storage" label="Google Cloud Storage">
+
+```yaml
+spec:
+  stateStore:
+    # Prefix to objects in the object stores or directory in file system. Default to "hummock".
+    dataDirectory: hummock
+    
+    # Declaration of the Google Cloud Storage state store backend.
+    gcs:
+      # Name of the Google Cloud Storage bucket.
+      bucket: risingwave
+      
+      # Root directory of the Google Cloud Storage bucket.
+      root: risingwave
+    
+      # Credentials to access the Google Cloud Storage bucket.
+      credentials:
+        # Name of the Kubernetes secret that stores the credentials.
+        secretName: gcs-credentials
+        
+        # Key of the service account credentials in the secret.
+        serviceAccountCredentialsKeyRef: ServiceAccountCredentials
+        
+        # Optional, set it to true when the credentials can be retrieved.
+        # useWorkloadIdentity: true
 ```
 
 </TabItem>
 
 </Tabs>
 
-<br />
+### Optional: Customize the state store directory
+
+You can customize the directory for storing state data via the `spec: stateStore: dataDirectory` parameter in the `risingwave.yaml` file that you want to use to deploy a RisingWave instance. If you have multiple RisingWave instances, ensure the value of `dataDirectory` for the new instance is unique (the default value is `hummock`). Otherwise, the new RisingWave instance may crash. Save the changes to the `risingwave.yaml` file before running the `kubectl apply -f <...risingwave.yaml>` command. The directory path cannot be an absolute address, such as `/a/b`, and must be no longer than 180 characters.
+
+### Validate the status of the instance
 
 You can check the status of the RisingWave instance by running the following command.
 
@@ -200,32 +386,10 @@ kubectl get risingwave
 
 If the instance is running properly, the output should look like this:
 
-<Tabs groupId="storage_selection">
-<TabItem value="s3" label="etcd+S3">
-
-```
+```shell
 NAME        RUNNING   STORAGE(META)   STORAGE(OBJECT)   AGE
 risingwave  True      etcd            S3                30s
 ```
-
-</TabItem>
-<TabItem value="minio" label="etcd+MinIO">
-
-```
-NAME        RUNNING   STORAGE(META)   STORAGE(OBJECT)   AGE
-risingwave  True      etcd            MinIO             30s
-```
-
-</TabItem>
-<TabItem value="hdfs" label="etcd+HDFS">
-
-```
-NAME                   RUNNING    STORAGE(META)   STORAGE(OBJECT)   AGE
-risingwave-etcd-hdfs   True       Etcd            HDFS              30s
-```
-
-</TabItem>
-</Tabs>
 
 ## Connect to RisingWave
 
@@ -249,29 +413,10 @@ By default, the Operator creates a service for the frontend component, through w
     ```
 
 1. Connect to RisingWave via `psql`.
-    <Tabs groupId="storage_selection">
-    <TabItem value="minio" label="etcd+MinIO">
 
     ```shell
     psql -h risingwave-frontend -p 4567 -d dev -U root
     ```
-
-    </TabItem>
-    <TabItem value="s3" label="etcd+S3">
-
-    ```shell
-    psql -h risingwave-frontend -p 4567 -d dev -U root
-    ```
-
-    </TabItem>
-    <TabItem value="hdfs" label="etcd+HDFS">
-
-    ```shell
-    psql -h risingwave-etcd-hdfs-frontend -p 4567 -d dev -U root
-    ```
-
-    </TabItem>
-    </Tabs>
 
 </TabItem>
 <TabItem value="nodeport" label="NodePort" >
@@ -292,32 +437,6 @@ You can connect to RisingWave from Nodes such as EC2 in Kubernetes
     ```
 
 1. Connect to RisingWave by running the following commands on the Node.
-    <Tabs groupId="storage_selection">
-    <TabItem value="minio" label="etcd+MinIO">
-
-    ```shell
-    export RISINGWAVE_NAME=risingwave
-    export RISINGWAVE_NAMESPACE=default
-    export RISINGWAVE_HOST=`kubectl -n ${RISINGWAVE_NAMESPACE} get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'`
-    export RISINGWAVE_PORT=`kubectl -n ${RISINGWAVE_NAMESPACE} get svc -l risingwave/name=${RISINGWAVE_NAME},risingwave/component=frontend -o jsonpath='{.items[0].spec.ports[0].nodePort}'`
-
-    psql -h ${RISINGWAVE_HOST} -p ${RISINGWAVE_PORT} -d dev -U root
-    ```
-
-    </TabItem>
-    <TabItem value="s3" label="etcd+S3">
-
-    ```shell
-    export RISINGWAVE_NAME=risingwave
-    export RISINGWAVE_NAMESPACE=default
-    export RISINGWAVE_HOST=`kubectl -n ${RISINGWAVE_NAMESPACE} get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'`
-    export RISINGWAVE_PORT=`kubectl -n ${RISINGWAVE_NAMESPACE} get svc -l risingwave/name=${RISINGWAVE_NAME},risingwave/component=frontend -o jsonpath='{.items[0].spec.ports[0].nodePort}'`
-
-    psql -h ${RISINGWAVE_HOST} -p ${RISINGWAVE_PORT} -d dev -U root
-    ```
-
-    </TabItem>
-    <TabItem value="hdfs" label="etcd+HDFS">
 
     ```shell
     export RISINGWAVE_NAME=risingwave-etcd-hdfs
@@ -327,9 +446,6 @@ You can connect to RisingWave from Nodes such as EC2 in Kubernetes
 
     psql -h ${RISINGWAVE_HOST} -p ${RISINGWAVE_PORT} -d dev -U root
     ```
-
-    </TabItem>
-    </Tabs>
 
 </TabItem>
 <TabItem value="loadbalancer" label="LoadBalancer">
@@ -350,32 +466,6 @@ If you are using EKS, GCP, or other managed Kubernetes services provided by clou
     ```
 
 2. Connect to RisingWave with the following commands.
-    <Tabs groupId="storage_selection">
-    <TabItem value="minio" label="etcd+MinIO">
-
-    ```shell
-    export RISINGWAVE_NAME=risingwave
-    export RISINGWAVE_NAMESPACE=default
-    export RISINGWAVE_HOST=`kubectl -n ${RISINGWAVE_NAMESPACE} get svc -l risingwave/name=${RISINGWAVE_NAME},risingwave/component=frontend -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}'`
-    export RISINGWAVE_PORT=`kubectl -n ${RISINGWAVE_NAMESPACE} get svc -l risingwave/name=${RISINGWAVE_NAME},risingwave/component=frontend -o jsonpath='{.items[0].spec.ports[0].port}'`
-
-    psql -h ${RISINGWAVE_HOST} -p ${RISINGWAVE_PORT} -d dev -U root
-    ```
-
-    </TabItem>
-    <TabItem value="s3" label="etcd+S3">
-
-    ```shell
-    export RISINGWAVE_NAME=risingwave
-    export RISINGWAVE_NAMESPACE=default
-    export RISINGWAVE_HOST=`kubectl -n ${RISINGWAVE_NAMESPACE} get svc -l risingwave/name=${RISINGWAVE_NAME},risingwave/component=frontend -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}'`
-    export RISINGWAVE_PORT=`kubectl -n ${RISINGWAVE_NAMESPACE} get svc -l risingwave/name=${RISINGWAVE_NAME},risingwave/component=frontend -o jsonpath='{.items[0].spec.ports[0].port}'`
-
-    psql -h ${RISINGWAVE_HOST} -p ${RISINGWAVE_PORT} -d dev -U root
-    ```
-
-    </TabItem>
-    <TabItem value="hdfs" label="etcd+HDFS">
 
     ```shell
     export RISINGWAVE_NAME=risingwave-etcd-hdfs
@@ -385,9 +475,6 @@ If you are using EKS, GCP, or other managed Kubernetes services provided by clou
 
     psql -h ${RISINGWAVE_HOST} -p ${RISINGWAVE_PORT} -d dev -U root
     ```
-
-    </TabItem>
-    </Tabs>
 
 </TabItem>
 </Tabs>
