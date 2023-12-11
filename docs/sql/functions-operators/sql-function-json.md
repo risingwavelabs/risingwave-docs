@@ -194,6 +194,8 @@ Checks if a JSON path returns any items from a JSON value.
 
 If the `vars` argument is provided, it must be a JSON object. Its fields act as named values that are substituted into the `path` expression. When the `silent` argument is specified and set to `true`, the function will suppress errors like the [`@?`](#jsonb--varchar--boolean) and [`@@`](#jsonb--varchar--boolean-1) operators.
 
+For information on the SQL/JSON Path syntax, refer to the [PostgreSQL documentation](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-SQLJSON-PATH).
+
 ```bash title=Syntax
 jsonb_path_exists ( target jsonb, path varchar [, vars jsonb [, silent boolean ]] ) → boolean
 ```
