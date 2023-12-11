@@ -170,3 +170,27 @@ WITH (
     clickhouse.table='demo_test'
 );
 ```
+
+## Data type mapping
+
+|RisingWave Data Type  | ClickHouse Data Type |
+|--------------------- |--------------------- |
+|bool                  | Bool                 |
+|smallint              | UInt16 or Int16      |
+|int                   | UInt32 or Int32      |
+|bigint                | UInt64 or Int64      |
+|real(float32)         | Float32              |
+|float(float64)        | Float64              |
+|decimal               | Decimal              |
+|date                  | Date32               |
+|varchar               | String               |
+|timestamptz           | DateTime64           |
+|struct                | Nested               |
+|list                  | Array                |
+|serial                | UInt64 or Int64      |
+
+:::note
+
+In ClickHouse, the `Nested` data type doesn't support multiple levels of nesting. Therefore, when sinking RisingWave's `struct` data to ClickHouse, you need to flatten or restructure the nested data to align with ClickHouse's requirement.
+
+:::
