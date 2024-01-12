@@ -562,6 +562,11 @@ const sidebars = {
               items: [
                 {
                   type: "doc",
+                  id: "sql/query-syntax/query-syntax-literals",
+                  label: "Literals",
+                },
+                {
+                  type: "doc",
                   id: "sql/query-syntax/query-syntax-value-exp",
                   label: "Value expressions",
                 },
