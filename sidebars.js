@@ -508,6 +508,11 @@ const sidebars = {
             },
             {
               type: "doc",
+              label: "StarRocks",
+              id: "guides/sink-to-starrocks",
+            },
+            {
+              type: "doc",
               label: "TiDB",
               id: "guides/sink-to-tidb",
             },
