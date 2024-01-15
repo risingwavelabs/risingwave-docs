@@ -5,7 +5,7 @@ description: Create a sink into RisingWave's table.
 slug: /sql-create-sink-into
 ---
 <head>
-  <link rel="canonical" href="https://docs.risingwave.com/docs/current/sql-create-sink/" />
+  <link rel="canonical" href="https://docs.risingwave.com/docs/current/sql-create-sink-into/" />
 </head>
 
 Use the `CREATE SINK INTO` command to create a sink into RisingWave's table.
