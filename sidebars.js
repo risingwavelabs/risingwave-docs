@@ -46,6 +46,11 @@ const sidebars = {
           id: "rw-integration-summary",
         },
         {
+          type: "doc",
+          label: "FAQ",
+          id: "rw-faq",
+        },
+        {
           type: "category",
           label: "Deep-dive",
           collapsible: true,
