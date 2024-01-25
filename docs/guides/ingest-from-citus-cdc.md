@@ -49,7 +49,7 @@ There are a few limitations when ingesting CDC data from Citus in RisingWave.
 
 ## Notes about running RisingWave from binaries
 
-If you are running RisingWave locally from binaries and intend to use the native CDC source connectors or the JDBC sink connector, make sure that you have [JDK 11](https://openjdk.org/projects/jdk/11/) or later versions is installed in your environment.
+If you are running RisingWave locally from binaries and intend to use the native CDC source connectors or the JDBC sink connector, make sure that you have [JDK 11](https://openjdk.org/projects/jdk/11/) or later versions installed in your environment.
 
 ## Create a table in RisingWave using the native CDC connector
 
@@ -64,14 +64,14 @@ CREATE TABLE [ IF NOT EXISTS ] source_name (
 ) 
 WITH (
     connector='citus-cdc',
-    <field>=<value>, ...
+    connector_parameter='value', ...
 )
 [ FORMAT DEBEZIUM ENCODE JSON ];
 ```
 
-### WITH parameters
+### Connector parameters
 
-Unless specified otherwise, the fields listed are required.
+Unless specified otherwise, the fields listed are required. Note that the value of these parameters should be enclosed in single quotation marks.
 
 |Field|Notes|
 |---|---|
@@ -85,7 +85,7 @@ Unless specified otherwise, the fields listed are required.
 |table.name| Name of the table that you want to ingest data from. |
 |slot.name| Optional. The slot name for each source. Each source should have a unique slot name.|
 
-### Example
+### Examples
 
 ```sql
 CREATE TABLE github_events_rw (
