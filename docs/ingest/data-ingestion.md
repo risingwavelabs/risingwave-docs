@@ -10,7 +10,7 @@ slug: /data-ingestion
 You can ingest data into RisingWave in two ways:
 
 - Connect to and ingest data from external sources such as databases and message brokers.
-- Use SQL statements to insert, update or delete data in tables directly.
+- Use SQL statements to insert, update, or delete data in tables directly.
 
 ## Ingest data from external sources
 
@@ -28,16 +28,18 @@ WITH (
 ...
 ```
 
-When connector settings are specified for a table in RisingWave, it is able to store streaming data. However, a table with connector settings is different from a source in RisingWave.
+When connector settings are specified for a table in RisingWave, it can store streaming data. However, a table with connector settings is different from a source in RisingWave.
 
 - A source does not persist all data that flows in. It persists only results from materialized views. It accepts only append-only data, such as application events or log messages.
-- A table with connector settings persists all data that flows in. It accepts both append-only data and updateable data. To accept updateable data, you need to specify a primary key when creating the table. CDC sources and Kafka data in upsert formats are the examples of updateable data.
+- A table with connector settings persists all data that flows in. It accepts both append-only data and updateable data. To accept updateable data, you need to specify a primary key when creating the table. CDC sources and Kafka data in upsert formats are examples of updateable data.
 
 Regardless of whether data is persisted in RisingWave, you can create materialized views to transform or analyze them.
 
-## Insert data into tables (without connectors)
+## Load data into tables (without connectors)
 
-You can also load data to RisingWave by creating tables ([`CREATE TABLE`](/sql/commands/sql-create-table.md)) and inserting data to tables ([`INSERT`](/sql/commands/sql-insert.md)).
+You can also load data into RisingWave by creating tables without connector settings and using DML commands to insert, update, or delete data in the tables directly.
+
+See [Data ingestion with DML](/ingest/data-ingestion-dml.md) for more information.
 
 ## Supported sources and formats
 
