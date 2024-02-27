@@ -84,7 +84,7 @@ You have to [add a payment method](/billing-manage-payment-methods.md) before yo
 
 <TabItem value="invited" label="Invited plan">
 
-The **Invited** plan is specifically designed for our enterprise customers. This plan provides unparalleled flexibility, allowing you to customize everything from the underlying infrastructure and cluster configurations, to the pricing plan, which includes exclusive discounts.
+The **Invited** plan is specifically designed for our enterprise customers. This plan provides unparalleled flexibility, allowing you to customize everything from the underlying infrastructure and cluster configurations to the pricing plan, which includes exclusive discounts.
 
 To access the Invited plan, please contact our sales team. We will provide you with an invitation code. Once you receive this code, you can redeem it to activate the Invited plan across your entire organization.
 
