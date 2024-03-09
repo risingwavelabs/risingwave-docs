@@ -113,13 +113,13 @@ Suppose you've provisioned a RisingWave cluster in the `us-east-1` (Ohio) region
 - 1 Compactor node with 4 RWUs
 - 3 ETCD nodes, each with 1 RWU
 
-In total, the cluster utilizes 37 RWUs. Additionally, the cluster stores 20GB of data and operates continuously for a 30-day month.
+In total, the cluster utilizes 41 RWUs. Additionally, the cluster stores 20GB of data and operates continuously for a 30-day month.
 
 The base price for the `us-east-1` region is $0.1283 per RWU-hour for compute resources and $0.023 per GB-month for storage capacities.
 
 Given these details, your monthly RisingWave Cloud bill will be calculated as follows:
 
-- Compute resources cost: $0.1283 * 37 RWUs * 30 days * 24 hours/day = $3,787.42
+- Compute resources cost: $0.1283 \* 41 RWUs \* 30 days \* 24 hours/day = $3,787.42
 - Storage capacity cost: $0.023 * 20GB = $0.46
 
 Therefore, the total cost for this example would be $3,787.88.
