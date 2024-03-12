@@ -159,7 +159,7 @@ WITH (
     s3.credentials.secret = 'xxxxx'
 ) FORMAT PLAIN ENCODE CSV (
     without_header = 'true',
-    delimiter = ',' -- set delimiter = E'\t' for tab-separated files
+    delimiter = ','
 );
 ```
 
