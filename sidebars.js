@@ -1017,6 +1017,10 @@ const sidebars = {
           id: "manage/view-statement-progress",
         },
         {
+          type: 'doc',
+          id: 'manage/alter-streaming',
+        },
+        {
           type: "doc",
           id: "manage/view-configure-system-parameters",
         },
@@ -1026,16 +1030,20 @@ const sidebars = {
         },
         {
           type: 'doc',
-          id: 'manage/alter-streaming',
+          id: 'manage/configure-node-specific-parameters',
         },
         {
           type: 'doc',
-          id: 'manage/meta-backup',
+          id: 'manage/node-specific-parameters',
         },
         {
           type: "doc",
           id: "manage/dedicated-compute-node",
           label: "Set up a dedicated compute node",
+        },
+        {
+          type: 'doc',
+          id: 'manage/meta-backup',
         },
         {
           type: "doc",
