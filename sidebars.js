@@ -1006,6 +1006,11 @@ const sidebars = {
         },
         {
           type: "doc",
+          id: "deploy/best-practices-for-managing-a-large-number-of-streaming-jobs",
+          label: "Best practices for managing a large number of streaming jobs",
+        },
+        {
+          type: "doc",
           id: "deploy/uninstall-risingwave-k8s",
           label: "Uninstall RisingWave from a cluster",
         },
