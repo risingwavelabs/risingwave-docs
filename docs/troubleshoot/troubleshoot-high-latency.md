@@ -1,6 +1,6 @@
 ---
 id: troubleshoot-high-latency
-title: Troubleshoot high latency
+title: High latency
 slug: /troubleshoot-high-latency
 ---
 
@@ -8,7 +8,7 @@ High latency is a common performance issue in streaming systems, with various po
 
 This guide aims to help you identify the root causes of high latency and provide effective solutions to address these issues.
 
-## Symptom
+## Symptoms
 
 To detect barrier latency: go to **Grafana dashboard (dev)** > **Streaming** > **Barrier Latency** panel. For example, the latency curve in the following figure is extremely high, indicating that the barrier is getting stuck.
 
@@ -26,11 +26,12 @@ Some tools can be helpful in troubleshooting this issue:
 
 With these tools, you can identify the bottleneck fragments (actors) and the materialized views they belong to. Additionally, refer to the RisingWave Dashboard for the detailed information on materialized views, such as the streaming execution graph or the SQL query.
 
-## Solution
+## Solutions
 
 Once you've pinpointed the bottleneck fragment, consider the following actions to resolve the issue:
 
 - Enhance the streaming query performance by removing or rewriting the bottleneck part of the SQL query.
+
 - Increase the parallelism by adding more nodes into the cluster, or check the SQL query to see if there is any room for optimization.
 
 ## Example: High latency caused by high join amplification
