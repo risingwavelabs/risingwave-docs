@@ -566,6 +566,11 @@ const sidebars = {
               label: "Overview",
             },
             {
+              type: "doc",
+              id: "guides/risingwave-as-postgres-fdw",
+              label: "RisingWave as Postgres FDW",
+            },
+            {
               type: "category",
               label: "Sinks",
               collapsible: true,
