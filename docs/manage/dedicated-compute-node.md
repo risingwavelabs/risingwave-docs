@@ -26,7 +26,7 @@ In a production environment, it's advisable to use separate nodes for batch and 
 
 For specific changes required in the YAML file, see [Separate batch streaming modes](https://github.com/risingwavelabs/risingwave-operator/blob/main/docs/manifests/risingwave/advanced/separate-batch-streaming-modes.yaml).
 
-## Configuring a `serving` compute node for batch queries
+## Configure a `serving` compute node for batch queries
 
 You can use a TOML configuration file to configure a `serving` compute node. For detailed instructions, see [Configure node-specific parameters](/manage/configure-node-specific-parameters.md).
 
