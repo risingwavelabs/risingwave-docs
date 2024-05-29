@@ -4,6 +4,7 @@ title: CREATE FUNCTION
 description: Create a user-defined function.
 slug: /sql-create-function
 ---
+
 <head>
   <link rel="canonical" href="https://docs.risingwave.com/docs/current/sql-create-function/" />
 </head>
@@ -64,7 +65,7 @@ export const svg = rr.Diagram(
   )
 );
 
-<drawer SVG={svg} />
+<Drawer SVG={svg} />
 
 </TabItem>
 
@@ -84,16 +85,15 @@ CREATE FUNCTION function_name ( argument_type [, ...] )
 
 ## Parameters
 
-| Parameter or clause | Description |
-| --- | --- |
-| *function_name* | The name of the UDF that you want to declare in RisingWave. |
-| *argument_type* | The data type of the input parameter(s) that the UDF expects to receive.|
-| **RETURNS** *return_type* | Use this if the function returns a single value (i.e., scalar). It specifies the data type of the return value from the UDF.<br />The struct type, which can contain multiple values, is supported. But the field names must be consistent between Python and SQL definitions, or it will be considered a type mismatch.|
-| **RETURNS TABLE** | Use this if the function is a table-valued function (TVF). It specifies the structure of the table that the UDF returns. |
-| **LANGUAGE** | Optional. Specifies the programming language used to implement the UDF. <br/> Currently, `python` and `java` are supported.|
-| **AS** *function_name_defined_in_server* | Specifies the function name defined in the UDF server.|
-| **USING LINK** '*udf_server_address*' | Specifies the UDF server address. <br/>If you are running RisingWave in your local environment, the address is `http://localhost:<port>` <br/> If you are running RisingWave using Docker, the address is `http://host.docker.internal:<port>/`|
-
+| Parameter or clause                      | Description                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| _function_name_                          | The name of the UDF that you want to declare in RisingWave.                                                                                                                                                                                                                                                              |
+| _argument_type_                          | The data type of the input parameter(s) that the UDF expects to receive.                                                                                                                                                                                                                                                 |
+| **RETURNS** _return_type_                | Use this if the function returns a single value (i.e., scalar). It specifies the data type of the return value from the UDF.<br />The struct type, which can contain multiple values, is supported. But the field names must be consistent between Python and SQL definitions, or it will be considered a type mismatch. |
+| **RETURNS TABLE**                        | Use this if the function is a table-valued function (TVF). It specifies the structure of the table that the UDF returns.                                                                                                                                                                                                 |
+| **LANGUAGE**                             | Optional. Specifies the programming language used to implement the UDF. <br/> Currently, `python` and `java` are supported.                                                                                                                                                                                              |
+| **AS** _function_name_defined_in_server_ | Specifies the function name defined in the UDF server.                                                                                                                                                                                                                                                                   |
+| **USING LINK** '_udf_server_address_'    | Specifies the UDF server address. <br/>If you are running RisingWave in your local environment, the address is `http://localhost:<port>` <br/> If you are running RisingWave using Docker, the address is `http://host.docker.internal:<port>/`                                                                          |
 
 ## See also
 

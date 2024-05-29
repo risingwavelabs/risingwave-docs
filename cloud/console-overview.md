@@ -12,7 +12,7 @@ src={require('./images/console.png').default}
 alt="Console"
 />
 
-<defaultButton text="Go to query console" url="https://cloud.risingwave.com/console/" block/>
+<DefaultButton text="Go to query console" url="https://cloud.risingwave.com/console/" block/>
 
 ## Sections
 
@@ -68,7 +68,7 @@ width="270px"
 
 The sample queries cover the most common steps in RisingWave, such as establishing a connection with a data source, processing data by defining materialized views and querying the results.
 
-See [Explore RisingWave with examples](/quickstart.md/?step=4) for details.
+See [Explore RisingWave with examples](/quickstart.md?step=4) for details.
 
 #### Switch clusters or users
 
@@ -128,7 +128,7 @@ width="800px"
 
 ## Start developing
 
-<card
+<OutlinedCard
 title="Develop with RisingWave Cloud"
 content="RisingWave Cloud leverages the superpower of RisingWave, an open-source distributed SQL database specifically designed for stream processing. Start building your real-time applications with RisingWave using the console."
 cloud="develop-overview"

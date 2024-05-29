@@ -686,7 +686,7 @@ This version was released on June 1, 2023.
 
 #### Installation
 
-- Now, you can easily install RisingWave on your local machine with Homebrew by running `brew install risingwave`. See [Run RisingWave](/docs/current/get-started/#install-and-start-risingwave).
+- Now, you can easily install RisingWave on your local machine with Homebrew by running `brew install risingwave`. See [Run RisingWave](/docs/current/get-started#homebrew).
 
 #### Administration
 
@@ -816,7 +816,7 @@ Starting from this version, we’ll respect semantic versioning conventions by u
 - Removes the message name parameter for Avro data. [#8124](https://github.com/risingwavelabs/risingwave/pull/8124)
 - Adds support for AWS PrivateLink for Kafka source connector. [#8247](https://github.com/risingwavelabs/risingwave/pull/8247)
 
-**Full Changelog**: <https://github.com/risingwavelabs/risingwave/compare/v0.1.17...v0.18.0>
+**Full Changelog**: https://github.com/risingwavelabs/risingwave/compare/v0.1.17...v0.18.0
 
 ### Assets
 

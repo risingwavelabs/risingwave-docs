@@ -4,6 +4,7 @@ title: SHOW CLUSTER
 description: Show the details of your RisingWave cluster.
 slug: /sql-show-cluster
 ---
+
 <head>
   <link rel="canonical" href="https://docs.risingwave.com/docs/current/sql-show-cluster/" />
 </head>
