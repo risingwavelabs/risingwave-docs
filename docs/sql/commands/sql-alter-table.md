@@ -10,6 +10,7 @@ slug: /sql-alter-table
 
 The `ALTER TABLE` command modifies the definition of a table.
 
+
 ## Syntax
 
 ```sql
@@ -68,7 +69,7 @@ ALTER TABLE employees DROP fax;
 
 :::note
 
-+ If your table is defined with a schema registry, its column can not be altered.
++ If your table is defined with a schema registry, you can only change the table schema by `ALTER TABLE t REFRESH SCHEMA`. One exception is you can drop the generated columns even if the schema is defined with a schema registry. Note that dropping these generated columns will trigger a schema refresh.
 
 + You cannot drop columns referenced by materialized views or indexes.
 
