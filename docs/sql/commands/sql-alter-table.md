@@ -71,6 +71,9 @@ ALTER TABLE employees DROP fax;
 + If your table is defined with a schema registry, its column can not be altered.
 
 + You cannot drop columns referenced by materialized views or indexes.
+
++ To drop a column referenced by a generated column, you must first drop the generated column.
+
 :::
 
 ### `OWNER TO`
