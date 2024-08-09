@@ -167,6 +167,12 @@ const config = {
         },
         items: [
           {
+            to: "/",
+            activeBaseRegex: `^/$`,
+            position: "left",
+            label: "Home",
+          },
+          {
             type: "doc",
             docId: "intro",
             position: "left",
@@ -191,11 +197,12 @@ const config = {
           {
             type: "docsVersionDropdown",
             docsPluginId: "default",
+            className: "header-drop-down",
             position: "right",
           },
           {
             href: "https://github.com/risingwavelabs/risingwave",
-            label: "GitHub",
+            className: "header-github-link",
             position: "right",
           },
         ],

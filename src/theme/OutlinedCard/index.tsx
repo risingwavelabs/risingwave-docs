@@ -13,7 +13,13 @@ import { useColorMode } from "@docusaurus/theme-common";
 type LinkProps = {
   text: string;
   url?: string;
-  doc: string;
+  doc?: string;
+  cloud?: string;
+};
+
+type Imgs = {
+  light?: string;
+  dark?: string;
 };
 
 type Props = {
@@ -26,6 +32,7 @@ type Props = {
   btn?: string;
   width?: string;
   links?: LinkProps[];
+  img: Imgs;
 };
 
 export default function OutlinedCard({
@@ -38,13 +45,14 @@ export default function OutlinedCard({
   width,
   height,
   cloud,
+  img,
   ...rest
 }: Props) {
   const history = useHistory();
   const { globalData } = useDocusaurusContext();
   const location = useLocation();
   const { colorMode } = useColorMode();
-  const [dark, setDark] = React.useState(false);
+  const [dark, setDark] = React.useState<boolean | undefined>();
   React.useEffect(() => {
     setDark(colorMode === "dark");
   }, [colorMode]);
@@ -61,15 +69,13 @@ export default function OutlinedCard({
       onClick={() => {
         if (links) return;
         if (doc) {
-          globalData["docusaurus-plugin-content-docs"].default["versions"].map(
-            (v) => {
-              if (location.pathname.includes(v.path)) {
-                history.push(`${v.path}/${doc}`);
-              } else if (location.pathname.includes("cloud")) {
-                history.push(`/docs/current/${doc}`);
-              }
+          for (let v of globalData["docusaurus-plugin-content-docs"].default["versions"]) {
+            if (location.pathname.includes(v.path)) {
+              return history.push(`${v.path}/${doc}`);
+            } else {
+              return history.push(`/docs/current/${doc}`);
             }
-          );
+          }
         } else if (url) {
           window.open(url, "_blank", "noopener,noreferrer");
         } else if (cloud) {
@@ -78,40 +84,48 @@ export default function OutlinedCard({
       }}
     >
       <CardContent className={styles.cardContent}>
-        <Typography variant="h5" className={styles.title} component="div">
-          {title}
-        </Typography>
+        {img && (
+          <div className={styles.img}>
+            {dark !== undefined && (
+              <img alt={dark ? img.dark : img.light} src={dark ? img.dark : img.light} className="disabled-zoom" />
+            )}
+          </div>
+        )}
+        {title && (
+          <Typography variant="h5" className={styles.title} component="div">
+            {title}
+          </Typography>
+        )}
         <Typography variant="body2" className={styles.content}>
           {content}
         </Typography>
         {links && (
           <Box className={styles.cardLinks}>
-            {links.map((link) => {
+            {links.map((link, idx) => {
               return (
-                <div key={link.url} className={styles.flexBox}>
+                <div key={idx} className={styles.flexBox}>
                   <Typography
                     className={styles.cardLink}
                     onClick={() => {
                       if (link.url) {
                         window.open(link.url, "_blank", "noopener,noreferrer");
                       } else if (link.doc) {
-                        globalData["docusaurus-plugin-content-docs"].default[
-                          "versions"
-                        ].map((v) => {
+                        for (let v of globalData["docusaurus-plugin-content-docs"].default["versions"]) {
                           if (location.pathname.includes(v.path)) {
-                            history.push(`${v.path}/${link.doc}`);
-                          } else if (location.pathname.includes("cloud")) {
-                            history.push(`/docs/current/${doc}`);
+                            return history.push(`${v.path}/${link.doc}`);
+                          } else {
+                            return history.push(`/docs/current/${link.doc}`);
                           }
-                        });
+                        }
+                      } else if (link.cloud) {
+                        history.push(`/cloud/${link.cloud}`);
                       }
                     }}
                   >
                     {link.text}
                     {link.url && <ExternalArrow />}
-                    {link.doc && (
-                      <RightArrow fill={dark ? "#0098ef" : "#48dcbc"} />
-                    )}
+                    {link.doc && <RightArrow />}
+                    {link.cloud && <RightArrow />}
                   </Typography>
                 </div>
               );
@@ -131,22 +145,10 @@ export default function OutlinedCard({
   );
 }
 
-type IconProps = {
-  fill: string;
-};
-const RightArrow = ({ fill }: IconProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    width="16"
-    height="16"
-    className={styles.rightArrowIcon}
-  >
+const RightArrow = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" className={styles.rightArrowIcon}>
     <path fill="none" d="M0 0h24v24H0z" />
-    <path
-      d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z"
-      fill={fill}
-    />
+    <path d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z" />
   </svg>
 );
 
