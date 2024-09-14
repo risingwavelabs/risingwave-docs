@@ -56,6 +56,35 @@ RisingWave Premium 1.0 is the first major release of this new edition with sever
 
 For users who are already using these features in 1.9.x or earlier versions, rest assured that the functionality of these features will be intact if you stay on the version. If you choose to upgrade to v2.0 or later versions, an error will show up to indicate you need a license to use the features.
 
+## License key management
+
+The Premium Edition features are only available to users who have purchased a license. The license key, essentially a certificate, is a JSON Web Token (JWT) that encodes information such as the license tier and expiration time. The integrity of the license key is validated using asymmetric encryption.
+
+### Set license key
+
+To set your license key:
+
+1. Before launching a new cluster:
+
+    - Add `system.license_key` to your TOML configuration file, or
+    - Set `RW_LICENSE_KEY` environment variable
+
+2. For an existing cluster, use this SQL command:
+
+    ```sql
+    ALTER SYSTEM SET license_key TO '...';
+    ```
+
+### Verify license key
+
+To check if your license key is valid, run:
+
+```sql
+SELECT rw_test_paid_tier();
+```
+
+A result of `t` means the key is valid; an error message indicates an invalid key.
+
 ## Support
 
 RisingWave Premium edition offers the premium support:
@@ -74,4 +103,4 @@ RisingWave Premium edition offers the premium support:
 
 ## Pricing
 
-Pricing for RisingWave Premium will be based on the cluster size, measured in RisingWave Units (RWUs). The number of RWUs will be determined based on the scale of data ingestion, number of streaming jobs, the complexity of use case. There could be additional factors as well. Please contact our sales at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com) for more details.
+Pricing for RisingWave Premium will be based on the cluster size, measured in RisingWave Units (RWUs). The number of RWUs will be determined based on the scale of data ingestion, number of streaming jobs, and the complexity of use case. There could be additional factors as well. Please contact our sales at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com) for more details.
