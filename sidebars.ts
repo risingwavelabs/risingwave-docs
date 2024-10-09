@@ -453,7 +453,7 @@ const sidebars: SidebarsConfig = {
                     },
                     {
                       type: "doc",
-                      label: "NATS JetStream",
+                      label: "NATS and NATSJetStream",
                       id: "guides/sink-to-nats",
                     },
                     {
