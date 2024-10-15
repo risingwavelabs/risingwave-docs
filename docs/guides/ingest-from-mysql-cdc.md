@@ -128,11 +128,11 @@ If you are running RisingWave locally from binaries and intend to use the native
 
 ## Create a table using the native CDC connector in RisingWave
 
-To ensure all data changes are captured, you must create a table and specify primary keys. See the [`CREATE TABLE`](/sql/commands/sql-create-table.md) command for more details.
+To ensure all data changes are captured, you must create a table and specify primary keys.
 
 ### Syntax
 
-Syntax for creating a CDC source.
+Before creating a table, you need to first create a source to the upstream MySQL database using the following syntax. This source can be shared by multiple tables from the same MySQL database.
 
 ```sql
 CREATE SOURCE [ IF NOT EXISTS ] source_name WITH (
@@ -141,7 +141,7 @@ CREATE SOURCE [ IF NOT EXISTS ] source_name WITH (
 );
 ```
 
-Syntax for creating a CDC table. Note that a primary key is required and must be consistent with the upstream table.
+Below is the syntax for creating a CDC table based on the shared source. Note that a primary key is required and must be consistent with the upstream table.
 
 ```sql
 CREATE TABLE [ IF NOT EXISTS ] table_name (
@@ -152,7 +152,7 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 WITH (
    snapshot='true'
 )
-FROM source TABLE table_name;
+FROM source_name TABLE table_name;
 ```
 
 ### Connector parameters
