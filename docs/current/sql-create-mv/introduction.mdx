@@ -1,0 +1,52 @@
+---
+title: "CREATE MATERIALIZED VIEW"
+description: "Use the `CREATE MATERIALIZED VIEW` command to create a materialized view. A materialized view can be created based on sources, tables, materialized views, or indexes."
+---
+
+## Syntax
+
+```sql
+CREATE MATERIALIZED VIEW [IF NOT EXISTS] mv_name AS select_query;
+```
+
+<Tip>
+**TIP**
+
+`CREATE MATERIALIZED VIEW` will first **backfill** historical data from the referenced relations, and completion time varies based on the volume of data to be backfilled.
+
+To perform the operations in the background, you can execute `SET BACKGROUND_DDL=true;` before running the `CREATE MATERIALIZED VIEW` statement. See details in [SET BACKGROUND\_DDL](/docs/current/sql-set-background-ddl/).
+
+</Tip>
+## Parameters
+
+| Parameter or clause | Description                                                                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _mv\_name_          | The name of the materialized view to be created.                                                                                                         |
+| _select\_query_     | A SELECT query that retrieves data for the materialized view. See [SELECT](/docs/current/sql-select/) for the syntax and examples of the SELECT command. |
+
+<Info>
+**NOTE**
+
+Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/docs/current/sql-identifiers/).
+</Info>
+
+<Info>
+**NOTE**
+
+The `ORDER BY` clause in the `CREATE MATERIALIZED VIEW` statement is allowed but not considered as part of the definition of the materialized view. It's only used in the initial creation of the materialized view and not during refreshes.
+</Info>
+
+## Examples
+
+Refer to this [tutorial](/docs/current/server-performance-anomaly-detection/) for examples of creating materialized views based on external sources or existing materialized views.
+
+## See also
+
+<CardGroup>
+  <Card
+    title="Overview of data processing"
+    icon="database"
+    href="/docs/current/transform-overview/"
+    horizontal
+  />
+</CardGroup>

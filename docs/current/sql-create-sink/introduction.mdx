@@ -1,0 +1,104 @@
+---
+title: "CREATE SINK"
+description: "Use the `CREATE SINK` command to create a sink. A sink is an external target where you can send data processed in RisingWave. You can create a sink from a table or a materialized view."
+---
+
+If your goal is to create an append-only sink, you can use the emit-on-window-close policy when creating the materialized view that you want to sink data from. For details about the policy, see [Emit on window close](/docs/current/emit-on-window-close/).
+
+## Syntax
+
+```js
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector = 'connector_name',
+   connector_parameter = 'value',
+   [ snapshot = 'true' | 'false' ],...
+)
+[ FORMAT data_format ENCODE data_encode [ (
+    format_parameter = 'value'
+) ] ];
+```
+
+## Parameters
+
+| Parameter                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _sink\_name_                      | The name of the sink.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| _col\_name_                       | The name of the column.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| _sink\_from_                      | Specify the direct data source for output. It can be a materialized view or a table.                                                                                                                                                                                                                                                                                                                                                                        |
+| _select\_query_                   | Specify the data to be output to the sink.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| _snapshot_                        | Optional. Currently, to modify the definition or query of an existing sink, you need to drop and re-create the sink, but this approach generates excessive duplicates due to the mandatory backfilling. To avoid this, you can set the parameter to false to skip the backfilling phase and transmit only incremental changes. This option is only applicable when using the CREATE SINK FROM syntax, not CREATE SINK AS syntax. The default value is true. |
+| **WITH** clause                   | Specify the connector settings here if trying to store all the sink data. See [Supported sinks](#supported-sinks) for the full list of supported sink as well as links to specific connector pages detailing the syntax for each sink.                                                                                                                                                                                                                      |
+| **FORMAT** and **ENCODE** options | Optional. Specify the data format and the encoding format of the sink data. It is only used for Kafka, Kinesis, Pulsar, and Redis sinks.                                                                                                                                                                                                                                                                                                                    |
+
+<Info>
+**NOTE**
+
+Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
+</Info>
+
+## Supported sinks
+
+Click a sink name to see the SQL syntax, options, and sample statement of sinking data from RisingWave to the sink.
+
+* [Apache Doris](/docs/current/sink-to-doris/)
+* [Apache Iceberg](/docs/current/sink-to-iceberg/)
+* [AWS Kinesis](/docs/current/sink-to-aws-kinesis/)
+* [Cassandra or ScyllaDB](/docs/current/sink-to-cassandra/)
+* [ClickHouse](/docs/current/sink-to-clickhouse/)
+* [CockroachDB](/docs/current/sink-to-cockroach/)
+* [Delta Lake](/docs/current/sink-to-delta-lake/)
+* [Elasticsearch](/docs/current/sink-to-elasticsearch/)
+* [Google BigQuery](/docs/current/sink-to-bigquery/)
+* [Kafka](/docs/current/create-sink-kafka/) (Supports versions 3.1.0 or later)
+* [MySQL](/docs/current/sink-to-mysql-with-jdbc/) (Supports versions 5.7 and 8.0.x)
+* [NATS](/docs/current/sink-to-nats/)
+* [PostgreSQL](/docs/current/sink-to-postgres/)
+* [Pulsar](/docs/current/sink-to-pulsar/)
+* [Redis](/docs/current/sink-to-redis/)
+* [StarRocks](/docs/current/sink-to-starrocks/)
+* [TiDB](/docs/current/sink-to-tidb/)
+
+## See also
+
+<CardGroup>
+  <Card
+    title="Overview of data delivery"
+    icon="truck"
+    icontype="solid"
+    href="/docs/current/data-delivery/"
+  />
+  <Card
+    title="DROP SINK"
+    icon="trash"
+    href="/docs/current/sql-drop-sink/"
+    icontype="solid"
+  >
+    Remove a sink
+  </Card>
+  <Card
+    title="SHOW CREATE SINK"
+    icon="eye"
+    href="/docs/current/sql-show-create-sink/"
+    icontype="solid"
+  >
+    Show the SQL statement used to create a sink
+  </Card>
+  <Card
+    title="CREATE SINK INTO"
+    icon="plus"
+    href="/docs/current/sql-create-sink-into/"
+    icontype="solid"
+  >
+    Create a sink into RisingWave's table
+  </Card>
+</CardGroup>
+
+<Info>
+**NOTE**
+
+Timestamptz values are stored in UTC.
+
+When sinking downstream, the representation of timestamptz is configurable. By default, it is in the format `2023-11-11T18:30:09.453000Z`.
+</Info>

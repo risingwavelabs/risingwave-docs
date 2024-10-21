@@ -1,0 +1,51 @@
+---
+title: "CANCEL JOBS"
+description: "Use `CANCEL JOBS/JOB` to cancel specific streaming jobs that are in progress."
+---
+A streaming job is a job that creates an index, a materialized view, a table, a sink, or a source with connectors. You need to specify the IDs of the jobs that you want to cancel. You can use [SHOW JOBS](/docs/current/sql-show-jobs/) to get the IDs of the jobs that are in progress.
+
+## Syntax
+
+```sql
+CANCEL [ JOBS | JOB ] job_id [,...];
+```
+
+## Examples
+
+```sqlShow all jobs
+SHOW JOBS;
+------RESULT
+  Id  |                     Statement                     | Progress
+------+---------------------------------------------------+----------
+ 1010 | CREATE MATERIALIZED VIEW mv3 AS SELECT *FROM mv1  | 2.21%
+ 1012 | CREATE MATERIALIZED VIEW mv2 AS SELECT* FROM mv1  | 0.86%
+```
+
+```sql Cancel jobs
+CANCEL JOBS 1010, 1012;
+------RESULT
+Id
+------
+ 1012
+ 1010
+
+```
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="SHOW JOBS"
+    icon="list"
+    href="/docs/current/sql-show-jobs/"
+    horizontal
+    iconType="solid"
+  />
+  <Card
+    title="Monitor statement progress"
+    icon="chart-line"
+    href="/docs/current/view-statement-progress/"
+    horizontal
+    iconType="solid"
+  />
+</CardGroup>

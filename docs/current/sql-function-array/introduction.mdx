@@ -1,0 +1,425 @@
+---
+title: "Array functions and operators"
+---
+
+## Array functions
+
+### `array_append`
+
+Appends _any\_compatible_ to the end of the input array.
+
+```bash
+array_append ( array, any_compatible ) → array
+```
+
+```bash
+array_append(array[66], 123) → {66, 123}
+```
+
+
+### `array_cat`
+
+Concatenates two arrays with the same data type.
+
+If the one of the input arrays is a 2-dimensional array, the other array will be appended within the first array as the last element if it is the second argument. The other array will be prepended within the first array as the first element if it is the first argument.
+
+```bash
+array_cat ( array, array ) → array
+```
+
+```bash
+array_cat(array[66], array[123]) → {66, 123}
+
+array_cat(array[array[66]], array[233]) → {{66}, {233}}
+
+array_cat(array[233], array[array[66]]) → {{233}, {66}}
+```
+
+### `array_dims`
+
+Returns the dimensions of an array as a string. The array must be one dimensional.
+
+```bash
+array_dims ( array ) → string
+```
+
+```bash
+array_dims(array[2,3,4]) → [1:3]
+```
+
+### `array_distinct`[](#array%5Fdistinct "Direct link to array_distinct")
+
+Returns an array of the same type as the input array with all duplicate values removed.
+
+```bash
+array_distinct ( array ) → array
+```
+
+```bash
+array_distinct(array[1,2,1,1]) → {1,2}
+```
+
+
+### `array_length`[](#array%5Flength "Direct link to array_length")
+
+This function has two variants.
+
+#### `array_length ( array )`[](#array%5Flength--array- "Direct link to array_length--array-")
+
+Returns the length of _array_.
+
+```bash
+array_length ( array ) → int
+```
+
+```bash
+array_length(array[1,2,3,4,1]) → 5
+```
+
+#### `array_length ( array int )`[](#array%5Flength--array-int- "Direct link to array_length--array-int-")
+
+Returns the length of the requested array dimension in _array_. _int_ must be 1.
+
+```
+array_length ( array, int ) → int
+```
+
+```
+array_length(array[2, 3, 4], 1) → 3
+```
+
+
+### `array_lower`[](#array%5Flower "Direct link to array_lower")
+
+Returns the lower bound of the requested array dimension in _array_. (This is always 1 or null.)
+
+```
+array_lower ( array, int ) → int
+```
+
+```
+array_lower(array[2, 3, 4], 1) → 1
+```
+
+### `array_max`[](#array%5Fmax "Direct link to array_max")
+
+Returns the maximum value in an array.
+
+Null elements are skipped, but if the array contains only null elements, NULL is returned.
+
+```
+array_max ( array ) → type of the elements
+```
+
+```
+array_max(array[3.14, 1.14, 1.14514]) → 3.14
+
+array_max(array[date'2002-10-30', date'2023-09-06', date'2017-06-18']) → 2023-09-06
+
+array_max(array['','']) → empty
+
+array_max(array['a', 'b', NULL, 'c']) → c
+
+array_max(array[NULL]) → NULL
+```
+
+### `array_min`[](#array%5Fmin "Direct link to array_min")
+
+Returns the minimum value in an array.
+
+Null elements are skipped, but if the array contains only null elements, NULL is returned.
+
+```
+array_min ( array ) → type of the elements
+```
+
+```bash
+array_min(array['a', 'b', 'c']) → a
+
+array_min(array[date'2002-10-30', date'2023-09-06', date'2017-06-18']) → 2002-10-30
+
+array_min(array['','']) → empty
+
+array_min(array['a', 'b', NULL, 'c']) → a
+
+array_min(array[NULL]) → NULL
+```
+
+### `array_ndims`[](#array%5Fndims "Direct link to array_ndims")
+
+Returns the number of dimensions of _array_.
+
+```
+array_ndims ( array ) → int
+```
+
+```
+array_ndims(array[array[2, 3], array[4, 5]]) → 2
+```
+
+### `array_position`[](#array%5Fposition "Direct link to array_position")
+
+Returns the subscript of the first occurrence of _any\_compatible_ element in _array_.
+
+```
+array_position ( array, any_compatible ) → int
+```
+
+```
+array_position(array[1,2,3,4,5,6,1,2,3,4,5,6], 4) → 4
+```
+
+### `array_positions`[](#array%5Fpositions "Direct link to array_positions")
+
+Returns an array of the subscripts of all occurrences of _any\_compatible_ element in _array_.
+
+```
+array_positions ( array, any_compatible ) → array
+```
+
+```
+array_positions(array[1,2,3,4,5,6,1,2,3,4,5,6], 4) → {4, 10}
+```
+
+### `array_prepend`[](#array%5Fprepend "Direct link to array_prepend")
+
+Prepends _any\_compatible_ to the beginning of the input array.
+
+```
+array_prepend ( any_compatible, array ) → array
+```
+
+```
+array_prepend(123, array[66]) → {123, 66}
+```
+
+---
+
+### `array_remove`[](#array%5Fremove "Direct link to array_remove")
+
+Returns an array with all occurrences of _any\_compatible_ element removed. Multidimensional arrays are also supported.
+
+```
+array_remove ( array, any_compatible ) → array
+```
+
+```
+array_remove(array[array[1],array[2],array[3],array[2]], array[2]) → {{1},{3}}
+```
+
+### `array_replace`[](#array%5Freplace "Direct link to array_replace")
+
+Returns an array with all occurrences of _current\_element_ replaced with _new\_element_. Multidimensional arrays are also supported. When the array is multidimensional, the element must be an array of one less dimension. Recursively replacing the base element of a multidimensional array is not supported.
+
+```
+array_replace ( array, current_element, new_element ) → array
+```
+
+```
+array_replace(array[7, null, 8, null], null, 0.5) → {7,0.5,8,0.5}
+```
+
+### `array_sort`[](#array%5Fsort "Direct link to array_sort")
+
+Sorts the elements of an array in ascending order.
+
+```
+array_sort ( array ) → array
+```
+
+```
+array_sort(array[-1000, 2000, 0]) → {-1000,0,2000}
+
+array_sort(array['abcdef', 'aacedf', 'aaadef']) → {aaadef,aacedf,abcdef}
+
+array_sort(array[3, 2, NULL, 1, NULL]) → {1,2,3,NULL,NULL}
+```
+
+### `array_sum`[](#array%5Fsum "Direct link to array_sum")
+
+Returns the sum of the values in the array. Null elements are skipped.
+
+```
+array_sum ( array ) → type of the elements
+```
+
+```
+array_sum(array[3, 2, NULL]) → 5
+
+array_sum(array[-10, 20, -30]) → -20
+
+array_sum(array[interval'4 hour', interval'3 day']) → '3 days 04:00:00'
+```
+
+### `array_to_string` and `array_join`[](#array%5Fto%5Fstring-and-array%5Fjoin "Direct link to array_to_string-and-array_join")
+
+Converts an array to a string. The optional _delimiter\_string_ separates the array's elements in the resulting string, and the optional _null\_string_ represents `NULL` elements in the array. `array_join` can also be used instead of `array_to_string`.
+
+```
+array_to_string ( array, delimiter_string, null_string ) → string
+
+array_join(array, delimiter_string, null_string) → string
+```
+
+```
+array_to_string (array[1, 2, 3, NULL, 5], ',', '*') → 1,2,3,*,5
+
+array_join(array[1, 2, 3, NULL, 5], ',', '*') → 1,2,3,*,5
+```
+
+### `array_transform`[](#array%5Ftransform "Direct link to array_transform")
+
+This function takes an array, transforms the elements, and returns the results in a new array. The output array always has the same length as the input array.
+
+```
+array_transform ( array_expression, lambda_expression )
+
+lambda_expression:
+| element_alias | transform_expression
+```
+
+Each element in `array_expression` is evaluated against the `transform_expression`. `element_alias` is an alias that represents an array element.
+
+
+```sql Example A
+SELECT array_transform('{1,2,3}'::int[], |x| (x::double precision+0.5));
+------RESULT
+{1.5,2.5,3.5}
+```
+
+
+```sql Example B
+SELECT array_transform(
+    ARRAY['Apple', 'Airbnb', 'Amazon', 'Facebook', 'Google', 'Microsoft', 'Netflix', 'Uber'],
+    |x| case when x ilike 'A%' then 'A' else 'Other' end
+);
+------RESULT
+{A,A,A,Other,Other,Other,Other,Other}
+```
+
+Note that the `transform_expression` does not support referencing columns. For example, if you have a table:
+
+```sql
+CREATE TABLE t(v int, arr int[]);
+```
+
+The following query will fail.
+
+```
+select array_transform(arr, |x| x + v) from t;
+```
+
+---
+
+### `array_upper`[](#array%5Fupper "Direct link to array_upper")
+
+Returns the upper bound of the requested array dimension in _array_. _int_ must be `1`. (This will return the same value as `array_length`.)
+
+```
+array_upper ( array, int ) → int
+```
+
+```
+array_upper(array[array[2, 3, 4], array[3, 4, 5]], 1) → 2
+```
+
+
+### `cardinality`[](#cardinality "Direct link to cardinality")
+
+Returns the total number of elements in _array_ or 0 if the array is empty.
+
+```sql
+cardinality ( array ) → int
+```
+
+```
+cardinality(array[array[array[3,4,5],array[2,2,2]],array[array[6,7,8],array[0,0,0]]]) → 12
+```
+
+
+### `string_to_array`
+
+Converts a string to an array. The optional _delimiter\_string_ separates the _string_'s elements to create the resulting array, and the optional _null\_string_ represents `NULL` elements in the array.
+
+```sql
+string_to_array ( string, delimiter_string, null_string ) → array
+```
+
+```sql
+string_to_array('a b c', ' ', 'a') → {NULL,b,c}
+```
+
+### `trim_array`[](#trim%5Farray "Direct link to trim_array")
+
+Trims an array by removing the last n elements. If the array is multidimensional, only the first dimension is trimmed.
+
+```sql
+trim_array ( array, num_of_elements_to_trim ) → array
+```
+
+```sql
+trim_array(array[1,2,3,4,5,NULL], 4) → {1,2}
+```
+
+
+### `unnest`[](#unnest "Direct link to unnest")
+
+Expands an array, or combination of arrays, into a set of rows. The array's elements are output in the order they are stored.
+
+```sql
+unnest ( array ) → set_of_any_element
+```
+
+```sql
+unnest(Array[Array[1,3,4,5],Array[2,3]]) →
+1
+3
+4
+5
+2
+3
+```
+
+## Array operators[](#array-operators "Direct link to Array operators")
+
+### `array @> array -> boolean`[](#array--array---boolean "Direct link to array--array---boolean")
+
+This operator checks if the left array contains all elements of the right array.
+
+```sql
+array[1,2,3] @> array[2,3] → t
+```
+
+### `array <@ array -> boolean`[](#array--array---boolean-1 "Direct link to array--array---boolean-1")
+
+This operator checks if the left array is contained by the right array.
+
+```sql
+array[2,3] <@ array[1,2,3] → t
+```
+
+### `array || anycompatible → array`[](#array--anycompatible--array "Direct link to array--anycompatible--array")
+
+Appends _any\_compatible_ to the end of _array_. This operation achieves the same result as using `array_append`.
+
+```sql
+array[66] || 123 → {66, 123}
+```
+
+
+### `array || array → array`
+
+Concatenates two arrays with the same data type. This operation achieves the same result as using `array_cat`.
+
+```bash
+array[66] || array[123] → {66, 123}
+```
+
+
+### `anycompatible || array → array`
+
+Prepends _any\_compatible_ to the beginning of _array_. This operation achieves the same result as using `array_prepend`.
+
+```bash
+123 || array[66] → {123, 66}
+```

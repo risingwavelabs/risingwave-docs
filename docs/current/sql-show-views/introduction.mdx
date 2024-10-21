@@ -1,0 +1,58 @@
+---
+title: "SHOW VIEWS"
+description: "Use the `SHOW VIEW` command to list existing views in a particular schema."
+---
+
+## Syntax
+
+```sql
+SHOW VIEWS [ FROM schema_name ] [ LIKE_expression ];
+```
+
+## Parameters
+
+| Parameter or clause | Description                                                                                                                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _schema\_name_      | The schema from which existing views will be listed. If not given, views from the default schema, "public", will be listed.                                                               |
+| LIKE\_expression    | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/docs/current/sql-function-string/#like-pattern-matching-expressions). |
+
+## Example
+
+Say we create the table `t3` in the `public` schema and a view `v3`.
+
+```sql
+CREATE TABLE IF NOT EXISTS t3 (
+    v1 int,
+    v2 int,
+    v3 int)
+WITH (appendonly = 'true');
+
+CREATE VIEW v3 AS SELECT sum(v2) AS sum_v2 FROM t3;
+```
+
+Then we can use `SHOW VIEWS` to show the existing views.
+
+```sql
+SHOW VIEWS FROM public;
+```
+
+```bash
+v3
+```
+
+## Related topics
+<CardGroup>
+  <Card
+    title="CREATE VIEW"
+    icon="circle-plus"
+    iconType="solid"
+    href="/docs/current/sql-create-view/"
+  />
+  <Card
+    title="SHOW CREATE VIEW"
+    icon="eye"
+    iconType="solid"
+    href="/docs/current/sql-show-create-view/"
+  />
+
+</CardGroup>

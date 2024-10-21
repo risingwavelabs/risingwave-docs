@@ -1,0 +1,102 @@
+---
+title: "DROP FUNCTION"
+---
+
+Use the `DROP FUNCTION` command to remove an existing [user-defined function (UDF)](/docs/current/user-defined-functions/).
+
+## Syntax
+
+```sql
+DROP FUNCTION [ IF EXISTS ] function_name [ ( argument_type [, ...] ) ] ;
+```
+
+| Parameter or clause              | Description                                                                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _function\_name_                 | Name of the UDF you want to drop.                                                                                                                  |
+| ( _argument\_type_ \[ , ... \] ) | Optional: Argument types of the function.Specify the argument types when the name of the function you want to drop isn't unique within the schema. |
+| IF EXISTS                        | Do not return an error if the specified function does not exist. A notice is issued in this case.                                                  |
+
+## Usage
+
+A function can be dropped using one of the following methods:
+
+* Full function signature:
+```sql
+DROP FUNCTION function_name ( argument_type [, ...] );
+```
+* Function name only, if it's unique in its schema:
+```sql
+DROP FUNCTION function_name;
+```
+You can run [SHOW FUNCTIONS;](/docs/current/sql-show-functions/) to list all existing UDFs to see if a function name is unique.
+
+<Tip>
+**TIP**
+
+`DROP FUNCTION function_name();` drops a function with zero arguments.
+
+`DROP FUNCTION function_name;` drops a function with any number of arguments, including zero, as long as the name is unique.
+</Tip>
+
+## Examples
+
+First, let's [create some functions](/docs/current/sql-create-function/).
+
+```sql
+CREATE FUNCTION f1() RETURNS real LANGUAGE python AS func1 USING LINK 'http://localhost:8815';
+CREATE FUNCTION f1(int) RETURNS int LANGUAGE python AS func2 USING LINK 'http://localhost:8815';
+CREATE FUNCTION f1(int,int) RETURNS int LANGUAGE python AS func3 USING LINK 'http://localhost:8815';
+CREATE FUNCTION f2(int,int) RETURNS int LANGUAGE python AS func4 USING LINK 'http://localhost:8815';
+```
+
+You can drop a unique function by name:
+
+```sql
+DROP FUNCTION f2;
+```
+
+You cannot drop a function by name when its name is not unique:
+
+```sql
+DROP FUNCTION f1;
+```
+
+```sql
+ERROR:  QueryError: Catalog error: function name "f1" is not unique
+HINT: Specify the argument list to select the function unambiguously.
+```
+
+You can drop a function by full signature:
+
+```sql
+DROP FUNCTION f1();
+DROP FUNCTION f1(int);
+```
+
+Now, `f1(int,int)` is the only function named `f1`, you can drop it by name or full signature:
+
+```sql
+DROP FUNCTION f1;
+-- Or DROP FUNCTION f1(int,int);
+```
+
+## See also
+
+<CardGroup>
+  <Card
+    title="User-defined functions"
+    icon="code"
+    iconType="solid"
+    href="/docs/current/user-defined-functions/"
+  >
+    A step-by-step guide for using UDFs in RisingWave: installing the RisingWave UDF API, defining functions in a Python file, starting the UDF server, and declaring UDFs in RisingWave.
+  </Card>
+  <Card
+    title="SHOW FUNCTIONS"
+    icon="list"
+    iconType="solid"
+    href="/docs/current/sql-show-functions/"
+  >
+    Show all existing UDFs
+  </Card>
+</CardGroup>

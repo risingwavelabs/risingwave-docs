@@ -1,0 +1,76 @@
+---
+title: "Sink to AWS Kinesis"
+description: This topic describes how to sink data from RisingWave to AWS Kinesis Data Streams.
+sidebarTitle: AWS Kinesis
+---
+
+<Note>
+**PUBLIC PREVIEW**
+
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+</Note>
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector = 'kinesis',
+   connector_parameter = 'value', ...
+)
+FORMAT data_format ENCODE data_encode [ (
+    key = 'value'
+) ]
+[KEY ENCODE key_encode [(...)]]
+;
+```
+
+## Basic parameters
+
+| Field                               | Notes                                                                                                                                                                                    |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| stream                              | Required. Name of the stream.                                                                                                                                                            |
+| aws.region                          | Required. AWS service region. For example, US East (N. Virginia).                                                                                                                        |
+| endpoint                            | Optional. URL of the entry point for the AWS Kinesis service.                                                                                                                            |
+| aws.credentials.access\_key\_id     | Required. This field indicates the access key ID of AWS.                                                                                                                                 |
+| aws.credentials.secret\_access\_key | Required. This field indicates the secret access key of AWS.                                                                                                                             |
+| aws.credentials.session\_token      | Optional. The session token associated with the temporary security credentials.                                                                                                          |
+| aws.credentials.role.arn            | Optional. The Amazon Resource Name (ARN) of the role to assume.                                                                                                                          |
+| aws.credentials.role.external\_id   | Optional. The [external id](https://aws.amazon.com/blogs/security/how-to-use-external-id-when-granting-access-to-your-aws-resources/) used to authorize access to third-party resources. |
+| primary\_key                        | Required. The primary keys of the sink. Use ',' to delimit the primary key columns.                                                                                                      |
+
+<Info>
+**NOTE**
+
+In the Kinesis sink, we use [PutRecords](https://docs.aws.amazon.com/kinesis/latest/APIReference/API%5FPutRecords.html) API to send multiple records in batches to achieve higher throughput. Due to the limitations of Kinesis, records might be out of order when using this API. Nevertheless, the current implementation of the Kinesis sink guarantees at-least-once delivery and eventual consistency.
+</Info>
+
+## FORMAT and ENCODE options
+
+<Info>
+**NOTE**
+
+These options should be set in `FORMAT data_format ENCODE data_encode (key = 'value')`, instead of the `WITH` clause
+</Info>
+
+| Field                     | Notes                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| data\_format              | Data format. Allowed formats: PLAIN: Output data with insert operations. DEBEZIUM: Output change data capture (CDC) log in Debezium format. UPSERT: Output data as a changelog stream. primary\_key must be specified in this case.  To learn about when to define the primary key if creating an UPSERT sink, see the [Overview](/docs/current/data-delivery/). |
+| data\_encode              | Data encode. Supported encode: JSON.                                                                                                                                                                                                                                                                                                                             |
+| force\_append\_only       | If true, forces the sink to be PLAIN (also known as append-only), even if it cannot be.                                                                                                                                                                                                                                                                          |
+| timestamptz.handling.mode | Controls the timestamptz output format. This parameter specifically applies to append-only or upsert sinks using JSON encoding.  \- If omitted, the output format of timestamptz is 2023-11-11T18:30:09.453000Z which includes the UTC suffix Z.  \- When utc\_without\_suffix is specified, the format is changed to 2023-11-11 18:30:09.453000.                |
+| key\_encode               | Optional. When specified, the key encode can only be TEXT, and the primary key should be one and only one of the following types: varchar, bool, smallint, int, and bigint; When absent, both key and value will use the same setting of ENCODE data\_encode ( ... ).                                                                                            |
+
+## Examples
+
+```sql
+CREATE SINK s1 FROM t WITH (
+ connector = 'kinesis',
+ stream = 'kinesis-sink-demo',
+ aws.region = 'us-east-1',
+ aws.credentials.access_key_id = 'your_access_key',
+ aws.credentials.secret_access_key = 'your_secret_key'
+)
+FORMAT DEBEZIUM ENCODE JSON;
+```

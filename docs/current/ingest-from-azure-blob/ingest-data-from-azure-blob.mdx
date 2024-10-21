@@ -1,0 +1,126 @@
+---
+title: "Ingest data from Azure Blob"
+sidebarTitle: Azure Blob
+description: "[Azure Blob Storage](https://learn.microsoft.com/en-us/azure/storage/blobs/), provided by Microsoft Azure, allows you to store and manage large amounts of unstructured data."
+---
+
+Use the SQL statement below to connect RisingWave to Azure Blob Storage using Azblob connector. Note that the Azblob connector does not guarantee the sequential reading of files or complete file reading.
+
+## Syntax
+
+```sql
+CREATE SOURCE [ IF NOT EXISTS ] source_name
+schema_definition
+[INCLUDE { file | offset } [AS <column_name>]]
+WITH (
+   connector = 'azblob',
+   connector_parameter = 'value', ...
+)
+FORMAT data_format ENCODE data_encode (
+   without_header = 'true' | 'false',
+   delimiter = 'delimiter'
+);
+```
+
+**schema\_definition**:
+
+```sql
+(
+   column_name data_type [ PRIMARY KEY ], ...
+   [ PRIMARY KEY ( column_name, ... ) ]
+)
+```
+
+### Connector parameters
+
+| Field                            | Notes                                                                                                                                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| azblob.container\_name           | Required. The name of the container the data source is stored in.                                                                                                                                                                                            |
+| azblob.credentials.account\_name | Optional. The name of the Azure Blob Storage account.                                                                                                                                                                                                        |
+| azblob.credentials.account\_key  | Optional. The account key for the Azure Blob Storage account.                                                                                                                                                                                                |
+| azblob.endpoint\_url             | Required. The URL of the Azure Blob Storage service endpoint.                                                                                                                                                                                                |
+| match\_pattern                   | Conditional. Set to find object keys in azblob.container\_name that match the given pattern. Standard Unix-style [glob](https://en.wikipedia.org/wiki/Glob%5F%28programming%29) syntax is supported.                                                         |
+| compression\_format              | Optional. Specifies the compression format of the file being read. When set to gzip or gz, the file reader reads all files with the .gz suffix; when set to None or not defined, the file reader will automatically read and decompress .gz and .gzip files. |
+
+### Other parameters
+
+| Field             | Notes                                                                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| _data\_format_    | Supported data format: PLAIN.                                                                                                            |
+| _data\_encode_    | Supported data encodes: CSV, JSON, PARQUET.                                                                                              |
+| _without\_header_ | This field is only for CSV encode, and it indicates whether the first line is header. Accepted values: 'true', 'false'. Default: 'true'. |
+| _delimiter_       | How RisingWave splits contents. For JSON encode, the delimiter is \\n; for CSV encode, the delimiter can be one of ,, ;, E'\\t'.         |
+
+### Additional columns
+
+| Field    | Notes                                                                                                                       |
+| -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| _file_   | Optional. The column contains the file name where current record comes from.                                                |
+| _offset_ | Optional. The column contains the corresponding bytes offset (record offset for parquet files) where current message begins |
+
+## Examples
+
+Here are examples of connecting RisingWave to the Azblob source to read data from individual streams.
+<Tabs>
+    <Tab title="CSV">
+```sql
+CREATE SOURCE s(
+    id int,
+    name varchar,
+    age int
+)
+WITH (
+    connector = 'azblob',
+    azblob.container_name = 'xxx',
+    azblob.credentials.account_name = 'xxx',
+    azblob.credentials.account_key = 'xxx',
+    azblob.endpoint_url = 'xxx',
+) FORMAT PLAIN ENCODE CSV (
+    without_header = 'true',
+    delimiter = ',' -- set delimiter = E'\t' for tab-separated files
+);
+
+```
+    </Tab>
+    <Tab title="JSON">
+```sql
+CREATE SOURCE s1(
+    id int,
+    name TEXT,
+    age int,
+    mark int,
+)
+WITH (
+    connector = 'azblob',
+    azblob.container_name = 'xxx',
+    azblob.credentials.account_name = 'xxx',
+    azblob.credentials.account_key = 'xxx',
+    azblob.endpoint_url = 'xxx',
+    match_pattern = '%Ring%*.ndjson',
+) FORMAT PLAIN ENCODE JSON;
+```
+    </Tab>
+        <Tab title="PARQUET">
+```sql
+CREATE SOURCE s2(
+    id int,
+    name varchar,
+    age int
+)
+WITH (
+    connector = 'azblob',
+    azblob.container_name = 'xxx',
+    azblob.credentials.account_name = 'xxx',
+    azblob.credentials.account_key = 'xxx',
+    azblob.endpoint_url = 'xxx',
+    match_pattern = '*.parquet',
+) FORMAT PLAIN ENCODE PARQUET;
+```
+    </Tab>
+</Tabs>
+
+
+
+
+
+

@@ -1,0 +1,157 @@
+---
+title: "Binary string functions and operators"
+---
+
+### `bit_length`[](#bit%5Flength "Direct link to bit_length")
+
+Returns number of bits in the binary string, which is 8 times the [octet\_length](#octet%5Flength-length).
+
+```bash
+bit_length ( bytea ) -> integer
+```
+
+```bash
+SELECT bit_length('😇'::bytea);
+```
+
+```bash
+32
+```
+
+### `md5`
+
+Returns the MD5 hash of the binary string as a hexadecimal.
+
+```bash
+md5 ( bytea ) -> varchar
+```
+
+```bash
+SELECT md5('risingwave'::bytea);
+```
+
+```bash
+7ad0245ddf6c26f4f6ae269a644ac00a
+```
+
+### `octet_length`, `length`
+
+Returns number of bytes in the binary string.
+
+```bash
+octet_length ( bytea ) -> integer
+-- or
+length ( bytea ) -> integer
+```
+
+```bash
+SELECT octet_length('😇'::bytea);
+```
+
+```bash
+4
+```
+
+### `sha1`
+
+Returns the SHA-1 hash of the binary string.
+
+```bash
+sha1 ( bytea ) -> bytea
+```
+
+```bash
+SELECT sha1('risingwave'::bytea);
+```
+
+```bash
+\x48d3478f8350c86fa2e6f65a5883c2046523c8bb
+```
+
+### `sha224`
+
+Returns the SHA-224 hash of the binary string.
+
+```bash
+sha224 ( bytea ) -> bytea
+```
+
+```bash
+SELECT sha224('risingwave'::bytea);
+```
+
+```bash
+\xb898defab7c2e2f41c9a494a22e3567274b48123625f96008439e0bb
+```
+
+
+### `sha256`
+
+Returns the SHA-256 hash of the binary string.
+
+```bash
+sha256 ( bytea ) -> bytea
+```
+
+```bash
+SELECT sha256('risingwave'::bytea);
+```
+
+```bash
+\x73ab8557da7bd59f798600fb1d18d18967bc763638fc456f477799437f229e06
+```
+
+### `sha384`
+Returns the SHA-384 hash of the binary string.
+
+```bash
+sha384 ( bytea ) -> bytea
+```
+
+```bash
+SELECT sha384('risingwave'::bytea);
+```
+
+```bash
+\x7f6f71a068f04e3ed6338e06fec75941b48a2dadff58dffc4c39211b1dcc4a5f000168d1be49fd7b7e44094e7a7e627e
+```
+
+### `sha512`
+
+Returns the SHA-512 hash of the binary string.
+
+```bash
+sha512 ( bytea ) -> bytea
+```
+
+```bash
+SELECT sha512('risingwave'::bytea);
+```
+
+```bash
+\x3d6d6078c75ad459cdc689216d5de35bd6d9a9a50b9bed96417aaf7ad25057b37460564f0ad23a589c655eda45026096a6bab08b3c863f0425cbfea64b5f84a8
+```
+
+### `substr`
+
+Extracts a substring from a binary string (bytea) starting at position `start_int` for `count_int` bytes. If `count_int` is omitted, the substring extends to the end of the bytea value.
+
+```bash
+substr ( bytea_value, start_int, [, count_int] ) -> bytea
+```
+
+```bash
+SELECT substr('abcde'::bytea, 2, 7);
+```
+
+```bash
+\x62636465
+```
+
+```bash
+SELECT substr('abcde'::bytea, -2, 5);
+```
+
+```bash
+\x6162
+```
