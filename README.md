@@ -1,3 +1,10 @@
+
+# Note
+
+This repository is now published to: https://risingwavelabs.mintlify.app/docs/current/intro/introduction, and will be switched to our documentation domain once all testing and customizations are completed.
+
+
+
 # Mintlify Starter Kit
 
 Click on `Use this template` to copy the Mintlify starter kit. The starter kit contains examples including
