@@ -69,6 +69,7 @@ FORMAT PLAIN ENCODE data_encode; -- Format options: plain (encode BYTES and JSON
 | `client_prefix`    | Optional. Prefix for the MQTT client ID. Defaults to "risingwave".                                                                                          |
 | `clean_start`      | Optional. Determines if all states from queues are removed when the client disconnects. If true, the broker clears all client states upon disconnect; if false, the broker retains the client state and resumes pending operations upon reconnection. |
 | `inflight_messages`| Optional. Maximum number of inflight messages. Defaults to 100.                                                                                             |
+| `max_packet_size`              | Optional. The maximum message size for the MQTT client.   |
 | `tls.client_cert`  | Optional. Path to the client's certificate file (PEM) or a string with the certificate content. Required for client authentication. Can use `fs://` prefix for file paths.                                          |
 | `tls.client_key`   | Optional. Path to the client's private key file (PEM) or a string with the private key content. Required for client authentication. Can use `fs://` prefix for file paths.                                           |
 | `topic`            | Required. The topic name to subscribe or publish to. Can include wildcard topics, e.g., `/topic/#`.                                                         |
