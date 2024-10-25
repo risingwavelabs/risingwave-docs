@@ -307,6 +307,16 @@ const sidebars: SidebarsConfig = {
                       label: "Coreflux",
                       id: "ingest/ingest-from-coreflux-broker",
                     },
+                    {
+                      type: "doc",
+                      label: "EMQX",
+                      id: "ingest/ingest-from-emqx-broker",
+                    },
+                    {
+                      type: "doc",
+                      label: "HiveMQ",
+                      id: "ingest/ingest-from-hivemq-broker",
+                    },
                   ]
                 },
               ],

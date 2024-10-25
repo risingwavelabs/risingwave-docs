@@ -63,4 +63,40 @@ GRANT SELECT ON MATERIALIZED VIEW mv_name TO grafanareader;
 
 See the [GRANT](/sql/commands/sql-grant.md) command for more details.
 
-Now that RisingWave is added as a database, you can start creating dashboards within Grafana using the data in RisingWave. For an extensive tutorial that covers how to create dashboards in Grafana with data queried from RisingWave, check out the [Use RisingWave to monitor RisingWave metrics](/tutorials/monitor-rw-metrics.md) tutorial, which uses a demo cluster so you can easily try it out on your device.
+Now that RisingWave is added as a database, you can start creating dashboards within Grafana using the data in RisingWave. To learn about how to create dashboards in Grafana with data queried from RisingWave, check out this tutorial: [Use RisingWave to monitor RisingWave metrics](/tutorials/monitor-rw-metrics.md). It details the steps using a demo cluster, which you can try out on your device.
+
+## Configure Grafana to read data from RisingWave Cloud
+
+Grafana can also be configured to visualize and monitor data from a RisingWave Cloud cluster, allowing you to build charts and real-time dashboards based on tables and materialized views. Follow these steps to integrate RisingWave as a data source in Grafana.
+
+### Add RisingWave Cloud as a Data Source in Grafana
+
+1. Access Data Source Settings. In Grafana, navigate to **Configuration > Data Sources** from the left-hand sidebar.
+2. Add a New Data Source. Click the **Add Data Source** button at the top of the page.
+3. From the list of available database integrations, choose **PostgreSQL**. RisingWave is PostgreSQL-compatible, so this option works perfectly for connecting to it.
+4. Configure PostgreSQL connection by filling in the following connection details based on your RisingWave Cloud cluster:
+
+    - **Host**: Provide the hostname of your RisingWave Cloud instance. The format will typically be something like: `your-rw-cluster-host-url:4566`.
+    - **Database**: Enter the database name as `dev`.
+    - **User**: Use the username associated with your RisingWave Cloud cluster.
+    ![grafana step 4](../images/grafana_step_4.png)
+
+    - **Password**: Enter the password for the corresponding username.
+    - **TLS/SSL Mode**: Set this to `verify-full` for secure connections. This will ensure that data transferred between Grafana and RisingWave is encrypted and verified.
+5. Optional fields such as **File System Path** and **Certificate Content** can be left blank.
+
+    ![grafana step 5](../images/grafana_step_5.png)
+
+6. Test the Connection. Once you’ve entered the required fields, scroll down and click the **Save & Test** button to check the connection. If successful, Grafana will confirm that it can connect to your RisingWave Cloud instance.
+
+    ![grafana step 6](../images/grafana_step_6.png)
+
+### Create dashboards and visualizations
+
+After adding RisingWave as a data source, you can now create dynamic dashboards and real-time visualizations using tables and materialized views from your RisingWave Cloud cluster.
+
+- Start by creating a new dashboard. Go to **Dashboards > New Dashboard** and select **Add New Panel**.
+- Use the Grafana query editor to write SQL queries that extract data from your RisingWave tables or materialized views. Since RisingWave is PostgreSQL-compatible, the query syntax will follow PostgreSQL standards.
+- Visualize data. Choose from Grafana's wide range of visualization options (e.g. time series, bar charts, tables) to represent your data in a meaningful way.
+
+With this setup, you can build real-time dashboards in Grafana, powered by the high-performance and advanced real-time data processing capabilities of RisingWave Cloud.
