@@ -16,4 +16,4 @@ def rename_and_move_files(directory):
             print(f"Renamed and moved {old_path} to {new_path}")
 
 # Use the directory where your 'current' folder is located
-rename_and_move_files('/Users/hengma/Documents/GitHub/risingwave-docs-new/docs')
+rename_and_move_files('/Users/hengma/Documents/GitHub/risingwave-docs-new/cloud')
