@@ -35,7 +35,7 @@ CREATE SOURCE stock_trades (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-1. Express analytics logic in materialized views
+2. Express analytics logic in materialized views
 
 Define your analytics logic using SQL in materialized views. For instance, you might want to detect price movements that indicate a buy or sell signal.
 
@@ -46,7 +46,7 @@ FROM stock_trades
 WHERE price > 100 AND volume > 1000;
 ```
 
-1. Check the result
+3. Check the result
 
 Query the materialized view to get real-time insights on potential buy signals.
 
@@ -81,7 +81,7 @@ CREATE SOURCE transactions (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-1. Define the event logic
+2. Define the event logic
 
 Create a materialized view that tracks suspicious activity for cards that are used more than five times within five minutes and have a total purchase amount over 5000.
 
@@ -96,7 +96,7 @@ CREATE MATERIALIZED VIEW suspicious_transactions AS
   HAVING COUNT(*) > 5 AND SUM(purchase_amount) > 5000;
 ```
 
-1. Send alerts
+3. Send alerts
 
 Deliver the results to another Kafka topic or directly trigger alerts.
 
@@ -151,7 +151,7 @@ CREATE TABLE purchase_history (
 ) FROM historical_customer_data TABLE 'my_schema.customer_purchases';
 ```
 
-1. Enrich data with historical purchases
+2. Enrich data with historical purchases
 
 Join the real-time clickstream data with historical purchase data to generate personalized product recommendations.
 
@@ -167,7 +167,7 @@ CREATE MATERIALIZED VIEW personalized_recommendations AS
   WHERE c.page_url LIKE '%product%';
 ```
 
-1. Deliver personalized recommendations
+3. Deliver personalized recommendations
 
 Send the enriched data to the recommendation engine for immediate use.
 
@@ -210,7 +210,7 @@ CREATE SOURCE bidding_data (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-1. Build feature vectors
+2. Build feature vectors
 
 Create feature vectors that capture important attributes such as average bid amount, maximum bid, and bid frequency. These features will be used to train your model and make predictions.
 
@@ -228,7 +228,7 @@ CREATE MATERIALIZED VIEW bidding_feature_vectors AS
   GROUP BY ad_id;
 ```
 
-1. Use feature vectors for prediction
+3. Use feature vectors for prediction
 
 These feature vectors can then be used by your machine learning model to predict the optimal bid for future ad slots.
 
@@ -236,7 +236,7 @@ These feature vectors can then be used by your machine learning model to predict
 SELECT * FROM bidding_feature_vectors WHERE ad_id = 'specific_ad_id';
 ```
 
-1. Real-time inference
+4. Real-time inference
 
 As new bidding data arrives, you can continuously update your feature vectors and use them for real-time inference, ensuring your bids are always informed by the most recent data. For instance, you can create a [User-defined function](/docs/current/user-defined-functions/), `PREDICT_BID`, that predicts the next bid given the most recent data.
 
