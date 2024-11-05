@@ -4,7 +4,7 @@ sidebarTitle: Overview
 description: "RisingWave supports a variety of data ingestion methods."
 ---
 
-To know the difference between stream processing and ad-hoc query, please refer to [Ad-hoc (on read) vs. Streaming (on write)](/docs/current/transform-overview/#ad-hoc-on-read-vs-streaming-on-write).
+To know the difference between stream processing and ad-hoc query, please refer to [Ad-hoc (on read) vs. Streaming (on write)](../processing/overview#ad-hoc-on-read-vs-streaming-on-write).
 
 * **Streaming ingestion from external systems**: This is tied to a stream processing task, continuously monitoring and synchronizing changes from external systems.
 * **Ad-hoc ingestion from external systems**: This is bound to an ad-hoc query, where RisingWave queries the current data from the external system for processing during the query.
@@ -42,13 +42,13 @@ SELECT *
 FROM kafka_source;
 ```
 
-* Also, queries can be executed directly on the source, and **ad-hoc ingestion** will happen during the query's processing, see more information in [directly query Kafka](/docs/current/ingest-from-kafka/#query-kafka-timestamp).
+* Also, queries can be executed directly on the source, and **ad-hoc ingestion** will happen during the query's processing, see more information in [directly query Kafka](../integrations/sources/kafka/#query-kafka-timestamp).
 ```sql
 SELECT * FROM source_name
 WHERE _rw_kafka_timestamp > now() - interval '10 minute';
 ```
 
-For specific source types, their support for streaming ingestion and ad-hoc ingestion varies. Please refer to [our documentation](/docs/current/sources/) for the specific source.
+For specific source types, their support for streaming ingestion and ad-hoc ingestion varies. Please refer to [our documentation](../integrations/sources/) for the specific source.
 
 ### Table with connectors
 
@@ -78,7 +78,7 @@ The statement will create a streaming job that continuously ingests data from th
 
 ### Insert data into tables
 
-You can load data in batch to RisingWave by creating a table ([CREATE TABLE](/docs/current/sql-create-table/)) and then inserting data into it ([INSERT](/docs/current/sql-insert/)). For example, the statement below creates a table `website_visits` and inserts 5 rows of data.
+You can load data in batch to RisingWave by creating a table ([CREATE TABLE](../sql/commands/sql-create-table/)) and then inserting data into it ([INSERT](../sql/commands/sql-insert/)). For example, the statement below creates a table `website_visits` and inserts 5 rows of data.
 
 ```sql
 CREATE TABLE website_visits (
@@ -125,9 +125,9 @@ INSERT INTO t1 SELECT * FROM source_iceberg_t1;
 The information presented above provides a brief overview of the data ingestion process in RisingWave. To gain a more comprehensive understanding of this process, the following topics in this section will delve more deeply into the subject matter. Here is a brief introduction to what you can expect to find in each topic:
 
 * Among different types of sources, we have abstracted a series of common syntax and features.
-   * For more detailed information about the types, formats, and encoding options of sources, see [Formats and encoding](/docs/current/formats-and-encode-parameters/).
-   * For the complete list of the sources and formats supported in RisingWave, see [Supported sources and formats](/docs/current/supported-sources-and-formats/).
+   * For more detailed information about the types, formats, and encoding options of sources, see [Formats and encoding](../ingestion/format-and-encode-parameters/).
+   * For the complete list of the sources and formats supported in RisingWave, see [Supported sources and formats](../integrations/supported-sources-and-formats/).
    * To learn about how to manage schemas and ingest additional fields from sources :
-         * [Modify source or table schemas](/docs/current/modify-schemas/)
-         * [Ingest additional fields with INCLUDE clause](/docs/current/include-clause/)
-* To learn about how to ingest data from a particular source, see specific [Data ingestion guides](/docs/current/sources/).
+         * [Modify source or table schemas](../ingestion/modify-source-or-table-schemas/)
+         * [Ingest additional fields with INCLUDE clause](../ingestion/ingest-additional-fields-with-include-clause/)
+* To learn about how to ingest data from a particular source, see specific [Data ingestion guides](../integrations/sources/).
