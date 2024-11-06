@@ -10,7 +10,7 @@ The details of the dashboard can be found [here](https://github.com/risingwavela
 
 ## CPU Usage
 <Frame>
-  <img src="/images/current/performance-metrics/CPU_Usage.png"/>
+  <img src="/images/CPU_Usage.png"/>
 </Frame>
 
 Among all of the components, we primarily focus on the CPU usage of compute nodes and compactor nodes. In the setting of the figure above, we have allocated 8 CPUs for the compute node and 8 CPUs for the compactor node.
@@ -22,7 +22,7 @@ Among all of the components, we primarily focus on the CPU usage of compute node
 
 ## Memory usage
 <Frame>
-  <img src="/images/current/performance-metrics/memory_usage.png"/>
+  <img src="/images/memory_usage.png"/>
 </Frame>
 
 A simplified description of RisingWave’s memory control mechanism:
@@ -44,7 +44,7 @@ Operators such as Join and Aggregation are stateful. They maintain intermediate 
 
 For example, the following are the cache miss ratio metrics of the join operator, showing the metrics at the actor level. Each operator is parallelized by multiple actors, whose number is equal to the `streaming_parallelism`. By default, the parallelism is the same as the number of CPUs on compute nodes.
 <Frame>
-  <img src="/images/current/performance-metrics/cash_miss_1.png"/>
+  <img src="/images/cash_miss_1.png"/>
 </Frame>
 
 The `total lookups` metric denotes how many lookups a join operator performs per second, and the `cache miss` metric denotes how many times the key does not exist in the memory and RisingWave has to fetch it from the storage engine.
@@ -53,7 +53,7 @@ In the case above, the cache miss rate is `707/10.8K~=6%`, which is quite low. I
 
 Below is the same metric but for the aggregation operator.
 <Frame>
-  <img src="/images/current/performance-metrics/cash_miss_2.png"/>
+  <img src="/images/cash_miss_2.png"/>
 </Frame>
 
 The cache miss rate of actor 25 is `658/2.45K ~= 27%`, which is relatively high. It indicates that we are likely to improve the performance if we increase the memory.
@@ -62,7 +62,7 @@ Other than the operator cache, the storage engine named Hummock on each Compute 
 
 We also track the cache miss ratio of these two caches:
 <Frame>
-  <img src="/images/current/performance-metrics/cash_miss_3.png"/>
+  <img src="/images/cash_miss_3.png"/>
 </Frame>
 
 We calculate the cache miss rate of the block (data) cache to be `9.52/401 = 2%` and the cache miss rate of the meta cache to be `0.203/90.2K ~= 0.0002%`.
@@ -83,7 +83,7 @@ It implies that even just a small percentage of cache misses in the meta cache c
 
 As described in the CPU usage section, we can estimate the ideal CPU resources allocated for compactors by considering the LSM Tree Compact Pending Bytes.
 <Frame>
-  <img src="/images/current/performance-metrics/LSM.png"/>
+  <img src="/images/LSM.png"/>
 </Frame>
 
 This metric illustrates the amount of pending workload from the compactor’s perspective. Due to the bursty nature of the compactor’s workload, we recognize the urgency to make a change only if the pending bytes have remained above a certain threshold for more than 10 minutes.
@@ -94,11 +94,11 @@ Since the total pending bytes keep changing, we first calculate its average over
 
 ## Barrier latency and barrier number
 <Frame>
-  <img src="/images/current/performance-metrics/barrier_latency.png"/>
+  <img src="/images/barrier_latency.png"/>
 </Frame>
 <br/>
 <Frame>
-  <img src="/images/current/performance-metrics/barrier_number.png"/>
+  <img src="/images/barrier_number.png"/>
 </Frame>
 
 RisingWave by default generates a barrier every second and ingests it into the source operator (e.g., operators that read data from upstream) among regular input data. The barrier serves multiple purposes when it flows through each operator, e.g., triggering the computation of the delta between the current barrier and the last barrier, flushing new states into the storage engine, determining the completion of a checkpoint, etc.
@@ -114,7 +114,7 @@ We typically check them out first when we log into Grafana to diagnose any perfo
 
 ## Source throughput
 <Frame>
-  <img src="/images/current/performance-metrics/source_throughput.png"/>
+  <img src="/images/source_throughput.png"/>
 </Frame>
 
 Particularly among stateless queries (e.g., simple ETL queries that transform data but do not involve stateful computation), we often find that RisingWave can be bottlenecked by the limitation of RisingWave’s upstream system.
