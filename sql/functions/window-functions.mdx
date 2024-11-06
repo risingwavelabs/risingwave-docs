@@ -89,4 +89,34 @@ For the complete list of aggregate functions and their usage, see [Aggregate fun
 
 ## UDAF window functions
 
-RisingWave supports using User-Defined Aggregate Functions (UDAFs) as window functions. To use a UDAF as a window function, you need to define the UDAF using the CREATE AGGREGATE statement. After defining the UDAF, you can call it within a query using the OVER clause, just like any built-in aggregate function.
+To use the User-Defined Aggregate Functions (UDAFs) as window functions, you can define the UDAF using the [CREATE AGGREGATE](/docs/current/sql-create-aggregate/) statement, then call it within a query using the OVER clause, just like any built-in aggregate function. See the example below:
+
+```sql
+CREATE AGGREGATE sum00(value INT) 
+RETURNS INT 
+LANGUAGE python AS $$
+def create_state():
+    return 0
+def accumulate(state, value):
+    return state + value
+def retract(state, value):
+    return state - value
+def finish(state):
+    return state
+$$;
+
+SELECT t.value, sum00(weight) OVER (PARTITION BY value) 
+FROM (VALUES (1, 1), (NULL, 2), (3, 3)) AS t(value, weight);
+```
+
+The output:
+
+```sql
+ value | weighted_avg 
+-------+--------------
+     1 |            1
+     3 |            3
+(2 rows)
+```
+
+If you no longer need this UDAF, remove it using [DROP AGGREGATE](/docs/current/sql-drop-aggregate/).
