@@ -83,40 +83,6 @@ last_value ( value anyelement ) → anyelement
 
 ## Aggregate window functions
 
-All aggregate functions, including `sum()`, `min()`, `max()`, `avg()` and `count()` etc., can be used as window functions.
+All aggregate functions, including builtin ones such as `sum()` and `min()`, user-defined ones and `AGGREGATE:`-prefixed scalar functions, can be used as window functions.
 
-For the complete list of aggregate functions and their usage, see [Aggregate functions](/docs/current/sql-function-aggregate/).
-
-## UDAF window functions
-
-To use the User-Defined Aggregate Functions (UDAFs) as window functions, you can define the UDAF using the [CREATE AGGREGATE](/docs/current/sql-create-aggregate/) statement, then call it within a query using the OVER clause, just like any built-in aggregate function. See the example below:
-
-```sql
-CREATE AGGREGATE sum00(value INT) 
-RETURNS INT 
-LANGUAGE python AS $$
-def create_state():
-    return 0
-def accumulate(state, value):
-    return state + value
-def retract(state, value):
-    return state - value
-def finish(state):
-    return state
-$$;
-
-SELECT t.value, sum00(weight) OVER (PARTITION BY value) 
-FROM (VALUES (1, 1), (NULL, 2), (3, 3)) AS t(value, weight);
-```
-
-The output:
-
-```sql
- value | weighted_avg 
--------+--------------
-     1 |            1
-     3 |            3
-(2 rows)
-```
-
-If you no longer need this UDAF, remove it using [DROP AGGREGATE](/docs/current/sql-drop-aggregate/).
+For the complete list of builtin aggregate functions and their usage, see [Aggregate functions](/docs/current/sql-function-aggregate/).
