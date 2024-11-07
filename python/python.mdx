@@ -57,7 +57,7 @@ rw.on_change(...)
 
 ### Ingestion into RisingWave
 
-#### Load a Pandas DataFrame into RisingWave
+Load a Pandas DataFrame into RisingWave
 ```python
 from datetime import datetime
 import pandas as pd
@@ -80,7 +80,7 @@ rw.insert(table_name="test", data=df)
 # rw.insert(table_name="test", data=df, force_flush = True)
 ```
 
-#### Load data into RisingWave from external systems
+Load data into RisingWave from external systems
 ```python
 # Create a table and load data from upstream kafka
 rw.execute("""
@@ -125,8 +125,6 @@ print(result)
 ### Event-driven processing with RisingWave
 Event-driven applications depend on real-time data processing to react to events as they occur. With `risingwave-py`, you can define materialized views using SQL and run them in RisingWave. Behind the scenes, events are processed continuously, and the results are incrementally maintained.
 
-#### Define the processing logic in SQL
-
 In the following example, `test_mv` is created to incrementally maintain the result of the defined SQL as events are ingested in to the `test` table.
 
 ```python
@@ -135,8 +133,6 @@ mv = rw.mv(name="test_mv",
                    FROM tumble(test, ts, interval '10 seconds') 
                    GROUP BY window_start, window_end, product""")
 ```
-
-#### Subscribe changes from table / materialized view with your own handler
 
 In addition to using SQL to do ad-hoc query on tables and materialized views. With `risingwave-py`, You can also subscribe changes from table / materialized view and define handler of the change events from table / materialized view for you applications. 
 
