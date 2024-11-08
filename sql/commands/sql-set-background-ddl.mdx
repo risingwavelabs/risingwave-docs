@@ -51,11 +51,11 @@ The key difference is during the **creating phase** of a materialized view. Afte
 
 ### Monitor progress
 
-You can monitor the progress of background DDL operations using the [SHOW JOBS](/docs/current/sql-show-jobs/) command.
+You can monitor the progress of background DDL operations using the [SHOW JOBS](/docs/current/sql-show-jobs/) command. The exception is for `sink jobs`. These are immediately marked as completed, since their output will be immediately visible.
 
 ### Cancel jobs
 
-Running jobs in the background can be canceled using the [CANCEL JOBS](/docs/current/sql-cancel-jobs/) command followed by the job ID.
+Currently background_ddl only supports `sink` and `materialized views`. You can just call `DROP SINK` or `DROP MATERIALIZED VIEW` on the corresponding relation to cancel it.
 
 ### Set concurrent jobs
 
