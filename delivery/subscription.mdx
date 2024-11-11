@@ -80,7 +80,7 @@ If you specify `FULL` instead of the `since_clause`, the subscription cursor sta
 <Info>
 **NOTE**
 
-FETCH from cursor function is currently only supported in the PSQL simple query mode. If you are using components like JDBC that default to the extended query mode, please manually set the mode to simple query mode.
+FETCH from cursor function is supported in the PSQL simple query mode and extended mode.
 
 </Info>
 #### Non-blocking data fetch
@@ -101,12 +101,12 @@ t1.v1 | t1.v2 | t1.v3 |    t1.op     |  rw_timestamp
 (1 row)
 ```
 
-In the example above, the `op` column in the result indicates the type of change operations. There are four options: `insert`, `update_insert`, `delete`,  and `update_delete`. For a single UPDATE statement, the subscription log will contain two separate rows: one with `update_insert` and another with `update_delete`. This is because RisingWave treats an UPDATE as a delete of the old value followed by an insert of the new value. As for `rw_timestamp`, it corresponds to the Unix timestamp in milliseconds when the data was written.
+In the example above, the `op` column in the result indicates the type of change operations. There are four options: `Insert`, `UpdateInsert`, `Delete`,  and `UpdateDelete`. For a single UPDATE statement, the subscription log will contain two separate rows: one with `UpdateInsert` and another with `UpdateDelete`. This is because RisingWave treats an UPDATE as a delete of the old value followed by an insert of the new value. As for `rw_timestamp`, it corresponds to the Unix timestamp in milliseconds when the data was written.
 
 #### Blocking data fetch
 
 ```sql
-FETCH NEXT/n FROM cursor_name WITH (timeout = 'xx');
+FETCH NEXT/n FROM cursor_name WITH (timeout = '1s');
 ```
 
 Fetch up to N rows from the cursor with a specified timeout. The `timeout` value should be a string in the interval format. In this case, the fetch statement will return when either N rows have been fetched or the timeout occurs. If the timeout occurs, whatever has been read up to that point will be returned. Here are two scenarios to trigger the timeout:
