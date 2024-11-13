@@ -11,7 +11,7 @@ When creating a source, you can choose to persist the data from the source in Ri
 ```sql
 CREATE {TABLE | SOURCE} [ IF NOT EXISTS ] source_name
 [ schema_definition ]
-[INCLUDE { header | key | offset | partition | timestamp } [AS <column_name>]]
+[INCLUDE { header | key | offset | partition | timestamp | payload } [AS <column_name>]]
 WITH (
    connector='kinesis',
    connector_parameter='value', ...
@@ -57,7 +57,7 @@ For a table with primary key constraints, if a new data record with an existing 
 | aws.credentials.session\_token      | Optional. The session token associated with the temporary security credentials. Using this field is not recommended as RisingWave contains long-running jobs and the token may expire. Creating a [new role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id%5Froles%5Fcommon-scenarios%5Faws-accounts.html) is preferred. |
 | aws.credentials.role.arn            | Optional. The Amazon Resource Name (ARN) of the role to assume.                                                                                                                                                                                                                                                                |
 | aws.credentials.role.external\_id   | Optional. The [external id](https://aws.amazon.com/blogs/security/how-to-use-external-id-when-granting-access-to-your-aws-resources/) used to authorize access to third-party resources.                                                                                                                                       |
-| scan.startup.mode                   | Optional. The startup mode for Kinesis consumer. Supported modes: earliest (starts from the earliest offset), latest (starts from the latest offset), and timestamp (starts from a specific timestamp, specified by scan.startup.timestamp.millis). The default mode is earliest.                                              |
+| scan.startup.mode                   | Optional. The startup mode for Kinesis consumer. Supported modes: `earliest` (corresponding to [starting position](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_StartingPosition.html) `TRIM_HORIZON`), `latest` (corresponding to [starting position](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_StartingPosition.html) `LATEST`), and `timestamp` (starts from a specific timestamp specified by `scan.startup.timestamp.millis`, corresponding to [starting position](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_StartingPosition.html) `AT_TIMESTAMP`). The default mode is `earliest`.                                              |
 | scan.startup.timestamp.millis       | Optional. This field specifies the timestamp, represented in i64, to start consuming from.                                                                                                                                                                                                                                     |
 
 ### Other parameters
@@ -109,6 +109,20 @@ WITH (
    aws.credentials.secret_access_key = 'your_secret_key'
 ) FORMAT PLAIN ENCODE JSON;
 ```
+
+Use the `payload` keyword to ingest JSON data when you are unsure of the exact schema beforehand. Instead of defining specific column names and types at the very beginning, you can load all JSON data first and then prune and filter the data during runtime. Check the example below:
+
+```sql
+CREATE TABLE table_include_payload (v1 int, v2 varchar)
+INCLUDE payload
+WITH (
+    connector = 'kinesis',
+    topic = 'kinesis_1_partition_topic',
+    properties.bootstrap.server = 'message_queue:29092',
+    scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
    </Tab>
       <Tab title="Protobuf">
 ```sql

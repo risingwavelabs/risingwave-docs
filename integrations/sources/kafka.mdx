@@ -23,7 +23,7 @@ Sign up for RisingWave Cloud
 ```sql
 CREATE {TABLE | SOURCE} [ IF NOT EXISTS ] source_name
 [ schema_definition ]
-[INCLUDE { header | key | offset | partition | timestamp } [AS <column_name>]]
+[INCLUDE { header | key | offset | partition | timestamp | payload } [AS <column_name>]]
 WITH (
    connector='kafka',
    connector_parameter='value', ...
@@ -63,7 +63,7 @@ For tables with primary key constraints, if a new data record with an existing k
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | topic                         | Required. Address of the Kafka topic. One source can only correspond to one topic.                                                                                                                                                                                                                                                                                                                                                                                                          |
 | properties.bootstrap.server   | Required. Address of the Kafka broker. Format: 'ip:port,ip:port'.                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| scan.startup.mode             | Optional. The offset mode that RisingWave will use to consume data. The two supported modes are earliest (earliest offset) and latest (latest offset). If not specified, the default value earliest will be used.                                                                                                                                                                                                                                                                           |
+| scan.startup.mode             | Optional. The offset mode that RisingWave will use to consume data. The two supported modes are earliest (read from low watermark) and latest (read from high watermark). If not specified, the default value earliest will be used.                                                                                                                                                                                                                                                                           |
 | scan.startup.timestamp.millis | Optional. RisingWave will start to consume data from the specified UNIX timestamp (milliseconds). If this field is specified, the value for scan.startup.mode will be ignored.                                                                                                                                                                                                                                                                                                              |
 | group.id.prefix               | Optional. Specify a custom group ID prefix for the source. The default prefix is rw-consumer. Each job (materialized view) will have a separate consumer group with a generated suffix in the group ID， so the format of the consumer group is {group_id_prefix}-{fragment_id}. This is used to monitor progress in external Kafka tools and for authorization purposes. RisingWave does not rely on committed offsets or join the consumer group. It only reports offsets to the group. |
 | properties.sync.call.timeout  | Optional. Specify the timeout. By default, the timeout is 5 seconds.                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -168,6 +168,19 @@ WITH (
    properties.bootstrap.server='172.10.1.1:9090,172.10.1.2:9090',
    scan.startup.mode='latest',
    scan.startup.timestamp.millis='140000000'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+Use the `payload` keyword to ingest JSON data when you are unsure of the exact schema beforehand. Instead of defining specific column names and types at the very beginning, you can load all JSON data first and then prune and filter the data during runtime. Check the example below:
+
+```sql
+CREATE TABLE table_include_payload (v1 int, v2 varchar)
+INCLUDE payload
+WITH (
+    connector = 'kafka',
+    topic = 'kafka_1_partition_topic',
+    properties.bootstrap.server = 'message_queue:29092',
+    scan.startup.mode = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
