@@ -76,7 +76,7 @@ CREATE SOURCE [ IF NOT EXISTS ] source_name WITH (
 );
 ```
 
-Syntax for creating a CDC table. Note that a primary key is required and must be consistent with the upstream table.
+Syntax for creating a CDC table. Note that a primary key is required and must be consistent with the upstream table. Also, the upstream table name should be prefixed with database name.
 
 ```sql
 CREATE TABLE [ IF NOT EXISTS ] table_name (
@@ -87,7 +87,7 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 WITH (
     snapshot='true'
 )
-FROM source TABLE table_name;
+FROM source TABLE database_name.table_name;
 ```
 
 Although SQL Server is case-insensitive in most cases, to avoid potential issues, please ensure that the case of the schema names, table names, and column names in RisingWave and SQL Server is consistent.
@@ -136,7 +136,7 @@ SELECT * FROM t2 ORDER BY v1;
   4 | dd | 2024-05-20 09:01:08+00:00
 ```
 
-#### Debezium parameters
+### Debezium parameters
 
 [Debezium v2.6 connector configuration properties](https://debezium.io/documentation/reference/2.6/connectors/sqlserver.html#sqlserver-advanced-connector-configuration-properties) can also be specified under the `WITH` clause when creating a table or shared source. Add the prefix `debezium.` to the connector property you want to include.
 
