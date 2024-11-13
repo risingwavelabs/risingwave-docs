@@ -26,8 +26,14 @@ By default, it is `replica`. For CDC, you will need to set it to logical in the 
 ALTER SYSTEM SET wal_level = logical;
 ```
 Keep in mind that changing the `wal_level` requires a restart of the PostgreSQL instance and can affect database performance.
-note
+
+<Info>
+**NOTE**
+
 If you choose to create multiple CDC tables without using a shared source, be sure to set `max_wal_senders` to be greater than or equal to the number of synced tables. By default, `max_wal_senders` is 10.
+
+</Info>
+
 2. Assign `REPLICATION`, `LOGIN`，and `CREATEDB` role attributes to the user.
 For an existing user, run the following statement to assign the attributes:
 `ALTER USER <username> REPLICATION LOGIN CREATEDB;`
