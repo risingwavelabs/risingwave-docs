@@ -26,8 +26,14 @@ By default, it is `replica`. For CDC, you will need to set it to logical in the 
 ALTER SYSTEM SET wal_level = logical;
 ```
 Keep in mind that changing the `wal_level` requires a restart of the PostgreSQL instance and can affect database performance.
-note
+
+<Info>
+**NOTE**
+
 If you choose to create multiple CDC tables without using a shared source, be sure to set `max_wal_senders` to be greater than or equal to the number of synced tables. By default, `max_wal_senders` is 10.
+
+</Info>
+
 2. Assign `REPLICATION`, `LOGIN`，and `CREATEDB` role attributes to the user.
 For an existing user, run the following statement to assign the attributes:
 `ALTER USER <username> REPLICATION LOGIN CREATEDB;`
@@ -154,14 +160,19 @@ Unless specified otherwise, the fields listed are required. Note that the value 
 | schema.name               | Optional. Name of the schema. By default, the value is public.                                                                                                                                                                                                                                                                                                                                              |
 | table.name                | Name of the table that you want to ingest data from.                                                                                                                                                                                                                                                                                                                                                        |
 | slot.name                 | Optional. The [replication slot](https://www.postgresql.org/docs/14/logicaldecoding-explanation.html#LOGICALDECODING-REPLICATION-SLOTS) for this PostgreSQL source. By default, a unique slot name will be randomly generated. Each source should have a unique slot name. Valid replication slot names must contain only lowercase letters, numbers, and underscores, and be no longer than 63 characters. |
-| ssl.mode                  | Optional. The ssl.mode parameter determines the level of SSL/TLS encryption for secure communication with Postgres. It accepts three values: disabled, preferred, and required. The default value is disabled. When set to required, it enforces TLS for establishing a connection.                                                                                                                         |
-| publication.name          | Optional. Name of the publication. By default, the value is rw\_publication. For more information, see [Multiple CDC source tables](#multiple-cdc-source-tables).                                                                                                                                                                                                                                           |
-| publication.create.enable | Optional. By default, the value is 'true'. If publication.name does not exist and this value is 'true', a publication.name will be created. If publication.name does not exist and this value is 'false', an error will be returned.                                                                                                                                                                        |
-| transactional             | Optional. Specify whether you want to enable transactions for the CDC table that you are about to create. By default, the value is 'true' for shared sources, and 'false' otherwise. This feature is also supported for shared CDC sources for multi-table transactions. For performance considerations, transactions involving changes to more than 4096 rows cannot be guaranteed.                        |
+|auto.schema.change| Optional. Specify whether you want to enable replicating Postgres table schema change.|
+|ssl.mode| Optional. The `ssl.mode` parameter determines the level of SSL/TLS encryption for secure communication with Postgres. Accepted values are `disabled`, `preferred`, `required`, `verify-ca`, and `verify-full`. The default value is `disabled`. <ul><li>When set to `required`, it enforces TLS for establishing a connection; </li><li>When set to `verify-ca`, it verifies that the server is trustworthy by checking the certificate chain up to the root certificate stored on the client;</li><li>When set to `verify-full`, it verifies the certificate and also ensures the server hostname matches the name in the certificate.</li></ul> |
+| ssl.root.cert | Optional. Specify the root certificate secret. You must [create secret](/operate/manage-secrets) first and then use it here.|
+| publication.name          | Optional. Name of the publication. By default, the value is `rw_publication`.                                                                                                                                                                                                                                           |
+| publication.create.enable | Optional. By default, the value is `true`. If publication.name does not exist and this value is `true`, a publication.name will be created. If publication.name does not exist and this value is `false`, an error will be returned.                                                                                                                                                                        |
+| transactional             | Optional. Specify whether you want to enable transactions for the CDC table that you are about to create. By default, the value is `true` for shared sources, and `false` otherwise. This feature is also supported for shared CDC sources for multi-table transactions. For performance considerations, transactions involving changes to more than 4096 rows cannot be guaranteed.                        |
 
-note
+<Info>
+**NOTE**
 
 RisingWave implements CDC via PostgreSQL replication. Inspect the current progress via the [pg\_replication\_slots](https://www.postgresql.org/docs/14/view-pg-replication-slots.html) view. Remove inactive replication slots via [pg\_drop\_replication\_slot()](https://www.postgresql.org/docs/current/functions-admin.html#:~:text=pg%5Fdrop%5Freplication%5Fslot). RisingWave does not automatically drop inactive replication slots. You must do this manually to prevent WAL files from accumulating in the upstream PostgreSQL database.
+
+</Info>
 
 The following fields are used when creating a CDC table.
 
@@ -191,7 +202,7 @@ SELECT * FROM t2 ORDER BY v1;
 
 You can see the [INCLUDE clause](/docs/current/include-clause/) for more details.
 
-#### Debezium parameters
+### Debezium parameters
 
 [Debezium v2.6 connector configuration properties](https://debezium.io/documentation/reference/2.6/connectors/postgresql.html#postgresql-advanced-configuration-properties) can also be specified under the `WITH` clause when creating a table or shared source. Add the prefix `debezium.` to the connector property you want to include.
 
@@ -406,6 +417,25 @@ And this it the output of `DESCRIBE supplier;`
 (10 rows)
 
 ```
+
+## Ingest data from a partitioned table
+<Note>
+**PUBLIC PREVIEW**
+
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+</Note>
+
+RisingWave supports ingesting data from a partitioned table. To configure a publication for your CDC stream, note that PostgreSQL, by default, creates publications with `publish_via_partition_root = false`. This setting causes replication slot events to contain separate events for each partition, rather than for the root partitioned table.
+
+If you need to read from the partitioned table, you should explicitly set this property to `TRUE` when creating a publication. Execute the following command in your upstream PostgreSQL database:
+
+```sql
+CREATE PUBLICATION publication_name FOR table_name WITH (publish_via_partition_root = true);
+```
+
+If you let RisingWave create the publication, it will automatically set `publish_via_partition_root = true`.
+
+Please be aware that PostgreSQL does not support adding both a partitioned table and its individual partitions to the same publication; however, it does not generate an error if attempted. If you need to ingest data from both the root table and its partitions, you should create separate publications for each. Otherwise, you will not be able to read from the table partitions. Meanwhile, in RisingWave, you should create separate sources with dedicated publication names for the partitioned table and its partitions.
 
 ## Monitor the progress of direct CDC
 

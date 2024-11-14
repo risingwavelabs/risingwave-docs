@@ -87,7 +87,7 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 WITH (
     snapshot='true'
 )
-FROM source TABLE table_name;
+FROM source TABLE sqlserver_table_name;
 ```
 
 Although SQL Server is case-insensitive in most cases, to avoid potential issues, please ensure that the case of the schema names, table names, and column names in RisingWave and SQL Server is consistent.
@@ -97,12 +97,14 @@ Although SQL Server is case-insensitive in most cases, to avoid potential issues
 Unless specified otherwise, the fields listed are required. Note that the value of these parameters should be enclosed in single quotation marks.
 
 | Field         | Notes                        |
-| ------------- | ---------------------------- |
+| :------------ | :--------------------------- |
 | hostname      | Hostname of the database.    |
 | port          | Port number of the database. |
 | username      | Username of the database.    |
 | password      | Password of the database.    |
 | database.name | Name of the database.        |
+|database.encrypt| Optional. Specify whether to enable SSL encryption. Currently, `trustServerCertificate` is enabled regardless of the value of `database.encrypt`. |
+| sqlserver_table_name | The identifier of SQL Server table in the format of `database_name.schema_name.table_name`. |
 
 <Info>
 **NOTE**
@@ -114,8 +116,8 @@ Additionally, unlike MySQL and PostgreSQL, the SQL Server CDC connector does not
 
 The following fields are used when creating a CDC table.
 
-| Field                | Notes                                                                                                                                                                                                                    |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Field                | Notes               |
+| :------------------- | :--------------------------- |
 | snapshot             | Optional. If false, CDC backfill will be disabled and only upstream events that have occurred after the creation of the table will be consumed. This option can only be applied for tables created from a shared source. |
 | snapshot.interval    | Optional. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
 | snapshot.batch\_size | Optional. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
@@ -135,7 +137,7 @@ SELECT * FROM t2 ORDER BY v1;
   4 | dd | 2024-05-20 09:01:08+00:00
 ```
 
-#### Debezium parameters
+### Debezium parameters
 
 [Debezium v2.6 connector configuration properties](https://debezium.io/documentation/reference/2.6/connectors/sqlserver.html#sqlserver-advanced-connector-configuration-properties) can also be specified under the `WITH` clause when creating a table or shared source. Add the prefix `debezium.` to the connector property you want to include.
 
@@ -162,7 +164,7 @@ Data is in Debezium JSON format. [Debezium](https://debezium.io) is a log-based 
 Below are the metadata columns available for SQL Server CDC.
 
 | Field          | Notes                 |
-| -------------- | --------------------- |
+| :------------- | :-------------------- |
 | database\_name | Name of the database. |
 | schema\_name   | Name of the schema.   |
 | table\_name    | Name of the table.    |
@@ -181,7 +183,7 @@ CREATE TABLE person (
 INCLUDE DATABASE_NAME as database_name
 INCLUDE SCHEMA_NAME as schema_name
 INCLUDE TABLE_NAME as table_name
-FROM mssql_source TABLE 'dbo.person';
+FROM mssql_source TABLE 'mydb.dbo.person';
 ```
 
 ## Examples
@@ -228,8 +230,8 @@ The following table shows the corresponding data type in RisingWave that should 
 
 RisingWave data types marked with an asterisk indicate that while there is no corresponding RisingWave data type, the ingested data can still be consumed as the listed type.
 
-| SQL Server type                                                                                           | RisingWave type                                                                                                                     |
-| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| SQL Server type   | RisingWave type          |
+| :------- | :--------------------- |
 | BIT                                                                                                       | BOOLEAN                                                                                                                             |
 | TINYINT, SMALLINT                                                                                         | SMALLINT                                                                                                                            |
 | INT                                                                                                       | INTEGER                                                                                                                             |
