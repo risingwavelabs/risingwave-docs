@@ -127,3 +127,36 @@ WITH (
 File sink currently supports only append-only mode, so please change the query to `append-only` and specify this explicitly after the `FORMAT ... ENCODE ...` statement.
 
 </Info>
+
+## Batching strategy for file sink
+
+The batching strategy ensures that the contents within a chunk are not further split, which enables the decoupling of the file sink. Currently, the file sink is supported in Parquet format. 
+
+### Category
+
+There are two primary batching strategies:
+
+- **Batching based on row numbers**:
+    For batching based on row count, RisingWave checks whether the maximum row count threshold has been reached after each chunk is written (`sink_writer.write_batch()`). If the threshold is met, the writing of the file is completed.
+
+- **Batching based on rollover interval**:
+    For batching based on the time interval, RisingWave checks the threshold each time a chunk is about to be written (`sink_writer.write_batch()`) and when a barrier is encountered (`sink_writer.barrier()`). Note that if a barrier gets stuck, batching may not strictly adhere to the preset rollover interval, leading to possible delays in writing. Future implementations will optimize this process by monitoring the writer itself, rather than relying solely on barriers or chunks.
+
+The actual number of rows in a file may slightly exceed the set maximum row count. In extreme cases, it may surpass `chunk_size - 1` rows (currently set at 255). However, this slight excess is generally acceptable due to the typically large row counts in Parquet files.
+
+### Sink decoupling with batching strategy
+
+With the batching strategy for file sink, file writing is no longer dependent on the arrival of barriers.  `BatchingLogSinkOf` determines when to truncate the log store. Once a file is written, it will be truncated. However, if batching occurs across barriers and no writing has occurred by the time a barrier arrives, the barrier will not trigger truncation. 
+
+If no batching strategy is defined, the previous logic will still apply, meaning that a file will be forcefully written upon the arrival of a checkpoint barrier.
+
+### File naming rule
+
+Previously, the naming convention for files was `executor_id + epoch.suffix`. With the decoupling of barriers and file writing, the epoch is no longer needed in the file name. However, the `executor_id` is still required, as RisingWave does not perform file merging between different levels of parallelism.
+
+The current file naming rule is `/Option<partition_by>/executor_id + timestamp.suffix`, where the timestamp differentiates files batched by the rollover interval. For example, the output files look like below:
+
+```
+path/2024-09-20/47244640257_1727072046.parquet
+path/2024-09-20/47244640257_1727072055.parquet
+```
