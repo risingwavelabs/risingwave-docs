@@ -15,9 +15,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
+          path: ~/.npm-global
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
 
       - name: Install Mintlify
         run: npm i -g mintlify
 
       - name: Run Broken Links Check
-        run: mintlify check-links
+        run: mintlify broken-links
