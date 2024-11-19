@@ -28,8 +28,8 @@ FORMAT data_format ENCODE data_encode [ (
 
 ## Basic parameters
 
-| Field                               | Notes                                                                                                                                                                                    |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field                               | Notes                  |
+| :---------------------------------- | :--------------------- |
 | stream                              | Required. Name of the stream.                                                                                                                                                            |
 | aws.region                          | Required. AWS service region. For example, US East (N. Virginia).                                                                                                                        |
 | endpoint                            | Optional. URL of the entry point for the AWS Kinesis service.                                                                                                                            |
@@ -40,27 +40,22 @@ FORMAT data_format ENCODE data_encode [ (
 | aws.credentials.role.external\_id   | Optional. The [external id](https://aws.amazon.com/blogs/security/how-to-use-external-id-when-granting-access-to-your-aws-resources/) used to authorize access to third-party resources. |
 | primary\_key                        | Required. The primary keys of the sink. Use ',' to delimit the primary key columns.                                                                                                      |
 
-<Info>
-**NOTE**
-
 In the Kinesis sink, we use [PutRecords](https://docs.aws.amazon.com/kinesis/latest/APIReference/API%5FPutRecords.html) API to send multiple records in batches to achieve higher throughput. Due to the limitations of Kinesis, records might be out of order when using this API. Nevertheless, the current implementation of the Kinesis sink guarantees at-least-once delivery and eventual consistency.
-</Info>
+
 
 ## FORMAT and ENCODE options
 
-<Info>
-**NOTE**
-
+<Note>
 These options should be set in `FORMAT data_format ENCODE data_encode (key = 'value')`, instead of the `WITH` clause
-</Info>
+</Note>
 
-| Field                     | Notes                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| data\_format              | Data format. Allowed formats: PLAIN: Output data with insert operations. DEBEZIUM: Output change data capture (CDC) log in Debezium format. UPSERT: Output data as a changelog stream. primary\_key must be specified in this case.  To learn about when to define the primary key if creating an UPSERT sink, see the [Overview](/docs/current/data-delivery/). |
-| data\_encode              | Data encode. Supported encode: JSON.                                                                                                                                                                                                                                                                                                                             |
-| force\_append\_only       | If true, forces the sink to be PLAIN (also known as append-only), even if it cannot be.                                                                                                                                                                                                                                                                          |
-| timestamptz.handling.mode | Controls the timestamptz output format. This parameter specifically applies to append-only or upsert sinks using JSON encoding.  \- If omitted, the output format of timestamptz is 2023-11-11T18:30:09.453000Z which includes the UTC suffix Z.  \- When utc\_without\_suffix is specified, the format is changed to 2023-11-11 18:30:09.453000.                |
-| key\_encode               | Optional. When specified, the key encode can only be TEXT, and the primary key should be one and only one of the following types: varchar, bool, smallint, int, and bigint; When absent, both key and value will use the same setting of ENCODE data\_encode ( ... ).                                                                                            |
+| Field                               | Notes                  |
+| :---------------------------------- | :--------------------- |
+| data\_format              | Data format. Allowed formats:<ul><li> `PLAIN`: Output data with insert operations.</li><li> `DEBEZIUM`: Output change data capture (CDC) log in Debezium format.</li><li> `UPSERT`: Output data as a changelog stream. `primary_key` must be specified in this case. </li></ul> To learn about when to define the primary key if creating an UPSERT sink, see the [Overview](/docs/current/data-delivery/). |
+| data\_encode              | Data encode. Supported encode: `JSON`.       |
+| force\_append\_only       | If `true`, forces the sink to be `PLAIN` (also known as `append-only`), even if it cannot be.          |
+| timestamptz.handling.mode | Controls the timestamptz output format. This parameter specifically applies to append-only or upsert sinks using JSON encoding. <ul><li>If omitted, the output format of timestamptz is 2023-11-11T18:30:09.453000Z which includes the UTC suffix Z.</li><li>When utc\_without\_suffix is specified, the format is changed to 2023-11-11 18:30:09.453000.</li></ul>                |
+| key\_encode               | Optional. When specified, the key encode can only be TEXT, and the primary key should be one and only one of the following types: `varchar`, `bool`, `smallint`, `int`, and `bigint`; When absent, both key and value will use the same setting of `ENCODE data_encode ( ... )`.                                                                                            |
 
 ## Examples
 

@@ -23,11 +23,9 @@ ALTER TABLE <table_name> ADD COLUMN <column_name> <column_type>;
 
 For details about these two commands, see [ALTER SOURCE](/docs/current/sql-alter-source/) and [ALTER TABLE](/docs/current/sql-alter-table/).
 
-<Info>
-**NOTE**
-
+<Note>
 Note that you cannot add a primary key column to a source or table in RisingWave. To modify the primary key of a source or table, you need to recreate the table.
-</Info>
+</Note>
 
 When you add a column to a source or table, the new column is not automatically picked up in a downstream materialized view.
 
@@ -93,11 +91,9 @@ ALTER SOURCE src_user FORMAT PLAIN ENCODE PROTOBUF(
 );
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 Currently, it is not supported to modify the `data_format` and `data_encode`. Furthermore, when refreshing the schema registry of a source, it is not allowed to drop columns or change types.
-</Info>
+</Note>
 
 In addition, when the [FORMAT and ENCODE options](/docs/current/formats-and-encode-parameters/) are not changed, the `REFRESH SCHEMA` clause of `ALTER SOURCE` can also be used to refresh the schema of a source.
 
@@ -142,11 +138,9 @@ Refresh schema of table
 ALTER TABLE src_user REFRESH SCHEMA;
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 If a downstream fragment references a column that is either missing or has undergone a type change in the updated schema, the command will be declined.
-</Info>
+</Note>
 
 ## See also
 

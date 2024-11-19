@@ -6,14 +6,12 @@ title: "Supported sources and formats"
 
 Below is the complete list of connectors supported by RisingWave. Click a connector name to see the SQL syntax, options, and sample statement of connecting RisingWave to the connector.
 
-<Info>
-**NOTE**
-
+<Note>
 To ingest data in formats marked with "T", you need to create tables (with connector settings). Otherwise, you can create either sources or tables (with connector settings).
-</Info>
+</Note>
 
-| Connector                                                   | Version                                                                                                                                                    | Format                                                                                                                                                                                                                                                                                                                                |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connector       | Version     | Format               |
+| :------------ | :------------ | :------------------- |
 | [Kafka](/docs/current/ingest-from-kafka/)                   | 3.1.0 or later versions                                                                                                                                    | [Avro](#avro), [JSON](#json), [protobuf](#protobuf), [Debezium JSON](#debezium-json) (T), [Debezium AVRO](#debezium-avro) (T), [DEBEZIUM\_MONGO\_JSON](#debezium-mongo-json) (T), [Maxwell JSON](#maxwell-json) (T), [Canal JSON](#canal-json) (T), [Upsert JSON](#upsert-json) (T), [Upsert AVRO](#upsert-avro) (T), [Bytes](#bytes) |
 | [Redpanda](/docs/current/ingest-from-redpanda/)             | Latest                                                                                                                                                     | [Avro](#avro), [JSON](#json), [protobuf](#protobuf)                                                                                                                                                                                                                                                                                   |
 | [Pulsar](/docs/current/ingest-from-pulsar/)                 | 2.8.0 or later versions                                                                                                                                    | [Avro](#avro), [JSON](#json), [protobuf](#protobuf), [Debezium JSON](#debezium-json) (T), [Maxwell JSON](#maxwell-json) (T), [Canal JSON](#canal-json) (T)                                                                                                                                                                            |
@@ -26,11 +24,9 @@ To ingest data in formats marked with "T", you need to create tables (with conne
 | [Google Pub/Sub](/docs/current/ingest-from-google-pubsub/)  | [Avro](#avro), [JSON](#json), [protobuf](#protobuf), [Debezium JSON](#debezium-json) (T), [Maxwell JSON](#maxwell-json) (T), [Canal JSON](#canal-json) (T) |                                                                                                                                                                                                                                                                                                                                       |
 | [Google Cloud Storage](/docs/current/ingest-from-gcs/)      | [JSON](#json)                                                                                                                                              |                                                                                                                                                                                                                                                                                                                                       |
 
-<Info>
-**NOTE**
-
+<Note>
 When a source is created, RisingWave does not ingest data immediately. RisingWave starts to process data when a materialized view is created based on the source.
-</Info>
+</Note>
 
 ## Supported formats
 
@@ -211,8 +207,6 @@ For data in protobuf format, you must specify a message (fully qualified by pack
 Optionally, you can define a `schema.registry.name.strategy` if `schema.registry` is set. Accepted options include `topic_name_strategy`, `record_name_strategy`, and `topic_record_name_strategy`. For additional details on name strategy, see [Subject name strategy](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy).
 
 <Note>
-**INFO**
-
 For protobuf data, you cannot specify the schema in the `schema_definition` section of a `CREATE SOURCE` or `CREATE TABLE` statement.
 </Note>
 

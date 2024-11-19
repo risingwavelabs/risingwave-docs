@@ -19,13 +19,10 @@ Ensure that [Docker](https://docs.docker.com/desktop/) is installed in your envi
 ## Create a Kubernetes cluster
 
 <Info>
-**INFO**
-
 The steps in this section are intended for creating a Kubernetes cluster in your local environment.
 If you are using a managed Kubernetes service such as AKS, GKE, and EKS, refer to the corresponding documentation for instructions.
 </Info>
 
-**Steps:**
 
 <Steps>
   <Step>
@@ -57,7 +54,6 @@ Before the deployment, ensure that the following requirements are satisfied.
 * `kubectl` version ≥ 1.18
 * For Linux, set the value of the `sysctl` parameter [net.ipv4.ip\_forward](https://linuxconfig.org/how-to-turn-on-off-ip-forwarding-in-linux) to 1.
 
-**Steps:**
 <Steps>
   <Step>
 [Install cert-manager](https://cert-manager.io/docs/installation/) and wait a minute to allow for initialization.
@@ -82,8 +78,6 @@ kubectl apply --server-side -f https://github.com/risingwavelabs/risingwave-oper
 You can find the release notes of each version [here](https://github.com/risingwavelabs/risingwave-operator/releases).
 </Accordion>
 <Info>
-**NOTE**
-
 The following errors might occur if `cert-manager` is not fully initialized. Simply wait for another minute and rerun the command above.
 ```bash
 Error from server (InternalError): Internal error occurred: failed calling webhook "webhook.cert-manager.io": failed to call webhook: Post "<https://cert-manager-webhook.cert-manager.svc:443/mutate?timeout=10s>": dial tcp 10.105.102.32:443: connect: connection refused
@@ -184,8 +178,6 @@ spec:
 
   <Tab title="MinIO">
 <Info>
-**NOTE**
-
 The performance of MinIO is closely tied to the disk performance of the node where it is hosted. We have observed that AWS EBS does not perform well in our tests. For optimal performance, we recommend using S3 or a compatible cloud service.
 </Info>
 ```yaml
@@ -353,14 +345,14 @@ core-site.xml hdfs-site.xml
 
 ```
 
-1. Next, create a ConfigMap, where `hadoop-conf` is the name of ConfigMap:
+2. Next, create a ConfigMap, where `hadoop-conf` is the name of ConfigMap:
 
 ```bash
 kubectl create configmap hadoop-conf --from-file $HADOOP_HOME/etc/hadoop
 
 ```
 
-1. Then mount the Hadoop configuration files using this ConfigMap:
+3. Then mount the Hadoop configuration files using this ConfigMap:
 
 <Accordion title="See the code example">
 ```yaml
@@ -486,7 +478,6 @@ You can check the status of the RisingWave instance by running the following com
 
 ```bash
 kubectl get risingwave
-
 ```
 
 If the instance is running properly, the output should look like this:
@@ -501,8 +492,6 @@ risingwave  True      postgresql      S3                30s
 <Tabs>
   <Tab title="ClusterIP">
 By default, the Operator creates a service for the frontend component, through which you can interact with RisingWave, with the type of `ClusterIP`. But it is not accessible outside Kubernetes. Therefore, you need to create a standalone Pod for PostgreSQL inside Kubernetes.
-
-**Steps:**
 
 <Steps>
   <Step title="Create a Pod.">
@@ -525,8 +514,6 @@ psql -h risingwave-frontend -p 4567 -d dev -U root
   <Tab title="NodePort">
 You can connect to RisingWave from Nodes such as EC2 in Kubernetes
 
-**Steps:**
-
 1. In the `risingwave.yaml` file that you use to deploy the RisingWave instance, add a `frontendServiceType` parameter to the configuration of the RisingWave service, and set its value to `NodePort`.
 ```bash
 # ...
@@ -547,8 +534,6 @@ psql -h ${RISINGWAVE_HOST} -p ${RISINGWAVE_PORT} -d dev -U root
   </Tab>
   <Tab title="LoadBalancer">
 If you are using EKS, GCP, or other managed Kubernetes services provided by cloud vendors, you can expose the Service to the public network with a load balancer in the cloud.
-
-**Steps:**
 
 1. In the `risingwave.yaml` file that you use to deploy the RisingWave instance, add a `frontendServiceType` parameter to the configuration of the RisingWave service, and set its value to `LoadBalancer`.
 ```bash
