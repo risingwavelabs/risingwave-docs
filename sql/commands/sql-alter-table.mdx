@@ -22,7 +22,7 @@ ALTER TABLE table_name
 ```
 
 | Parameter or clause  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **ADD \[ COLUMN \]** | This clause adds a new column to the table. COLUMN is optional.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | _column\_name_       | Specify the name of the column you want to add.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | _data\_type_         | The data type of the new column.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -34,12 +34,10 @@ ALTER TABLE table_name
 ALTER TABLE employees ADD age int;
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 * If your table is defined with a schema registry, its columns can not be altered.
 * Columns added by this command cannot be used by any existing materialized views or indexes. You must create new materialized views or indexes to reference it.
-</Info>
+</Note>
 
 ### `DROP COLUMN`
 
@@ -49,7 +47,7 @@ ALTER TABLE table_name
 ```
 
 | Parameter or clause   | Description                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------ |
+| :-------------------- | :----------------------------------------------------------------------------------------- |
 | **DROP \[ COLUMN \]** | This clause drops an existing column from a table. COLUMN is optional.                     |
 | **IF EXISTS**         | Do not return an error if the specified column does not exist. A notice is issued instead. |
 | _column\_name_        | Specify the column you want to remove.                                                     |
@@ -59,13 +57,11 @@ ALTER TABLE table_name
 ALTER TABLE employees DROP fax;
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 * If your table is defined with a schema registry, you can only change the table schema by `ALTER TABLE t REFRESH SCHEMA`. One exception is you can drop the generated columns even if the schema is defined with a schema registry. Note that dropping these generated columns will trigger a schema refresh.
 * You cannot drop columns referenced by materialized views or indexes.
 * To drop a column referenced by a generated column, you must first drop the generated column.
-</Info>
+</Note>
 
 ### `OWNER TO`
 
@@ -75,7 +71,7 @@ ALTER TABLE table_name
 ```
 
 | Parameter or clause | Description                                                                                                                                                                        |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **OWNER TO**        | This clause changes the owner of the table to the specified user. It will cascadingly change all related internal objects as well, and the associated indexes will be changed too. |
 | _new\_user_         | Specify the user you want to assign to the table.                                                                                                                                  |
 
@@ -94,7 +90,7 @@ ALTER TABLE table_name
 ```
 
 | Parameter or clause | Description                                                                                                                               |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET SCHEMA**      | This clause moves the table into another schema. Associated indexes, constraints, and sequences owned by table columns are moved as well. |
 | _schema\_name_      | Specify the schema to which the table will be moved.                                                                                      |
 
@@ -111,7 +107,7 @@ SET PARALLELISM = parallelism_number;
 ```
 
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET PARALLELISM**   | This clause controls the degree of [parallelism](/docs/current/key-concepts/#parallelism) for the targeted [streaming job](/docs/current/key-concepts/#streaming-jobs).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. After setting the parallelism, the parallelism status of a table can be observed within the internal [rw\_table\_fragments](/docs/current/view-configure-runtime-parameters/) table or the [rw\_fragments](/docs/current/view-configure-runtime-parameters/)table. |
 
@@ -179,7 +175,7 @@ ALTER TABLE table_name
 ```
 
 | Parameter or clause | Description                                |
-| ------------------- | ------------------------------------------ |
+| :------------------ | :----------------------------------------- |
 | **RENAME TO**       | This clause changes the name of the table. |
 | _new\_name_         | The new name of the table.                 |
 
@@ -202,11 +198,9 @@ This command alters the schema registry of a table created with connectors.
 ALTER TABLE t_user REFRESH SCHEMA;
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 If a downstream fragment references a column that is either missing or has undergone a type change in the updated schema, the command will be declined.
-</Info>
+</Note>
 
 ### `SET SOURCE_RATE_LIMIT`
 

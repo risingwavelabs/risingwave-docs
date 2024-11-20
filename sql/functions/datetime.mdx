@@ -4,7 +4,7 @@ title: "Date and time functions and operators"
 
 ## Timespan operators
 | Operation | Description | Example |
-| --- | --- | --- |
+| :-- | :-- | :-- |
 | interval \* double precision → interval | Multiplies an interval by a double. | `real '6.1' * interval '1' second` → `00:00:06.1`  <br/>`interval '1' second * real '6.1'` → `00:00:06.1` |
 | interval / double precision → interval | Divides an interval by a double. Error is thrown for division by zero. | `interval '12 days' / 4.2` → `2 days 20:34:17.143`  <br/>`interval '14000' / int '14'` → `00:16:40` |
 | interval + interval → interval | Adds an interval to an interval. | `interval '20' hour + interval '10' hour` → `30:00:00` |
@@ -16,7 +16,7 @@ title: "Date and time functions and operators"
 ## Offsetting operators
 
 | Operation | Description | Example |
-| --- | --- | --- |
+| :-- | :-- | :-- |
 | timestamp + interval → timestamp | Adds an interval to a timestamp. | `'2022-03-13 01:00:00'::timestamp + interval '24' hour` → `2022-03-14 01:00:00` |
 | timestamp - interval → timestamp | Subtracts an interval from a timestamp. | `'2022-03-14 01:00:00'::timestamp - interval '24' hour` → `2022-03-13 01:00:00` |
 | timestamp - timestamp → interval | Subtracts a timestamp from a timestamp. | `'2022-03-13 03:00:00'::timestamp - '2022-03-13 01:00:00'` → `02:00:00` |
@@ -30,17 +30,15 @@ title: "Date and time functions and operators"
 ## Timestamp with time zone operators
 
 | Operation | Description | Example |
-| --- | --- | --- |
+| :-- | :-- | :-- |
 | timestamp AT TIME ZONE _time\_zone_ → timestamptz  <br/>  <br/>timestamptz AT TIME ZONE _time\_zone_ → timestamp | Converts times from timestamp to timestamptz (i.e., timestamp with time zone) or timestamptz to timestamp. Invalid local time during daylight saving forward is not supported. Ambiguous local time during daylight saving backward is interpreted as after the transition. | `'2021-12-31 16:00:00'::timestamp AT TIME ZONE 'us/pacific'` → `2022-01-01 00:00:00+00:00`  <br/>  <br/>`'2022-01-01 00:00:00Z'::timestamptz AT TIME ZONE 'us/pacific'` → `2021-12-31 16:00:00` |
 | timestamptz + interval → timestamptz | Adds a fixed interval to a timestamp with time zone. See note below. | `'2022-03-13 01:00:00Z'::timestamp with time zone + interval '24' hour` → `2022-03-14 01:00:00+00:00` |
 | timestamptz - interval → timestamptz | Subtracts a fixed interval from a timestamp with time zone. See note below. | `'2022-03-14 01:00:00Z'::timestamp with time zone - interval '24' hour` → `2022-03-13 01:00:00+00:00` |
 | timestamptz - timestamptz → interval | Subtracts a timestamp with time zone from a timestamp with time zone and converts 24-hour intervals into days. | `'2023-07-30 13:22:00-05:00'::timestamptz - '2023-07-29 13:22:00-04:00'::timestamptz` → `1 day 01:00:00` |
 
-<Info>
-**NOTE**
-
+<Note>
 An interval can contain hour/minute/second (i.e., fixed length) but not year/month/day (i.e., variable length).
-</Info>
+</Note>
 
 ## Date and time functions
 
@@ -281,7 +279,7 @@ For date and time formatting functions like `to_char`, `to_timestamp`, and `to_d
 Please see the table below for the template patterns supported in RisingWave.
 
 | Pattern            | Description                                                |
-| ------------------ | ---------------------------------------------------------- |
+| :----------------- | :--------------------------------------------------------- |
 | HH24 or hh24       | hour of day (00–23)                                        |
 | HH12 or hh12       | hour of day (01–12)                                        |
 | HH or hh           | hour of day (01–12)                                        |

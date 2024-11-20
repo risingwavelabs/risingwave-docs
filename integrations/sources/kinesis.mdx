@@ -32,23 +32,19 @@ FORMAT data_format ENCODE data_encode (
 ```
 
 <Note>
-**INFO**
 
 For Avro and Protobuf data, do not specify `schema_definition` in the `CREATE SOURCE` or `CREATE TABLE` statement. The schema should be provided in a Web location in the option `schema.location` in the `ENCODE` section.
 
 </Note>
-<Info>
-**NOTE**
 
 RisingWave performs primary key constraint checks on tables with connector settings but not on regular sources. If you need the checks to be performed, please create a table with connector settings.
 
 For a table with primary key constraints, if a new data record with an existing key comes in, the new record will overwrite the existing record.
-</Info>
 
 ### Connector parameters
 
 | Field                               | Notes                                                                                                                                                                                                                                                                                                                          |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | stream                              | Required. Name of the stream.                                                                                                                                                                                                                                                                                                  |
 | aws.region                          | Required. AWS service region. For example, US East (N. Virginia).                                                                                                                                                                                                                                                              |
 | endpoint                            | Optional. URL of the entry point for the AWS Kinesis service.                                                                                                                                                                                                                                                                  |
@@ -63,11 +59,11 @@ For a table with primary key constraints, if a new data record with an existing 
 ### Other parameters
 
 | Field          | Notes                                                                                                                                                                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | _data\_format_ | Supported formats: DEBEZIUM, MAXWELL, CANAL, UPSERT, PLAIN.                                                                                                                                                                               |
 | _data\_encode_ | Supported encodes: JSON, AVRO, PROTOBUF, CSV, BYTES.                                                                                                                                                                                      |
 | _message_      | Message name of the main Message in schema definition. Required when data\_encode is PROTOBUF.                                                                                                                                            |
-| _location_     | Web location of the schema file in http://..., https://..., or S3://... format. Required when data\_encode is AVRO or PROTOBUF. Examples:https://\<example\_host>/risingwave/proto-simple-schema.protos3://risingwave-demo/schema-location |
+| _location_     | Web location of the schema file in `http://...`, `https://...`, or `S3://...` format. Required when `data_encode` is `AVRO` or `PROTOBUF`. <br/>Examples:`https://<example_host>/risingwave/proto-simple-schema.proto` `s3://risingwave-demo/schema-location` |
 
 ## Example
 
