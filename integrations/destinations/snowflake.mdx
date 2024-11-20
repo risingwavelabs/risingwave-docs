@@ -27,11 +27,9 @@ This feature is in the public preview stage, meaning it's nearing the final prod
 * Ensure the S3 user account has `WRITE` permission.
 * Ensure that Snowflake and S3 are set up in the same manner as described in the [Automating Snowpipe for Amazon S3](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-auto-s3), as RisingWave is only responsible for writing data to S3.
 
-<Info>
-**NOTE**
-
+<Note>
 RisingWave will not be responsible for deleting data already imported by S3\. You can manually set the lifecycle configuration of your S3 bucket to clear out unnecessary data. See [Lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/how-to-set-lifecycle-configuration-intro.html) and [Delete staged files](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-manage#deleting-staged-files-after-snowpipe-loads-the-datafor) for more details.
-</Info>
+</Note>
 
 ## Syntax
 Use the following syntax to create a sink in RisingWave:
@@ -50,12 +48,12 @@ WITH (
 All parameters are required unless specified otherwise.
 
 | Parameter             | Description                                                                                                                                                                                                      |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------- | :------------- |
 | s3.bucket\_name       | The S3 bucket where intermediate sink files will be stored.                                                                                                                                                      |
-| s3.path               | Optional. The S3 path to be specified. If specified, the actual file location would be \<s3\_bucket>://\<s3\_path>/\<rw\_auto\_gen\_file\_name>. Otherwise, it would be \<s3\_bucket>://\<rw\_auto\_gen\_file\_name>. |
+| s3.path               | Optional. The S3 path to be specified. <ul><li>If specified, the actual file location would be `<s3_bucket>://<s3_path>/<rw_auto_gen_file_name>`.</li> <li>If not, it would be `<s3_bucket>://<rw_auto_gen_file_name>`.</li></ul> |
 | s3.credentials.access | S3 access credentials.                                                                                                                                                                                           |
 | s3.credentials.secret | S3 secret credentials.                                                                                                                                                                                           |
-| s3.region\_name       | The S3 region, e.g., us-east-2.                                                                                                                                                                                  |
+| s3.region\_name       | The S3 region, e.g., `us-east-2`.                                                                                                                                                                                  |
 | force\_append\_only   | Optional. If true, forces the sink to be append-only, even if it cannot be.                                                                                                                                      |
 
 ## Data type mapping
@@ -63,7 +61,7 @@ All parameters are required unless specified otherwise.
 The following table shows the corresponding data types between RisingWave and Snowflake. For details on native RisingWave data types, see [Overview of data types](/docs/current/sql-data-types/).
 
 | RisingWave type | Snowflake type                                                    |
-| --------------- | ----------------------------------------------------------------- |
+| :-------------- | :---------------------------------------------------------------- |
 | SMALLINT        | SMALLINT                                                          |
 | INTEGER         | INTEGER                                                           |
 | BIGINT          | BIGINT                                                            |

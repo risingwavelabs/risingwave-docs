@@ -17,11 +17,9 @@ psql "postgresql://<username>:@<hostname>:<port>/<database?options=--tenant%3D<t
 
 `%3D` is the URL encoded form of `=`. If the client does not require URL encoding, you can use `--tenant=<tenant identifier>` directly.
 
-<Info>
-**NOTE**
-
+<Note>
 Not all clients support the `options` field. If your client does not support the `options` field, you can use solution 2 or 3.
-</Info>
+</Note>
 
 ### Solution 2: Put the tenant identifier in the host
 
@@ -31,11 +29,9 @@ You can put the tenant identifier in the host in the format of `<tenant identifi
 psql "postgresql://<username>:@<tenant identifier>.<hostname>:<port>/<database?sslmode=verify-full"
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 Not all clients support SNI routing. If your client does not support SNI routing, you can use solution 1 or 3.
-</Info>
+</Note>
 
 ### Solution 3: Put the tenant identifier in the username[](#solution-3-put-the-tenant-identifier-in-the-username "Direct link to Solution 3: Put the tenant identifier in the username")
 
@@ -45,11 +41,9 @@ You can also put the tenant identifier in the username in the format of `<tenant
 psql "postgresql://<tenant identifier>;<username>:@<hostname>:<port>/<database?sslmode=verify-full"
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 The server will use `AuthenticationCleartextPassword` response to authenticate the user. Learn more about the protocol in the [PostgreSQL documentation](https://www.postgresql.org/docs/current/protocol-flow.html).
-</Info>
+</Note>
 
 ## The tenant identifier is not specified
 
@@ -58,7 +52,7 @@ This error occurs when your Postgres client doesn't support Server Name Indicati
 RisingWave Cloud has tested the following drivers for SNI support:
 
 | Driver     | Language | SNI support | Note                                         |
-| ---------- | -------- | ----------- | -------------------------------------------- |
+| :--------- | :------- | :---------- | :------------------------------------------- |
 | psycopg2   | Python   | <Icon icon="check" iconType="solid"/> | Requires the 'sslmode': 'require' option     |
 | asyncpg    | Python   | <Icon icon="check" iconType="solid"/>           | Requires the 'sslmode': 'verify-full' option |
 | SQLAlchemy | Python   | <Icon icon="check" iconType="solid"/>          | Requires the 'sslmode': 'require' option     |

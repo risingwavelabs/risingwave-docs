@@ -7,16 +7,14 @@ description: "The information schema consists of a set of views that contain inf
 
 The `information_schema.tables` view contains all tables, views, sinks, and materialized views defined in the current database.
 
-<Info>
-**NOTE**
-
+<Note>
 Materialized views are specific to the information schema of RisingWave. They are not included in the information schema of PostgreSQL.
-</Info>
+</Note>
 
 The `information_schema.tables` view contains the following columns.
 
 | Column               | Type    | Description                                                                                                                                                                                           |
-| -------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------------- | :------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | table\_catalog       | varchar | Name of the current database.                                                                                                                                                                          |
 | table\_schema        | varchar | Name of the schema that contains the table, view, or materialized view. The default schema for user-created objects is public.                                                                        |
 | table\_name          | varchar | Name of the table, view, or materialized view.                                                                                                                                                         |
@@ -42,12 +40,12 @@ The `table_constraints` view contains the following columns.
 | `initially_deferred` | varchar | `YES` if the constraint is deferrable and initially deferred, `NO` if not. |
 | `enforced` | varchar | `YES` if the constraint is validated and enforced, `NO` if not. |
 
-<Info>
+<Note>
 **TEMPORARY LIMITATION**
 
 This view assumes the constraint schema is the same as the table schema, since `pg_catalog.pg_constraint` only supports primary key.
 
-</Info>
+</Note>
 
 ## Schemata
 
@@ -72,24 +70,24 @@ The `information_schema.views` view contains information about the views in the 
 It contains the following columns.
 
 | Column           | Type    | Description                               |
-| ---------------- | ------- | ----------------------------------------- |
+| :--------------- | :------ | :---------------------------------------- |
 | table\_catalog   | varchar | Name of the current database.              |
 | table\_schema    | varchar | Name of the schema that contains the view. |
 | table\_name      | varchar | Name of the view.                          |
 | view\_definition | varchar | SQL statement that defines the view.       |
 
-<Info>
+<Note>
 **TEMPORARY LIMITATION**
 
 Users with access to `information_schema.views` can potentially access all views, which poses a security risk. We are working to resolve this limitation. Once the fix is implemented, this message will be removed.
-</Info>
+</Note>
 
 ## Columns
 
 The `information_schema.columns` view contains information about columns of all tables, views, and materialized views in the database.
 
 | Column                 | Type    | Description                                                                                                                          |
-| ---------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| :--------------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------- |
 | table\_catalog         | varchar | Name of the current database.                                                                                                        |
 | table\_schema          | varchar | Name of the schema that contains the table, sink, view, or materialized view. The default schema for user-created objects is public. |
 | table\_name            | varchar | Name of the table, sink, view, or materialized view                                                                                  |

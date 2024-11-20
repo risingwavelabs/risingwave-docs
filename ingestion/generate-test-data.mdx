@@ -23,7 +23,7 @@ WITH (
 The following table shows the data types that can be generated for each load generator type.
 
 | Generator \\ Data | Number | Timestamp | Timestamptz | Varchar | Struct | Array |
-| ----------------- | ------ | --------- | ----------- | ------- | ------ | ----- |
+| :---------------- | :----- | :-------- | :---------- | :------ | :----- | :---- |
 | **Sequence**      | <Icon icon="check"  iconType="solid"/>      | <Icon icon="xmark"  iconType="solid"/>         | <Icon icon="xmark"  iconType="solid"/>           | <Icon icon="xmark"  iconType="solid"/>       | <Icon icon="check"  iconType="solid"/>      | <Icon icon="check"  iconType="solid"/>     |
 | **Random**        | <Icon icon="check"  iconType="solid"/>      | <Icon icon="check"  iconType="solid"/>         | <Icon icon="check"  iconType="solid"/>           | <Icon icon="check"  iconType="solid"/>       | <Icon icon="check"  iconType="solid"/>      | <Icon icon="check"  iconType="solid"/>     |
 
@@ -37,11 +37,11 @@ The sequence load generator can generate numbers, incremented by 1, from the sta
 
 Specify the following fields for every column.
 
-| column\_parameter | Description                                            | Value                                          | Required?            |
-| ----------------- | ------------------------------------------------------ | ---------------------------------------------- | -------------------- |
-| kind              | Generator type                                         | Set to sequence.                               | FalseDefault: random |
-| start             | Starting numberMust be smaller than the ending number. | Any number of the column data typeExample: 50  | FalseDefault: 0      |
-| end               | Ending numberMust be larger than the starting number.  | Any number of the column data typeExample: 100 | FalseDefault: 32767  |
+| column\_parameter | Description       | Value                 | Required?            |
+| :---------------- | :---------------- | :-------------------- | :------------------- |
+| kind              | Generator type.    | Set to `sequence`.    | False. Default: `random` |
+| start             | Starting number must be smaller than the ending number. | Any number of the column data type. Example: `50`  | False. Default: `0`      |
+| end               | Ending number must be larger than the starting number.  | Any number of the column data type. Example: `100` | False. Default: `32767`  |
 
 </Tab>
 <Tab title="Random">
@@ -49,12 +49,12 @@ The random number generator produces random numbers within a certain range.
 
 Specify the following fields for every column in the source you are creating.
 
-| column\_parameter | Description                                                                                                                                                                                                              | Value                                          | Required?                                                             |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------- |
-| kind              | Generator type                                                                                                                                                                                                           | Set to random.                                 | FalseDefault: random                                                  |
-| min               | The minimum number can be generated.Must be smaller than the maximum number.                                                                                                                                             | Any number of the column data typeExample: 50  | FalseDefault: 0                                                       |
-| max               | The maximum number can be generated.Must be larger than the minimum number.                                                                                                                                              | Any number of the column data typeExample: 100 | FalseDefault: 32767                                                   |
-| seed              | A seed number that initializes the random load generator. The sequence of the generated numbers is determined by the seed value. If given the same seed number, the generator will produce the same sequence of numbers. | A positive integerExample: 3                   | FalseIf not specified, a fixed sequence of numbers will be generated. |
+| column\_parameter | Description             | Value              | Required?              |
+| :---------------- | :---------------------- | :----------------- | :--------------------- |
+| kind              | Generator type.          | Set to random.     | False. Default: `random`|
+| min               | The minimum number can be generated. Must be smaller than the maximum number.       | Any number of the column data type. Example: `50`  | False. Default: `0`                                                       |
+| max               | The maximum number can be generated. Must be larger than the minimum number.        | Any number of the column data type. Example: `100` | False. Default: `32767`                                                   |
+| seed              | A seed number that initializes the random load generator. The sequence of the generated numbers is determined by the seed value. If given the same seed number, the generator will produce the same sequence of numbers. | A positive integer. Example: `3`     | False. If not specified, a fixed sequence of numbers will be generated. |
 
 </Tab>
 </Tabs>
@@ -65,13 +65,13 @@ The random timestamp and timestamptz generator produces random timestamps and ti
 
 Specify the following fields for every column in the source you are creating.
 
-| column\_parameter | Description                                                                                                                                                                                                                                                    | Value                                                                                                                                                                                                        | Required?                                                                                                                 |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| kind              | Generator type                                                                                                                                                                                                                                                 | Set to random.                                                                                                                                                                                               | FalseDefault: random                                                                                                      |
-| max\_past         | Specify the maximum deviation from the baseline timestamp or timestamptz to determine the earliest possible timestamp or timestamptz that can be generated.                                                                                                    | An [interval](/docs/current/sql-data-types/)Example: 2h 37min                                                                                                                                                | FalseDefault: 1 day                                                                                                       |
-| max\_past\_mode   | Specify the baseline timestamp or timestamptz.  The range for generated timestamps or timestamptzs is \[base time - max\_past , base time\]                                                                                                                    | absolute — The base time is set to the execution time of the generator. The base time is fixed for each generation.relative — The base time is the system time obtained each time a new record is generated. | FalseDefault: absolute                                                                                                    |
-| basetime          | If set, the generator will ignore max\_past\_mode and use the specified time as the base time.                                                                                                                                                                 | A [date and time string](https://docs.rs/chrono/latest/chrono/struct.DateTime.html#method.parse%5Ffrom%5Frfc3339)Example: 2023-04-01T16:39:57-08:00                                                          | FalseDefault: generator execution time                                                                                    |
-| seed              | A seed number that initializes the random load generator. The sequence of the generated timestamps or timestamptzs is determined by the seed value. If given the same seed number, the generator will produce the same sequence of timestamps or timestamptzs. | A positive integerExample: 3                                                                                                                                                                                 | FalseIf not specified, a fixed sequence of timestamps or timestamptzs will be generated (if the system time is constant). |
+| column\_parameter | Description      | Value          | Required?          |
+| :---------------- | :--------------- | :------------- | :----------------- |
+| kind              | Generator type.    | Set to `random`. | False. Default: `random`  |
+| max\_past         | Specify the maximum deviation from the baseline timestamp or timestamptz to determine the earliest possible timestamp or timestamptz that can be generated.     | An [interval](/docs/current/sql-data-types/). Example: `2h 37min`   | False. Default: `1 day`  |
+| max\_past\_mode   | Specify the baseline timestamp or timestamptz. The range for generated timestamps or timestamptzs is \[base time - `max_past`, base time\]                                                                                                                    | `absolute` — The base time is set to the execution time of the generator. The base time is fixed for each generation. `relative` — The base time is the system time obtained each time a new record is generated. | False. Default: `absolute`   |
+| basetime          | If set, the generator will ignore max\_past\_mode and use the specified time as the base time.   | A [date and time string](https://docs.rs/chrono/latest/chrono/struct.DateTime.html#method.parse%5Ffrom%5Frfc3339). Example: `2023-04-01T16:39:57-08:00`   | False. Default: generator execution time                                                                                    |
+| seed              | A seed number that initializes the random load generator. The sequence of the generated timestamps or timestamptzs is determined by the seed value. If given the same seed number, the generator will produce the same sequence of timestamps or timestamptzs. | A positive integer. Example: `3`       | False. If not specified, a fixed sequence of timestamps or timestamptzs will be generated (if the system time is constant). |
 
 </Tab>
     <Tab title="Varchar">
@@ -81,11 +81,11 @@ The random varchar generator produces random combination of uppercase and lowerc
 
 Specify the following fields for every column in the source you are creating.
 
-| column\_parameter | Description                                                                                                                                                                                                                    | Value                         | Required?                                                                |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------ |
-| kind              | Generator type                                                                                                                                                                                                                 | Set to random.                | FalseDefault: random                                                     |
-| length            | The length of the varchar to be generated.                                                                                                                                                                                     | A positive integerExample: 16 | FalseDefault: 10                                                         |
-| seed              | A seed number that initializes the random load generator. The sequence of the generated characters is determined by the seed value. If given the same seed number, the generator will produce the same sequence of characters. | A positive integerExample: 3  | FalseIf not specified, a fixed sequence of characters will be generated. |
+| column\_parameter | Description          | Value          | Required?        |
+| :---------------- | :---------------- | :---------------- | :---------------- |
+| kind              | Generator type.      | Set to `random`.    | False. Default: `random` |
+| length            | The length of the varchar to be generated. | A positive integer. Example: `16` | False. Default: 10    |
+| seed              | A seed number that initializes the random load generator. The sequence of the generated characters is determined by the seed value. If given the same seed number, the generator will produce the same sequence of characters. | A positive integer. Example: `3`  | False. If not specified, a fixed sequence of characters will be generated. |
 
 </Tab>
     <Tab title="Struct">
@@ -107,10 +107,9 @@ WITH (
 ```
 
 <Note>
-**INFO**
+You need to configure each nested column in the struct. Select other tabs according to the data type of the nested columns for information on column parameters.
 
-* You need to configure each nested column in the struct. Select other tabs according to the data type of the nested columns for information on column parameters.
-* When you configure a nested column, use `column.nested_column` to specify it. For example, `v1.v2` and `v1.v3` in the `WITH` clause above.
+When you configure a nested column, use `column.nested_column` to specify it. For example, `v1.v2` and `v1.v3` in the `WITH` clause above.
 </Note>
 
 </Tab>
@@ -132,10 +131,9 @@ WITH (
 ```
 
 <Note>
-**INFO**
+You need to specify the number of elements in the array in the `WITH` clause. `fields.c1.length = '3'` in the example above means that `c1` is an array of three elements.
 
-* You need to specify the number of elements in the array in the `WITH` clause. `fields.c1.length = '3'` in the example above means that `c1` is an array of three elements.
-* When you configure the elements in an array, use `column._` to specify them. For example, `c1._` in the `WITH` clause above.
+When you configure the elements in an array, use `column._` to specify them. For example, `c1._` in the `WITH` clause above.
 Select other tabs according to the data type of the array for information on column parameters.
 
 </Note>
