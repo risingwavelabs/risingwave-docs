@@ -35,7 +35,6 @@ ALTER MATERIALIZED VIEW materialized_view_name
 ```
 -- Change the owner of the materialized view named "materialized_view1" to user "user1"
 ALTER MATERIALIZED VIEW materialized_view1 OWNER TO user1;
-
 ```
 
 ### `SET SCHEMA`
@@ -96,7 +95,8 @@ ALTER MATERIALIZED VIEW mv_name
     SET BACKFILL_RATE_LIMIT { TO | = } { default | rate_limit_number };
 ```
 
-Use this statement to modify the backfill rate limit of a materialized view being created. For the specific value of `BACKFILL_RATE_LIMIT`, refer to [How to view runtime parameters](/docs/current/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
+This statement controls the rate limit of a newly created materialized view's backfilling process from upstream materialized views and sources.
+For the specific value of `BACKFILL_RATE_LIMIT`, refer to [How to view runtime parameters](/operate/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
 
 ```sql Examples
 -- Pause the backfill
@@ -107,5 +107,8 @@ ALTER MATERIALIZED VIEW mv1 SET BACKFILL_RATE_LIMIT=1;
 
 -- Disable the backfill
 ALTER MATERIALIZED VIEW mv1 SET BACKFILL_RATE_LIMIT=DEFAULT;
-
 ```
+
+<Note>
+To modify the rate limit of the sources used in the materialized view, please refer to [SET SOURCE_RATE_LIMIT](/sql/commands/sql-alter-source#set-source-rate-limit).
+</Note>
