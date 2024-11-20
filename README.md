@@ -1,7 +1,7 @@
 
 # Note
 
-This repository is now published to: https://risingwavelabs.mintlify.app/docs/current/intro/introduction, and will be switched to our documentation domain once all testing and customizations are completed.
+This repository contains the latest RisingWave documentation. [The old repository] (https://github.com/risingwavelabs/risingwave-docs) now hosts the archived documentation up to v2.0 of RisingWave.
 
 
 
