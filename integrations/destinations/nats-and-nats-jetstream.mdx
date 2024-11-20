@@ -45,14 +45,9 @@ WITH (
 
 After the sink is created, RisingWave will continuously sink data to the NATS subject in append-only mode.
 
-<Info>
-**NOTE**
-
+<Note>
 The NATS sink connector in RisingWave provides at-least-once delivery semantics. Events may be redelivered in case of failures.
-</Info>
-
-<Info>
-**NOTE**
+</Note>
 
 According to the [NATS documentation](https://docs.nats.io/running-a-nats-service/nats%5Fadmin/jetstream%5Fadmin/naming), stream names must adhere to subject naming rules as well as be friendly to the file system. Here are the recommended guidelines for stream names:
 
@@ -62,15 +57,14 @@ According to the [NATS documentation](https://docs.nats.io/running-a-nats-servic
 * Keep the name length limited to 32 characters as the JetStream storage directories include the account, stream name, and consumer name.
 * Avoid using reserved file names like `NUL` or `LPT1`.
 * Be cautious of case sensitivity in file systems. To prevent collisions, ensure that stream or account names do not clash due to case differences. For example, `Foo` and `foo` would collide on Windows or macOS systems.
-</Info>
 
-### Parameters
+## Parameters
 
 | Field                 | Notes                                                                                                                                                                                                                                                                                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| server\_url           | Required. URLs of the NATS server, in the format of _address_:_port_. If multiple addresses are specified, use commas to separate them.                                                                                                                                                                                                       |
+| :-------------------- | :--------------------------- |
+| server\_url           | Required. URLs of the NATS server, in the format of `address:port`. If multiple addresses are specified, use commas to separate them.                                                                                                                                                                                                       |
 | subject               | Required. NATS subject that you want to sink data to.                                                                                                                                                                                                                                                                                         |
-| connect\_mode         | Required. Authentication mode for the connection. Allowed values: plain: No authentication; user\_and\_password: Use user name and password for authentication. For this option, username and password must be specified; credential: Use JSON Web Token (JWT) and NKeys for authentication. For this option, jwt and nkey must be specified. |
+| connect\_mode         | Required. Authentication mode for the connection. Allowed values: <ul><li>`plain`: No authentication;</li><li>`user_and_password`: Use user name and password for authentication. For this option, username and password must be specified;</li><li>`credential`: Use JSON Web Token (JWT) and NKeys for authentication. For this option, jwt and nkey must be specified.</li></ul> |
 | jwt and nkey          | JWT and NKEY for authentication. For details, see [JWT](https://docs.nats.io/running-a-nats-service/configuration/securing%5Fnats/auth%5Fintro/jwt) and [NKeys](https://docs.nats.io/running-a-nats-service/configuration/securing%5Fnats/auth%5Fintro/nkey%5Fauth).                                                                          |
-| username and password | Conditional. The client user name and password. Required when connect\_mode is user\_and\_password.                                                                                                                                                                                                                                           |
-| type                  | Required. Sink data type. Its value should be append-only.                                                                                                                                                                                                                                                                                    |
+| username and password | Conditional. The client user name and password. Required when `connect_mode` is `user_and_password`.                                                                                                                                                                                                                                           |
+| type                  | Required. Sink data type. Its value should be `append-only`.                                                                                                                                                                                                                                                                                    |

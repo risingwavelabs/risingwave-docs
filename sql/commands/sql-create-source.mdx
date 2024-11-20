@@ -53,16 +53,14 @@ FORMAT upsert ENCODE AVRO (
 );
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 The generated column is created in RisingWave and will not be accessed through the external connector. Therefore, if the external upstream system has a schema, it does not need to include the generated column within the table's schema in the external system.
-</Info>
+</Note>
 
 ## Parameter
 
 | Parameter                         | Description                                                                                                                                                                                                                                                                                  |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | _source\_name_                    | The name of the source. If a schema name is given (for example, CREATE SOURCE \<schema>.\<source> ...), then the table is created in the specified schema. Otherwise it is created in the current schema.                                                                                      |
 | _col\_name_                       | The name of a column.                                                                                                                                                                                                                                                                        |
 | _data\_type_                      | The data type of a column. With the struct data type, you can create a nested table. Elements in a nested table need to be enclosed with angle brackets (\<>).                                                                                                                                |
@@ -72,12 +70,10 @@ The generated column is created in RisingWave and will not be accessed through t
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/docs/current/supported-sources-and-formats/#supported-sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
 | **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Supported formats](/docs/current/supported-sources-and-formats/#supported-formats).                                                                                      |
 
-<Info>
-**NOTE**
-
+<Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
 
-</Info>
+</Note>
 ## Watermarks
 
 RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/docs/current/watermarks/) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/docs/current/watermarks/).

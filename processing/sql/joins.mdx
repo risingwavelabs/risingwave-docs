@@ -229,12 +229,10 @@ FROM s1 JOIN s2
 ON s1.id = s2.id and s1.ts between s2.ts and s2.ts + INTERVAL '1' MINUTE;
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 Interval join‘s state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
 
-</Info>
+</Note>
 
 ## Process-time temporal joins
 
@@ -252,16 +250,14 @@ SELECT ... FROM <table_expression> [AS <alias>]
 ON <join_conditions>;
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 - The left table expression is an append-only table or source.
 - The right table expression is a table, index or materialized view.
 - The process-time syntax `FOR SYSTEM_TIME AS OF PROCTIME()` is included in the right table expression.
 - The join type is INNER JOIN or LEFT JOIN.
 - The Join condition includes the primary key of the right table expression.
 
-</Info>
+</Note>
 
 
 #### Example
@@ -328,8 +324,6 @@ You will get these results:
 | 2               | 102         | 3        | 2023-06-19 | Product B     | 15    |
 | 3               | 101         | 2        | 2023-06-20 | Product A     | 22    |
 
-<Info>
-**NOTE**
+<Note>
 Every time you update the left-hand side table, it will look up the latest data from the right-hand side table.
-
-</Info>
+</Note>
