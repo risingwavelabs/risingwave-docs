@@ -1,7 +1,7 @@
 
 # Note
 
-This repository contains the latest RisingWave documentation. [The old repository] (https://github.com/risingwavelabs/risingwave-docs) now hosts the archived documentation up to v2.0 of RisingWave.
+This repository contains the latest RisingWave documentation. [The old repository](https://github.com/risingwavelabs/risingwave-docs) now hosts the archived documentation up to v2.0 of RisingWave.
 
 
 
