@@ -38,7 +38,11 @@ The Premium Edition features are only available to users who have purchased a li
 
 ### Set license key
 
-To set your license key:
+There are two primary methods for setting the license key in your environment:
+
+#### Manual method
+
+To set your license key manually:
 
 1. Before launching a new cluster:
    * Add `system.license_key` to your TOML configuration file, or
@@ -47,6 +51,15 @@ To set your license key:
 ```sql
 ALTER SYSTEM SET license_key TO '...';
 ```
+
+#### Automated method
+
+To set your license key automatically:
+
+1. Use the `--license-key-path` CLI option for the meta node to monitor and reload the license key from a specified file. This streamlines license key rotation in Cloud environments.
+2. Alternatively, set the `RW_LICENSE_KEY_PATH` environment variable.
+
+The `--license-key-path` CLI option is only available for the meta node, as the license key is propagated to other nodes through system parameters. When the `--license-key-path` option is specified, any manual configuration of the license key through system parameters (`license_key`), the initial configuration (`system.license_key`), or the `RW_LICENSE_KEY` environment variable will be rejected.
 
 ### Verify license key
 
@@ -57,6 +70,9 @@ SELECT rw_test_paid_tier();
 ```
 
 A result of `t` means the key is valid; an error message indicates an invalid key.
+
+
+
 
 ## Support
 
