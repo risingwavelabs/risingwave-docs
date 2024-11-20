@@ -90,10 +90,75 @@ For complete step-to-step guides about ingesting MySQL and PostgreSQL data using
 
 ## Shared source
 
+Shared source improves resource utilization and data consistency when working with Kafka sources in RisingWave. This will only affect Kafka sources created after the version updated and will not affect any existing Kafka sources.
+
 <Note>
 **PUBLIC PREVIEW**
 
 This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+</Note>
+
+### Configure
+
+Shared source is enabled by default. You can also set the session variable `streaming_use_shared_source` to control whether to enable it.
+
+```sql
+# change the config in the current session
+SET streaming_use_shared_source=[true|false];
+
+# change the default value of the session variable in the cluster
+# (the current session is not affected)
+ALTER SYSTEM SET streaming_use_shared_source=[true|false];
+```
+
+To completely disable it at the cluster level, go to [`risingwave.toml`](https://github.com/risingwavelabs/risingwave/blob/main/src/config/example.toml#L146) configuration file, and set the `stream_enable_shared_source` to `false`.
+
+### Compared with non-shared source
+
+Previously, when creating a source using the CREATE SOURCE statement:
+
+1. No streaming jobs were created initially; the source existed only as metadata in the catalog.
+2. When creating multiple materialized views on the same source, each materialized view spawned its own `SourceExecutor`, leading to:
+    - Increased resource usage: Each `SourceExecutor` consumed Kafka resources independently, adding pressure to both the Kafka broker and RisingWave.
+    - Potential inconsistencies: Independent `SourceExecutor` instances could result in different consumption progress, causing temporary inconsistencies when joining materialized views.
+
+<Frame>
+  <img src="/images/non-shared-source.png"/>
+</Frame>
+
+With shared sources, when creating a source using the CREATE SOURCE statement:
+
+1. It will create a single SourceExecutor immediately.
+2. All materialized views referencing the same source share the SourceExecutor, improving resource utilization and ensuring consistent data consumption.
+3. When creating a materialized view, RisingWave backfills historical data from Kafka. The process blocks the DDL statement until backfill completes. This behavior can be configured using [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl).
+
+
+If external systems enforce retention policies or are not re-consumable, new materialized views may not backfill complete historical data. This can lead to inconsistencies with earlier materialized views.
+
+Use the [SHOW JOBS](/sql/commands/sql-show-jobs) command or monitor `Kafka Consumer Lag Size` in the Grafana dashboard (under `Streaming`) to track backfill progress.
+
+<Frame>
+  <img src="/images/shared-source.png"/>
+</Frame>
+
+### Compared with table
+
+A CREATE TABLE statement can provide similar benefits to shared sources but includes data persistence.
+
+For table with connector, downstream materialized views backfill historical data from the table instead of external sources, which may be more efficient and cause less pressure to the external system. This also gives table stronger consistency guarantee, as historical data will be ensured to be present.
+
+Tables offer other features that enhance their utility in data ingestion workflows. See [Table with connectors](/ingestion/overview#table-with-connectors).
+
+<Frame>
+  <img src="/images/table-with-connectors.png"/>
+</Frame>
+
+<Note>
+**LIMITATION**
+
+Currently, shared source is only applicable to Kafka sources. Other sources are unaffected.
+
+Shared sources do not support `ALTER SOURCE`. Use non-shared sources if you require this functionality.
 </Note>
 
 ## See also
