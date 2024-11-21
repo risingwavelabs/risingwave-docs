@@ -1,0 +1,198 @@
+---
+title: "Market and trade activity surveillance"
+description: "Detect suspicious patterns, compliance breaches, and anomalies from trading activities in real-time."
+---
+
+## Overview
+
+In fast-paced financial markets, regulatory agencies and trading firms are constnatly monitoring trades to flag irregular activity. Behaviors like spoofing, where traders place deceptive orders, or sudden large price spikes, are particularly concerning. As trades are happening every second, being able to detect and react instantly to suspicious behavior is crucial to maintain fair and transparent operations. 
+
+By monitoring and analyzing bid-ask spreads, and rolling volumes between assets and trades on the fly, firms can instantly detect potential risks. For example, a tight bid-ask spread with a sudden decrease in rolling volume hints at spoofing, and a sharp price increase within a short time window indicates a spike in volatility.
+
+In this tutorial, you will learn how to monitor market and trade activities in real time. You will enrich the raw trade and market data with calculated metrics like high trading volume and rapid price fluctuations. 
+
+## Prerequisites
+
+* Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
+* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart.mdx) guide.
+* Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
+
+## Step 1: Set up the data source tables
+
+Once RisingWave is installed and deployed, run the two SQL queries below to set up the tables. You will insert data into these tables to simulate live data streams.
+
+1. The table `trade_data` tracks key details about individual trades, such as the buyer, seller, volume, and price of the trade.
+
+    ```sql
+    CREATE TABLE trade_data (
+        trade_id INT,
+        asset_id INT,
+        timestamp TIMESTAMP,
+        price FLOAT,
+        volume INT,
+        buyer_id INT,
+        seller_id INT
+    );
+    ```
+
+2. The `market_data` table tracks information related to financial assests, such as the bid price, ask price, and the trading volume over a rolling time period..
+
+    ```sql
+    CREATE TABLE market_data (
+        asset_id INT,
+        timestamp TIMESTAMP,
+        bid_price FLOAT,
+        ask_price FLOAT,
+        price FLOAT,
+        rolling_volume INT
+    );
+    ```
+
+## Step 2: Run the data generator
+
+To keep this demo simple, a Python script is used to generate and insert data into the tables created above. 
+
+Navigate to the [market_surveillance](https://github.com/risingwavelabs/awesome-stream-processing) folder in the [awesome-stream-processing](https://github.com/risingwavelabs/awesome-stream-processing) and run the `data_generator.py` file. This Python script utilizes the `psycopg2` library to establish a connection with RisingWave so you can generate and insert synthetic data into the tables `trade_data` and `market_data`. 
+
+If you are not running RisingWave locally or using default credentials, update the connection parameters accordingly:
+
+```python
+default_params = {
+    "dbname": "dev",
+    "user": "root",
+    "password": "",
+    "host": "localhost",
+    "port": "4566"
+}
+```
+
+## Step 3: Create materialized views
+
+In this demo, you will create multiple materialized views to help analyze market activity and flag suspicious trades.
+
+Materialized views contain the results of a view expression and are stored in the RisingWave database. The results of a materialized view are computed incrementally and updated whenever new events arrive and do not require to be refreshed. When you query from a materialized view, it will return the most up-to-date computation results.
+
+### Identify unusual volume trades
+
+The `unusual_volume` materialized view indicates if a trade has a higher than average trading volume within a ten-minute window. A rolling window is used for each `asset_id` to calculate the average volume.
+
+If the trade's volume is 1.5 times greater than the rolling average volume over the past ten-minutes, it is marked as an unusual trade.
+
+```sql
+CREATE MATERIALIZED VIEW unusual_volume AS
+SELECT
+    trade_id,
+    asset_id,
+    volume,
+    CASE WHEN volume > AVG(volume) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '10 MINUTES' PRECEDING) * 1.5
+         THEN TRUE ELSE FALSE END AS unusual_volume,
+    timestamp
+FROM
+    trade_data;
+```
+
+You can query from `position_overview` to see the results. High volume trades are indicated in the `unusual_volume` column.
+
+```sql
+SELECT * FROM unusual_volume LIMIT 5;
+```
+
+```bash
+ trade_id | asset_id | volume | unusual_volume |         timestamp          
+----------+----------+--------+----------------+----------------------------
+    46668 |        5 |    318 | f              | 2024-11-14 15:36:08.419826
+    52030 |        5 |    301 | f              | 2024-11-14 15:36:09.432126
+    22027 |        5 |    375 | f              | 2024-11-14 15:36:10.452766
+    98493 |        5 |    673 | t              | 2024-11-14 15:36:11.474102
+    93247 |        5 |    929 | t              | 2024-11-14 15:36:12.504713
+```
+
+### Monitor price spikes
+
+The `price_spike` materialized view analyzes the price fluctuation of assets within a rolling five-minute window to detect potential price spikes. Calculate the percent change between the highest and lower prices within a five-minute window for each asset.
+
+A price spike for the asset is detected if the percentage change exceeds 5%.
+
+```sql
+CREATE MATERIALIZED VIEW price_spike AS
+SELECT
+    asset_id,
+    (MAX(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
+                      RANGE INTERVAL '5 MINUTES' PRECEDING) -
+     MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
+                      RANGE INTERVAL '5 MINUTES' PRECEDING)) /
+     MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
+                      RANGE INTERVAL '5 MINUTES' PRECEDING) AS percent_change,
+    CASE 
+        WHEN 
+            (MAX(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
+                              RANGE INTERVAL '5 MINUTES' PRECEDING) -
+             MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
+                              RANGE INTERVAL '5 MINUTES' PRECEDING)) /
+             MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
+                              RANGE INTERVAL '5 MINUTES' PRECEDING) * 100 > 5 
+        THEN TRUE 
+        ELSE FALSE 
+    END AS if_price_spike,
+    timestamp
+FROM
+    market_data;
+```
+
+You can query from `price_spike` to see the results. The `if_price_spike` column denotes if there was a price spike for the asset.
+
+```sql
+SELECT * FROM risk_summary;
+```
+```bash
+ asset_id |    percent_change    | if_price_spike |         timestamp          
+----------+----------------------+----------------+----------------------------
+        5 |                    0 | f              | 2024-11-14 15:36:08.422258
+        1 |  0.44455600178491755 | t              | 2024-11-14 15:36:09.432829
+        2 |   0.3369464944649446 | t              | 2024-11-14 15:36:09.433616
+        3 |   1.7954589186068888 | t              | 2024-11-14 15:36:09.434359
+        4 | 0.012453174040700659 | f              | 2024-11-14 15:36:09.435159
+```
+
+### Flag spoofing activity
+
+The `spoofing_detection` materialized view detects potential spoofing activity by analyzing the bid-ask price difference and the trading volume. 
+
+The following two conditions must be met to flag spoofing activity:
+
+* The absolute difference between the bid price and ask price is less than 0.2.
+* The current rolling volume is less than 80% of the average rolling volume over the past ten minutes.
+
+```sql
+CREATE MATERIALIZED VIEW spoofing_detection AS
+SELECT
+    m.asset_id,
+    m.timestamp,
+    CASE WHEN ABS(m.bid_price - m.ask_price) < 0.2 AND rolling_volume < AVG(rolling_volume) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '10 MINUTES' PRECEDING) * 0.8
+         THEN TRUE ELSE FALSE END AS potential_spoofing
+FROM
+    market_data AS m;
+```
+
+You can query from `spoofing_detection` to see the results.
+
+```sql
+SELECT * FROM market_summary LIMIT 5;
+```
+```bash
+ asset_id |         timestamp          | potential_spoofing 
+----------+----------------------------+--------------------
+        4 | 2024-11-14 15:36:08.421848 | f
+        5 | 2024-11-14 15:36:08.422258 | f
+        1 | 2024-11-14 15:36:09.432829 | f
+        2 | 2024-11-14 15:36:09.433616 | f
+        3 | 2024-11-14 15:36:09.434359 | f
+```
+
+When finished, press `Ctrl+C` to close the connection between RisingWave and `psycopg2`.
+
+## Summary
+
+In this tutorial, you learn:
+
+- How to create rolling windows by using the `PATITION BY` command.

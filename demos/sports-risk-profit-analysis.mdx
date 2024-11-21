@@ -1,6 +1,6 @@
 ---
 title: "Risk and profit analysis in sports betting"
-description: "Manage your sports betting or trading positions in real-time by using RisingWave to monitor exposure and risk."
+description: "Manage your sports betting positions in real-time by using RisingWave to monitor exposure and risk."
 ---
 
 ## Overview
@@ -17,46 +17,47 @@ In this tutorial, you will learn how to analyze real-time betting and market dat
 * Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart.mdx) guide.
 * Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
 
-## Step 1: Set up the data sources
+## Step 1: Set up the data source tables
 
-Once RisingWave is installed and deployed, run the two SQL queries below to set up the tables. We will insert data into these tables to simulate live data streams.
+Once RisingWave is installed and deployed, run the two SQL queries below to set up the tables. You will insert data into these tables to simulate live data streams.
 
-The table `positions` tracks key details about each betting position within different sports league. It contains information such as the stake amount, expected return, fair value, and market odds, allowing us to assess the risk and performance of each position. 
+1. The table `positions` tracks key details about each betting position within different sports league. It contains information such as the stake amount, expected return, fair value, and market odds, allowing us to assess the risk and performance of each position. 
 
-```sql
-CREATE TABLE positions (
-    position_id INT,
-    league VARCHAR,
-    position_name VARCHAR,
-    timestamp TIMESTAMP,
-    stake_amount FLOAT,
-    expected_return FLOAT,
-    max_risk FLOAT,
-    fair_value FLOAT,
-    current_odds FLOAT,
-    profit_loss FLOAT,
-    exposure FLOAT
-);
-```
-The table `market_data` describes the market activity related to specific positions. We can track pricing and volume trends across different bookmakers, observing pricing changes over time.
+    ```sql
+    CREATE TABLE positions (
+        position_id INT,
+        league VARCHAR,
+        position_name VARCHAR,
+        timestamp TIMESTAMP,
+        stake_amount FLOAT,
+        expected_return FLOAT,
+        max_risk FLOAT,
+        fair_value FLOAT,
+        current_odds FLOAT,
+        profit_loss FLOAT,
+        exposure FLOAT
+    );
+    ```
 
-```sql
-CREATE TABLE market_data (
-    position_id INT,
-    bookmaker VARCHAR,
-    market_price FLOAT,
-    volume INT,
-    timestamp TIMESTAMP
-);
-```
+2. The table `market_data` describes the market activity related to specific positions. You can track pricing and volume trends across different bookmakers, observing pricing changes over time.
+
+    ```sql
+    CREATE TABLE market_data (
+        position_id INT,
+        bookmaker VARCHAR,
+        market_price FLOAT,
+        volume INT,
+        timestamp TIMESTAMP
+    );
+    ```
 
 ## Step 2: Run the data generator
 
 To keep this demo simple, a Python script is used to generate and insert data into the tables created above. 
 
-Navigate to the [position_risk_management](https://github.com/risingwavelabs/awesome-stream-processing) folder in the [awesome-stream-processing-repository](https://github.com/risingwavelabs/awesome-stream-processing) and run the `data_generator.py` file. This Python script utilizes the `psycopg2` library to establish a connection with RisingWave so we can generate and insert synthetic data into the tables `positions` and `market_data`. 
+Navigate to the [position_risk_management](https://github.com/risingwavelabs/awesome-stream-processing) folder in the [awesome-stream-processing](https://github.com/risingwavelabs/awesome-stream-processing) and run the `data_generator.py` file. This Python script utilizes the `psycopg2` library to establish a connection with RisingWave so you can generate and insert synthetic data into the tables `positions` and `market_data`. 
 
-If you are not running RisingWave locally or are not using default RisingWave database credentials, edit the connections parameters accordingly. The default connection parameters are shown below. Otherwise, the script can be run as is. 
+If you are not running RisingWave locally or using default credentials, update the connection parameters accordingly:
 
 ```python
 default_params = {
@@ -70,11 +71,13 @@ default_params = {
 
 ## Step 3: Create materialized views
 
-In this demo, we will create three materialized views to gain insight on individual positions and the market risk.
+In this demo, you will create three materialized views to gain insight on individual positions and the market risk.
+
+Materialized views contain the results of a view expression and are stored in the RisingWave database. The results of a materialized view are computed incrementally and updated whenever new events arrive and do not require to be refreshed. When you query from a materialized view, it will return the most up-to-date computation results.
 
 ### Track individual positions
 
-The `position_overview` materialized view provides key information on each position, such as the stake, max risk, market price, profit loss, and risk level. It joins the `positions` table with the most recent `market_price` from the `market_data` table. This is done using the `ROW_NUMBER()` function, which assigns a rank to each record based on `position_id`, ordered by the timestamp in descending order.
+The `position_overview` materialized view provides key information on each position, such as the stake, max risk, market price, profit loss, and risk level. It joins the `positions` table with the most recent `market_price` from the `market_data` table. This is done using `ROW_NUMBER()`, which assigns a rank to each record based on `position_id`, ordered by the timestamp in descending order.
 
 `profit_loss` is calculated as the difference between `market_price` and `fair_value` while `risk_level` is based on `profit_loss` relative to `max_risk`.
 
@@ -105,7 +108,7 @@ ON p.position_id = m.position_id
 WHERE m.row_num = 1;
 ```
 
-We can query from `position_overview` to see the results.
+You can query from `position_overview` to see the results.
 
 ```sql
 SELECT * FROM position_overview LIMIT 5;
@@ -123,7 +126,7 @@ SELECT * FROM position_overview LIMIT 5;
 
 ### Monitor overall risk
 
-The `risk_summary` materialized view gives an overview on the number of positions that are considered "High", "Medium", or "Low" risk. We group by `risk_level` from `position_overview` and count the number of positions in each category.
+The `risk_summary` materialized view gives an overview on the number of positions that are considered "High", "Medium", or "Low" risk. Group by `risk_level` from `position_overview` and count the number of positions in each category.
 
 This allows us to quickly understand overall risk exposure across all positions.
 
@@ -138,7 +141,7 @@ GROUP BY
     risk_level;
 ```
 
-We can query from `risk_summary` to see the results.
+You can query from `risk_summary` to see the results.
 
 ```sql
 SELECT * FROM risk_summary;
@@ -153,7 +156,7 @@ SELECT * FROM risk_summary;
 
 ### Retrieve latest market prices
 
-The `market_summary` materialized view shows the current market data for each betting from the `positions` table. It joins `positions` and `market_data` to include the most recent market price for each bookmaker. Again, the `ROW_NUMBER()` function is used to retrieve the most recent record for each bookmaker and position.
+The `market_summary` materialized view shows the current market data for each betting from the `positions` table. It joins `positions` and `market_data` to include the most recent market price for each bookmaker. Again, `ROW_NUMBER()` is used to retrieve the most recent record for each bookmaker and position.
 
 ```sql
 CREATE MATERIALIZED VIEW market_summary AS
@@ -174,7 +177,7 @@ ON p.position_id = m.position_id
 WHERE m.row_num = 1;
 ```
 
-We can query from `market_summary` to see the results.
+You can query from `market_summary` to see the results.
 
 ```sql
 SELECT * FROM market_summary LIMIT 5;
@@ -193,7 +196,7 @@ When finished, press `Ctrl+C` to close the connection between RisingWave and `ps
 
 ## Summary
 
-In this tutorial, we learn:
+In this tutorial, you learn:
 
 - How to connect to RisingWave from a Python application using `psycopg2`.
 - How to use `ROW_NUMBER()` to retrieve the most recent message based on the timestamp.
