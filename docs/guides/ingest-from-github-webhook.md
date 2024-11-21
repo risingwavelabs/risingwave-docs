@@ -44,12 +44,13 @@ CREATE TABLE wbhtable (
 
 Explanation:
 - `data JSONB`: Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables.
+- `secure_compare(...)`: Compare two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks.
 - `headers->>'x-hub-signature-256'`: Extracts the signature provided by GitHub in the x-hub-signature-256 HTTP header. An example of the value is `sha256=f37a93a68fef1505d75e920a15d0543199557be72d2182e5cf8c15d7f9a6260f`. Note that in `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator. But please only use the lower-case header names in the `->>` operator. The verification will fail, otherwise.
 - `'sha256=' || encode(hmac(test_secret, data, 'sha256'), 'hex')`: Computes the expected signature by generating an HMAC SHA-256 hash of the payload (`data`) using the secret (`test_secret`), encodes it in hexadecimal, and prefixes it with `sha256=`.
 
 The `secure_compare()` function compares the signature from the request header with the computed signature. If they match, the request is accepted; otherwise, it is rejected. This ensures that only authentic requests from GitHub are processed.
 
-In GitHub Webhook, you can choose between SHA-1 and SHA-256 HMAC algorithms for signing the payload. The example above uses SHA-256 for demonstration purposes. If you want to use SHA-1, replace `x-hub-signature-256` with `x-hub-signature` and `sha256` with `sha1` in the `VALIDATE` clause. An example is here:
+In GitHub Webhook, you can choose between SHA-1 and SHA-256 HMAC algorithms for validating the payload. The example above uses SHA-256 for demonstration purposes. If you want to use SHA-1, replace `x-hub-signature-256` with `x-hub-signature` and `sha256` with `sha1` in the `VALIDATE` clause. You can refer to https://docs.github.com/en/webhooks/webhook-events-and-payloads#delivery-headers for more details about the headers. An example is here:
 
 ```sql
 CREATE SECRET test_secret WITH ( backend = 'meta') AS 'TEST_WEBHOOK';
@@ -83,6 +84,8 @@ Explanation:
 - `<table_name>`: The name of the table you created to receive webhook data (e.g., `wbhtable` in the above example).
 
 #### Configuring the Webhook in GitHub
+
+For more detailed instructions, refer to the [GitHub documentation](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-a-repository-webhook).
 
 1. Navigate to Your Repository Settings:
 

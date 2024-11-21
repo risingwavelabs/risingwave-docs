@@ -46,7 +46,7 @@ Explanation:
 - `CREATE SECRET`: Securely stores a secret value (`'secret_value'`) in RisingWave, which can be used for validating incoming requests.
 - `CREATE TABLE wbhtable`: Defines a new table named wbhtable with a single column data of type `JSONB` to store `JSON` payload from the webhook.
 - `WITH (connector = 'webhook')`: Specifies that the table uses the webhook connector to accept incoming HTTP requests.
-- `VALIDATE SECRET test_secret AS secure_compare(...)`: Uses the stored secret `test_secret` to authenticate incoming webhook requests by comparing the provided signature in the headers.
+- `VALIDATE SECRET test_secret AS secure_compare(...)`: Uses the stored secret `test_secret` to authenticate incoming webhook requests by comparing the provided signature in the headers. Note `secure_compare(...)` is the only supported validation function for webhook tables.
 - - First Argument: `headers->>'signature header'` indicates the HTTP header key where the webhook sender places the generated signature. This retrieves the signature from the incoming request headers.
 - - Second Argument: `signature_generation_expressions` should be an expression specified by the user to compute the expected signature based on the secret and payload data (and possibly other header values).
 
