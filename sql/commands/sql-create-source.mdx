@@ -115,35 +115,42 @@ To completely disable it at the cluster level, go to [`risingwave.toml`](https:/
 
 ### Compared with non-shared source
 
-Previously, when creating a source using the CREATE SOURCE statement:
+With non-shared sources, when using the `CREATE SOURCE` statement: 
+- No streaming jobs would be instantiated. A source is just a set of metadata stored in the catalog. 
+- Only when a materialized view references the source, a `SourceExecutor` will be created to start the process of data ingestion.
 
-1. No streaming jobs were created initially; the source existed only as metadata in the catalog.
-2. When creating multiple materialized views on the same source, each materialized view spawned its own `SourceExecutor`, leading to:
-    - Increased resource usage: Each `SourceExecutor` consumed Kafka resources independently, adding pressure to both the Kafka broker and RisingWave.
-    - Potential inconsistencies: Independent `SourceExecutor` instances could result in different consumption progress, causing temporary inconsistencies when joining materialized views.
+This leads to increased resource usage and potential inconsistencies:
+- Each `SourceExecutor` consumed Kafka resources independently, adding pressure to both the Kafka broker and RisingWave.
+- Independent `SourceExecutor` instances could result in different consumption progress, causing temporary inconsistencies when joining materialized views.
 
 <Frame>
   <img src="/images/non-shared-source.png"/>
 </Frame>
 
-With shared sources, when creating a source using the CREATE SOURCE statement:
+With shared sources, when using the `CREATE SOURCE` statement:
+- It will instantiate a single `SourceExecutor` immediately. 
+- All materialized views referencing the same source share the `SourceExecutor`.
+- The downstream materialized views will only forwards data from the upstream sources, instead of consuming from Kafka independently.
 
-1. It will create a single SourceExecutor immediately.
-2. All materialized views referencing the same source share the SourceExecutor, improving resource utilization and ensuring consistent data consumption.
-3. When creating a materialized view, RisingWave backfills historical data from Kafka. The process blocks the DDL statement until backfill completes. This behavior can be configured using [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl).
-
-
-If external systems enforce retention policies or are not re-consumable, new materialized views may not backfill complete historical data. This can lead to inconsistencies with earlier materialized views.
-
-Use the [SHOW JOBS](/sql/commands/sql-show-jobs) command or monitor `Kafka Consumer Lag Size` in the Grafana dashboard (under `Streaming`) to track backfill progress.
+This improves resource utilization and consistency.
 
 <Frame>
   <img src="/images/shared-source.png"/>
 </Frame>
 
+When creating a materialized view, RisingWave backfills historical data from Kafka. The process blocks the DDL statement until backfill completes. 
+
+- To configure this behavior, use the [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl) command. This is similar to the backfilling procedure when creating a materialized view on tables and materialized views.
+
+- To monitoring backfill progress, use the [SHOW JOBS](/sql/commands/sql-show-jobs) command or check `Kafka Consumer Lag Size` in the Grafana dashboard (under `Streaming`).
+
+
+<Note>If you set up a retention policy or if the external system can only be accessed once (like message queues), and the data is no longer available, any newly created materialized views won’t be able to backfill the complete historical data. This can lead to inconsistencies with earlier materialized views.</Note>
+
+
 ### Compared with table
 
-A CREATE TABLE statement can provide similar benefits to shared sources but includes data persistence.
+A `CREATE TABLE` statement can provide similar benefits to shared sources, except that it needs to persist all consumed data.
 
 For table with connector, downstream materialized views backfill historical data from the table instead of external sources, which may be more efficient and cause less pressure to the external system. This also gives table stronger consistency guarantee, as historical data will be ensured to be present.
 
