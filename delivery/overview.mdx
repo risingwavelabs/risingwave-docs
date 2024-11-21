@@ -127,7 +127,7 @@ File sink currently supports only append-only mode, so please change the query t
 
 ## Batching strategy for file sink
 
-The batching strategy ensures that the contents within a chunk are not further split, which enables the decoupling of the file sink. The batching strategy is available for Parquet, JSON, and CSV encode. 
+RisingWave implements batching strategies for file sinks to optimize file management by preventing the generation of numerous small files. The batching strategy is available for Parquet, JSON, and CSV encode. 
 
 ### Category
 
@@ -139,7 +139,7 @@ There are two primary batching strategies:
 - **Batching based on rollover interval**:
     For batching based on the time interval, RisingWave checks the threshold each time a chunk is about to be written (`sink_writer.write_batch()`) and when a barrier is encountered (`sink_writer.barrier()`).
 
-The condition for batching is relatively coarse-grained. Setting a specific number of rows for batching does not guarantee that the output file will contain exactly that many rows.
+<Note>The condition for batching is relatively coarse-grained. The actual number of rows or exact timing of file completion may vary from the specified thresholds, as this function is intentionally flexible to prioritize efficient file management.</Note>
 
 If no conditions for batch collection are set, RisingWave will apply a default batching strategy to ensure proper file writing and data consistency.
 
