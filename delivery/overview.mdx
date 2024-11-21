@@ -139,7 +139,7 @@ There are two primary batching strategies:
 - **Batching based on rollover interval**:
     For batching based on the time interval, RisingWave checks the threshold each time a chunk is about to be written (`sink_writer.write_batch()`) and when a barrier is encountered (`sink_writer.barrier()`).
 
-The actual number of rows in a file may slightly exceed the set maximum row count. In extreme cases, it may surpass `chunk_size - 1` rows (currently set at 255). However, this slight excess is generally acceptable due to the typically large row counts in Parquet files.
+The batching condition is relatively coarse-grained. Setting a specific number of rows for batching does not guarantee that the output file will contain exactly that many rows.
 
 ### Sink decoupling with batching strategy
 
