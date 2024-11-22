@@ -131,25 +131,43 @@ RisingWave implements batching strategies for file sinks to optimize file manage
 
 ### Category
 
-There are two primary batching strategies:
-
 - **Batching based on row numbers**:
-    For batching based on row count, RisingWave checks whether the maximum row count threshold has been reached after each write operation. If the threshold is met, the writing of the file is completed.
+    RisingWave monitors the number of rows written and completes the file once the maximum row count threshold is reached.
 
 - **Batching based on rollover interval**:
-    For batching based on the time interval, RisingWave checks the threshold each time a chunk is about to be written and when a barrier is encountered).
+    RisingWave checks the threshold each time a chunk is about to be written and when a barrier is encountered.
+
+- If no batching strategy is specified, RisingWave defaults to writing a new file every 10 seconds.
 
 <Note>The condition for batching is relatively coarse-grained. The actual number of rows or exact timing of file completion may vary from the specified thresholds, as this function is intentionally flexible to prioritize efficient file management.</Note>
 
-If no batching strategy is specified, RisingWave will apply the default batching strategy, which writes a file every 10 seconds.
+### File organization
 
-### File naming rule
+You can use `partition_by` to partition files by time units (month, day, or hour). When enabled, files are organized into corresponding subdirectories based on their creation time.
 
-Previously, the naming convention for files was `executor_id + epoch.suffix`. With the decoupling of barriers and file writing, the epoch is no longer needed in the file name. However, the `executor_id` is still required, as RisingWave does not perform file merging between different levels of parallelism.
 
-The current file naming rule is `/Option<partition_by>/executor_id + timestamp.suffix`, where the timestamp differentiates files batched by the rollover interval. For example, the output files look like below:
+Regarding file naming rules, currently, files follow the naming pattern `/Option<partition_by>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
+   
+The output files look like below:
 
 ```
 path/2024-09-20/47244640257_1727072046.parquet
 path/2024-09-20/47244640257_1727072055.parquet
 ```
+
+### Example
+
+```sql
+CREATE SINK s1 
+FROM t
+WITH (
+    connector = 's3',
+    max_row_count = '100',
+    rollover_seconds = '10',
+    type = 'append-only',
+    partition_by = 'day'
+) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
+```
+
+In this example, if the number of rows in the file exceeds 100, or if writing has continued for more than 10 seconds, the writing of this file will be completed.
+Once completed, the file will be visible in the downstream sink system.
