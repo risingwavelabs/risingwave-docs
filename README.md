@@ -3,17 +3,28 @@
 
 This repository contains the latest RisingWave documentation. [The old repository](https://github.com/risingwavelabs/risingwave-docs-legacy) now hosts the archived documentation up to v2.0 of RisingWave.
 
+# Documentation structure
 
+Below are the main topic groups. Some groups are elevated to be tabs shown on the top of a documentation page.
 
-# Mintlify Starter Kit
+- get-started
+- demos
+- sql
+- ingestion
+- processing
+- delivery
+- deploy
+- operate
+- python-sdk
+- client-libraries
+- performance
+- troubleshoot
+- integrations
+- faq
+- reference
+- cloud
+- changelog
 
-Click on `Use this template` to copy the Mintlify starter kit. The starter kit contains examples including
-
-- Guide pages
-- Navigation
-- Customizations
-- API Reference pages
-- Use of popular components
 
 ### Development
 
