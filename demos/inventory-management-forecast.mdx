@@ -14,7 +14,7 @@ In this tutorial, you will learn how to utilize inventory and sales data to prev
 ## Prerequisites
 
 * Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
-* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart.mdx) guide.
+* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart/) guide.
 * Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
 
 ## Step 1: Set up the data source tables
@@ -96,7 +96,7 @@ You can query from `inventory_status` to see the results.
 SELECT * FROM inventory_status LIMIT 5;
 ```
 
-```bash
+```
  warehouse_id | product_id | stock_level | reorder_point |  location   |  reorder_status  |        last_update         
 --------------+------------+-------------+---------------+-------------+------------------+----------------------------
             1 |          1 |          64 |           100 | Warehouse 1 | Reorder Needed   | 2024-11-18 14:32:35.808553
@@ -110,7 +110,7 @@ SELECT * FROM inventory_status LIMIT 5;
 
 The `recent_sales` materialized view calculates the number of products sold from each warehouse within the past week. By understanding recent sale trends, you can forecast demand.
 
-A temporal filter, `timestamp > NOW() - INTERVAL '7 days'` is used to retrieve sales made within the past week. To learn more about temporal filters, see [Temporal filters](/processing/sql/temporal-filters.mdx).
+A temporal filter, `timestamp > NOW() - INTERVAL '7 days'` is used to retrieve sales made within the past week. To learn more about temporal filters, see [Temporal filters](/processing/sql/temporal-filters/).
 
 ```sql
 CREATE MATERIALIZED VIEW recent_sales AS
@@ -132,7 +132,7 @@ You can query from `recent_sales` to see the results.
 ```sql
 SELECT * FROM recent_sales;
 ```
-```bash
+```
  warehouse_id | product_id | total_quantity_sold |         last_sale          
 --------------+------------+---------------------+----------------------------
             2 |          3 |                  27 | 2024-11-18 14:33:06.225306
@@ -174,7 +174,7 @@ You can query from `demand_forecast` to see the results.
 ```sql
 SELECT * FROM demand_forecast LIMIT 5;
 ```
-```bash
+```
  warehouse_id | product_id | stock_level | weekly_sales | stock_days_remaining 
 --------------+------------+-------------+--------------+----------------------
             2 |          4 |         191 |           28 |                    6

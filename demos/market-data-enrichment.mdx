@@ -14,7 +14,7 @@ In this tutorial, you will learn how to join market data with external data to g
 ## Prerequisites
 
 * Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
-* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart.mdx) guide.
+* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart/) guide.
 * Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
 
 ## Step 1: Set up the data source tables
@@ -74,7 +74,7 @@ Materialized views contain the results of a view expression and are stored in th
 
 The `avg_price_bid_ask_spread` materialized view calculates the average price and average bid-ask spread for each asset in five-minute time windows by using `TUMBLE()` and grouping by the `assed_id` and the time window.
 
-To learn more about `TUMBLE()`, see [Time windows](/processing/sql/time-windows.mdx).
+To learn more about `TUMBLE()`, see [Time windows](/processing/sql/time-windows/).
 
 ```sql
 CREATE MATERIALIZED VIEW avg_price_bid_ask_spread AS
@@ -94,7 +94,7 @@ You can query from `avg_price_bid_ask_spread` to see the results.
 SELECT * FROM avg_price_bid_ask_spread LIMIT 5;
 ```
 
-```bash
+```
  asset_id | average_price | bid_ask_spread |     window_end      
 ----------+---------------+----------------+---------------------
         2 |        106.55 |           0.58 | 2024-11-19 16:20:00
@@ -124,7 +124,7 @@ You can query from `rolling_volatility` to see the results.
 ```sql
 SELECT * FROM rolling_volatility2 LIMIT 5;
 ```
-```bash
+```
  asset_id | rolling_volatility |     window_end      
 ----------+--------------------+---------------------
         1 |              27.98 | 2024-11-19 16:35:00
@@ -178,7 +178,7 @@ You can query from `enriched_market_data` to see the results.
 ```sql
 SELECT * FROM enriched_market_data LIMIT 5;
 ```
-```bash
+```
  asset_id |   sector   | average_price | bid_ask_spread | rolling_volatility |   avg_historical_volatility    |     avg_sector_performance      |       avg_sentiment_score       |     window_end      
 ----------+------------+---------------+----------------+--------------------+--------------------------------+---------------------------------+---------------------------------+---------------------
         1 | Energy     |         99.75 |           0.61 |              27.83 |                      0.2940625 |                        -0.00375 |                       0.0940625 | 2024-11-19 16:30:00
