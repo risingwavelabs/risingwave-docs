@@ -143,10 +143,9 @@ RisingWave implements batching strategies for file sinks to optimize file manage
 
 ### File organization
 
-You can use `partition_by` to partition files by time units (month, day, or hour). When enabled, files are organized into corresponding subdirectories based on their creation time.
+You can use `path_partition_prefix` to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
 
-
-Regarding file naming rules, currently, files follow the naming pattern `/Option<partition_by>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
+Regarding file naming rules, currently, files follow the naming pattern `/Option<path_partition_prefix>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
    
 The output files look like below:
 
@@ -165,7 +164,7 @@ WITH (
     max_row_count = '100',
     rollover_seconds = '10',
     type = 'append-only',
-    partition_by = 'day'
+    path_partition_prefix = 'day'
 ) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
 ```
 
