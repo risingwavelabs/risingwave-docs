@@ -33,12 +33,12 @@ All `WITH` options are required unless explicitly mentioned as optional.
 | Parameter or clause         | Description     |
 | :-------------------------- | :------------- |
 | sink\_name                  | Name of the sink to be created.                     |
-| sink\_from                  | A clause that specifies the direct source from which data will be output. _sink\_from_ can be a materialized view or a table. Either this clause or a SELECT query must be specified.                             |
+| sink\_from                  | A clause that specifies the direct source from which data will be output. `sink_from` can be a materialized view or a table. Either this clause or a SELECT query must be specified.                             |
 | AS select\_query            | A SELECT query that specifies the data to be output to the sink. Either this query or a FROM clause must be specified. See [SELECT](/docs/current/sql-select/) for the syntax and examples of the SELECT command. |
 | connector                   | Sink connector type must be `kafka` for Kafka sink.              |
 | properties.bootstrap.server | Address of the Kafka broker. Format: `ip:port`. If there are multiple brokers, separate them with commas.     |
 | topic                       | Address of the Kafka topic. One sink can only correspond to one topic.           |
-| primary\_key                | Conditional. The primary keys of the sink. Use ',' to delimit the primary key columns. This field is optional if creating a PLAIN sink, but required if creating a DEBEZIUM or UPSERT sink.                       |
+| primary\_key                | Conditional. The primary keys of the sink. Use `,` to delimit the primary key columns. This field is optional if creating a `PLAIN` sink, but required if creating a `DEBEZIUM` or `UPSERT` sink.                       |
 
 ## Additional Kafka parameters
 
@@ -121,7 +121,7 @@ When creating an append-only Protobuf sink, the following options can be used fo
 | Field                         | Notes                             |
 | :---------------------------- | :----------------------- |
 | message                       | Required. Package qualified message name of the main Message in the schema definition.                                                                                                     |
-| schema.location               | Required if schema.registry is not specified. Only one of schema.location or schema.registry can be defined. The schema location. This can be in either file://, http://, https:// format. |
+| schema.location               | Required if schema.registry is not specified. Only one of schema.location or schema.registry can be defined. The schema location. This can be in either `file://`, `http://`, `https://` format. |
 | schema.registry               | Required if schema.location is not specified. Only one of schema.location or schema.registry can be defined. The address of the schema registry.                                           |
 | schema.registry.username      | Optional. The user name used to access the schema registry.                                                                                                                                |
 | schema.registry.password      | Optional. The password associated with the user name.                                                                                                                                      |
@@ -439,7 +439,6 @@ WITH (
   </Tab>
   <Tab title="SASL/OAUTHBEARER">
 <Warning>
-**CAUTION**
 
 The implementation of SASL/OAUTHBEARER in RisingWave validates only [unsecured client side tokens](https://docs.confluent.io/platform/current/kafka/authentication%5Fsasl/authentication%5Fsasl%5Foauth.html#unsecured-client-side-token-creation-options-for-sasl-oauthbearer), and does not support OpenID Connect (OIDC) authentication. Therefore, it should not be used in production environments.
 </Warning>

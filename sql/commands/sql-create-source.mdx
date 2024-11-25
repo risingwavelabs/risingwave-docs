@@ -53,16 +53,14 @@ FORMAT upsert ENCODE AVRO (
 );
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 The generated column is created in RisingWave and will not be accessed through the external connector. Therefore, if the external upstream system has a schema, it does not need to include the generated column within the table's schema in the external system.
-</Info>
+</Note>
 
 ## Parameter
 
 | Parameter                         | Description                                                                                                                                                                                                                                                                                  |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | _source\_name_                    | The name of the source. If a schema name is given (for example, CREATE SOURCE \<schema>.\<source> ...), then the table is created in the specified schema. Otherwise it is created in the current schema.                                                                                      |
 | _col\_name_                       | The name of a column.                                                                                                                                                                                                                                                                        |
 | _data\_type_                      | The data type of a column. With the struct data type, you can create a nested table. Elements in a nested table need to be enclosed with angle brackets (\<>).                                                                                                                                |
@@ -72,12 +70,10 @@ The generated column is created in RisingWave and will not be accessed through t
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/docs/current/supported-sources-and-formats/#supported-sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
 | **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Supported formats](/docs/current/supported-sources-and-formats/#supported-formats).                                                                                      |
 
-<Info>
-**NOTE**
-
+<Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
 
-</Info>
+</Note>
 ## Watermarks
 
 RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/docs/current/watermarks/) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/docs/current/watermarks/).
@@ -91,6 +87,86 @@ RisingWave provides native MySQL and PostgreSQL CDC connectors. With these CDC c
 If Kafka is part of your technical stack, you can also use the Kafka connector in RisingWave to ingest CDC data in the form of Kafka topics from databases into RisingWave. You need to use a CDC tool such as [Debezium connector for MySQL](https://debezium.io/documentation/reference/stable/connectors/mysql.html) or [Maxwell's daemon](https://maxwells-daemon.io/) to convert CDC data into Kafka topics.
 
 For complete step-to-step guides about ingesting MySQL and PostgreSQL data using both approaches, see [Ingest data from MySQL](/docs/current/ingest-from-mysql-cdc/) and [Ingest data from PostgreSQL](/docs/current/ingest-from-postgres-cdc/).
+
+## Shared source
+
+Shared source improves resource utilization and data consistency when working with Kafka sources in RisingWave. This will only affect Kafka sources created after the version updated and will not affect any existing Kafka sources.
+
+<Note>
+**PUBLIC PREVIEW**
+
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+</Note>
+
+### Configure
+
+Shared source is enabled by default. You can also set the session variable `streaming_use_shared_source` to control whether to enable it.
+
+```sql
+# change the config in the current session
+SET streaming_use_shared_source=[true|false];
+
+# change the default value of the session variable in the cluster
+# (the current session is not affected)
+ALTER SYSTEM SET streaming_use_shared_source=[true|false];
+```
+
+To completely disable it at the cluster level, go to [`risingwave.toml`](https://github.com/risingwavelabs/risingwave/blob/main/src/config/example.toml#L146) configuration file, and set the `stream_enable_shared_source` to `false`.
+
+### Compared with non-shared source
+
+With non-shared sources, when using the `CREATE SOURCE` statement: 
+- No streaming jobs would be instantiated. A source is just a set of metadata stored in the catalog. 
+- Only when a materialized view or sink references the source, a `SourceExecutor` will be created to start the process of data ingestion.
+
+This leads to increased resource usage and potential inconsistencies:
+- Each `SourceExecutor` consumed Kafka resources independently, adding pressure to both the Kafka broker and RisingWave.
+- Independent `SourceExecutor` instances could result in different consumption progress, causing temporary inconsistencies when joining materialized views.
+
+<Frame>
+  <img src="/images/non-shared-source.png"/>
+</Frame>
+
+With shared sources, when using the `CREATE SOURCE` statement:
+- It will instantiate a single `SourceExecutor` immediately. 
+- All materialized views referencing the same source share the `SourceExecutor`.
+- The downstream materialized views will only forwards data from the upstream sources, instead of consuming from Kafka independently.
+
+This improves resource utilization and consistency.
+
+<Frame>
+  <img src="/images/shared-source.png"/>
+</Frame>
+
+When creating a materialized view, RisingWave backfills historical data from Kafka. The process blocks the DDL statement until backfill completes. 
+
+- To configure this behavior, use the [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl) command. This is similar to the backfilling procedure when creating a materialized view on tables and materialized views.
+
+- To monitoring backfill progress, use the [SHOW JOBS](/sql/commands/sql-show-jobs) command or check `Kafka Consumer Lag Size` in the Grafana dashboard (under `Streaming`).
+
+
+<Note>If you set up a retention policy or if the external system can only be accessed once (like message queues), and the data is no longer available, any newly created materialized views won’t be able to backfill the complete historical data. This can lead to inconsistencies with earlier materialized views.</Note>
+
+
+### Compared with table
+
+A `CREATE TABLE` statement can provide similar benefits to shared sources, except that it needs to persist all consumed data.
+
+For table with connector, downstream materialized views backfill historical data from the table instead of external sources, which may be more efficient and cause less pressure to the external system. This also gives table stronger consistency guarantee, as historical data will be ensured to be present.
+
+Tables offer other features that enhance their utility in data ingestion workflows. See [Table with connectors](/ingestion/overview#table-with-connectors).
+
+<Frame>
+  <img src="/images/table-with-connectors.png"/>
+</Frame>
+
+<Note>
+**LIMITATION**
+
+Currently, shared source is only applicable to Kafka sources. Other sources are unaffected. We plan to gradually upgrade other sources to the be shared as well in the future.
+
+Shared sources do not support `ALTER SOURCE`. Use non-shared sources if you require this functionality.
+</Note>
 
 ## See also
 

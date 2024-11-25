@@ -28,14 +28,13 @@ ALTER MATERIALIZED VIEW materialized_view_name
 ```
 
 | Parameter or clause | Description                                                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| :------------------ | :----------------------------------------------------------------------------------------------------------------------------------- |
 | **OWNER TO**        | This clause changes the owner of the materialized view. Note that this will cascadingly change all related internal objects as well. |
 | _new\_user_         | The new owner you want to assign to the materialized view.                                                                           |
 
 ```
 -- Change the owner of the materialized view named "materialized_view1" to user "user1"
 ALTER MATERIALIZED VIEW materialized_view1 OWNER TO user1;
-
 ```
 
 ### `SET SCHEMA`
@@ -46,7 +45,7 @@ ALTER MATERIALIZED VIEW materialized_view_name
 ```
 
 | Parameter or clause | Description                                                          |
-| ------------------- | -------------------------------------------------------------------- |
+| :------------------ | :------------------------------------------------------------------- |
 | **SET SCHEMA**      | This clause moves the materialized view to a different schema.       |
 | _schema\_name_      | The name of the schema to which the materialized view will be moved. |
 
@@ -63,7 +62,7 @@ SET PARALLELISM = parallelism_number;
 ```
 
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                              |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET PARALLELISM**   | This clause controls the degree of [parallelism](/docs/current/key-concepts/#parallelism) for the targeted [streaming job](/docs/current/key-concepts/#streaming-jobs).                                                                                                                                                                  |
 | _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. |
 
@@ -80,7 +79,7 @@ ALTER MATERIALIZED VIEW materialized_view_name
 ```
 
 | Parameter or clause | Description                                            |
-| ------------------- | ------------------------------------------------------ |
+| :------------------ | :----------------------------------------------------- |
 | **RENAME TO**       | This clause changes the name of the materialized view. |
 | _new\_name_         | The new name of the materialized view.                 |
 
@@ -96,7 +95,8 @@ ALTER MATERIALIZED VIEW mv_name
     SET BACKFILL_RATE_LIMIT { TO | = } { default | rate_limit_number };
 ```
 
-Use this statement to modify the backfill rate limit of a materialized view being created. For the specific value of `BACKFILL_RATE_LIMIT`, refer to [How to view runtime parameters](/docs/current/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
+This statement controls the rate limit of a newly created materialized view's backfilling process from upstream materialized views and sources.
+For the specific value of `BACKFILL_RATE_LIMIT`, refer to [How to view runtime parameters](/operate/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
 
 ```sql Examples
 -- Pause the backfill
@@ -107,5 +107,8 @@ ALTER MATERIALIZED VIEW mv1 SET BACKFILL_RATE_LIMIT=1;
 
 -- Disable the backfill
 ALTER MATERIALIZED VIEW mv1 SET BACKFILL_RATE_LIMIT=DEFAULT;
-
 ```
+
+<Note>
+To modify the rate limit of the sources used in the materialized view, please refer to [SET SOURCE_RATE_LIMIT](/sql/commands/sql-alter-source#set-source-rate-limit).
+</Note>

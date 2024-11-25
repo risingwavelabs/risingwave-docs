@@ -22,7 +22,7 @@ ALTER SOURCE source_name
 ```
 
 | Parameter or clause | Description                                                                                                                                                                 |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **ADD COLUMN**      | This clause adds a column to the specified source.                                                                                                                          |
 | _col\_name_         | The name of the new column you want to add to the source.                                                                                                                   |
 | _data\_type_        | The data type of the newly added column. With the struct data type, you can create a nested table. Elements in a nested table need to be enclosed with angle brackets (\<>). |
@@ -33,13 +33,11 @@ ALTER SOURCE src1
     ADD COLUMN v3 int;
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 * To alter columns in a source created with a schema registry, see [FORMAT and ENCODE options](/docs/current/sql-alter-source/#format-and-encode-options).
 * You cannot add a primary key column to a source or table in RisingWave. To modify the primary key of a source or table, you need to recreate the table.
 * You cannot remove a column from a source in RisingWave. If you intend to remove a column from a source, you'll need to drop the source and create the source again.
-</Info>
+</Note>
 
 ### `RENAME TO`
 
@@ -49,7 +47,7 @@ ALTER SOURCE source_name
 ```
 
 | Parameter or clause | Description                                 |
-| ------------------- | ------------------------------------------- |
+| :------------------ | :------------------------------------------ |
 | **RENAME TO**       | This clause changes the name of the source. |
 | _new\_source\_name_ | The new name of the source.                 |
 
@@ -67,7 +65,7 @@ ALTER SOURCE current_source_name
 ```
 
 | Parameter or clause | Description                                     |
-| ------------------- | ----------------------------------------------- |
+| :------------------ | :---------------------------------------------- |
 | **OWNER TO**        | This clause changes the owner of the source.    |
 | _new\_user_         | The new owner you want to assign to the source. |
 
@@ -84,7 +82,7 @@ ALTER SOURCE current_source_name
 ```
 
 | Parameter or clause | Description                                               |
-| ------------------- | --------------------------------------------------------- |
+| :------------------ | :-------------------------------------------------------- |
 | **SET SCHEMA**      | This clause moves the source to a different schema.       |
 | _schema\_name_      | The name of the schema to which the source will be moved. |
 
@@ -127,13 +125,11 @@ ALTER SOURCE src_user FORMAT PLAIN ENCODE PROTOBUF(
 );
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 Currently, it is not supported to modify the `data_format` and `data_encode`. Furthermore, when refreshing the schema registry of a source, it is not allowed to drop columns or change types.
 
 Another way of refreshing the schema is using the [REFRESH SCHEMA clause](#refresh-schema).
-</Info>
+</Note>
 
 ### `REFRESH SCHEMA`
 
@@ -173,7 +169,15 @@ ALTER SOURCE source_name
     SET SOURCE_RATE_LIMIT { TO | = } { default | rate_limit_number };
 ```
 
-Use this statement to modify the rate limit of a source. For the specific value of `SOURCE_RATE_LIMIT`, refer to [How to view runtime parameters](/docs/current/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
+Use this statement to modify the rate limit of a source. For the specific value of `SOURCE_RATE_LIMIT`, refer to [How to view runtime parameters](/operate/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
+
+<Note>
+For a newly created materialized view on a source with historical data e.g. Kafka source, it will backfill from
+the source. The backfilling process will not be affected by the `SOURCE_RATE_LIMIT`
+of the source.
+
+To modify the rate limit of the backfilling process, please refer to [SET BACKFILL_RATE_LIMIT](/sql/commands/sql-alter-materialized-view#set-backfill-rate-limit).
+</Note>
 
 ```sql Example
 -- Alter the rate limit of a source to default

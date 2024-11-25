@@ -124,3 +124,49 @@ WITH (
 <Note>
 File sink currently supports only append-only mode, so please change the query to `append-only` and specify this explicitly after the `FORMAT ... ENCODE ...` statement.
 </Note>
+
+## Batching strategy for file sink
+
+RisingWave implements batching strategies for file sinks to optimize file management by preventing the generation of numerous small files. The batching strategy is available for Parquet, JSON, and CSV encode. 
+
+### Category
+
+- **Batching based on row numbers**:
+    RisingWave monitors the number of rows written and completes the file once the maximum row count threshold is reached.
+
+- **Batching based on rollover interval**:
+    RisingWave checks the threshold each time a chunk is about to be written and when a barrier is encountered.
+
+- If no batching strategy is specified, RisingWave defaults to writing a new file every 10 seconds.
+
+<Note>The condition for batching is relatively coarse-grained. The actual number of rows or exact timing of file completion may vary from the specified thresholds, as this function is intentionally flexible to prioritize efficient file management.</Note>
+
+### File organization
+
+You can use `path_partition_prefix` to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
+
+Regarding file naming rules, currently, files follow the naming pattern `/Option<path_partition_prefix>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
+   
+The output files look like below:
+
+```
+path/2024-09-20/47244640257_1727072046.parquet
+path/2024-09-20/47244640257_1727072055.parquet
+```
+
+### Example
+
+```sql
+CREATE SINK s1 
+FROM t
+WITH (
+    connector = 's3',
+    max_row_count = '100',
+    rollover_seconds = '10',
+    type = 'append-only',
+    path_partition_prefix = 'day'
+) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
+```
+
+In this example, if the number of rows in the file exceeds 100, or if writing has continued for more than 10 seconds, the writing of this file will be completed.
+Once completed, the file will be visible in the downstream sink system.
