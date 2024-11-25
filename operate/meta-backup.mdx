@@ -10,8 +10,6 @@ A meta snapshot is a backup of meta service's data at a specific point in time. 
 Before you can create a meta snapshot, you need to set the `backup_storage_url` and `backup_storage_directory` system parameters prior to the first backup attempt.
 
 <Warning>
-**CAUTION**
-
 Be careful not to set the `backup_storage_url` and `backup_storage_directory` when there are snapshots. However, it's not strictly forbidden. If you insist on doing so, please note the snapshots taken before the setting will all be invalidated and cannot be used in restoration anymore.
 </Warning>
 
@@ -63,11 +61,9 @@ Below are two separate methods to restore from a meta snapshot using SQL databas
 If the cluster has been using a SQL database as meta store backend, follow these steps to restore from a meta snapshot.
 
 1. Shut down the meta service.
-<Info>
-**NOTE**
-
+<Note>
 This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
-</Info>
+</Note>
 2. Create a new meta store, i.e. a new SQL database instance.
 Note that this new SQL database instance must have the exact same tables defined as the original, but all tables should remain empty. To achieve this, you can optionally use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model%5Fv2/migration) to create tables, then truncate those non-empty tables populated by the tool.
 3. Restore the meta snapshot to the new meta store.
@@ -106,11 +102,9 @@ Parameters to `risectl meta restore-meta` should be:
 If the cluster has been using etcd as meta store backend, follow these steps to restore from a meta snapshot.
 
 1. Shut down the meta service.
-<Info>
-**NOTE**
-
+<Note>
 This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
-</Info>
+</Note>
 2. Create a new meta store, i.e. a new and empty etcd instance.
 3. Restore the meta snapshot to the new meta store.
 
@@ -179,7 +173,5 @@ SET QUERY_EPOCH=0;
 ```
 
 <Note>
-**LIMITATION**
-
 RisingWave only supports historical data access at a specific point in time backed up by at least one meta snapshot.
 </Note>

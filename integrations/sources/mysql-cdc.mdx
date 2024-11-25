@@ -30,13 +30,13 @@ To use the MySQL CDC features, we need to create a MySQL user account with appro
 CREATE USER 'user'@'%' IDENTIFIED BY 'password';
 ```
 
-1. Grant the appropriate privileges to the user.
+2. Grant the appropriate privileges to the user.
 
 ```sql
 GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'user'@'%';
 ```
 
-1. Finalize the privileges.
+3. Finalize the privileges.
 
 ```sql
 FLUSH PRIVILEGES;
@@ -57,7 +57,7 @@ SHOW VARIABLES LIKE 'log_bin';
 +---------------+-------+
 ```
 
-1. If it is `OFF`, configure your MySQL server configuration file, my.cnf, with the following properties described below. Restart your MySQL server to let the configurations take effect.
+2. If it is `OFF`, configure your MySQL server configuration file, my.cnf, with the following properties described below. Restart your MySQL server to let the configurations take effect.
 
 ```sql
 server-id         = 223344
@@ -67,7 +67,7 @@ binlog_row_image  = FULL
 expire_logs_days  = 10
 ```
 
-1. Confirm your changes by checking the `log-bin` again.
+3. Confirm your changes by checking the `log-bin` again.
 
 ```sql
 SHOW VARIABLES LIKE 'log_bin';
@@ -86,7 +86,7 @@ The configuration process is different for AWS RDS MySQL or Aurora (MySQL-Compat
 1. Turn on binary logging and choose a non-zero value for the **Retention period**.![Set retention period to a nonzero value](/images/ret-period.png)
 2. Create a parameter group for MySQL instances. We created a parameter group named MySQL-CDC for the instance that runs MySQL 5.7.x.![Create a parameter group](/images/parameter-group.png)
 3. Click the MySQL-CDC parameter group to edit the values of **binlog\_format** to **ROW** and **binlog\_row\_image** to **full**.![Set binlog_format to row](/images/binlog-format.png) ![Set binlog_row_image to full](/images/binlog-row.png)
-4. Modify your RDS instance and apply the modified parameter group to your database.![Select modify](/images/modify-RDS.png) ![Apply changes to database](/images/apply-to-databas.png)
+4. Modify your RDS instance and apply the modified parameter group to your database.![Select modify](/images/modify-RDS.png) ![Apply changes to database](/images/apply-to-database.png)
 5. Click **Continue** and choose **Apply immediately**. Finally, click **Modify DB instance** to save the changes. Remember to reboot your MySQL instance.![Save changes made to MySQL RDS instance](/images/save-changes.png)
 6. Ensure your MySQL users can access the tables and replications.
 
@@ -131,8 +131,8 @@ FROM source TABLE table_name;
 
 All the fields listed below are required. Note that the value of these parameters should be enclosed in single quotation marks.
 
-| Field         | Notes                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Field         | Notes  |
+| :------------ | :------------ |
 | hostname      | Hostname of the database.                                                                                                                                                                                                                                                                                                                                                            |
 | port          | Port number of the database.                                                                                                                                                                                                                                                                                                                                                         |
 | username      | Username of the database.                                                                                                                                                                                                                                                                                                                                                            |
@@ -140,13 +140,14 @@ All the fields listed below are required. Note that the value of these parameter
 | database.name | Name of the database. Note that RisingWave cannot read data from a built-in MySQL database, such as mysql, sys, etc.                                                                                                                                                                                                                                                                 |
 | table.name    | Name of the table that you want to ingest data from.                                                                                                                                                                                                                                                                                                                                 |
 | server.id     | Required if creating a shared source. A numeric ID of the database client. It must be unique across all database processes that are running in the MySQL cluster. If not specified, RisingWave will generate a random ID.                                                                                                                                                            |
-| ssl.mode      | Optional. The ssl.mode parameter determines the level of SSL/TLS encryption for secure communication with MySQL. It accepts three values: disabled, preferred, and required. The default value is disabled. When set to required, it enforces TLS for establishing a connection.                                                                                                     |
+|auto.schema.change| Optional. Specify whether you want to enable replicating MySQL table schema change. Set `auto.schema.change = 'true'` to enable it.|
+| ssl.mode      | Optional. The ssl.mode parameter determines the level of SSL/TLS encryption for secure communication with MySQL. Accepted values are disabled, preferred, and required. The default value is disabled. When set to required, it enforces TLS for establishing a connection.                                                                                                     |
 | transactional | Optional. Specify whether you want to enable transactions for the CDC table that you are about to create. By default, the value is 'true' for shared sources, and 'false' otherwise. This feature is also supported for shared CDC sources for multi-table transactions. For performance considerations, transactions involving changes to more than 4096 rows cannot be guaranteed. |
 
 The following fields are used when creating a CDC table.
 
-| Field                | Notes                                                                                                                                                                                                                    |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Field         | Notes  |
+| :------------ | :------------ |
 | snapshot             | Optional. If false, CDC backfill will be disabled and only upstream events that have occurred after the creation of the table will be consumed. This option can only be applied for tables created from a shared source. |
 | snapshot.interval    | Optional. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
 | snapshot.batch\_size | Optional. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
@@ -171,7 +172,7 @@ SELECT * FROM t2 ORDER BY v1;
 
 You can see the [INCLUDE clause](/docs/current/include-clause/) for more details.
 
-#### Debezium parameters
+### Debezium parameters
 
 [Debezium v2.6 connector configuration properties](https://debezium.io/documentation/reference/2.6/connectors/mysql.html#mysql-advanced-connector-configuration-properties) can also be specified under the `WITH` clause when creating a table or shared source. Add the prefix `debezium.` to the connector property you want to include.
 
@@ -199,7 +200,7 @@ Data is in Debezium JSON format. [Debezium](https://debezium.io) is a log-based 
 Below are the metadata columns available for MySQL CDC.
 
 | Field          | Notes                 |
-| -------------- | --------------------- |
+| :------------- | :-------------------- |
 | database\_name | Name of the database. |
 | schema\_name   | Name of the schema.   |
 | table\_name    | Name of the table.    |
@@ -278,8 +279,8 @@ The following table shows the corresponding data type in RisingWave that should 
 
 RisingWave data types marked with an asterisk indicate that while there is no corresponding RisingWave data type, the ingested data can still be consumed as the listed type.
 
-| MySQL type                                                                                                   | RisingWave type            |
-| ------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| MySQL type     | RisingWave type            |
+| :---- | :------------------------- |
 | BOOLEAN, BOOL                                                                                                | BOOLEAN                    |
 | BIT(1)                                                                                                       | BOOLEAN\*                  |
 | BIT(>1)                                                                                                      | No support                 |
@@ -314,12 +315,12 @@ RisingWave data types marked with an asterisk indicate that while there is no co
 | DATETIME\[(fsp)\]  Optional fractional seconds precision (fsp: 0-6). If omitted, the default precision is 0. | TIMESTAMP                  |
 | NUMERIC\[(M\[,D\])\]                                                                                         | NUMERIC                    |
 | DECIMAL\[(M\[,D\])\]                                                                                         | NUMERIC                    |
-| GEOMETRY, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, GEOMETRYCOLLECTION                 | STRUCT                     |
+| GEOMETRY, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, GEOMETRYCOLLECTION                 | Not supported                     |
 
 Please be aware that the range of specific values varies among MySQL types and RisingWave types. Refer to the table below for detailed information.
 
-| MySQL type | RisingWave type | MySQL range                                              | RisingWave range                           |
-| ---------- | --------------- | -------------------------------------------------------- | ------------------------------------------ |
+| MySQL type | RisingWave type | MySQL range       | RisingWave range        |
+| :--------- | :-------------- | :---------------- | :---------------------- |
 | TIME       | TIME            | \-838:59:59.000000 to 838:59:59.000000                   | 00:00:00 to 23:59:59                       |
 | DATE       | DATE            | 1000-01-01 to 9999-12-31                                 | 0001-01-01 to 9999-12-31                   |
 | DATETIME   | TIMESTAMP       | 1000-01-01 00:00:00.000000 to 9999-12-31 23:59:59.49999  | 1973-03-03 09:46:40 to 5138-11-16 09:46:40 |
@@ -362,14 +363,13 @@ CREATE TABLE {{ this }}  (
 **PREMIUM EDITION FEATURE**
 
 This feature is only available in the premium edition of RisingWave. The premium edition offers additional advanced features and capabilities beyond the free and community editions. If you have any questions about upgrading to the premium edition, please contact our sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
 </Tip>
-<Info>
+<Note>
 PUBLIC PREVIEW
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](../../changelog/product-lifecycle#features-in-the-public-preview-stage).
 
-</Info>
+</Note>
 RisingWave supports automatically mapping the upstream table schema when creating a CDC table from a MySQL CDC source. Instead of defining columns individually, you can use `*` when creating a table to ingest all columns from the source table. Note that `*` cannot be used if other columns are specified in the table creation process.
 
 Below is an example to create a table that ingests all columns from the upstream table from the MySQL database:
@@ -403,12 +403,11 @@ And this it the output of `DESCRIBE supplier;`
 **PREMIUM EDITION FEATURE**
 
 This feature is only available in the premium edition of RisingWave. The premium edition offers additional advanced features and capabilities beyond the free and community editions. If you have any questions about upgrading to the premium edition, please contact our sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
 </Tip>
 <Note>
 **PUBLIC PREVIEW**
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](../../changelog/product-lifecycle#features-in-the-public-preview-stage).
 
 </Note>
 RisingWave supports auto schema changes in MySQL CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.

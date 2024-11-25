@@ -36,7 +36,7 @@ FORMAT data_format ENCODE data_encode [ (
 ## Parameters
 
 | Field                               | Note                                                                                                                                                             |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :---------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | table                               | Required. Name of the DynamoDB table where you want to write the data.                                                                                           |
 | primary\_key                        | Required. A pair of columns representing the partition key and sort key of DynamoDB, e.g., key1,key2, separated by comma.                                        |
 | aws.region                          | Required. AWS region where your DynamoDB table is hosted.                                                                                                        |
@@ -46,7 +46,8 @@ FORMAT data_format ENCODE data_encode [ (
 | aws.credentials.role.arn            | Conditional. ARN of the IAM role to assume for accessing DynamoDB. Must be specified when using AssumeRole.                                                      |
 | aws.credentials.role.external\_id   | Conditional. External ID for assuming the IAM role specified in aws.credentials.role.arn.                                                                        |
 | aws.profile                         | Optional. The name of the AWS CLI profile to use for accessing DynamoDB. If specified, it overrides the default profile.                                         |
-| dynamodb.max\_batch\_rows           | Optional. Maximum number of rows to write in a single batch operation to DynamoDB. This helps optimize throughput and manage rate limits. Default value is 1024. |
+| dynamodb.max\_batch\_item\_nums  | Optional. The maximum number of items in the [`BatchWriteItem`](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html) operation. It must be larger than 1, and less than or equal to 25. The default is 25.                           |
+| dynamodb.max\_future\_send\_nums   | Optional. The maximum number of concurrent write futures in DynamoDB. It must be less than 360, and the default is 256. This is derived from user-defined `max_parallelism_units` (40000 by default). If the write throughput of RisingWave exceeds the `max_parallelism_units` set in DynamoDB, an error would be reported.                              |
 
 ## Partition key and sort key mapping
 
@@ -68,7 +69,7 @@ This makes sure that the data structure in RisingWave aligns with the key defini
 ## Data type mapping
 
 | RisingWave Data Type        | DynamoDB Data Type |
-| --------------------------- | ------------------ |
+| :-------------------------- | :----------------- |
 | boolean                     | Bool               |
 | smallint                    | number (N)         |
 | integer                     | number (N)         |
@@ -88,8 +89,6 @@ This makes sure that the data structure in RisingWave aligns with the key defini
 | array                       | list (L)           |
 | JSONB                       | string (S)         |
 
-<Info>
-**NOTE**
-
+<Note>
 The `struct` datatype in RisingWave will map to `map (M)` in DynamoDB in a recursive way. Refer to [source code](https://github.com/risingwavelabs/risingwave/blob/88bb14aa6eb481f1dc0e92ee190bafad089d2afd/src/connector/src/sink/dynamodb.rs#L386) for details.
-</Info>
+</Note>

@@ -36,13 +36,13 @@ The `INCLUDE` clause can be used with the following source connectors.
 
 When ingesting data from Kafka, the following additional fields can be included.
 
-| Allowed Components | Default Type                             | Note                                           |
-| ------------------ | ---------------------------------------- | ---------------------------------------------- |
-| key                | bytea                                    | Can be overwritten by ENCODE and KEY ENCODE.   |
-| timestamp          | timestamp with time zone (i64 in millis) | Refer to CreateTime rather than LogAppendTime. |
-| partition          | varchar                                  | The partition the message is from.             |
-| offset             | varchar                                  | The offset in the partition.                   |
-| headers            | struct\<varchar, bytea>\[\]               | Key-value pairs along with the message.        |
+| Allowed components | Default type                             | Note                                           |
+| :----------------- | :--------------------------------------- | :--------------------------------------------- |
+| key                | `bytea`                                    | Can be overwritten by `ENCODE` and `KEY ENCODE`.   |
+| timestamp          | `timestamp with time zone` (i64 in millis) | Refer to `CreateTime` rather than `LogAppendTime`. |
+| partition          | `varchar`                                  | The partition the message is from.             |
+| offset             | `varchar`                                  | The offset in the partition.                   |
+| headers            | `struct<varchar, bytea>[]`               | Key-value pairs along with the message.        |
 
 In the case of headers, there are two ways to define it.
 
@@ -62,9 +62,9 @@ INCLUDE header 'header_col' [AS kafka_header]
 
 When ingesting data from Kinesis, here are some things to note when including the following fields.
 
-| Allowed Components | Default Type             | Note                                                                                                                                                                             |
-| ------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| key                | bytea                    | Can be overwritten by encode and key encode.                                                                                                                                     |
+| Allowed components | Default type      | Note            |
+| :----------------- | :---------------- | :-------------- |
+| key                | bytea             | Can be overwritten by encode and key encode.               |
 | timestamp          | timestamp with time zone | See the approximate\_arrival\_timestamp field at [Struct aws\_sdk\_kinesis::types::Record](https://docs.rs/aws-sdk-kinesis/latest/aws%5Fsdk%5Fkinesis/types/struct.Record.html). |
 | partition          | varchar                  | The partition the message is from.                                                                                                                                               |
 | offset             | varchar                  | The offset in the partition, which corresponds to Kinesis sequence numbers.                                                                                                      |
@@ -75,8 +75,8 @@ For more components, see [Struct aws\_sdk\_kinesis::types::Record](https://docs.
 
 When ingesting data from Pulsar, here are some things to note when including the following fields.
 
-| Allowed Components | Default Type | Note                                         |
-| ------------------ | ------------ | -------------------------------------------- |
+| Allowed components | Default type | Note                                         |
+| :----------------- | :----------- | :------------------------------------------- |
 | key                | bytea        | Can be overwritten by ENCODE and KEY ENCODE. |
 | partition          | varchar      | The partition the message is from.           |
 | offset             | varchar      | The offset in the partition.                 |
@@ -87,10 +87,18 @@ For more components, see [Struct pulsar::message::proto::MessageMetadata](https:
 
 When ingesting data from AWS S3 or GCS, the following additional fields can be included.
 
-| Allowed Components | Default Type | Note                         |
-| ------------------ | ------------ | ---------------------------- |
+| Allowed components | Default type | Note                         |
+| :----------------- | :----------- | :--------------------------- |
 | file               | varchar      | The file the record is from. |
 | offset             | varchar      | The offset in the file.      |
+
+### MQTT
+
+When ingesting data from MQTT, the following additional fields can be included.
+
+| Allowed components | Default type | Note                              |
+| :------------------| :------------| :---------------------------------|
+| partition          | varchar      | The topic the record is from.     |
 
 ## Examples
 

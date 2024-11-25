@@ -22,19 +22,19 @@ WITH (
 
 ## Parameters
 
-| **Parameter Name**               | **Description**                                                                                                                                                                                                                                                                                                   |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parameter Name               | Description                                                                                                    |
+| :------------------------------- | :----------- |
 | mongodb.url                      | The URL of MongoDB.                                                                                                                                                                                                                                                                                               |
-| type                             | Defines the type of the sink. Options include append-only or upsert.                                                                                                                                                                                                                                              |
-| collection.name                  | The collection name where data should be written to or read from. For sinks, the format is db\_name.collection\_name. Data can also be written to dynamic collections; see collection.name.field below for more information.                                                                                      |
-| collection.name.field            | Optional. The dynamic collection name where data should be sunk to. If specified, the field value will be used as the collection name. The collection name format is the same as collection.name. If the field value is null or an empty string, then the collection.name will be used as a fallback destination. |
-| collection.name.field.drop       | Optional. Controls whether the field value of collection.name.field should be dropped when sinking. Set this option to true to avoid the duplicate values of collection.name.field being written to the result collection.                                                                                        |
-| mongodb.bulk\_write.max\_entries | Optional. The maximum entries that will accumulate before performing the bulk write. Defaults to 1024\. Default value is 1024.                                                                                                                                                                                    |
+| type                             | Defines the type of the sink. Options include `append-only` or `upsert`.      |
+| collection.name                  | The collection name where data should be written to or read from. For sinks, the format is `db_name.collection_name`. Data can also be written to dynamic collections, see `collection.name.field` below for more information.                                                                                      |
+| collection.name.field            | Optional. The dynamic collection name where data should be sunk to. <ul><li>If specified, the field value will be used as the collection name. The collection name format is the same as `collection.name`.</li><li>If the field value is null or an empty string, then the `collection.name` will be used as a fallback destination.</li></ul> |
+| collection.name.field.drop       | Optional. Controls whether the field value of `collection.name.field` should be dropped when sinking. Set this option to `true` to avoid the duplicate values of `collection.name.field` being written to the result collection.                                                                                        |
+
 
 ## Data type mapping
 
-| **MongoDB Type** | **RisingWave Type**         |
-| ---------------- | --------------------------- |
+| MongoDB Type | RisingWave Type         |
+| :--------------- | :-------------------------- |
 | Boolean          | BOOLEAN                     |
 | 32-bit integer   | SMALLINT                    |
 | 32-bit integer   | INTEGER                     |
@@ -92,14 +92,14 @@ WITH (
 Assuming the schema of `t2` is:
 
 | name  | type | pk |
-| ----- | ---- | -- |
+| :---- | :--- | :- |
 | id    | int  | ✔  |
 | value | text |    |
 
 Given the record:
 
 | id | value               |
-| -- | ------------------- |
+| :- | :------------------ |
 | 1  | 'example of record' |
 
 The record written to MongoDB will be:
@@ -108,11 +108,9 @@ The record written to MongoDB will be:
 { "_id": 1, "id": 1, "value": "example of record" }
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 No redundant `id` field will exist if the primary key of `t2` is `_id`.
-</Info>
+</Note>
 
 ```sql compound key
 CREATE TABLE t3(

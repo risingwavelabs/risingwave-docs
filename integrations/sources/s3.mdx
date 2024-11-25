@@ -11,7 +11,7 @@ The S3 connector does not guarantee the sequential reading of files or complete 
 ```sql
 CREATE SOURCE [ IF NOT EXISTS ] source_name
 schema_definition
-[INCLUDE { file | offset } [AS <column_name>]]
+[INCLUDE { file | offset | payload } [AS <column_name>]]
 WITH (
    connector='s3',
    connector_parameter='value', ...
@@ -23,7 +23,7 @@ FORMAT data_format ENCODE data_encode (
 ```
 
 <Note>
-**INFO**
+
 
 For CSV data, specify the delimiter in the `delimiter` option in `ENCODE properties`.
 </Note>
@@ -40,32 +40,33 @@ For CSV data, specify the delimiter in the `delimiter` option in `ENCODE propert
 ## Parameters
 
 | Field                 | Notes                                                                                                                                                                                                                                                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | connector             | Required. Support the s3 connector only.                                                                                                                                                                                                                                                                                                  |
 | s3.region\_name       | Required. The service region.                                                                                                                                                                                                                                                                                                             |
 | s3.bucket\_name       | Required. The name of the bucket the data source is stored in.                                                                                                                                                                                                                                                                            |
 | s3.credentials.access | Required. This field indicates the access key ID of AWS.                                                                                                                                                                                                                                                                                  |
 | s3.credentials.secret | Required. This field indicates the secret access key of AWS.                                                                                                                                                                                                                                                                              |
 | s3.endpoint\_url      | Conditional. The host URL for an S3-compatible object storage server. This allows users to use a different server instead of the standard S3 server.                                                                                                                                                                                      |
-| compression\_format   | Optional. This field specifies the compression format of the file being read. You can define compression\_format in the CREATE TABLE statement. When set to gzip or gz, the file reader reads all files with the .gz suffix. When set to None or not defined, the file reader will automatically read and decompress .gz and .gzip files. |
-| match\_pattern        | Conditional. This field is used to find object keys in s3.bucket\_name that match the given pattern. Standard Unix-style [glob](https://en.wikipedia.org/wiki/Glob%5F%28programming%29) syntax is supported.                                                                                                                              |
+| compression\_format   | Optional. This field specifies the compression format of the file being read. You can define `compression_format` in the CREATE TABLE statement. When set to gzip or gz, the file reader reads all files with the `.gz` suffix. When set to `None` or not defined, the file reader will automatically read and decompress `.gz` and `.gzip` files. |
+| match\_pattern        | Conditional. This field is used to find object keys in `s3.bucket_name` that match the given pattern. Standard Unix-style [glob](https://en.wikipedia.org/wiki/Glob%5F%28programming%29) syntax is supported.                                                                                                                              |
 | s3.assume\_role       | Optional. Specifies the ARN of an IAM role to assume when accessing S3\. It allows temporary, secure access to S3 resources without sharing long-term credentials.                                                                                                                                                                        |
+| refresh.interval.sec       | Optional. Configure the time interval between operations of listing files. It determines the delay in discovering new files, with a default value of 60 seconds.                                                                                                                                                                        |
 
 note
 
 Empty cells in CSV files will be parsed to `NULL`.
 
 | Field             | Notes                                                                                                                                    |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
 | _data\_format_    | Supported data format: PLAIN.                                                                                                            |
 | _data\_encode_    | Supported data encodes: CSV, JSON, PARQUET.                                                                                              |
-| _without\_header_ | This field is only for CSV encode, and it indicates whether the first line is header. Accepted values: 'true', 'false'. Default: 'true'. |
-| _delimiter_       | How RisingWave splits contents. For JSON encode, the delimiter is \\n; for CSV encode, the delimiter can be one of ,, ;, E'\\t'.         |
+| _without\_header_ | This field is only for CSV encode, and it indicates whether the first line is header. Accepted values: `true`, `false`. Default is `true`. |
+| _delimiter_       | How RisingWave splits contents. For JSON encode, the delimiter is `\n`; for CSV encode, the delimiter can be one of `,`, `;`, `E'\t'`.         |
 
 ### Additional columns
 
 | Field    | Notes                                                                                                                       |
-| -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| :------- | :-------------------------------------------------------------------------------------------------------------------------- |
 | _file_   | Optional. The column contains the file name where current record comes from.                                                |
 | _offset_ | Optional. The column contains the corresponding bytes offset (record offset for parquet files) where current message begins |
 
@@ -114,6 +115,20 @@ WITH (
 ) FORMAT PLAIN ENCODE JSON;
 
 ```
+
+Use the `payload` keyword to ingest JSON data when you are unsure of the exact schema beforehand. Instead of defining specific column names and types at the very beginning, you can load all JSON data first and then prune and filter the data during runtime. Check the example below:
+
+```sql
+CREATE TABLE table_include_payload (v1 int, v2 varchar)
+INCLUDE payload
+WITH (
+    connector = 's3',
+    topic = 's3_1_partition_topic',
+    properties.bootstrap.server = 'message_queue:29092',
+    scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
   </Tab>
    <Tab title="PARQUET">
 ```sql
@@ -179,12 +194,10 @@ Function signature
 file_scan(file_format, storage_type, s3_region, s3_access_key, s3_secret_key, file_location_or_directory)
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 When reading a directory of Parquet files, the schema will be based on the first Parquet file listed. Please ensure that all Parquet files in the directory have the same schema.
 
-</Info>
+</Note>
 For example, assume you have a Parquet file named `sales_data.parquet` that stores a company's sales data, containing the following fields:
 
 * `product_id`: Product ID

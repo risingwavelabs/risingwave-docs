@@ -11,7 +11,7 @@ sidebarTitle: NATS JetStream
 <Note>
 **PUBLIC PREVIEW**
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](../../changelog/product-lifecycle#features-in-the-public-preview-stage).
 </Note>
 
 ## Prerequisites
@@ -36,18 +36,18 @@ WITH (
    connector='nats',
    server_url='<your nats server>:<port>', [ <another_server_url_if_available>, ...]
    subject='<subject>[,<another_subject...]',
-   stream='stream_name',
+   stream='<stream_name>',
 
 -- optional parameters
-   connect_mode=<connect_mode>
+   connect_mode='<connect_mode>',
    username='<your user name>',
-   password='<your password>'
+   password='<your password>',
    jwt=`<your jwt>`,
    nkey=`<your nkey>`, ...
 
 -- delivery parameters
-   scan.startup.mode=`startup_mode`
-   scan.startup.timestamp.millis='xxxxx',
+   scan.startup.mode=`<startup_mode>`,
+   scan.startup.timestamp.millis='xxxxx'
 )
 FORMAT PLAIN ENCODE data_encode;
 ```
@@ -61,16 +61,12 @@ FORMAT PLAIN ENCODE data_encode;
 )
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 RisingWave performs primary key constraint checks on tables with connector settings but not on regular sources. If you need the checks to be performed, please create a table with connector settings.
 
 For a table with primary key constraints, if a new data record with an existing key comes in, the new record will overwrite the existing record.
 
-</Info>
-<Note>
-**NOTE**
+</Note>
 
 According to the [NATS documentation](https://docs.nats.io/running-a-nats-service/nats%5Fadmin/jetstream%5Fadmin/naming), stream names must adhere to subject naming rules as well as being friendly to the file system. Here are the recommended guidelines for stream names:
 
@@ -80,22 +76,22 @@ According to the [NATS documentation](https://docs.nats.io/running-a-nats-servic
 * Keep the name length limited to 32 characters as the JetStream storage directories include the account, stream name, and consumer name.
 * Avoid using reserved file names like `NUL` or `LPT1`.
 * Be cautious of case sensitivity in file systems. To prevent collisions, ensure that stream or account names do not clash due to case differences. For example, `Foo` and `foo` would collide on Windows or macOS systems.
-</Note>
+
 
 ### Parameters
 | Field                            | Notes                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | server\_url                      | Required. URLs of the NATS JetStream server, in the format of _address_:_port_. If multiple addresses are specified, use commas to separate them.                                                                                                                                                                                                                          |
 | subject                          | Required. NATS subject that you want to ingest data from. To specify more than one subjects, use a comma.                                                                                                                                                                                                                                                                  |
 | stream                           | Required. NATS stream that you want to ingest data from.                                                                                                                                                                                                                                                                                                                   |
 | connect\_mode                    | Required. Authentication mode for the connection. Allowed values: plain: No authentication. user\_and\_password: Use user name and password for authentication. For this option, username and password must be specified. credential: Use JSON Web Token (JWT) and NKeys for authentication. For this option, jwt and nkey must be specified.                              |
 | jwt and nkey                     | JWT and NKEY for authentication. For details, see [JWT](https://docs.nats.io/running-a-nats-service/configuration/securing%5Fnats/auth%5Fintro/jwt) and [NKeys](https://docs.nats.io/running-a-nats-service/configuration/securing%5Fnats/auth%5Fintro/nkey%5Fauth).                                                                                                       |
 | username and password            | Conditional. The client user name and password. Required when connect\_mode is user\_and\_password.                                                                                                                                                                                                                                                                        |
-| scan.startup.mode                | Optional. The offset mode that RisingWave will use to consume data. The supported modes are: earliest: Consume data from the earliest offset.latest: Consume data from the latest offset.timestamp\_millis: Consume data from a particular UNIX timestamp, which is specified via scan.startup.timestamp.millis.If not specified, the default value earliest will be used. |
-| scan.startup.timestamp.millis    | Conditional. Required when scan.startup.mode is timestamp\_millis. RisingWave will start to consume data from                                                                                                                                                                                                                                                              |
+| scan.startup.mode                | Optional. The offset mode that RisingWave will use to consume data. The supported modes are: <ul><li>`earliest`: Consume from the earliest available message, corresponding to [deliver policy](https://docs.nats.io/nats-concepts/jetstream/consumers#deliverpolicy) `DeliverAll`.</li><li>`latest`: Consume from the next message, corresponding to `DeliverNew` policy.</li><li>`timestamp`: Consume from a particular UNIX timestamp specified via `scan.startup.timestamp.millis`, corresponding to `DeliverByStartTime` policy.</li></ul>If not specified, the default value `earliest` will be used. |
+| scan.startup.timestamp.millis    | Conditional. Required when scan.startup.mode is timestamp. RisingWave will start to consume data from the specified UNIX timestamp.                                                                                                                                                                                                                                                              |
 | data\_encode                     | Supported encodes: JSON, PROTOBUF, BYTES.                                                                                                                                                                                                                                                                                                                                  |
 | consumer.deliver\_subject        | Optional. Subject to deliver messages to.                                                                                                                                                                                                                                                                                                                                  |
-| consumer.durable\_name           | Optional. Durable name for the consumer.                                                                                                                                                                                                                                                                                                                                   |
+| consumer.durable\_name           | Required. Durable name for the consumer.                                                                                                                                                                                                                                                                                                                                   |
 | consumer.name                    | Optional. Name of the consumer.                                                                                                                                                                                                                                                                                                                                            |
 | consumer.description             | Optional. Description of the consumer.                                                                                                                                                                                                                                                                                                                                     |
 | consumer.deliver\_policy         | Optional. Policy on how messages are delivered.                                                                                                                                                                                                                                                                                                                            |

@@ -24,7 +24,7 @@ WITH (
 ## Parameters
 
 | Parameter Names       | Description                                                                                                                                                                                                                                                          |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | type                  | Required. Specify if the sink should be upsert or append-only. If creating an upsert sink, the table you are sinking to needs to have a UNIQUE KEY.                                                                                                                  |
 | doris.url             | Required. The connection port for the frontend of Doris. This is not the MySQL connection port.                                                                                                                                                                      |
 | doris.username        | Required. The user name of the Doris user.                                                                                                                                                                                                                           |
@@ -33,7 +33,7 @@ WITH (
 | doris.table           | Required. The Doris table you want to sink data to.                                                                                                                                                                                                                  |
 | doris.partial\_column | Optional. Defaults to false. If true, you can perform partial updates on the columns of a table, see the [Partial update](https://doris.apache.org/docs/2.0/data-operate/update/update-of-unique-model/#partial-update) in the Doris documentation for more details. |
 | force\_append\_only   | Optional. If true, forces the sink to be append-only, even if it cannot be.                                                                                                                                                                                          |
-| primary\_key          | Optional. The primary keys of the sink. Use ',' to delimit the primary key columns.                                                                                                                                                                                  |
+| primary\_key          | Optional. The primary keys of the sink. Use `,` to delimit the primary key columns.                                                                                                                                                                                  |
 
 ## Examples
 
@@ -80,7 +80,7 @@ The following table shows the corresponding data types between RisingWave and Do
 In regards to `decimal` types, RisingWave will round to the nearest decimal place to ensure that its precision matches that of Doris. Ensure that the length of decimal types being imported into Doris does not exceed Doris's decimal length. Otherwise, it will fail to import.
 
 | Doris type      | RisingWave type             |
-| --------------- | --------------------------- |
+| :-------------- | :-------------------------- |
 | BOOLEAN         | BOOLEAN                     |
 | SMALLINT        | SMALLINT                    |
 | INT             | INTEGER                     |
@@ -100,9 +100,4 @@ In regards to `decimal` types, RisingWave will round to the nearest decimal plac
 | JSONB           | JSONB                       |
 | BIGINT          | SERIAL                      |
 
-<Info>
-**NOTE**
-
-Before v1.9, when inserting data into an Apache Doris sink, an error would be reported if the values were "nan (not a number)", "inf (infinity)", or "-inf (-infinity)". Since v1.9, we have made a change to the behavior. If a decimal value is out of bounds or represents "inf", "-inf", or "nan", we will insert null values.
-
-</Info>
+If a decimal value is out of bounds or represents `inf`, `-inf`, or `nan`, RisingWave will insert null values.

@@ -22,7 +22,7 @@ aggregate_name ( [ expression [ , ... ] ] ) WITHIN GROUP ( order_by_clause ) [ F
 
 The `DISTINCT` keyword, which is only available in the second form, cannot be used together with an `ORDER BY` or `WITHIN GROUP` clause. Additionally, it's important to note that the `order_by_clause` is positioned differently in the first and fourth forms.
 
-In batch mode, `aggregate_name` can also be in the following form:
+`aggregate_name` can also be in the following form:
 
 ```sql
 AGGREGATE:function_name
@@ -49,11 +49,9 @@ window_function_name ( [expression [, expression ... ]] ) OVER
 [frame_clause])
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 Currently, the `PARTITION BY` clause is required. If you do not want to partition the rows into smaller sets, you can work around by specifying `PARTITION BY 1::int`.
-</Info>
+</Note>
 
 For ranking window functions like `row_number`, `rank` and `dense_rank`, `ORDER BY` clause is required.
 
@@ -85,11 +83,9 @@ The requirements of `offset` vary in different frames. In `ROWS` frame, the `off
 
 For `SESSION` frame, the requirements of `gap` are very similar to those of `offset` for `RANGE` frame. The `ORDER BY` clause should specify exactly one column and the `gap` expression should be a positive constant of a data type that is determined by the data type of the ordering column.
 
-<Info>
-**NOTE**
-
+<Note>
 Currently, `SESSION` frame is only supported in batch mode and Emit-On-Window-Close streaming mode.
-</Info>
+</Note>
 
 `frame_exclusion` can be either of these:
 
@@ -98,11 +94,9 @@ EXCLUDE CURRENT ROW
 EXCLUDE NO OTHERS
 ```
 
-<Info>
-**NOTE**
-
+<Note>
 In RisingWave, `frame_clause` is optional. Depending on whether the `ORDER BY` clause is present, the default value is different. When the `ORDER BY` clause is present, the default value is `ROWS UNBOUNDED PRECEDING AND CURRENT ROW`. When the `ORDER BY` clause is not present, the default value is `ROWS UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`. This is different from the behavior in PostgreSQL. We may align the default frame with PostgreSQL in the future.
-</Info>
+</Note>
 
 ## Type casts
 
@@ -114,9 +108,9 @@ expression::type
 ```
 
 | Parameter    | Description                                                                                                                       |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| :----------- | :-------------------------------------------------------------------------------------------------------------------------------- |
 | _expression_ | The expression of which the data type to be converted.                                                                            |
-| _type_       | The data type of the returned value.For the types you can cast the value to, see \[Casting\](/sql/data-types/data-type-casting.md |
+| _type_       | The data type of the returned value. For the types you can cast the value to, see [Casting](/sql/data-types/casting). |
 
 ## Row constructors
 

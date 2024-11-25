@@ -1,14 +1,14 @@
 ---
 title: "Sink data from RisingWave to MySQL with the JDBC connector"
 sidebarTitle: MySQL
-description: This guide will introduce how to sink data from RisingWave to JDBC-available databases using the JDBC sink connector. MySQL is a commonly used RDS with a JDBC driver and it is available as a cloud database through AWS for easy setup and maintenance. We will show you how to configure MySQL and RisingWave to create a MySQL sink. The configurations for RisingWave when connecting to any JDBC-available database will be the same.
+description: This guide will introduce how to sink data from RisingWave to JDBC-available databases using the JDBC sink connector.
 ---
 
-<Info>
-**NOTE**
+MySQL is a commonly used RDS with a JDBC driver and it is available as a cloud database through AWS for easy setup and maintenance. We will show you how to configure MySQL and RisingWave to create a MySQL sink. The configurations for RisingWave when connecting to any JDBC-available database will be the same.
 
+<Note>
 The supported MySQL versions are 5.7 and 8.0.x
-</Info>
+</Note>
 
 ## Set up a MySQL database
 <Tabs>
@@ -118,15 +118,15 @@ WITH (
 All `WITH` options are required.
 
 | Parameter or clause | Description                                                                                                                                                                                                      |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :------------------ | :------------- |
 | sink\_name          | Name of the sink to be created.                                                                                                                                                                                  |
-| sink\_from          | A clause that specifies the direct source from which data will be output. _sink\_from_ can be a materialized view or a table. Either this clause or a SELECT query must be specified.                            |
-| AS select\_query    | A SELECT query that specifies the data to be output to the sink. Either this query or a FROM clause must be specified.See [SELECT](/docs/current/sql-select/) for the syntax and examples of the SELECT command. |
-| connector           | Sink connector type must be 'jdbc' for MySQL sink.                                                                                                                                                               |
+| sink\_from          | A clause that specifies the direct source from which data will be output. `sink_from` can be a materialized view or a table. Either this clause or a SELECT query must be specified.                            |
+| AS select\_query    | A SELECT query that specifies the data to be output to the sink. Either this query or a FROM clause must be specified. See [SELECT](/docs/current/sql-select/) for the syntax and examples of the SELECT command. |
+| connector           | Sink connector type must be `jdbc` for MySQL sink.                                                                                                                                                               |
 | jdbc.url            | The JDBC URL of the destination database necessary for the driver to recognize and connect to the database.                                                                                                      |
 | jdbc.query.timeout  | Specifies the timeout for the operations to downstream. If not set, the default is 10 minutes.                                                                                                                   |
 | table.name          | The table in the destination database you want to sink to.                                                                                                                                                       |
-| type                | Data format. Allowed formats: append-only: Output data with insert operations. upsert: Output data as a changelog stream.                                                                                        |
+| type                | Data format. Allowed formats: <ul><li>`append-only`: Output data with insert operations.</li><li>`upsert`: Output data as a changelog stream.</li></ul>           |
 | primary\_key        | Required if type is upsert. The primary key of the downstream table.                                                                                                                                             |
 
 ## Sink data from RisingWave to MySQL
@@ -184,6 +184,6 @@ For the MySQL data type mapping table, see the [Data type mapping table](/docs/c
 
 Additional notes regarding sinking data to MySQL:
 
-* Note that array data types in RisingWave when sinked to MySQL will be converted to a string. Only one-dimensional arrays can be sinked to MySQL. For instance, `ARRAY['Value 1', 'Value 2']` when sinked to MySQL will be converted to the string `Value 1, Value 2`.
+* Array data types in RisingWave when sinked to MySQL will be converted to a string. Only one-dimensional arrays can be sinked to MySQL. For instance, `ARRAY['Value 1', 'Value 2']` when sinked to MySQL will be converted to the string `Value 1, Value 2`.
 * For array type, we only support `smallint`, `integer`, `bigint`, `real`, `double precision`, and `varchar` type now.
 * It's better to set `connectionTimeZone=UTC` in `jdbc.url` to get the correct `timestamptz` type data. For more details, see [MySQL's documentation](https://dev.mysql.com/doc/connector-j/en/connector-j-usagenotes-known-issues-limitations.html).

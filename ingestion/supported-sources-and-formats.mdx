@@ -6,14 +6,12 @@ title: "Supported sources and formats"
 
 Below is the complete list of connectors supported by RisingWave. Click a connector name to see the SQL syntax, options, and sample statement of connecting RisingWave to the connector.
 
-<Info>
-**NOTE**
-
+<Note>
 To ingest data in formats marked with "T", you need to create tables (with connector settings). Otherwise, you can create either sources or tables (with connector settings).
-</Info>
+</Note>
 
-| Connector                                                   | Version                                                                                                                                                    | Format                                                                                                                                                                                                                                                                                                                                |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connector       | Version     | Format               |
+| :------------ | :------------ | :------------------- |
 | [Kafka](/docs/current/ingest-from-kafka/)                   | 3.1.0 or later versions                                                                                                                                    | [Avro](#avro), [JSON](#json), [protobuf](#protobuf), [Debezium JSON](#debezium-json) (T), [Debezium AVRO](#debezium-avro) (T), [DEBEZIUM\_MONGO\_JSON](#debezium-mongo-json) (T), [Maxwell JSON](#maxwell-json) (T), [Canal JSON](#canal-json) (T), [Upsert JSON](#upsert-json) (T), [Upsert AVRO](#upsert-avro) (T), [Bytes](#bytes) |
 | [Redpanda](/docs/current/ingest-from-redpanda/)             | Latest                                                                                                                                                     | [Avro](#avro), [JSON](#json), [protobuf](#protobuf)                                                                                                                                                                                                                                                                                   |
 | [Pulsar](/docs/current/ingest-from-pulsar/)                 | 2.8.0 or later versions                                                                                                                                    | [Avro](#avro), [JSON](#json), [protobuf](#protobuf), [Debezium JSON](#debezium-json) (T), [Maxwell JSON](#maxwell-json) (T), [Canal JSON](#canal-json) (T)                                                                                                                                                                            |
@@ -26,21 +24,13 @@ To ingest data in formats marked with "T", you need to create tables (with conne
 | [Google Pub/Sub](/docs/current/ingest-from-google-pubsub/)  | [Avro](#avro), [JSON](#json), [protobuf](#protobuf), [Debezium JSON](#debezium-json) (T), [Maxwell JSON](#maxwell-json) (T), [Canal JSON](#canal-json) (T) |                                                                                                                                                                                                                                                                                                                                       |
 | [Google Cloud Storage](/docs/current/ingest-from-gcs/)      | [JSON](#json)                                                                                                                                              |                                                                                                                                                                                                                                                                                                                                       |
 
-<Info>
-**NOTE**
-
+<Note>
 When a source is created, RisingWave does not ingest data immediately. RisingWave starts to process data when a materialized view is created based on the source.
-</Info>
+</Note>
 
 ## Supported formats
 
 When creating a source, you need to specify the data and encoding formats in the `FORMAT` and `ENCODE` section of the `CREATE SOURCE` or `CREATE TABLE` statement. Below is the complete list of the supported formats in RisingWave.
-
-<Note>
-**PUBLIC PREVIEW**
-
-`schema.registry.name.strategy` is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
-</Note>
 
 ### Avro
 
@@ -48,29 +38,26 @@ For data in Avro format, you must specify a message and a schema registry. For K
 
 `schema.registry` can accept multiple addresses. RisingWave will send requests to all URLs and return the first successful result.
 
-Optionally, you can define a `schema.registry.name.strategy` if `schema.registry` is set. Accepted options include `topic_name_strategy`, `record_name_strategy`, and `topic_record_name_strategy`. If either `record_name_strategy` or `topic_record_name_strategy` is used, the `message` field must also be defined. For additional details on name strategy, see [Subject name strategy](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy).
-
 Please be aware that:
 
 * For Avro data, you cannot specify the schema in the `schema_definition` section of a `CREATE SOURCE` or `CREATE TABLE` statement.
 * The timestamp displayed in RisingWave may be different from the upstream system as timezone information is lost in Avro serialization.
+* RisingWave takes [`TopicNameStrategy`](https://developer.confluent.io/courses/schema-registry/schema-subjects/#topicnamestrategy) as the default subject name strategy for the schema registry and looks for the schema with the subject name `{ topic name }-value`.
 
 Syntax:
 
-```js
+```sql
 FORMAT PLAIN
 ENCODE AVRO (
-   schema.registry = 'schema_registry_url [, ...]',
-   [schema.registry.name.strategy = 'topic_name_strategy'],
-   [message = 'main_message'],
+    schema.registry = 'schema_registry_url [, ...]',
 )
 ```
 
 You can ingest Avro map type into RisingWave [map type](/docs/current/data-type-map/) or jsonb:
 
-```js
+```sql
 FORMAT [ DEBEZIUM | UPSERT | PLAIN ] ENCODE AVRO (
-	map.handling.mode = 'map' | 'jsonb'
+    map.handling.mode = 'map' | 'jsonb'
 )
 ```
 
@@ -82,20 +69,16 @@ When creating a source from streams in with Debezium AVRO, the schema of the sou
 
 `schema.registry` can accept multiple addresses. RisingWave will send requests to all URLs and return the first successful result.
 
-Optionally, you can define a `schema.registry.name.strategy` if `schema.registry` is set. Accepted options include `topic_name_strategy`, `record_name_strategy`, and `topic_record_name_strategy`. If either `record_name_strategy` or `topic_record_name_strategy` is used, the `key.message` field must also be defined. For additional details on name strategy, see the [Subject name strategy](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy) in the Confluent documentation.
-
 `ignore_key` can be used to ignore the key part of given messages. By default, it is `false`. If set to `true`, only the payload part of the message will be consumed. In this case, the payload must not be empty and tombstone messages cannot be handled.
 
 Syntax:
 
-```js
+```sql
 FORMAT DEBEZIUM
 ENCODE AVRO (
-   message = 'main_message',
-   schema.location = 'location' | schema.registry = 'schema_registry_url [, ...]',
-   [schema.registry.name.strategy = 'topic_name_strategy'],
-   [key.message = 'test_key'],
-   [ignore_key = 'true | false']
+    message = 'main_message',
+    schema.registry = 'schema_registry_url [, ...]',
+    [ignore_key = 'true | false']
 )
 ```
 
@@ -105,16 +88,12 @@ When consuming data in AVRO from Kafka topics, the `FORMAT` and `ENCODE` section
 
 `schema.registry` can accept multiple addresses. RisingWave will send requests to all URLs and return the first successful result.
 
-Optionally, you can define a `schema.registry.name.strategy` if `schema.registry` is set. Accepted options include `topic_name_strategy`, `record_name_strategy`, and `topic_record_name_strategy`. If either `record_name_strategy` or `topic_record_name_strategy` is used, the `message` field must also be defined. For additional details on name strategy, see [Subject name strategy](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy).
-
 Syntax:
 
-```js
+```sql
 FORMAT UPSERT
 ENCODE AVRO (
    schema.location = 'location' | schema.registry = 'schema_registry_url [, ...]',
-   [schema.registry.name.strategy = 'topic_name_strategy'],
-   [message = 'main_message'],
 )
 ```
 
@@ -126,7 +105,7 @@ RisingWave decodes JSON directly from external sources. When creating a source f
 
 Syntax:
 
-```js
+```sql
 FORMAT PLAIN
 ENCODE JSON [ (
    schema.registry = 'schema_registry_url [, ...]',
@@ -208,11 +187,7 @@ For data in protobuf format, you must specify a message (fully qualified by pack
 
 `schema.registry` can accept multiple addresses. RisingWave will send requests to all URLs and return the first successful result.
 
-Optionally, you can define a `schema.registry.name.strategy` if `schema.registry` is set. Accepted options include `topic_name_strategy`, `record_name_strategy`, and `topic_record_name_strategy`. For additional details on name strategy, see [Subject name strategy](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy).
-
 <Note>
-**INFO**
-
 For protobuf data, you cannot specify the schema in the `schema_definition` section of a `CREATE SOURCE` or `CREATE TABLE` statement.
 </Note>
 
@@ -229,7 +204,6 @@ FORMAT PLAIN
 ENCODE PROTOBUF (
    message = 'com.example.MyMessage',
    schema.location = 'location' | schema.registry = 'schema_registry_url [, ...]',
-   [schema.registry.name.strategy = 'topic_name_strategy'],
 )
 ```
 
