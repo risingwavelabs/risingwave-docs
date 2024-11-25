@@ -40,12 +40,9 @@ CREATE TABLE wbhtable (
 | Parameter or clause | Description |
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the Webhook. Currently, only `JSONB` type is supported for Webhook tables. |
-| `secure_compare(...)` | Compare two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks.
 | `headers->>'...'` | Extracts the signature provided by GitHub in the `x-hub-signature-256` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
 |`'sha256=' \|\| encode(...)` | Computes the expected signature. In the example above, it generates an `HMAC SHA-256` hash of the payload (`data`) using the secret (`test_secret`), encodes it in hexadecimal, and prefixes it with `sha256=`.|
-| `secure_compare()` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. |
-
-The `secure_compare()` function compares the signature from the request header with the computed signature. If they match, the request is accepted; otherwise, it is rejected. This ensures that only authentic requests from GitHub are processed.
+| `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks.
 
 In GitHub Webhook, you can choose between `SHA-1` and `SHA-256 HMAC` algorithms for signing the payload. The example above uses `SHA-256 HMAC`. If you want to use `SHA-1`, change `x-hub-signature-256` into `x-hub-signature`, `sha256` into `sha1` in the `VALIDATE` clause.
 
