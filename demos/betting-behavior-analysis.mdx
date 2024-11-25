@@ -1,0 +1,224 @@
+---
+title: "User betting behavior analysis"
+description: "Identify high-risk and high-value users by analyzing and identifying trends in user betting patterns."
+---
+
+## Overview
+
+Betting platforms, sports analysts, and market regulators benefit from analyzing and interpreting users' betting patterns.
+For sports analysts, this data helps gauge fan sentiment and engagement, allowing them to identify high-profile events and fine-tune their marketing strategies.
+Regulators, on the other hand, focus on ensuring fair play and compliance with gambling laws. They use these insights to prevent illegal activities, such as match-fixing or money laundering.
+
+During live events, users’ behaviors can shift rapidly in response to gameplay developments.
+Processing and analyzing these changes in real-time allows platforms to flag high-risk users, who may be more likely to engage in fraudulent activities.
+By joining historic data on user behavior with live betting data, platforms can easily identify high-risk users for further investigation to mitigate potential risks.
+
+In this tutorial, you will learn how to analyze users’ betting behaviors by integrating historical datasets with live data streams.
+
+## Prerequisites
+
+* Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
+* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart/) guide.
+* Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
+
+## Step 1: Set up the data source tables
+
+Once RisingWave is installed and deployed, run the three SQL queries below to set up the tables. You will insert data into these tables to simulate live data streams.
+
+1. The table `user_profiles` table contains static information about each user.
+
+    ```sql
+    CREATE TABLE user_profiles (
+        user_id INT,
+        username VARCHAR,
+        preferred_league VARCHAR,
+        avg_bet_size FLOAT,
+        risk_tolerance VARCHAR
+    );
+    ```
+
+2. The `betting_history` table contains historical betting records for each user.
+
+    ```sql
+    CREATE TABLE betting_history (
+        user_id INT,
+        position_id INT,
+        bet_amount FLOAT,
+        result VARCHAR,
+        profit_loss FLOAT, 
+        timestamp TIMESTAMP
+    );
+    ```
+
+3. The `positions` has real-time updates for ongoing betting positions for each user.
+
+    ```sql
+    CREATE TABLE positions (
+        position_id INT,
+        position_name VARCHAR,
+        user_id INT,
+        league VARCHAR,
+        stake_amount FLOAT,
+        expected_return FLOAT,
+        current_odds FLOAT,
+        profit_loss FLOAT,
+        timestamp TIMESTAMP
+    );
+    ```
+
+## Step 2: Run the data generator
+
+To keep this demo simple, a Python script is used to generate and insert data into the tables created above. 
+
+Clone the [awesome-stream-processing](https://github.com/risingwavelabs/awesome-stream-processing) repository.
+
+```bash
+git clone https://github.com/risingwavelabs/awesome-stream-processing.git
+```
+
+Navigate to the [user_betting_behavior](https://github.com/risingwavelabs/awesome-stream-processing/tree/main/02-simple-demos/sports_betting/user_betting_behavior) folder.
+
+```bash
+cd awesome-stream-processing/tree/main/02-simple-demos/sports_betting/user_betting_behavior
+```
+
+Run the `data_generator.py` file. This Python script utilizes the `psycopg2` library to establish a connection with RisingWave so you can generate and insert synthetic data into the tables `positions` and `market_data`. 
+
+If you are not running RisingWave locally or using default credentials, update the connection parameters accordingly:
+
+```python
+default_params = {
+    "dbname": "dev",
+    "user": "root",
+    "password": "",
+    "host": "localhost",
+    "port": "4566"
+}
+```
+
+## Step 3: Create materialized views
+
+In this demo, you will create multiple materialized views to understand bettors' behavior trends.
+
+Materialized views contain the results of a view expression and are stored in the RisingWave database. The results of a materialized view are computed incrementally and updated whenever new events arrive and do not require to be refreshed. When you query from a materialized view, it will return the most up-to-date computation results.
+
+### Identify user betting patterns
+
+The `user_betting_patterns` materialized view provides an overview of each user's betting history, including their win/loss count and average profit.
+
+```sql
+CREATE MATERIALIZED VIEW user_betting_patterns AS
+SELECT
+    user_id,
+    COUNT(*) AS total_bets,
+    SUM(CASE WHEN result = 'Win' THEN 1 ELSE 0 END) AS wins,
+    SUM(CASE WHEN result = 'Loss' THEN 1 ELSE 0 END) AS losses,
+    AVG(profit_loss) AS avg_profit_loss,
+    SUM(profit_loss) AS total_profit_loss
+FROM
+    betting_history
+GROUP BY
+    user_id;
+```
+
+You can query from `user_betting_patterns` to see the results. 
+
+```sql
+SELECT * FROM user_betting_patterns LIMIT 5;
+```
+
+```
+ user_id | total_bets | wins | losses |   avg_profit_loss   |  total_profit_loss  
+---------+------------+------+--------+---------------------+---------------------
+       6 |          4 |    3 |      1 |   52.34777393817115 |   209.3910957526846
+       4 |          4 |    3 |      1 |    68.4942119081947 |   273.9768476327788
+       2 |          4 |    0 |      4 | -123.37575449330379 | -493.50301797321515
+       9 |          4 |    4 |      0 |  188.86010650028302 |   755.4404260011321
+       3 |          4 |    1 |      3 |  -54.06198104612867 |  -216.2479241845147
+```
+
+### Summarize users' exposure
+
+The `real_time_user_exposure` materialized view sums up the stake amounts of active positions for each user to track each user's current total exposure in real-time.
+
+With this materialized view, you can filter for users who may be overexposed.
+
+```sql
+CREATE MATERIALIZED VIEW real_time_user_exposure AS
+SELECT
+    user_id,
+    SUM(stake_amount) AS total_exposure,
+    COUNT(*) AS active_positions
+FROM
+    positions
+GROUP BY
+    user_id;
+```
+
+You can query from `real_time_user_exposure` to see the results. 
+
+```sql
+SELECT * FROM real_time_user_exposure LIMIT 5;
+```
+```
+ user_id |   total_exposure   | active_positions 
+---------+--------------------+------------------
+       5 | 3784.6700000000005 |               12
+       1 |            3779.05 |               12
+      10 |            2818.66 |               12
+       4 |            3275.99 |               12
+       2 |            3220.93 |               12
+```
+
+### Flag high-risk users
+
+The `high_risk_users` materialized view identifies high-risk users by analyzing their risk tolerance, exposure, and profit patterns. 
+
+A user is considered high-risk if they meet all of the following criteria:
+* The total exposure is five times greater than their average bet size. You can customize this threshold to be lower or higher.
+* Their average profit loss is less than zero.
+
+Some users who are not initially categorized as high-risk may exhibit behaviors that indicate they are high-risk users.
+
+```sql
+CREATE MATERIALIZED VIEW high_risk_users AS
+SELECT
+    u.user_id,
+    u.username,
+    u.risk_tolerance,
+    p.total_exposure,
+    b.total_bets,
+    b.avg_profit_loss,
+    b.total_profit_loss
+FROM
+    user_profiles AS u
+JOIN
+    real_time_user_exposure AS p
+ON
+    u.user_id = p.user_id
+JOIN
+    user_betting_patterns AS b
+ON
+    u.user_id = b.user_id
+WHERE
+    p.total_exposure > u.avg_bet_size * 5
+    AND b.avg_profit_loss < 0;
+```
+
+You can query from `high_risk_users` to see the results.
+
+```sql
+SELECT * FROM high_risk_users;
+```
+```
+ user_id | username | risk_tolerance |   total_exposure   | total_bets |   avg_profit_loss   |  total_profit_loss  
+---------+----------+----------------+--------------------+------------+---------------------+---------------------
+       2 | user_2   | Low            | 23341.270000000004 |         81 | -2.8318496459258133 | -229.37982131999087
+```
+
+When finished, press `Ctrl+C` to close the connection between RisingWave and `psycopg2`.
+
+## Summary
+
+In this tutorial, you learn:
+- How to perform a multi-way join.
