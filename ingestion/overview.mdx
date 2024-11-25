@@ -69,7 +69,7 @@ WITH (
 The statement will create a streaming job that continuously ingests data from the Kafka topic to the table and the data will be stored in RisingWave's internal storage, which brings the following benefits:
 
 1. **Improved ad-hoc query performance:** When users execute queries such as `SELECT * FROM table_on_kafka`, the query engine will directly access the data from RisingWave's internal storage, eliminating unnecessary network overhead and avoiding read pressure on upstream systems. Additionally, users can create [indexes](/docs/current/indexes/) on the table to accelerate queries.
-2. **Allow defining primary keys:** With the help of its internal storage, RisingWave can efficiently maintain primary key constraints. Users can define a primary key on a specific column of the table and define different behaviors for primary key conflicts with [ON CONFLICT clause](/docs/current/sql-create-table/#pk-conflict-behavior).
+2. **Allow defining primary keys:** With the help of its internal storage, RisingWave can efficiently maintain primary key constraints. Users can define a primary key on a specific column of the table and define different behaviors for primary key conflicts with [ON CONFLICT clause](/sql/commands/sql-create-table#pk-conflict-behavior).
 3. **Ability to handle delete/update changes**: Based on the definition of primary keys, RisingWave can efficiently process upstream synchronized delete and update operations. For systems that synchronize delete/update operations from external systems, such as database's CDC and UPSERT format messages from message queues, we **do not** allow creating a source on it but require a table with connectors.
 4. **Stronger consistency guarantee**: When using a table with connectors, all downstream jobs will be guaranteed to have a consistent view of the data persisted in the table; while for source, different jobs may see inconsistent results due to different ingestion speed or data retention in the external system.
 5. **Greater flexibility**: Like regular tables, you can use DML statements like [INSERT](/docs/current/sql-insert/), [UPDATE](/docs/current/sql-update/) and [DELETE](/docs/current/sql-delete/) to insert or modify data in tables with connectors, and use [CREATE SINK INTO TABLE](/docs/current/sql-create-sink-into/) to merge other data streams into the table.
@@ -78,7 +78,7 @@ The statement will create a streaming job that continuously ingests data from th
 
 ### Insert data into tables
 
-You can load data in batch to RisingWave by creating a table ([CREATE TABLE](/docs/current/sql-create-table/)) and then inserting data into it ([INSERT](/docs/current/sql-insert/)). For example, the statement below creates a table `website_visits` and inserts 5 rows of data.
+You can load data in batch to RisingWave by creating a table ([CREATE TABLE](/sql/commands/sql-create-table)) and then inserting data into it ([INSERT](/docs/current/sql-insert/)). For example, the statement below creates a table `website_visits` and inserts 5 rows of data.
 
 ```sql
 CREATE TABLE website_visits (
