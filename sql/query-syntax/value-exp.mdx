@@ -18,7 +18,7 @@ aggregate_name ( * ) [ FILTER ( WHERE filter_clause ) ]
 aggregate_name ( [ expression [ , ... ] ] ) WITHIN GROUP ( order_by_clause ) [ FILTER ( WHERE filter_clause ) ]
 ```
 
-`aggregate_name` is one of the aggregation functions listed on [Aggregate functions](/docs/current/sql-function-aggregate/), and `expression` is a value expression that does not contain an aggregate expression or a window function call.
+`aggregate_name` is one of the aggregation functions listed on [Aggregate functions](/sql/functions/aggregate), and `expression` is a value expression that does not contain an aggregate expression or a window function call.
 
 The `DISTINCT` keyword, which is only available in the second form, cannot be used together with an `ORDER BY` or `WITHIN GROUP` clause. Additionally, it's important to note that the `order_by_clause` is positioned differently in the first and fourth forms.
 
@@ -28,7 +28,7 @@ The `DISTINCT` keyword, which is only available in the second form, cannot be us
 AGGREGATE:function_name
 ```
 
-where the `AGGREGATE:` prefix converts a [builtin array function](/docs/current/sql-function-array/) (e.g. `array_sum`) or an [user-defined function](/docs/current/user-defined-functions/), to an aggregate function. The function being converted must accept exactly one argument of an [array type](/docs/current/data-type-array/). After the conversion, a function like `foo ( array of T ) -> U` becomes an aggregate function like `AGGREGATE:foo ( T ) -> U`.
+where the `AGGREGATE:` prefix converts a [builtin array function](/sql/functions/array) (e.g. `array_sum`) or an [user-defined function](/sql/udfs/user-defined-functions), to an aggregate function. The function being converted must accept exactly one argument of an [array type](/sql/data-types/array-type). After the conversion, a function like `foo ( array of T ) -> U` becomes an aggregate function like `AGGREGATE:foo ( T ) -> U`.
 
 ## Window function calls
 
@@ -55,9 +55,9 @@ Currently, the `PARTITION BY` clause is required. If you do not want to partitio
 
 For ranking window functions like `row_number`, `rank` and `dense_rank`, `ORDER BY` clause is required.
 
-When operating in the [Emit on window close](/docs/current/emit-on-window-close/) mode for a streaming query, `ORDER BY` clause is required for all window functions. Please ensure that you specify exactly one column in the `ORDER BY` clause. This column, generally a timestamp column, must have a watermark defined for it. It's important to note that when using the timestamp column from this streaming query in another streaming query, the watermark information associated with the column is not retained.
+When operating in the [Emit on window close](/processing/emit-on-window-close) mode for a streaming query, `ORDER BY` clause is required for all window functions. Please ensure that you specify exactly one column in the `ORDER BY` clause. This column, generally a timestamp column, must have a watermark defined for it. It's important to note that when using the timestamp column from this streaming query in another streaming query, the watermark information associated with the column is not retained.
 
-`window_function_name` is one of the window functions listed on [Window functions](/docs/current/sql-function-window-functions/).
+`window_function_name` is one of the window functions listed on [Window functions](/sql/functions/window-functions).
 
 `frame_clause` can be one of:
 

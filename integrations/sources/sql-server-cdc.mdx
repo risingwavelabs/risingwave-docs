@@ -6,13 +6,13 @@ sidebarTitle: SQL Server CDC
 <Tip>
 **PREMIUM EDITION FEATURE**
 
-This feature is exclusive to RisingWave Premium Edition that offers advanced capabilities beyond the free versions. For a full list of premium features, see [RisingWave Premium Edition](/docs/current/rw-premium-edition-intro/). If you encounter any questions, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+This feature is exclusive to RisingWave Premium Edition that offers advanced capabilities beyond the free versions. For a full list of premium features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). If you encounter any questions, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
 </Tip>
 
 <Note>
 **PUBLIC PREVIEW**
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](../../changelog/product-lifecycle#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
 </Note>
 
 Change Data Capture (CDC) refers to the process of identifying and capturing data changes in a database, and then delivering the changes to a downstream service in real time.
@@ -24,7 +24,7 @@ You can ingest CDC data from SQL Server into RisingWave in two ways:
 * Using the built-in SQL Server CDC connector
 With this connector, RisingWave can connect to SQL Server databases directly to obtain data from the binlog without starting additional services.
 * Using a CDC tool and a message broker
-You can use a CDC tool and then use the Kafka, Pulsar, or Kinesis connector to send the CDC data to RisingWave. For more details, see the [Create source via event streaming systems](/docs/current/ingest-from-cdc/) topic.
+You can use a CDC tool and then use the Kafka, Pulsar, or Kinesis connector to send the CDC data to RisingWave. For more details, see the [Create source via event streaming systems](/ingestion/change-data-capture-with-risingwave) topic.
 
 ## Set up SQL Server
 
@@ -185,7 +185,7 @@ FROM mssql_source TABLE 'mydb.dbo.person';
 
 ## Examples
 
-Connect to the upstream database by creating a CDC source using the [CREATE SOURCE](/docs/current/sql-create-source/) command and SQL Server CDC parameters. The data format is fixed as `FORMAT PLAIN ENCODE JSON` so it does not need to be specified.
+Connect to the upstream database by creating a CDC source using the [CREATE SOURCE](/sql/commands/sql-create-source) command and SQL Server CDC parameters. The data format is fixed as `FORMAT PLAIN ENCODE JSON` so it does not need to be specified.
 
 ```sql
 CREATE SOURCE mssql_mydb WITH (
@@ -219,11 +219,11 @@ CREATE TABLE tt4 (
 ) FROM mssql_mydb TABLE 'ods.tt4';
 ```
 
-To check the progress of backfilling historical data, find the corresponding internal table using the [SHOW INTERNAL TABLES](/docs/current/sql-show-internal-tables/) command and query from it.
+To check the progress of backfilling historical data, find the corresponding internal table using the [SHOW INTERNAL TABLES](/sql/commands/sql-show-internal-tables) command and query from it.
 
 ## Data type mapping
 
-The following table shows the corresponding data type in RisingWave that should be specified when creating a CDC table. For details on native RisingWave data types, see [Overview of data types](/docs/current/sql-data-types/).
+The following table shows the corresponding data type in RisingWave that should be specified when creating a CDC table. For details on native RisingWave data types, see [Overview of data types](/sql/data-types/overview).
 
 RisingWave data types marked with an asterisk indicate that while there is no corresponding RisingWave data type, the ingested data can still be consumed as the listed type.
 

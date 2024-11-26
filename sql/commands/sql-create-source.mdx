@@ -3,9 +3,9 @@ title: "CREATE SOURCE"
 description: "A source is a resource that RisingWave can read data from. You can create a source in RisingWave using the `CREATE SOURCE` command."
 ---
 
-For the full list of the sources we support, see [Supported sources](/docs/current/supported-sources-and-formats/#supported-sources).
+For the full list of the sources we support, see [Supported sources](/ingestion/supported-sources-and-formats#supported-sources).
 
-If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/docs/current/sql-create-table/) command with connector settings. Or if you need to create the primary key (which is required by some formats like FORMAT UPSERT/DEBEZIUM), you have to use `CREATE TABLE` too. For more details about the differences between sources and tables, see [here](/docs/current/data-ingestion/#table-with-connectors).
+If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. Or if you need to create the primary key (which is required by some formats like FORMAT UPSERT/DEBEZIUM), you have to use `CREATE TABLE` too. For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
 
 Regardless of whether the data is persisted in RisingWave, you can create materialized views to perform analysis or data transformations.
 
@@ -29,11 +29,11 @@ CREATE SOURCE [ IF NOT EXISTS ] source_name (
 
 ## Notes
 
-A [generated column](/docs/current/query-syntax-generated-columns/) is defined with non-deterministic functions. When the data is ingested, the function will be evaluated to generate the value of this field.
+A [generated column](/sql/query-syntax/generated-columns) is defined with non-deterministic functions. When the data is ingested, the function will be evaluated to generate the value of this field.
 
-Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/docs/current/sql-identifiers/).
+Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/sql/identifiers).
 
-To know when a data record is loaded to RisingWave, you can define a column that is generated based on the processing time (`<column_name> timestamptz AS proctime()`) when creating the table or source. See also [proctime()](/docs/current/sql-function-datetime/#proctime).
+To know when a data record is loaded to RisingWave, you can define a column that is generated based on the processing time (`<column_name> timestamptz AS proctime()`) when creating the table or source. See also [proctime()](/sql/functions/datetime#proctime).
 
 For a source with schema from an external connector, use `*` to represent all columns from the external connector first, so that you can define a generated column on the source with an external connector. See the example below.
 
@@ -64,11 +64,11 @@ The generated column is created in RisingWave and will not be accessed through t
 | _source\_name_                    | The name of the source. If a schema name is given (for example, CREATE SOURCE \<schema>.\<source> ...), then the table is created in the specified schema. Otherwise it is created in the current schema.                                                                                      |
 | _col\_name_                       | The name of a column.                                                                                                                                                                                                                                                                        |
 | _data\_type_                      | The data type of a column. With the struct data type, you can create a nested table. Elements in a nested table need to be enclosed with angle brackets (\<>).                                                                                                                                |
-| _generation\_expression_          | The expression for the generated column. For details about generated columns, see [Generated columns](/docs/current/query-syntax-generated-columns/).                                                                                                                                        |
-| _watermark\_clause_               | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For details about watermarks, refer to [Watermarks](/docs/current/watermarks/).                                                                                                |
-| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/docs/current/include-clause/).                                                                                                                                          |
-| **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/docs/current/supported-sources-and-formats/#supported-sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
-| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Supported formats](/docs/current/supported-sources-and-formats/#supported-formats).                                                                                      |
+| _generation\_expression_          | The expression for the generated column. For details about generated columns, see [Generated columns](/sql/query-syntax/generated-columns).                                                                                                                                        |
+| _watermark\_clause_               | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For details about watermarks, refer to [Watermarks](/processing/watermarks).                                                                                                |
+| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause).                                                                                                                                          |
+| **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/ingestion/supported-sources-and-formats#supported-sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
+| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Supported formats](/ingestion/supported-sources-and-formats#supported-formats).                                                                                      |
 
 <Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
@@ -76,7 +76,7 @@ Please distinguish between the parameters set in the FORMAT and ENCODE options a
 </Note>
 ## Watermarks
 
-RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/docs/current/watermarks/) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/docs/current/watermarks/).
+RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/processing/watermarks) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/processing/watermarks).
 
 ## Change Data Capture (CDC)
 
@@ -86,7 +86,7 @@ RisingWave provides native MySQL and PostgreSQL CDC connectors. With these CDC c
 
 If Kafka is part of your technical stack, you can also use the Kafka connector in RisingWave to ingest CDC data in the form of Kafka topics from databases into RisingWave. You need to use a CDC tool such as [Debezium connector for MySQL](https://debezium.io/documentation/reference/stable/connectors/mysql.html) or [Maxwell's daemon](https://maxwells-daemon.io/) to convert CDC data into Kafka topics.
 
-For complete step-to-step guides about ingesting MySQL and PostgreSQL data using both approaches, see [Ingest data from MySQL](/docs/current/ingest-from-mysql-cdc/) and [Ingest data from PostgreSQL](/docs/current/ingest-from-postgres-cdc/).
+For complete step-to-step guides about ingesting MySQL and PostgreSQL data using both approaches, see [Ingest data from MySQL](/integrations/sources/mysql-cdc) and [Ingest data from PostgreSQL](/integrations/sources/postgresql-cdc).
 
 ## Shared source
 
@@ -95,7 +95,7 @@ Shared source improves resource utilization and data consistency when working wi
 <Note>
 **PUBLIC PREVIEW**
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
 </Note>
 
 ### Configure
@@ -175,13 +175,13 @@ Shared sources do not support `ALTER SOURCE`. Use non-shared sources if you requ
     title="Overview of data ingestion"
     icon="database"
     iconType="solid"
-    href="/docs/current/data-ingestion/"
+    href="/ingestion/overview"
   />
   <Card
     title="DROP SOURCE"
     icon="trash"
     iconType="solid"
-    href="/docs/current/sql-drop-source/"
+    href="/sql/commands/sql-drop-source"
   >
     Remove a source
   </Card>
@@ -189,7 +189,7 @@ Shared sources do not support `ALTER SOURCE`. Use non-shared sources if you requ
     title="SHOW CREATE SOURCE"
     icon="eye"
     iconType="solid"
-    href="/docs/current/sql-show-create-source/"
+    href="/sql/commands/sql-show-create-source"
   >
     Show the SQL statement used to create a source
   </Card>
@@ -197,7 +197,7 @@ Shared sources do not support `ALTER SOURCE`. Use non-shared sources if you requ
     title="ALTER SOURCE"
     icon="pen-to-square"
     iconType="solid"
-    href="/docs/current/sql-alter-source/"
+    href="/sql/commands/sql-alter-source"
   >
     Modify a source
   </Card>

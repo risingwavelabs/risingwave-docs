@@ -99,7 +99,7 @@ Set `properties.ssl.endpoint.identification.algorithm` to `none` to bypass the v
 
 ### Specific parameters for Amazon MSK
 
-There are some specific parameters for Amazon Managed Streaming for Apache Kafka (MSK), please see [Access MSK in RisingWave](/docs/current/connector-amazon-msk/#access-msk-in-risingwave) for more details.
+There are some specific parameters for Amazon Managed Streaming for Apache Kafka (MSK), please see [Access MSK in RisingWave](/integrations/sources/amazon-msk#access-msk-in-risingwave) for more details.
 
 ## Examples[](#examples "Direct link to Examples")
 
@@ -321,7 +321,7 @@ To learn about compatibility types for Schema Registry and the changes allowed, 
 <Tip>
 **PREMIUM EDITION FEATURE**
 
-This feature is exclusive to RisingWave Premium Edition that offers advanced capabilities beyond the free versions. For a full list of premium features, see [RisingWave Premium Edition](/docs/current/rw-premium-edition-intro/). If you encounter any questions, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+This feature is exclusive to RisingWave Premium Edition that offers advanced capabilities beyond the free versions. For a full list of premium features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). If you encounter any questions, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
 </Tip>
 
 AWS Glue Schema Registry is a serverless feature of AWS Glue that allows you to centrally manage and enforce schemas for data streams, enabling data validation and compatibility checks. It helps in improving the quality of data streams by providing a central repository for managing and enforcing schemas across various AWS services and custom applications.
@@ -354,7 +354,7 @@ ENCODE AVRO (
 
 ## Create source with PrivateLink connection
 
-If your Kafka source service is located in a different VPC from RisingWave, use AWS PrivateLink to establish a secure and direct connection. For details on how to set up an AWS PrivateLink connection, see [Create an AWS PrivateLink connection](/docs/current/sql-create-connection/#create-an-aws-privatelink-connection).
+If your Kafka source service is located in a different VPC from RisingWave, use AWS PrivateLink to establish a secure and direct connection. For details on how to set up an AWS PrivateLink connection, see [Create an AWS PrivateLink connection](/sql/commands/sql-create-connection#create-an-aws-privatelink-connection).
 
 To create a Kafka source with a PrivateLink connection, in the WITH section of your `CREATE SOURCE` or `CREATE TABLE` statement, specify the following parameters.
 
@@ -362,7 +362,7 @@ To create a Kafka source with a PrivateLink connection, in the WITH section of y
 | :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | privatelink.targets  | The PrivateLink targets that correspond to the Kafka brokers. The targets should be in JSON format. Note that each target listed corresponds to each broker specified in the properties.bootstrap.server field. If the order is incorrect, there will be connectivity issues.                |
 | privatelink.endpoint | The DNS name of the VPC endpoint.  If you're using RisingWave Cloud, you can find the auto-generated endpoint after you created a connection. See details in [Create a PrivateLink connection](/cloud/create-a-connection/#whats-next).                                                      |
-| connection.name      | The name of the connection.  This parameter should only be included if you are using a connection created with the [CREATE CONNECTION](/docs/current/sql-create-connection/) statement. Omit this parameter if you have provisioned a VPC endpoint using privatelink.endpoint (recommended). |
+| connection.name      | The name of the connection.  This parameter should only be included if you are using a connection created with the [CREATE CONNECTION](/sql/commands/sql-create-connection) statement. Omit this parameter if you have provisioned a VPC endpoint using privatelink.endpoint (recommended). |
 
 Here is an example of creating a Kafka source using a PrivateLink connection. Notice that `{"port": 9094}` corresponds to the broker `broker1-endpoint`, `{"port": 9095}` corresponds to the broker `broker2-endpoint`, and `{"port": 9096}` corresponds to the broker `broker3-endpoint`.
 
