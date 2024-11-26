@@ -86,9 +86,9 @@ Materialized views contain the results of a view expression and are stored in th
 
 ### Identify unusual volume trades
 
-The `unusual_volume` materialized view indicates if a trade has a higher than average trading volume within a 10-minute window. `TUMBLE()` and `GROUP BY` is used to to aggregate everything into 10-minute windows. Then `PARTITION BY` is used to ensure that the average volume is calculated separately for each asset.
+The `unusual_volume` materialized view indicates if a trade has a higher than average trading volume within a 10-minute window. `TUMBLE()` is used to to split everything into non-overlapping 10-minute windows. `GROUP BY` is used to group the data by the unique trade ID, asset ID, volume, and window start time. Then `PARTITION BY` is used to ensure that the average volume is calculated separately for each asset.
 
-If the trade's volume is 1.5 times greater than the average volume over the past ten-minutes, it is marked as an unusual trade.
+If the trade's volume is 1.5 times greater than the average volume of each asset over the past ten-minutes, it is marked as an unusual trade.
 
 ```sql
 CREATE MATERIALIZED VIEW unusual_volume AS
