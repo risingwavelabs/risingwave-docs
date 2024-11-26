@@ -29,9 +29,9 @@ CREATE SOURCE [ IF NOT EXISTS ] source_name (
 
 ## Notes
 
-A [generated column](/docs/current/query-syntax-generated-columns/) is defined with non-deterministic functions. When the data is ingested, the function will be evaluated to generate the value of this field.
+A [generated column](/sql/query-syntax/generated-columns) is defined with non-deterministic functions. When the data is ingested, the function will be evaluated to generate the value of this field.
 
-Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/docs/current/sql-identifiers/).
+Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/sql/identifiers).
 
 To know when a data record is loaded to RisingWave, you can define a column that is generated based on the processing time (`<column_name> timestamptz AS proctime()`) when creating the table or source. See also [proctime()](/sql/functions/datetime#proctime).
 
@@ -64,9 +64,9 @@ The generated column is created in RisingWave and will not be accessed through t
 | _source\_name_                    | The name of the source. If a schema name is given (for example, CREATE SOURCE \<schema>.\<source> ...), then the table is created in the specified schema. Otherwise it is created in the current schema.                                                                                      |
 | _col\_name_                       | The name of a column.                                                                                                                                                                                                                                                                        |
 | _data\_type_                      | The data type of a column. With the struct data type, you can create a nested table. Elements in a nested table need to be enclosed with angle brackets (\<>).                                                                                                                                |
-| _generation\_expression_          | The expression for the generated column. For details about generated columns, see [Generated columns](/docs/current/query-syntax-generated-columns/).                                                                                                                                        |
-| _watermark\_clause_               | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For details about watermarks, refer to [Watermarks](/docs/current/watermarks/).                                                                                                |
-| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/docs/current/include-clause/).                                                                                                                                          |
+| _generation\_expression_          | The expression for the generated column. For details about generated columns, see [Generated columns](/sql/query-syntax/generated-columns).                                                                                                                                        |
+| _watermark\_clause_               | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For details about watermarks, refer to [Watermarks](/processing/watermarks).                                                                                                |
+| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause).                                                                                                                                          |
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/ingestion/supported-sources-and-formats#supported-sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
 | **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Supported formats](/ingestion/supported-sources-and-formats#supported-formats).                                                                                      |
 
@@ -76,7 +76,7 @@ Please distinguish between the parameters set in the FORMAT and ENCODE options a
 </Note>
 ## Watermarks
 
-RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/docs/current/watermarks/) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/docs/current/watermarks/).
+RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/processing/watermarks) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/processing/watermarks).
 
 ## Change Data Capture (CDC)
 
@@ -181,7 +181,7 @@ Shared sources do not support `ALTER SOURCE`. Use non-shared sources if you requ
     title="DROP SOURCE"
     icon="trash"
     iconType="solid"
-    href="/docs/current/sql-drop-source/"
+    href="/sql/commands/sql-drop-source"
   >
     Remove a source
   </Card>
@@ -189,7 +189,7 @@ Shared sources do not support `ALTER SOURCE`. Use non-shared sources if you requ
     title="SHOW CREATE SOURCE"
     icon="eye"
     iconType="solid"
-    href="/docs/current/sql-show-create-source/"
+    href="/sql/commands/sql-show-create-source"
   >
     Show the SQL statement used to create a source
   </Card>

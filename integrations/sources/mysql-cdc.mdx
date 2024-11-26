@@ -13,7 +13,7 @@ With this connector, RisingWave can connect to MySQL databases directly to obtai
 * Using a CDC tool and a message broker
 You can use a CDC tool and then use the Kafka, Pulsar, or Kinesis connector to send the CDC data to RisingWave.
 
-This topic describes how to ingest MySQL CDC data into RisingWave using the native MySQL CDC connector. Using an external CDC tool and a message broker is introduced in [Create source via event streaming systems](/docs/current/ingest-from-cdc/).
+This topic describes how to ingest MySQL CDC data into RisingWave using the native MySQL CDC connector. Using an external CDC tool and a message broker is introduced in [Create source via event streaming systems](/ingestion/change-data-capture-with-risingwave).
 
 ## Set up MySQL
 
@@ -170,7 +170,7 @@ SELECT * FROM t2 ORDER BY v1;
   4 | dd | 2024-05-20 09:01:08+00:00
 ```
 
-You can see the [INCLUDE clause](/docs/current/include-clause/) for more details.
+You can see the [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause) for more details.
 
 ### Debezium parameters
 
@@ -224,7 +224,7 @@ FROM mysql_source TABLE 'public.person';
 
 ## Examples
 
-Connect to the upstream database by creating a CDC source using the [CREATE SOURCE](/docs/current/sql-create-source/) command and MySQL CDC parameters. The data format is fixed as `FORMAT PLAIN ENCODE JSON` so it does not need to be specified.
+Connect to the upstream database by creating a CDC source using the [CREATE SOURCE](/sql/commands/sql-create-source) command and MySQL CDC parameters. The data format is fixed as `FORMAT PLAIN ENCODE JSON` so it does not need to be specified.
 
 ```sql
 CREATE SOURCE mysql_mydb WITH (
@@ -260,7 +260,7 @@ CREATE TABLE t3_rw (
 ) FROM mysql_mydb TABLE 'mydb.t3';
 ```
 
-To check the progress of backfilling historical data, find the corresponding internal table using the [SHOW INTERNAL TABLES](/docs/current/sql-show-internal-tables/) command and query from it. For instance, the following SQL query shows the progress of a CDC table named `orders_rw`.
+To check the progress of backfilling historical data, find the corresponding internal table using the [SHOW INTERNAL TABLES](/sql/commands/sql-show-internal-tables) command and query from it. For instance, the following SQL query shows the progress of a CDC table named `orders_rw`.
 
 ```sql
 SELECT * FROM __internal_orders_rw_4002_streamcdcscan_5002;
@@ -328,7 +328,7 @@ Please be aware that the range of specific values varies among MySQL types and R
 
 ## Use dbt to ingest data from MySQL CDC
 
-Here is an example of how to use dbt to ingest data from MySQL CDC. In this dbt example, `source` and `table_with_connector` models will be used. For more details about these two models, please refer to [Use dbt for data transformations](/docs/current/use-dbt/#define-dbt-models).
+Here is an example of how to use dbt to ingest data from MySQL CDC. In this dbt example, `source` and `table_with_connector` models will be used. For more details about these two models, please refer to [Use dbt for data transformations](/integrations/other/dbt#define-dbt-models).
 
 First, we create a `source` model `mysql_mydb.sql`.
 
@@ -367,7 +367,7 @@ This feature is only available in the premium edition of RisingWave. The premium
 <Note>
 PUBLIC PREVIEW
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](../../changelog/product-lifecycle#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
 
 </Note>
 RisingWave supports automatically mapping the upstream table schema when creating a CDC table from a MySQL CDC source. Instead of defining columns individually, you can use `*` when creating a table to ingest all columns from the source table. Note that `*` cannot be used if other columns are specified in the table creation process.
@@ -407,7 +407,7 @@ This feature is only available in the premium edition of RisingWave. The premium
 <Note>
 **PUBLIC PREVIEW**
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](../../changelog/product-lifecycle#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
 
 </Note>
 RisingWave supports auto schema changes in MySQL CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.
