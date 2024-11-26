@@ -30,7 +30,7 @@ CREATE FUNCTION gcd(int, int) RETURNS int LANGUAGE rust AS $$
 $$;
 ```
 
-The Rust code must start with a `fn` function, and the function's name, parameters, and return type must match those declared in the `CREATE FUNCTION` statement. Refer to the [Data type mapping](/docs/current/udf-rust/#data-type-mapping) for details on the correspondence between SQL types and Rust types.
+The Rust code must start with a `fn` function, and the function's name, parameters, and return type must match those declared in the `CREATE FUNCTION` statement. Refer to the [Data type mapping](/sql/udfs/use-udfs-in-rust#data-type-mapping) for details on the correspondence between SQL types and Rust types.
 
 For table functions, your function must return an `impl Iterator<Item = T>` type, where `T` is the type of the returned elements. For example, to generate a sequence from 0 to n-1:
 
@@ -61,7 +61,7 @@ $$;
 
 First, define a structure using `struct` and annotate it with `#[derive(StructType)]`. Its fields must match the struct type declared in the `CREATE FUNCTION` statement. Then, define the function and annotate it with the `#[function("...")]` macro. The string in the macro represents the SQL signature of the function, with the tail return type being `struct StructName`. For the specific syntax, see [arrow-udf](https://docs.rs/arrow-udf/0.2.1/arrow%5Fudf/attr.function.html).
 
-Currently, in `CREATE FUNCTION` statement, Rust code can only use libraries from the standard library, `chrono`, `rust_decimal`, `serde_json`, and does not support other third-party libraries. If you wish to use other libraries, you may consider [compiling WebAssembly modules manually](/docs/current/udf-rust/#alternative-manually-build-your-functions-into-a-webassembly-module).
+Currently, in `CREATE FUNCTION` statement, Rust code can only use libraries from the standard library, `chrono`, `rust_decimal`, `serde_json`, and does not support other third-party libraries. If you wish to use other libraries, you may consider [compiling WebAssembly modules manually](/sql/udfs/use-udfs-in-rust#alternative-manually-build-your-functions-into-a-webassembly-module).
 
 ## Use your functions in RisingWave
 
@@ -127,7 +127,7 @@ fn series(n: i32) -> impl Iterator<Item = i32> {
 
 You can find more usages in these [functions](https://docs.rs/arrow%5Fudf/0.2.1/arrow%5Fudf/attr.function.html) and more examples in these [tests](https://github.com/risingwavelabs/arrow-udf/blob/main/arrow-udf/tests/tests.rs).
 
-See the correspondence between SQL types and Rust types in the [Data type mapping](/docs/current/udf-rust/#data-type-mapping).
+See the correspondence between SQL types and Rust types in the [Data type mapping](/sql/udfs/use-udfs-in-rust#data-type-mapping).
 
 ### 3\. Build the project
 
