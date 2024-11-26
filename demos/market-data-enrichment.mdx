@@ -121,7 +121,7 @@ SELECT * FROM avg_price_bid_ask_spread LIMIT 5;
 The `rolling_volatility` materialized view uses the `stddev_samp` function to calculate the rolling price volatility within five-minute time windows by using `TUMBLE()` and grouping by the `assed_id` and the time window.
 
 ```sql
-CREATE MATERIALIZED VIEW rolling_volatility2 AS
+CREATE MATERIALIZED VIEW rolling_volatility AS
 SELECT
     asset_id,
     ROUND(stddev_samp(price), 2) AS rolling_volatility,
@@ -134,7 +134,7 @@ FROM
 You can query from `rolling_volatility` to see the results.
 
 ```sql
-SELECT * FROM rolling_volatility2 LIMIT 5;
+SELECT * FROM rolling_volatility LIMIT 5;
 ```
 ```
  asset_id | rolling_volatility |     window_end      
@@ -153,7 +153,7 @@ The `enriched_market_data` materialized view combines the transformed market dat
 By combining these data sources, you can obtain a more holistic view of each asset, empowering you to make more informed market decisions.
 
 ```sql
-CREATE MATERIALIZED VIEW enriched_market_data2 AS
+CREATE MATERIALIZED VIEW enriched_market_data AS
 SELECT
     bas.asset_id,
     ed.sector,
@@ -165,9 +165,9 @@ SELECT
     ed.avg_sentiment_score,
     rv.window_end
 FROM
-    avg_price_bid_ask_spread2 AS bas
+    avg_price_bid_ask_spread AS bas
 JOIN
-    rolling_volatility2 AS rv
+    rolling_volatility AS rv
 ON
     bas.asset_id = rv.asset_id AND
     bas.window_end = rv.window_end
