@@ -21,7 +21,7 @@ Similarly, to add a column to a table, use this command:
 ALTER TABLE <table_name> ADD COLUMN <column_name> <column_type>;
 ```
 
-For details about these two commands, see [ALTER SOURCE](/docs/current/sql-alter-source/) and [ALTER TABLE](/docs/current/sql-alter-table/).
+For details about these two commands, see [ALTER SOURCE](/sql/commands/sql-alter-source) and [ALTER TABLE](/sql/commands/sql-alter-table).
 
 <Note>
 Note that you cannot add a primary key column to a source or table in RisingWave. To modify the primary key of a source or table, you need to recreate the table.
@@ -59,7 +59,7 @@ ALTER TABLE table_name DROP COLUMN column_name;
 
 ### Source
 
-At present, combined with the [ALTER SOURCE command](/docs/current/sql-alter-source/#format-and-encode-options), you can refresh the schema registry of a source by refilling its [FORMAT and ENCODE options](/docs/current/formats-and-encode-parameters/). The syntax is:
+At present, combined with the [ALTER SOURCE command](/sql/commands/sql-alter-source#format-and-encode-options), you can refresh the schema registry of a source by refilling its [FORMAT and ENCODE options](/ingestion/format-and-encode-parameters). The syntax is:
 
 ```sql
 ALTER SOURCE source_name FORMAT data_format ENCODE data_encode [ (
@@ -95,7 +95,7 @@ ALTER SOURCE src_user FORMAT PLAIN ENCODE PROTOBUF(
 Currently, it is not supported to modify the `data_format` and `data_encode`. Furthermore, when refreshing the schema registry of a source, it is not allowed to drop columns or change types.
 </Note>
 
-In addition, when the [FORMAT and ENCODE options](/docs/current/formats-and-encode-parameters/) are not changed, the `REFRESH SCHEMA` clause of `ALTER SOURCE` can also be used to refresh the schema of a source.
+In addition, when the [FORMAT and ENCODE options](/ingestion/format-and-encode-parameters) are not changed, the `REFRESH SCHEMA` clause of `ALTER SOURCE` can also be used to refresh the schema of a source.
 
 ```sql
 ALTER SOURCE source_name REFRESH SCHEMA;
@@ -130,7 +130,7 @@ For more details about this example, see our [test file](https://github.com/risi
 
 ### Table
 
-Similarly, you can use the following statement to refresh the schema of a table with connectors. For more details, see [ALTER TABLE](/docs/current/sql-alter-table/#refresh-schema).
+Similarly, you can use the following statement to refresh the schema of a table with connectors. For more details, see [ALTER TABLE](/sql/commands/sql-alter-table#refresh-schema).
 
 Refresh schema of table
 
@@ -144,6 +144,6 @@ If a downstream fragment references a column that is either missing or has under
 
 ## See also
 
-* [ALTER SOURCE command](/docs/current/sql-alter-source/)
-* [ALTER TABLE command](/docs/current/sql-alter-table/)
-* [ALTER SCHEMA command](/docs/current/sql-alter-schema/)
+* [ALTER SOURCE command](/sql/commands/sql-alter-source)
+* [ALTER TABLE command](/sql/commands/sql-alter-table)
+* [ALTER SCHEMA command](/sql/commands/sql-alter-schema)
