@@ -10,7 +10,7 @@ ALTER TABLE table_name
     alter_option;
 ```
 
-_`alteroption`_ depends on the operation you want to perform on the table. For all supported clauses, see the sections below.
+alter_option depends on the operation you want to perform on the table. For all supported clauses, see the sections below.
 
 ## Clauses
 
@@ -108,7 +108,7 @@ SET PARALLELISM = parallelism_number;
 
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-jobs).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. After setting the parallelism, the parallelism status of a table can be observed within the internal [rw\_table\_fragments](/operate/view-configure-runtime-parameters) table or the [rw\_fragments](/operate/view-configure-runtime-parameters)table. |
 
 ```sql
@@ -165,6 +165,24 @@ SELECT fragment_id, parallelism FROM rw_fragments;
            1 |          12
            2 |          12
 (2 rows)
+```
+
+### `SWAP WITH`
+
+```sql
+ALTER TABLE name
+SWAP WITH target_name;
+```
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _name_ | The current name of the table to swap. |
+| _target_name_ | The target name of the table you want to swap with. |
+
+```sql
+-- Swap the names of the products table and the inventory table.
+ALTER TABLE products
+SWAP WITH inventory;
 ```
 
 ### `RENAME TO`

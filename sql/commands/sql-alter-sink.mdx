@@ -63,7 +63,7 @@ SET PARALLELISM = parallelism_number;
 
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                              |
 | :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-jobs).                                                                                                                                                                  |
+| **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                  |
 | _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. |
 
 ```sql
@@ -86,4 +86,22 @@ ALTER SINK sink_name
 ```sql
 -- Change the name of the sink named "sink0" to "sink1"
 ALTER SINK sink0 RENAME TO sink1;
+```
+
+### `SWAP WITH`
+
+```sql
+ALTER SINK name
+SWAP WITH target_name;
+```
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _name_ | The current name of the sink to swap. |
+| _target_name_ | The target name of the sink you want to swap with. |
+
+```sql
+-- Swap the names of the log_sink sink and the error_sink sink.
+ALTER SINK log_sink
+SWAP WITH error_sink;
 ```
