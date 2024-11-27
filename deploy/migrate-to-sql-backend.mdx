@@ -1,10 +1,11 @@
 ---
 title: "Migrate from etcd to SQL backend for metadata management"
 sidebarTitle: "Migrate to SQL backend"
-description: "Starting from **v1.9.0**, RisingWave has introduced support for using a SQL backend as a meta store for managing metadata."
 ---
 
-This marks a significant shift as the SQL backend is set to gradually deprecate etcd in future releases. The SQL backend currently supports these databases:
+Starting from **v1.9.0**, RisingWave has introduced support for using a SQL backend as a meta store for managing metadata. This marks a significant shift as RisingWave fully deprecates the etcd meta backend starting with **v2.1.0**. To ensure continued support and access to new features, please follow this guide on migrating from etcd to the SQL backend.
+
+The SQL backend currently supports these databases:
 
 * **SQLite** (Please note that SQLite does not support multi-meta configurations.)
 * **PostgreSQL** (Recommended for production environments.)
@@ -63,15 +64,11 @@ After completing the migration, monitor your cluster to ensure it is functioning
 
 Keep an eye on the performance metrics to identify any changes or improvements in stability and response times. Monitoring tools and dashboards can help track the performance of your SQL backend and RisingWave cluster.
 
-### Troubleshooting
-
-Be prepared to troubleshoot any issues that may arise due to the change in the backend. Familiarize yourself with the SQL backend’s diagnostic tools and error messages. For any problems, consult the RisingWave documentation and [community](https://www.risingwave.com/slack) for support.
-
 ### Backup management
 
 After running the system for a while, if you confirm that everything is working correctly, don't forget to delete the backup if you made one.
 
-## When migration command fails
+## Troubleshooting
 
 If the migration command fails, check the following:
 
@@ -79,3 +76,5 @@ If the migration command fails, check the following:
 * Verify that the target database exists and is accessible.
 * Confirm that the user has sufficient permissions to write to the database.
 * If the migration process was interrupted, re-run the migration command with the `-f` (force) parameter to overwrite all metadata.
+
+Familiarize yourself with the SQL backend’s diagnostic tools and error messages. To seek help from the community, you can join our [Slack workspace](https://www.risingwave.com/slack) and post your questions in the `#troubleshooting` channel. You may also [file an issue in GitHub](https://github.com/risingwavelabs/risingwave/issues/new/choose).
