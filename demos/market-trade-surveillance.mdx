@@ -28,7 +28,7 @@ Once RisingWave is installed and deployed, run the two SQL queries below to set 
         trade_id INT,
         asset_id INT,
         timestamp TIMESTAMP,
-        price FLOAT,
+        price NUMERIC,
         volume INT,
         buyer_id INT,
         seller_id INT
@@ -41,9 +41,9 @@ Once RisingWave is installed and deployed, run the two SQL queries below to set 
     CREATE TABLE market_data (
         asset_id INT,
         timestamp TIMESTAMP,
-        bid_price FLOAT,
-        ask_price FLOAT,
-        price FLOAT,
+        bid_price NUMERIC,
+        ask_price NUMERIC,
+        price NUMERIC,
         rolling_volume INT
     );
     ```
@@ -86,9 +86,9 @@ Materialized views contain the results of a view expression and are stored in th
 
 ### Identify unusual volume trades
 
-The `unusual_volume` materialized view indicates if a trade has a higher than average trading volume within a ten-minute window. A rolling window is used for each `asset_id` to calculate the average volume.
+The `unusual_volume` materialized view indicates if a trade has a higher than average trading volume within a 10-minute window. `TUMBLE()` is used to to split everything into non-overlapping 10-minute windows. `GROUP BY` is used to group the data by the unique trade ID, asset ID, volume, and window start time. Then `PARTITION BY` is used to ensure that the average volume is calculated separately for each asset.
 
-If the trade's volume is 1.5 times greater than the rolling average volume over the past ten-minutes, it is marked as an unusual trade.
+If the trade's volume is 1.5 times greater than the average volume of each asset over the past ten-minutes, it is marked as an unusual trade.
 
 ```sql
 CREATE MATERIALIZED VIEW unusual_volume AS
@@ -96,11 +96,22 @@ SELECT
     trade_id,
     asset_id,
     volume,
-    CASE WHEN volume > AVG(volume) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '10 MINUTES' PRECEDING) * 1.5
-         THEN TRUE ELSE FALSE END AS unusual_volume,
-    timestamp
-FROM
-    trade_data;
+    CASE WHEN volume > avg_volume * 1.5 THEN TRUE ELSE FALSE END AS unusual_volume,
+    window_start AS timestamp
+FROM (
+    SELECT
+        trade_id,
+        asset_id,
+        volume,
+        AVG(volume) OVER (PARTITION BY asset_id) as avg_volume,
+        window_start
+    FROM TUMBLE(trade_data, timestamp, INTERVAL '10 MINUTES')
+    GROUP BY
+        trade_id,
+        asset_id,
+        volume,
+        window_start
+);
 ```
 
 You can query from `position_overview` to see the results. High volume trades are indicated in the `unusual_volume` column.
@@ -110,18 +121,18 @@ SELECT * FROM unusual_volume LIMIT 5;
 ```
 
 ```
- trade_id | asset_id | volume | unusual_volume |         timestamp          
-----------+----------+--------+----------------+----------------------------
-    46668 |        5 |    318 | f              | 2024-11-14 15:36:08.419826
-    52030 |        5 |    301 | f              | 2024-11-14 15:36:09.432126
-    22027 |        5 |    375 | f              | 2024-11-14 15:36:10.452766
-    98493 |        5 |    673 | t              | 2024-11-14 15:36:11.474102
-    93247 |        5 |    929 | t              | 2024-11-14 15:36:12.504713
+ trade_id | asset_id | volume | unusual_volume |      timestamp      
+----------+----------+--------+----------------+---------------------
+    11633 |        1 |    943 | t              | 2024-11-26 15:20:00
+    11880 |        1 |     93 | f              | 2024-11-26 15:20:00
+    12972 |        1 |    604 | f              | 2024-11-26 15:20:00
+    13964 |        1 |    181 | f              | 2024-11-26 15:20:00
+    15789 |        1 |    127 | f              | 2024-11-26 15:20:00
 ```
 
 ### Monitor price spikes
 
-The `price_spike` materialized view analyzes the price fluctuation of assets within a rolling five-minute window to detect potential price spikes. Calculate the percent change between the highest and lower prices within a five-minute window for each asset.
+The `price_spike` materialized view analyzes the price fluctuation of assets within a five-minute window to detect potential price spikes. For each asset, calculate the percent change between the highest and lower prices within a five-minute window.
 
 A price spike for the asset is detected if the percentage change exceeds 5%.
 
@@ -129,41 +140,32 @@ A price spike for the asset is detected if the percentage change exceeds 5%.
 CREATE MATERIALIZED VIEW price_spike AS
 SELECT
     asset_id,
-    (MAX(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
-                      RANGE INTERVAL '5 MINUTES' PRECEDING) -
-     MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
-                      RANGE INTERVAL '5 MINUTES' PRECEDING)) /
-     MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
-                      RANGE INTERVAL '5 MINUTES' PRECEDING) AS percent_change,
+    ROUND((MAX(price) - MIN(price)) / MIN(price) * 100, 2) AS price_change_pct,
     CASE 
-        WHEN 
-            (MAX(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
-                              RANGE INTERVAL '5 MINUTES' PRECEDING) -
-             MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
-                              RANGE INTERVAL '5 MINUTES' PRECEDING)) /
-             MIN(price) OVER (PARTITION BY asset_id ORDER BY timestamp 
-                              RANGE INTERVAL '5 MINUTES' PRECEDING) * 100 > 5 
-        THEN TRUE 
-        ELSE FALSE 
-    END AS if_price_spike,
-    timestamp
+        WHEN ROUND((MAX(price) - MIN(price)) / MIN(price) * 100, 2) > 5 THEN TRUE
+        ELSE FALSE
+    END AS price_spike,
+    window_start AS timestamp
 FROM
-    market_data;
+    TUMBLE(market_data, timestamp, INTERVAL '5 MINUTES')
+GROUP BY
+    asset_id,
+    window_start;
 ```
 
 You can query from `price_spike` to see the results. The `if_price_spike` column denotes if there was a price spike for the asset.
 
 ```sql
-SELECT * FROM risk_summary;
+SELECT * FROM price_spike;
 ```
 ```
- asset_id |    percent_change    | if_price_spike |         timestamp          
-----------+----------------------+----------------+----------------------------
-        5 |                    0 | f              | 2024-11-14 15:36:08.422258
-        1 |  0.44455600178491755 | t              | 2024-11-14 15:36:09.432829
-        2 |   0.3369464944649446 | t              | 2024-11-14 15:36:09.433616
-        3 |   1.7954589186068888 | t              | 2024-11-14 15:36:09.434359
-        4 | 0.012453174040700659 | f              | 2024-11-14 15:36:09.435159
+ asset_id | price_change_pct | price_spike |      timestamp      
+----------+------------------+-------------+---------------------
+        3 |           192.05 | t           | 2024-11-26 15:20:00
+        5 |           185.41 | t           | 2024-11-26 15:20:00
+        1 |           184.32 | t           | 2024-11-26 15:20:00
+        4 |           193.79 | t           | 2024-11-26 15:20:00
+        2 |           186.83 | t           | 2024-11-26 15:20:00
 ```
 
 ### Flag spoofing activity
@@ -178,27 +180,33 @@ The following two conditions must be met to flag spoofing activity:
 ```sql
 CREATE MATERIALIZED VIEW spoofing_detection AS
 SELECT
-    m.asset_id,
-    m.timestamp,
-    CASE WHEN ABS(m.bid_price - m.ask_price) < 0.2 AND rolling_volume < AVG(rolling_volume) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '10 MINUTES' PRECEDING) * 0.8
-         THEN TRUE ELSE FALSE END AS potential_spoofing
-FROM
-    market_data AS m;
+    asset_id,
+    window_start AS timestamp,
+    CASE
+    WHEN ABS(AVG(bid_price) - AVG(ask_price)) < 0.2 AND 
+        SUM(rolling_volume) < AVG(SUM(rolling_volume)) OVER (PARTITION BY asset_id) * 0.8
+        THEN TRUE
+        ELSE FALSE
+    END AS potential_spoofing
+FROM TUMBLE(market_data, timestamp, INTERVAL '10 MINUTES')
+GROUP BY
+    asset_id,
+    window_start;
 ```
 
 You can query from `spoofing_detection` to see the results.
 
 ```sql
-SELECT * FROM market_summary LIMIT 5;
+SELECT * FROM spoofing_detection LIMIT 5;
 ```
 ```
- asset_id |         timestamp          | potential_spoofing 
-----------+----------------------------+--------------------
-        4 | 2024-11-14 15:36:08.421848 | f
-        5 | 2024-11-14 15:36:08.422258 | f
-        1 | 2024-11-14 15:36:09.432829 | f
-        2 | 2024-11-14 15:36:09.433616 | f
-        3 | 2024-11-14 15:36:09.434359 | f
+ asset_id |      timestamp      | potential_spoofing 
+----------+---------------------+--------------------
+        1 | 2024-11-26 15:20:00 | f
+        5 | 2024-11-26 15:20:00 | f
+        2 | 2024-11-26 15:20:00 | f
+        4 | 2024-11-26 15:20:00 | f
+        3 | 2024-11-26 15:20:00 | f
 ```
 
 When finished, press `Ctrl+C` to close the connection between RisingWave and `psycopg2`.
@@ -207,4 +215,4 @@ When finished, press `Ctrl+C` to close the connection between RisingWave and `ps
 
 In this tutorial, you learn:
 
-- How to create rolling windows by using the `PARTITION BY` clause.
+- How to use `PARTITION BY` to calculate the average volume separately for each asset
