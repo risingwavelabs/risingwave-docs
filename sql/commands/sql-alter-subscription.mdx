@@ -1,0 +1,101 @@
+---
+title: "ALTER SUBSCRIPTION"
+description: "The `ALTER SUBSCRIPTION` command modifies the definition of a subscription."
+---
+
+## Syntax
+
+```sql
+ALTER SUBSCRIPTION subscription_name
+    alter_option;
+```
+
+`alter_option` depends on the operation you want to perform on the subscription. For all supported clauses, see the sections below.
+
+## Clauses
+
+### `OWNER TO`
+
+```sql
+ALTER SUBSCRIPTION current_subscription_name
+    OWNER TO new_user;
+```
+
+| Parameter or clause | Description                                     |
+| :------------------ | :---------------------------------------------- |
+| **OWNER TO**        | This clause changes the owner of the subscription.    |
+| _new\_user_         | The new owner you want to assign to the subscription. |
+
+```sql
+-- Change the owner of the subscription named "sub" to user "admin"
+ALTER SUBSCRIPTION sub OWNER TO admin;
+```
+
+### `RENAME TO`
+
+```sql
+ALTER SUBSCRIPTION subscription_name
+    RENAME TO new_name;
+```
+
+| Parameter or clause | Description                                |
+| :------------------ | :----------------------------------------- |
+| **RENAME TO**       | This clause changes the name of the subscription. |
+| _new\_name_         | The new name of the subscription.                 |
+
+```sql
+-- Rename the subscription named "sub0" to "sub1"
+ALTER SUBSCRIPTION sub0 RENAME TO sub1;
+```
+
+### `SET PARALLELISM`
+
+```sql
+ALTER SUBSCRIPTION subscription_name
+SET PARALLELISM = parallelism_number;
+```
+
+| Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                              |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                  |
+| _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. |
+
+```sql
+-- Set the parallelism of the SUBSCRIPTION "s" to 4.
+ALTER SUBSCRIPTION s SET PARALLELISM = 4;
+```
+
+### `SET SCHEMA`
+
+```sql
+ALTER SUBSCRIPTION current_subscription_name
+    SET SCHEMA schema_name;
+```
+
+| Parameter or clause | Description                                               |
+| :------------------ | :-------------------------------------------------------- |
+| **SET SCHEMA**      | This clause moves the subscription to a different schema.       |
+| _schema\_name_      | The name of the schema to which the subscription will be moved. |
+
+```sql
+-- Move the subscription named "test_subscription" to the schema named "test_schema"
+ALTER SUBSCRIPTION test_subscription SET SCHEMA test_schema;
+```
+
+### `SWAP WITH`
+
+```sql
+ALTER SUBSCRIPTION name
+SWAP WITH target_name;
+```
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _name_ | The current name of the subscription to swap. |
+| _target_name_ | The target name of the subscription you want to swap with. |
+
+```sql
+-- Swap the names of the user_updates subscription and the admin_updates subscription.
+ALTER SUBSCRIPTION user_updates
+SWAP WITH admin_updates;
+```
