@@ -120,6 +120,26 @@ CREATE TABLE t1(
 INSERT INTO t1 SELECT * FROM source_iceberg_t1;
 ```
 
+## Batch read from file source
+
+RisingWave supports reading data in batch from file sources including AWS S3, GCS, and Azure Blob Storage.
+
+You need to create a materialized view from the source or create a table with the connector to read the data. You can also directly select from the file source. Take S3 as an example:
+
+```sql
+-- Create a materialized view from the source
+CREATE SOURCE s3_source WITH ( connector = 's3', ... );
+CREATE MATERIALIZED VIEW mv AS SELECT * FROM s3_source;
+
+-- Create a table with the S3 connector
+CREATE TABLE s3_table ( ... ) WITH ( connector = 's3', ... );
+
+-- Select from the source directly
+SELECT count(*) from s3_source;
+```
+
+
+
 ## Topics in this section
 
 The information presented above provides a brief overview of the data ingestion process in RisingWave. To gain a more comprehensive understanding of this process, the following topics in this section will delve more deeply into the subject matter. Here is a brief introduction to what you can expect to find in each topic:
