@@ -120,24 +120,50 @@ CREATE TABLE t1(
 INSERT INTO t1 SELECT * FROM source_iceberg_t1;
 ```
 
-## Batch read from file source
+## File source management
 
-RisingWave supports reading data in batch from file sources including AWS S3, GCS, and Azure Blob Storage.
+RisingWave supports reading data from file sources including AWS S3, GCS, and Azure Blob Storage.
 
-You need to create a materialized view from the source or create a table with the connector to read the data. You can also directly select from the file source. Take S3 as an example:
+### Batch reading from file source
+
+To read data in batch from file sources, you need to create a materialized view from the source or create a table with the appropriate connector. You can also directly query the file source. Below are examples using AWS S3.
 
 ```sql
--- Create a materialized view from the source
+-- Create a source that connects to S3
 CREATE SOURCE s3_source WITH ( connector = 's3', ... );
+
+-- Create a materialized view from the source for batch processing
 CREATE MATERIALIZED VIEW mv AS SELECT * FROM s3_source;
 
--- Create a table with the S3 connector
+-- Create a table using the S3 connector
 CREATE TABLE s3_table ( ... ) WITH ( connector = 's3', ... );
 
 -- Select from the source directly
 SELECT count(*) from s3_source;
 ```
 
+### Data type mapping in Parquet
+
+You can use the table function `file_scan()` to read Parquet files from sources. Below is the data type mapping that shows how RisingWave converts data types from file sources in Parquet format.
+
+| File source type | RisingWave type |
+| :----------- | :-------------- |
+| boolean      | boolean         |
+| integer      | int             |
+| long         | bigint          |
+| float        | real            |
+| double       | double          |
+| string       | varchar         |
+| date         | date            |
+| timestamptz  | timestamptz     |
+| timestamp    | timestamp       |
+| decimal      | decimal         |
+| Int8         | Int16           |
+| UInt8        | Int16           |
+| UInt16       | Int32           |
+| UInt32       | Int64           |
+| UInt64       | Decimal         |
+| Float16      | Float32         |
 
 
 ## Topics in this section
