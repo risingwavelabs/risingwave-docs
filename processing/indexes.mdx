@@ -15,7 +15,7 @@ Indexes can be particularly useful for optimizing the performance of queries tha
 
 ## How to use indexes
 
-You can use the [CREATE INDEX](/docs/current/sql-create-index/) command to construct an index on a table or a materialized view. The syntax is as follows:
+You can use the [CREATE INDEX](/sql/commands/sql-create-index) command to construct an index on a table or a materialized view. The syntax is as follows:
 
 ```sql
 CREATE INDEX [IF NOT EXISTS] index_name ON object_name ( index_column [ ASC | DESC ], [, ...] )
@@ -90,7 +90,7 @@ SELECT c_name, c_address FROM customers WHERE c_phone = '123456789';
 ```
 
 <Tip>
-You can use the [EXPLAIN](/docs/current/sql-explain/) command to view the execution plan.
+You can use the [EXPLAIN](/sql/commands/sql-explain) command to view the execution plan.
 </Tip>
 
 ## How to decide the index distribution key?
@@ -126,7 +126,7 @@ Then you might want to create an index like the following to improve the perform
 CREATE INDEX people_names ON people ((first_name || ' ' || last_name));
 ```
 
-This syntax is quite useful when working with a semi-structured table that utilizes the [JSONB](/docs/current/data-type-jsonb/) datatype. Here is an example of creating an index on a specific field within a JSONB column.
+This syntax is quite useful when working with a semi-structured table that utilizes the [JSONB](/sql/data-types/jsonb) datatype. Here is an example of creating an index on a specific field within a JSONB column.
 
 ```sql
 dev=> create table t(v jsonb);
@@ -144,16 +144,16 @@ dev=> explain select * from t where (v->'field')::int = 123;
 ## See also
 
 <CardGroup>
-<Card title="CREATE INDEX" icon="square-plus" iconType="solid" href="/docs/current/sql-create-index/">
+<Card title="CREATE INDEX" icon="square-plus" iconType="solid" href="/sql/commands/sql-create-index">
 Create an index constructed on a table or a materialized view.
 </Card>
-<Card title="DROP INDEX" icon="square-minus"iconType="solid"  href="/docs/current/sql-drop-index/">
+<Card title="DROP INDEX" icon="square-minus"iconType="solid"  href="/sql/commands/sql-drop-index">
  Remove an index constructed on a table or a materialized view.
 </Card>
-<Card title="SHOW CREATE INDEX" icon="eye"iconType="solid"  href="/docs/current/sql-show-create-index/">
+<Card title="SHOW CREATE INDEX" icon="eye"iconType="solid"  href="/sql/commands/sql-show-create-index">
 See what query was used to create the specified index.
 </Card>
-<Card title="ALTER INDEX" icon="pen-to-square" iconType="solid" href="/docs/current/sql-alter-index/">
+<Card title="ALTER INDEX" icon="pen-to-square" iconType="solid" href="/sql/commands/sql-alter-index">
 Modify an index.
 </Card>
 </CardGroup>

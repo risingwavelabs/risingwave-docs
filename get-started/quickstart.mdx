@@ -8,7 +8,7 @@ description: "This guide aims to provide a quick and easy way to get started wit
 
 The following options start RisingWave in the standalone mode. In this mode, data is stored in the file system and the metadata is stored in the embedded SQLite database. See [About RisingWave standalone mode](#about-risingwave-standalone-mode) for more details.
 
-For extensive testing or single-machine deployment, consider [starting RisingWave via Docker Compose](/docs/current/risingwave-docker-compose/). For production environments, consider [RisingWave Cloud](/docs/current/risingwave-cloud/), our fully managed service, or [deployment on Kubernetes using the Operator](/docs/current/risingwave-kubernetes/) or [Helm Chart](/docs/current/risingwave-k8s-helm/).
+For extensive testing or single-machine deployment, consider [starting RisingWave via Docker Compose](/deploy/risingwave-docker-compose). For production environments, consider [RisingWave Cloud](/deploy/risingwave-cloud), our fully managed service, or [deployment on Kubernetes using the Operator](/deploy/risingwave-kubernetes) or [Helm Chart](/deploy/risingwave-k8s-helm).
 
 ### Script installation
 
@@ -44,7 +44,7 @@ risingwave
 
 ## Step 2: Connect to RisingWave
 
-Ensure you have `psql` installed in your environment. To learn about how to install it, see [Install psql without PostgreSQL](/docs/current/install-psql-without-postgresql/).
+Ensure you have `psql` installed in your environment. To learn about how to install it, see [Install psql without PostgreSQL](/deploy/install-psql-without-postgresql).
 
 Open a new terminal window and run:
 
@@ -133,13 +133,13 @@ SELECT * FROM average_exam_scores;
 
 RisingWave standalone mode is a simplified deployment mode for RisingWave. It is designed to be minimal, easy to install, and configure.
 
-Unlike other deployment modes, for instance [Docker Compose](/docs/current/risingwave-docker-compose/) or [Kubernetes](/docs/current/risingwave-kubernetes/), RisingWave standalone mode starts the cluster as a single process. This means that services like `compactor`, `frontend`, `compute` and `meta` are all embedded in this process.
+Unlike other deployment modes, for instance [Docker Compose](/deploy/risingwave-docker-compose) or [Kubernetes](/deploy/risingwave-kubernetes), RisingWave standalone mode starts the cluster as a single process. This means that services like `compactor`, `frontend`, `compute` and `meta` are all embedded in this process.
 
 For state store, we will use the embedded `LocalFs` Object Store, eliminating the need for an external service like `minio` or `s3`; for meta store, we will use the embedded `SQLite` database, eliminating the need for an external service like `etcd`.
 
 By default, the RisingWave standalone mode will store its data in `~/risingwave`, which includes both `Metadata` and `State Data`.
 
-For a batteries-included setup, with `monitoring` tools and external services like `kafka` fully included, you can use [Docker Compose](/docs/current/risingwave-docker-compose/) instead. If you would like to set up these external services manually, you may check out RisingWave's [Docker Compose](https://github.com/risingwavelabs/risingwave/blob/main/docker/docker-compose.yml), and run these services using the same configurations.
+For a batteries-included setup, with `monitoring` tools and external services like `kafka` fully included, you can use [Docker Compose](/deploy/risingwave-docker-compose) instead. If you would like to set up these external services manually, you may check out RisingWave's [Docker Compose](https://github.com/risingwavelabs/risingwave/blob/main/docker/docker-compose.yml), and run these services using the same configurations.
 
 ## Configure RisingWave standalone mode
 
@@ -181,7 +181,7 @@ Make sure you're in the `RisingWave` directory.
 Start your prometheus instance:
 
 ```bash
-prometheus --config.file=./standalone/prometheus.yaml --web.listen-address=0.0.0.0:9500
+prometheus --config.file=./standalone/prometheus.yml --web.listen-address=0.0.0.0:9500
 ```
 
 Then start the Grafana instance:

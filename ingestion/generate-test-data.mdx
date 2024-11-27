@@ -68,7 +68,7 @@ Specify the following fields for every column in the source you are creating.
 | column\_parameter | Description      | Value          | Required?          |
 | :---------------- | :--------------- | :------------- | :----------------- |
 | kind              | Generator type.    | Set to `random`. | False. Default: `random`  |
-| max\_past         | Specify the maximum deviation from the baseline timestamp or timestamptz to determine the earliest possible timestamp or timestamptz that can be generated.     | An [interval](/docs/current/sql-data-types/). Example: `2h 37min`   | False. Default: `1 day`  |
+| max\_past         | Specify the maximum deviation from the baseline timestamp or timestamptz to determine the earliest possible timestamp or timestamptz that can be generated.     | An [interval](/sql/data-types/overview). Example: `2h 37min`   | False. Default: `1 day`  |
 | max\_past\_mode   | Specify the baseline timestamp or timestamptz. The range for generated timestamps or timestamptzs is \[base time - `max_past`, base time\]                                                                                                                    | `absolute` — The base time is set to the execution time of the generator. The base time is fixed for each generation. `relative` — The base time is the system time obtained each time a new record is generated. | False. Default: `absolute`   |
 | basetime          | If set, the generator will ignore max\_past\_mode and use the specified time as the base time.   | A [date and time string](https://docs.rs/chrono/latest/chrono/struct.DateTime.html#method.parse%5Ffrom%5Frfc3339). Example: `2023-04-01T16:39:57-08:00`   | False. Default: generator execution time                                                                                    |
 | seed              | A seed number that initializes the random load generator. The sequence of the generated timestamps or timestamptzs is determined by the seed value. If given the same seed number, the generator will produce the same sequence of timestamps or timestamptzs. | A positive integer. Example: `3`       | False. If not specified, a fixed sequence of timestamps or timestamptzs will be generated (if the system time is constant). |
@@ -89,7 +89,7 @@ Specify the following fields for every column in the source you are creating.
 
 </Tab>
     <Tab title="Struct">
-The generator supports generating data in a [struct](/docs/current/data-type-struct/). A column of `struct` type can contain multiple nested columns of different types.
+The generator supports generating data in a [struct](/sql/data-types/struct). A column of `struct` type can contain multiple nested columns of different types.
 
 The following statement creates a load generator source which contains one column, `v1`. `v1` consists of two nested columns `v2` and `v3`.
 
@@ -114,7 +114,7 @@ When you configure a nested column, use `column.nested_column` to specify it. Fo
 
 </Tab>
 <Tab title="Array">
-The generator supports generating data in an [array](/docs/current/data-type-array/). An array is a list of elements of the same type. Append `[]` to the data type of the column when creating the source.
+The generator supports generating data in an [array](/sql/data-types/array-type). An array is a list of elements of the same type. Append `[]` to the data type of the column when creating the source.
 
 The following statement creates a load generator source which contains one column, `c1`. `c1` is an array of `varchar`.
 

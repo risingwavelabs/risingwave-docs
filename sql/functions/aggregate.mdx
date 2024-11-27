@@ -3,24 +3,23 @@ title: "Aggregate functions"
 description: "Aggregate functions compute a single result from a set of input values."
 ---
 
-For details about the supported syntaxes of aggregate expressions, see [Aggregate function calls](/docs/current/query-syntax-value-exp/#aggregate-function-calls).
+For details about the supported syntaxes of aggregate expressions, see [Aggregate function calls](/sql/query-syntax/value-exp#aggregate-function-calls).
 
 ## General-purpose aggregate functions
 
 ### `array_agg`
 
-Returns an array from input values in which each value in the set is assigned to an array element. The `ORDER BY` clause is optional and specifies the order of rows processed in the aggregation, which determines the order of the elements in the result array.
+Collects all the input values, including nulls, into an array. The `ORDER BY` clause is optional and specifies the order of rows processed in the aggregation, which determines the order of the elements in the result array.
 
-```bash
-array_agg ( expression [ ORDER BY [ sort_expression { ASC | DESC } ] ] ) -> output_array
-
+```sql
+array_agg ( expression [ ORDER BY sort_expression ] ) -> output_array
 ```
 
 ### `avg`
 
-Returns the average (arithmetic mean) of the selected values.
+Returns the average (arithmetic mean) of all non-null input values or null if no non-null values are provided.
 
-```bash
+```sql
 avg ( expression ) -> see description
 ```
 
@@ -33,8 +32,8 @@ Return type is numeric for integer inputs and double precision for float point i
 
 Returns the bitwise AND of all non-null input values or null if no non-null values are provided.
 
-```bash
-bit_and ( smallint, int, or bigint ) -> same as input type
+```sql
+bit_and ( smallint | int | bigint ) -> same as input type
 ```
 
 ### `bit_or`
@@ -42,11 +41,12 @@ bit_and ( smallint, int, or bigint ) -> same as input type
 Returns the bitwise OR of all non-null input values or null if no non-null values are provided.
 
 ```sql
-bit_or ( smallint, int, or bigint ) -> same as input type
+bit_or ( smallint | int | bigint ) -> same as input type
 ```
 
 ### `bool_and`
-Returns true if all input values are true, otherwise false.
+
+Returns true if all non-null input values are true, otherwise false.
 
 ```sql
 bool_and ( boolean ) -> boolean
@@ -54,7 +54,7 @@ bool_and ( boolean ) -> boolean
 
 ### `bool_or`
 
-Returns true if at least one input value is true, otherwise false.
+Returns true if any non-null input value is true, otherwise false.
 
 ```sql
 bool_or ( boolean ) -> boolean
@@ -62,35 +62,43 @@ bool_or ( boolean ) -> boolean
 
 ### `count`
 
-Returns the number of non-null rows.
+Returns the number of non-null input values.
 
-```bash
+```sql
 count ( expression ) -> bigint
 ```
 
 The input can be of any supported data type.
 
+### `count(*)`
+
+Returns the number of rows in the input.
+
+```sql
+count(*) -> bigint
+```
+
 ### `jsonb_agg`
 
-Aggregates values, including nulls, as a JSON array. The `ORDER BY` clause is optional and specifies the order of rows processed in the aggregation, which determines the order of the elements in the result array.
+Collects all the input values, including nulls, into a JSON array. The `ORDER BY` clause is optional and specifies the order of rows processed in the aggregation, which determines the order of the elements in the result array.
 
-```bash
-jsonb_agg ( any_element ) -> jsonb
+```sql
+jsonb_agg ( any_element [ ORDER BY sort_expression ] ) -> jsonb
 ```
 
 ### `jsonb_object_agg`
 
-Aggregates name/value pairs as a JSON object.
+Aggregates name/value pairs as a JSON object. Values can be null, but keys cannot.
 
-```bash
-jsonb_object_agg ( key "string" , value "any" ) -> jsonb
+```sql
+jsonb_object_agg ( key "text" , value "any" ) -> jsonb
 ```
 
 ### `max`
 
-Returns the maximum value in a set of values.
+Returns the maximum of the non-null input values, or null if no non-null values are provided.
 
-```bash
+```sql
 max ( expression ) -> same as input type
 ```
 
@@ -98,9 +106,9 @@ Input can be of any numeric, string, date/time, or interval type, or an array of
 
 ### `min`
 
-Returns the minimum value in a set of values.
+Returns the minimum value of the non-null input values, or null if no non-null values are provided.
 
-```bash
+```sql
 min ( expression ) -> same as input type
 ```
 
@@ -108,17 +116,17 @@ Input can be of any numeric, string, date/time, or interval type, or an array of
 
 ### `string_agg`
 
-Combines non-null values into a string, separated by `delimiter_string`. The `ORDER BY` clause is optional and specifies the order of rows processed in the aggregation, which determines the order of the elements in the result array.
+Concatenates non-null input values into a string. Each value after the first is preceded by the corresponding delimiter (if it's not null). If no non-null values are provided, returns null. The `ORDER BY` clause is optional and specifies the order of rows processed in the aggregation, which determines the order of the elements in the result array.
 
-```bash
-string_agg ( expression, delimiter_string ) -> output_string
+```sql
+string_agg ( value text, delimiter text [ ORDER BY sort_expression ] ) -> output_string
 ```
 
 ### `sum`
 
-Returns the sum of all input values.
+Returns the sum of all non-null input values, or null if no non-null values are provided.
 
-```bash
+```sql
 sum ( expression )
 ```
 
@@ -128,9 +136,9 @@ Return type is bigint for smallint or int inputs, numeric for bigint inputs, oth
 
 ### `first_value`
 
-Returns the first value in an ordered set of values.
+Returns the first value in an ordered set of values, including nulls.
 
-```bash
+```sql
 first_value ( expression ORDER BY order_key ) -> same as input type
 ```
 
@@ -138,9 +146,9 @@ first_value ( expression ORDER BY order_key ) -> same as input type
 
 ### `last_value`
 
-Returns the last value in an ordered set of values.
+Returns the last value in an ordered set of values, including nulls.
 
-```bash
+```sql
 last_value ( expression ORDER BY order_key ) -> same as input type
 ```
 
@@ -150,7 +158,7 @@ last_value ( expression ORDER BY order_key ) -> same as input type
 
 Calculates the population standard deviation of the input values. Returns `NULL` if the input contains no non-null values.
 
-```bash
+```sql
 stddev_pop ( expression ) -> output_value
 ```
 
@@ -158,7 +166,7 @@ stddev_pop ( expression ) -> output_value
 
 Calculates the sample standard deviation of the input values. Returns `NULL` if the input contains fewer than two non-null values.
 
-```bash
+```sql
 stddev_samp ( expression ) -> output_value
 ```
 
@@ -166,7 +174,7 @@ stddev_samp ( expression ) -> output_value
 
 Calculates the population variance of the input values. Returns `NULL` if the input contains no non-null values.
 
-```bash
+```sql
 var_pop ( expression ) -> output_value
 ```
 
@@ -174,7 +182,7 @@ var_pop ( expression ) -> output_value
 
 Calculates the sample variance of the input values. Returns `NULL` if the input contains fewer than two non-null values.
 
-```bash
+```sql
 var_samp ( expression ) -> output_value
 ```
 
@@ -188,7 +196,7 @@ At present, ordered-set aggregate functions support only constant fraction argum
 Computes the mode, which is the most frequent value of the aggregated argument. If there are multiple equally-frequent values, it arbitrarily chooses the first one.
 
 ```sql
-mode () WITHIN GROUP ( ORDER BY sort_expression anyelement ) -> same as sort_expression
+mode () WITHIN GROUP ( ORDER BY sort_expression ) -> same as sort_expression
 ```
 
 `sort_expression`: Must be of a sortable type.
@@ -202,12 +210,12 @@ SELECT mode() WITHIN GROUP (ORDER BY column1) FROM table1;
 ### `percentile_cont`
 
 <Note>
-At present, `percentile_cont` is not supported for [streaming queries](/docs/current/key-concepts/#streaming-queries) yet.
+At present, `percentile_cont` is not supported for [streaming queries](/reference/key-concepts#streaming-queries) yet.
 </Note>
 
 Computes the continuous percentile, which is a value corresponding to the specified fraction within the ordered set of aggregated argument values. It can interpolate between adjacent input items if needed.
 
-```bash
+```sql
 percentile_cont ( fraction double precision ) WITHIN GROUP ( ORDER BY sort_expression double precision ) -> double precision
 
 ```
@@ -216,7 +224,7 @@ percentile_cont ( fraction double precision ) WITHIN GROUP ( ORDER BY sort_expre
 
 This example calculates the median (50th percentile) of the values in `column1` from `table1`.
 
-```bash
+```sql
 SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY column1) FROM table1;
 ```
 
@@ -224,6 +232,7 @@ If NULL is provided, the function will not calculate a specific percentile and r
 
 
 ### `percentile_disc`
+
 <Note>
 At present, `percentile_disc` is not supported for streaming queries yet.
 </Note>
@@ -252,7 +261,7 @@ If NULL is provided, the function will not calculate a specific percentile and r
 <Note>
 **PUBLIC PREVIEW**
 
-This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
 </Note>
 
 Returns an approximate value of the specified percentile from a numeric column.
@@ -279,7 +288,7 @@ Grouping operation functions are used in conjunction with grouping sets to disti
 
 Returns a bit mask indicating which `GROUP BY` expressions are not included in the current grouping set. Bits are assigned with the rightmost argument corresponding to the least-significant bit; each bit is 0 if the corresponding expression is included in the grouping criteria of the grouping set generating the current result row, and 1 if it is not included.
 
-```bash Syntax
+```sql Syntax
 grouping ( group_by_expression(s) ) → integer
 ```
 

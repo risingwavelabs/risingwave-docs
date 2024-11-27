@@ -4,56 +4,62 @@ description: "RisingWave supports delivering data to downstream systems via its 
 sidebarTitle: Overview
 ---
 
-To stream data out of RisingWave, you must create a sink. A sink is an external target that you can send data to. Use the [CREATE SINK](/docs/current/sql-create-sink/) statement to create a sink. You need to specify what data to be exported, the format, and the sink parameters.
+To stream data out of RisingWave, you must create a sink. A sink is an external target that you can send data to. Use the [CREATE SINK](/sql/commands/sql-create-sink) statement to create a sink. You need to specify what data to be exported, the format, and the sink parameters.
 
-Sinks become visible right after you create them, regardless of the backfilling status. Therefore, it's important to understand that the data in the sinks may not immediately reflect the latest state of their upstream sources due to the latency of the sink, connector, and backfilling process. To determine whether the process is complete and the data in the sink is consistent, refer to [Monitor statement progress](/docs/current/monitor-statement-progress/).
+Sinks become visible right after you create them, regardless of the backfilling status. Therefore, it's important to understand that the data in the sinks may not immediately reflect the latest state of their upstream sources due to the latency of the sink, connector, and backfilling process. To determine whether the process is complete and the data in the sink is consistent, refer to [Monitor statement progress](/operate/monitor-statement-progress).
 
 Currently, RisingWave supports the following sink connectors:
 
 * Apache Doris sink connector (`connector = 'doris'`)
-With this connector, you can sink data from RisingWave to Apache Doris. For details about the syntax and parameters, see [Sink data to Apache Doris](/docs/current/sink-to-doris/).
+With this connector, you can sink data from RisingWave to Apache Doris. For details about the syntax and parameters, see [Sink data to Apache Doris](/integrations/destinations/apache-doris).
 * Apache Iceberg sink connector (`connector = 'iceberg'`)
-With this connector, you can sink data from RisingWave to Apache Iceberg. For details about the syntax and parameters, see [Sink data to Apache Iceberg](/docs/current/sink-to-iceberg/).
+With this connector, you can sink data from RisingWave to Apache Iceberg. For details about the syntax and parameters, see [Sink data to Apache Iceberg](/integrations/destinations/apache-iceberg).
 * AWS Kinesis sink connector (`connector = 'kinesis'`)
-With this connector, you can sink data from RisingWave to AWS Kinesis. For details about the syntax and parameters, see [Sink data to AWS Kinesis](/docs/current/sink-to-aws-kinesis/).
+With this connector, you can sink data from RisingWave to AWS Kinesis. For details about the syntax and parameters, see [Sink data to AWS Kinesis](/integrations/destinations/aws-kinesis).
 * Cassandra and ScyllaDB sink connector (`connector = 'cassandra'`)
-With this connector, you can sink data from RisingWave to Cassandra or ScyllaDB. For details about the syntax and parameters, see [Sink data to Cassandra or ScyllaDB](/docs/current/sink-to-cassandra/).
+With this connector, you can sink data from RisingWave to Cassandra or ScyllaDB. For details about the syntax and parameters, see [Sink data to Cassandra or ScyllaDB](/integrations/destinations/cassandra-or-scylladb).
 * ClickHouse sink connector (`connector = 'clickhouse'`)
-With this connector, you can sink data from RisingWave to ClickHouse. For details about the syntax and parameters, see [Sink data to ClickHouse](/docs/current/sink-to-clickhouse/).
+With this connector, you can sink data from RisingWave to ClickHouse. For details about the syntax and parameters, see [Sink data to ClickHouse](/integrations/destinations/clickhouse).
 * CockroachDB sink connector (`connector = 'jdbc'`)
-With this connector, you can sink data from RisingWave to CockroachDB. For details about the syntax and parameters, see [Sink data to CockroachDB](/docs/current/sink-to-cockroach/).
+With this connector, you can sink data from RisingWave to CockroachDB. For details about the syntax and parameters, see [Sink data to CockroachDB](/integrations/destinations/cockroachdb).
 * Delta Lake sink connector (`connector = 'deltalake'`)
-With this connector, you can sink data from RisingWave to Delta Lake. For details about the syntax and parameters, see [Sink data to Delta Lake](/docs/current/sink-to-delta-lake/).
+With this connector, you can sink data from RisingWave to Delta Lake. For details about the syntax and parameters, see [Sink data to Delta Lake](/integrations/destinations/delta-lake).
 * Elasticsearch sink connector (`connector = 'elasticsearch'`)
-With this connector, you can sink data from RisingWave to Elasticsearch. For details about the syntax and parameters, see [Sink data to Elasticsearch](/docs/current/sink-to-elasticsearch/).
+With this connector, you can sink data from RisingWave to Elasticsearch. For details about the syntax and parameters, see [Sink data to Elasticsearch](/integrations/destinations/elasticsearch).
 * Google BigQuery sink connector (`connector = 'bigquery'`)
-With this connector, you can sink data from RisingWave to Google BigQuery. For details about the syntax and parameters, see [Sink data to Google BigQuery](/docs/current/sink-to-bigquery/).
+With this connector, you can sink data from RisingWave to Google BigQuery. For details about the syntax and parameters, see [Sink data to Google BigQuery](/integrations/destinations/bigquery).
 * Google Pub/Sub sink connector (`connector = 'google_pubsub'`)
-With this connector, you can sink data from RisingWave to Google Pub/Sub. For details about the syntax and parameters, see [Sink data to Google Pub/Sub](/docs/current/sink-to-google-pubsub/).
+With this connector, you can sink data from RisingWave to Google Pub/Sub. For details about the syntax and parameters, see [Sink data to Google Pub/Sub](/integrations/destinations/google-pub-sub).
 * JDBC sink connector for MySQL, PostgreSQL, or TiDB (`connector = 'jdbc'`)
-With this connector, you can sink data from RisingWave to JDBC-available databases, such as MySQL, PostgreSQL, or TiDB. When sinking to a database with a JDBC driver, ensure that the corresponding table created in RisingWave has the same schema as the table in the database you are sinking to. For details about the syntax and parameters, see [Sink to MySQL](/docs/current/sink-to-mysql-with-jdbc/), [Sink to PostgreSQL](/docs/current/sink-to-postgres/), or [Sink to TiDB](/docs/current/sink-to-tidb/).
+With this connector, you can sink data from RisingWave to JDBC-available databases, such as MySQL, PostgreSQL, or TiDB. When sinking to a database with a JDBC driver, ensure that the corresponding table created in RisingWave has the same schema as the table in the database you are sinking to. For details about the syntax and parameters, see [Sink to MySQL](/integrations/destinations/mysql), [Sink to PostgreSQL](/integrations/destinations/postgresql), or [Sink to TiDB](/integrations/destinations/tidb).
 * Kafka sink connector (`connector = 'kafka'`)
-With this connector, you can sink data from RisingWave to Kafka topics. For details about the syntax and parameters, see [Sink data to Kafka](/docs/current/create-sink-kafka/).
+With this connector, you can sink data from RisingWave to Kafka topics. For details about the syntax and parameters, see [Sink data to Kafka](/integrations/destinations/apache-kafka).
 * MQTT sink connector (`connector = 'mqtt'`)
-With this connector, you can sink data from RisingWave to MQTT topics. For details about the syntax and parameters, see [Sink data to MQTT](/docs/current/sink-to-mqtt/).
+With this connector, you can sink data from RisingWave to MQTT topics. For details about the syntax and parameters, see [Sink data to MQTT](/integrations/destinations/mqtt).
 * NATS sink connector (`connector = 'nats'`)
-With this connector, you can sink data from RisingWave to NATS. For details about the syntax and parameters, see [Sink data to NATS](/docs/current/sink-to-nats/).
+With this connector, you can sink data from RisingWave to NATS. For details about the syntax and parameters, see [Sink data to NATS](/integrations/destinations/nats-and-nats-jetstream).
 * Pulsar sink connector (`connector = 'pulsar'`)
-With this connector, you can sink data from RisingWave to Pulsar. For details about the syntax and parameters, see [Sink data to Pulsar](/docs/current/sink-to-pulsar/).
+With this connector, you can sink data from RisingWave to Pulsar. For details about the syntax and parameters, see [Sink data to Pulsar](/integrations/destinations/apache-pulsar).
 * Redis sink connector (`connector = 'redis'`)
-With this connector, you can sink data from RisingWave to Redis. For details about the syntax and parameters, see [Sink data to Redis](/docs/current/sink-to-redis/).
+With this connector, you can sink data from RisingWave to Redis. For details about the syntax and parameters, see [Sink data to Redis](/integrations/destinations/redis).
 * Snowflake sink connector (`connector = 'snowflake'`)
-With this connector, you can sink data from RisingWave to Snowflake. For details about the syntax and parameters, see [Sink data to Snowflake](/docs/current/sink-to-snowflake/).
+With this connector, you can sink data from RisingWave to Snowflake. For details about the syntax and parameters, see [Sink data to Snowflake](/integrations/destinations/snowflake).
 * StarRocks sink connector (`connector = 'starrocks'`)
-With this connector, you can sink data from RisingWave to StarRocks. For details about the syntax and parameters, see [Sink data to StarRocks](/docs/current/sink-to-starrocks/).
+With this connector, you can sink data from RisingWave to StarRocks. For details about the syntax and parameters, see [Sink data to StarRocks](/integrations/destinations/starrocks).
 * Microsoft SQL Server sink connector(`connector = 'sqlserver'`)
-With this connector, you can sink data from RisingWave to Microsoft SQL Server. For details about the syntax and parameters, see [Sink data to SQL Server](/docs/current/sink-to-sqlserver/).
+With this connector, you can sink data from RisingWave to Microsoft SQL Server. For details about the syntax and parameters, see [Sink data to SQL Server](/integrations/destinations/sql-server).
 
 ## Sink decoupling
 
 Typically, sinks in RisingWave operate in a blocking manner. This means that if the downstream target system experiences performance fluctuations or becomes unavailable, it can potentially impact the stability of the RisingWave instance. However, sink decoupling can be implemented to address this issue.
 
 Sink decoupling introduces a buffering queue between a RisingWave sink and the downstream system. This buffering mechanism helps maintain the stability and performance of the RisingWave instance, even when the downstream system is temporarily slow or unavailable.
+
+<Note>
+**PUBLIC PREVIEW**
+
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
+</Note>
 
 The `sink_decouple` session variable can be specified to enable or disable sink decoupling. The default value for the session variable is `default`.
 
@@ -99,7 +105,7 @@ When creating an `upsert` sink, note whether or not you need to specify the prim
 <Note>
 **PUBLIC PREVIEW**
 
-Sink data in parquet encode is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/product-lifecycle/#features-in-the-public-preview-stage).
+Sink data in parquet encode is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
 </Note>
 
 RisingWave supports sinking data in Parquet or JSON encode to file systems including S3, Google Cloud Storage (GCS), Azure Blob Storage, and WebHDFS. This eliminates the need for complex data lake setups. Once the data is saved, the files can be queried using the batch processing engine of RisingWave through the `file_scan` API. You can also leverage third-party OLAP query engines for further data processing.
@@ -124,3 +130,49 @@ WITH (
 <Note>
 File sink currently supports only append-only mode, so please change the query to `append-only` and specify this explicitly after the `FORMAT ... ENCODE ...` statement.
 </Note>
+
+## Batching strategy for file sink
+
+RisingWave implements batching strategies for file sinks to optimize file management by preventing the generation of numerous small files. The batching strategy is available for Parquet, JSON, and CSV encode. 
+
+### Category
+
+- **Batching based on row numbers**:
+    RisingWave monitors the number of rows written and completes the file once the maximum row count threshold is reached.
+
+- **Batching based on rollover interval**:
+    RisingWave checks the threshold each time a chunk is about to be written and when a barrier is encountered.
+
+- If no batching strategy is specified, RisingWave defaults to writing a new file every 10 seconds.
+
+<Note>The condition for batching is relatively coarse-grained. The actual number of rows or exact timing of file completion may vary from the specified thresholds, as this function is intentionally flexible to prioritize efficient file management.</Note>
+
+### File organization
+
+You can use `path_partition_prefix` to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
+
+Regarding file naming rules, currently, files follow the naming pattern `/Option<path_partition_prefix>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
+   
+The output files look like below:
+
+```
+path/2024-09-20/47244640257_1727072046.parquet
+path/2024-09-20/47244640257_1727072055.parquet
+```
+
+### Example
+
+```sql
+CREATE SINK s1 
+FROM t
+WITH (
+    connector = 's3',
+    max_row_count = '100',
+    rollover_seconds = '10',
+    type = 'append-only',
+    path_partition_prefix = 'day'
+) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
+```
+
+In this example, if the number of rows in the file exceeds 100, or if writing has continued for more than 10 seconds, the writing of this file will be completed.
+Once completed, the file will be visible in the downstream sink system.
