@@ -1,7 +1,7 @@
 ---
 title: "Ingest data from S3 buckets"
 sidebarTitle: AWS S3
-description:  "Use the SQL statement below to connect RisingWave to an Amazon S3 source. RisingWave supports both CSV and [ndjson](https://github.com/ndjson) file formats."
+description:  "Use the SQL statement below to connect RisingWave to an Amazon S3 source. RisingWave supports CSV, [ndjson](https://github.com/ndjson) and Parquet file formats."
 ---
 
 The S3 connector does not guarantee the sequential reading of files or complete file reading.
@@ -52,9 +52,11 @@ For CSV data, specify the delimiter in the `delimiter` option in `ENCODE propert
 | s3.assume\_role       | Optional. Specifies the ARN of an IAM role to assume when accessing S3\. It allows temporary, secure access to S3 resources without sharing long-term credentials.                                                                                                                                                                        |
 | refresh.interval.sec       | Optional. Configure the time interval between operations of listing files. It determines the delay in discovering new files, with a default value of 60 seconds.                                                                                                                                                                        |
 
-note
+<Note>
 
 Empty cells in CSV files will be parsed to `NULL`.
+
+</Note>
 
 | Field             | Notes                                                                                                                                    |
 | :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
@@ -174,13 +176,8 @@ CREATE MATERIALIZED VIEW mv AS SELECT * FROM s3_source;
 
 -- Create a table with the S3 connector
 CREATE TABLE s3_table ( ... ) WITH ( connector = 's3', ... );
-```
 
-To view the progress of the source, you can also read the source directly
-
-```sql
--- Create a materialized view from the source
-CREATE SOURCE s3_source WITH ( connector = 's3_v2', ... );
+-- Select from the source directly
 SELECT count(*) from s3_source;
 ```
 

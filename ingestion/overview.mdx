@@ -78,7 +78,7 @@ The statement will create a streaming job that continuously ingests data from th
 
 ### Insert data into tables
 
-You can load data in batch to RisingWave by creating a table ([CREATE TABLE](/sql/commands/sql-create-table)) and then inserting data into it ([INSERT](/sql/commands/sql-insert)). For example, the statement below creates a table `website_visits` and inserts 5 rows of data.
+You can load data in batch mode to RisingWave by [creating a table](/sql/commands/sql-create-table) and then [inserting](/sql/commands/sql-insert) data into it. For example, the statement below creates a table `website_visits` and inserts 5 rows of data.
 
 ```sql
 CREATE TABLE website_visits (
@@ -119,6 +119,53 @@ CREATE TABLE t1(
 
 INSERT INTO t1 SELECT * FROM source_iceberg_t1;
 ```
+
+## File source management
+
+RisingWave supports reading data from file sources including AWS S3, GCS, and Azure Blob Storage.
+
+### Batch reading from file source
+
+To read data in batch from file sources, you need to create a materialized view from the source or create a table with the appropriate connector. You can also directly query the file source. Below are examples using AWS S3.
+
+```sql
+-- Create a source that connects to S3
+CREATE SOURCE s3_source WITH ( connector = 's3', ... );
+
+-- Create a materialized view from the source for batch processing
+CREATE MATERIALIZED VIEW mv AS SELECT * FROM s3_source;
+
+-- Create a table using the S3 connector
+CREATE TABLE s3_table ( ... ) WITH ( connector = 's3', ... );
+
+-- Select from the source directly
+SELECT count(*) from s3_source;
+```
+
+### Data type mapping in Parquet
+
+When using file source to read parquet files, please define the schema information according to the following mapping.
+
+| File source type | RisingWave type |
+| :----------- | :-------------- |
+| boolean      | boolean         |
+| int16        | smallint        |
+| int32        | int             |
+| int64        | bigint          |
+| float        | real            |
+| double       | double precision|
+| string       | varchar         |
+| date         | date            |
+| `timestamp(_, Some(_))` | timestamptz  |
+| `timestamp(_, None)`    | timestamp    |
+| decimal      | decimal         |
+| int8         | smallint        |
+| uint8        | smallint        |
+| uint16       | int             |
+| uint32       | bigint          |
+| uint64       | decimal         |
+| float16      | double precision|
+
 
 ## Topics in this section
 
