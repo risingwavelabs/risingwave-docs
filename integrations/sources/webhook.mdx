@@ -1,0 +1,68 @@
+---
+title: "Ingest data from webhook"
+sidebarTitle: Overview
+description: Describes how to ingest data from webhook to RisingWave
+---
+
+A webhook is a mechanism that enables real-time data transfer between applications by sending immediate notifications when specific events occur. Instead of continuously polling for updates, applications can receive data automatically, making it an efficient way to integrate with third-party services.
+
+RisingWave can serve as a webhook destination, directly accepting HTTP requests from external services and storing the incoming data in its tables. When a webhook is triggered, RisingWave processes and ingests the data in real-time.
+
+
+This direct integration eliminates the need for an intermediary message broker like Kafka. Instead of setting up and maintaining an extra Kafka cluster, you can directly send data to RisingWave to process it in real-time, which enables efficient data ingestion and stream processing without extra infrastructure.
+
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+This feature is only available in the premium edition of RisingWave. The premium edition offers additional advanced features and capabilities beyond the free and community editions. If you have any questions about upgrading to the premium edition, please contact our sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+</Tip>
+
+<Note>
+**PUBLIC PREVIEW**
+
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
+</Note>
+
+## Creating a webhook table in RisingWave
+
+To utilize webhook sources in RisingWave, you need to create a table configured to accept webhook requests. Below is a basic example of how to set up such a table:
+
+```sql
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'secret_value';
+
+CREATE TABLE wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+) VALIDATE SECRET test_secret AS secure_compare(
+  headers->>'{header of signature}',
+  {signature generation expressions}
+);
+```
+
+| Parameter or clause | Description |
+| :---------- | :------------ |
+| `CREATE SECRET` | Securely stores a secret value in RisingWave for request validation. |
+| `CREATE TABLE` | Defines a table with a JSONB column to store webhook payload data. |
+| `connector` | Configures the table to accept incoming HTTP webhook requests |
+| `VALIDATE SECRET...AS...` | Authenticates requests using the stored secret and signature comparison. |
+| `secure_compare()` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. Note `secure_compare(...)` is the only supported validation function for webhook tables. |
+| `header_of_signature` | Specifies which HTTP header contains the incoming signature. |
+| `signature_generation_expressions` | Expression to compute the expected signature using the secret and payload. |
+
+
+## Supported webhook sources and authentication methods
+RisingWave has been verified to work with the following webhook sources and authentication methods:
+
+|webhook source|Authentication methods|
+| :-- | :-- |
+|GitHub| SHA-1 HMAC, SHA-256 HMAC |
+|Rudderstack| Bearer Token |
+|Segment| SHA-1 HMAC |
+|AWS EventBridge| Bearer Token |
+|HubSpot| API Key, Signature V2 |
+
+<Note>While only the above sources have been thoroughly tested, RisingWave can support additional webhook sources and authentication methods. You can integrate other services using similar configurations.</Note>
+
+## See also
+[Ingest from Github webhook](/integrations/sources/github-webhook): Step-by-step guide to help you set up and configure your webhook sources.
