@@ -1,0 +1,57 @@
+---
+title: "Ingest data from PostgreSQL table"
+description: "Describes how to ingest data from PostgreSQL table to RisingWave using table-valued function."
+sidebarTitle: PostgreSQL table
+---
+
+RisingWave allows you to query PostgreSQL tables directly with the `postgres_query` table-valued function (TVF). It offers a simpler alternative to Change Data Capture (CDC) when working with PostgreSQL data in RisingWave. 
+
+Unlike CDC, which continuously syncs data changes, this function lets you fetch data directly from PostgreSQL when needed. Therefore, this approach is ideal static or infrequently updated data, as it's more resource-efficient than maintaining a constant CDC connection.
+
+<Note>
+**PUBLIC PREVIEW**
+
+This feature is in the public preview stage, meaning it's nearing the final product but is not yet fully stable. If you encounter any issues or have feedback, please contact us through our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve the feature. For more information, see our [Public preview feature list](/changelog/product-lifecycle#features-in-the-public-preview-stage).
+</Note>
+
+## Syntax
+
+Define `postgres_query` as follows:
+
+```sql
+postgres_query(
+    hostname varchar,      -- Database hostname
+    port varchar,          -- Database port
+    username varchar,      -- Authentication username
+    password varchar,      -- Authentication password
+    database_name varchar, -- Target database name
+    query varchar          -- SQL query to execute
+)
+```
+
+## Example
+
+1. In your PostgreSQL database, create a table and populate it with sample data.
+
+```sql
+CREATE TABLE test (id bigint primary key, x int);
+INSERT INTO test SELECT id, id::int FROM generate_series(1, 100) AS t(id);
+```
+
+2. In RisingWave, use `postgres_query` function to retrieve rows where `id > 90`.
+
+```sql
+SELECT * 
+FROM postgres_query('localhost', '5432', 'postgres', 'postgres', 'mydb', 'SELECT * FROM test WHERE id > 90;');
+----RESULT
+91 91
+92 92
+93 93
+94 94
+95 95
+96 96
+97 97
+98 98
+99 99
+100 100
+```
