@@ -202,10 +202,9 @@ Below are the metadata columns available for MySQL CDC.
 | Field          | Notes                 |
 | :------------- | :-------------------- |
 | database\_name | Name of the database. |
-| schema\_name   | Name of the schema.   |
 | table\_name    | Name of the table.    |
 
-For instance, the person table below contains columns for typical personal information. It also includes metadata fields (`database_name`, `schema_name`, `table_name`) to provide contextual information about where the data resides within the MySQL database.
+For instance, the person table below contains columns for typical personal information. It also includes metadata fields (`database_name`, `table_name`) to provide contextual information about where the data resides within the MySQL database.
 
 ```sql
 CREATE TABLE person (
@@ -217,7 +216,6 @@ CREATE TABLE person (
     PRIMARY KEY (id)
 ) INCLUDE TIMESTAMP AS commit_ts
 INCLUDE DATABASE_NAME as database_name
-INCLUDE SCHEMA_NAME as schema_name
 INCLUDE TABLE_NAME as table_name
 FROM mysql_source TABLE 'public.person';
 ```
