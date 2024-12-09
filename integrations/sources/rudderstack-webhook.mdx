@@ -1,0 +1,117 @@
+---
+title: "Ingest data from RudderStack webhook"
+description: "Ingest RudderStack events directly into your RisingWave database for real-time processing and analytics."
+sidebarTitle: RudderStack webhook
+---
+
+RudderStack is a Customer Data Platform (CDP) that enables you to collect, route, and process event data from your websites, mobile apps, and servers to various downstream destinations. Webhooks in RudderStack allow you to send real-time event data to external systems via HTTP requests. By configuring RisingWave as a webhook destination, you can ingest and process RudderStack events directly within your database for real-time analytics and processing.
+
+This guide will walk through the steps to set up RisingWave as a destination for RudderStack webhooks.
+
+## 1. Create a secret in RisingWave
+
+First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from RudderStack.
+
+```sql
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
+
+| Parameter or clause | Description |
+| :--------- | :-----------|
+|`test_secret`| The name of the secret.|
+| `TEST_WEBHOOK`| The secret string used for signing and verifying webhook payloads. Replace this with a secure, random string.|
+
+## 2. Create a table in RisingWave
+
+Next, create a table configured to accept webhook data from RudderStack.
+
+```sql
+create table wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook',
+) VALIDATE SECRET test_secret AS secure_compare(
+  headers->>'authorization',
+  test_secret
+);
+```
+
+| Parameter or clause | Description |
+| :--------- | :-----------|
+| `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
+| `headers->>'...'` | Extracts the signature provided by RudderStack in the `authorization` HTTP header. The header key can be any string value and you can specify it when you create your webhook destination for RisingWave. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
+| `test_secret` | Provides the expected signature. In the example above, we directly compare the secret value of `test_secret` with the signature provided in the headers to verify the requests. |
+| `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
+
+## 3. Set up webhook in RudderStack
+
+After configuring RisingWave to accept webhook data, set up RudderStack to send events to your RisingWave instance.
+
+### RisingWave webhook URL
+
+The webhook URL should follow this format:
+```
+https://<HOST>/webhook/<database>/<schema_name>/<table_name>
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `HOST` | The hostname or IP address where your RisingWave instance is accessible. This could be a domain name or an IP address. |
+| `database` | The name of the RisingWave database where your table resides |
+| `schema_name` | The schema name of your table, typically `public` unless specified otherwise. |
+| `table_name` | The name of the table you created to receive webhook data, e.g., `wbhtable`. |
+
+
+### Configure webhook in RudderStack
+
+For more detailed instructions, refer to the [RudderStack documentation](https://www.rudderstack.com/docs/destinations/webhooks/setup-guide/).
+
+<Steps>
+<Step>
+Access RudderStack Dashboard: Log in to your RudderStack dashboard.
+</Step>
+<Step>
+As a CDP, RudderStack allow your build your own data pipeline. To sink data into RisingWave, you first need to have data sources. You can build your sources following the [guidance](https://www.rudderstack.com/docs/sources/overview/).
+After creating your source, in the left sidebar, click on **Collect** > **Destinations** > **New Destination**. 
+</Step>
+<Step>
+Choose Webhook as the Destination:
+- Search for `webhook` in the list of available destinations.
+- Select **webhook** and proceed to configure it.
+</Step>
+<Step>
+Configure the webhook settings: 
+    - **Name destination**: Specify the name of your webhook destination.
+    - **Connect Sources**: Choose the data source you want to push to RisingWave from.
+    - **Webhook URL**: Enter your RisingWave webhook URL. 
+    - **URL Method**: Select `POST`. 
+    - **Headers**: Keep the `content-type: application/json` unchanged. Add an `Authorization` header with the value set to your secret string ('TEST_WEBHOOK' or the secure string you used when creating `test_secret` in RisingWave).
+      - Header Key: `Authorization` (Or replace with the value you like, make sure it's aligned with the `CREATE TABLE` DML SQL).
+      - Header Value: `TEST_WEBHOOK` (replace with your actual secret).
+</Step>
+<Step>
+Save and Activate the Destination:
+- Review your settings.
+- Click **continue** to activate the webhook destination.
+</Step>
+</Steps>
+## 4. Push Data from RudderStack via Webhook
+
+With the webhook configured, RudderStack will automatically send HTTP POST requests to your RisingWave webhook URL whenever there are data generated from the connected source. RisingWave will receive these requests, validate the signatures, and insert the payload data into the target table.
+
+## 5. Further event processing
+
+The data in the table is already ready for further processing. You can access the fields using `data->'field_name'` in SQL queries.
+
+You can create a materialized view to extract specific fields from the JSON payload.
+
+```sql
+CREATE MATERIALIZED VIEW rudderstack_events AS
+SELECT
+  data->>'id' AS id,
+  data->'sender'->>'login' AS sender_login,
+  data->>'created_at' AS event_time
+FROM wbhtable;
+```
+
+You can now query `rudderstack_events` like a regular table to perform analytics, generate reports, or trigger further processing.

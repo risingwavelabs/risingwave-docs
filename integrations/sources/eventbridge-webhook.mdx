@@ -1,0 +1,130 @@
+---
+title: "Ingest data from Amazon EventBridge webhook"
+description: "Ingest Amazon EventBridge events directly into your RisingWave database for real-time processing and analytics."
+sidebarTitle: Amazon EventBridge webhook
+---
+
+Amazon EventBridge is a serverless event bus service that enables you to easily connect applications using data from various event sources. By setting RisingWave as a destination for your EventBridge rule targets, you can route real-time event data generated in your Amazon account directly into your database. This allows you to leverage RisingWave’s capabilities for real-time data processing, analytics, and integrations with downstream systems, all without needing additional intermediate brokers or components.
+
+
+This guide will walk through the steps to set up RisingWave as a destination for Amazon EventBridge webhooks.
+
+## 1. Create a secret in RisingWave
+
+First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from Amazon EventBridge .
+
+```sql
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
+
+| Parameter or clause | Description |
+| :--------- | :-----------|
+|`test_secret`| The name of the secret.|
+| `TEST_WEBHOOK`| The secret string used for signing and verifying webhook payloads. Replace this with a secure, random string.|
+
+## 2. Create a table in RisingWave
+
+Next, create a table configured to accept webhook data from Amazon EventBridge.
+
+```sql
+create table wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook',
+) VALIDATE SECRET test_secret AS secure_compare(
+  headers->>'authorization',
+  test_secret
+);
+```
+
+| Parameter or clause | Description |
+| :--------- | :-----------|
+| `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
+| `headers->>'...'` | Extracts the signature provided by Amazon EventBridge in the `authorization` HTTP header. The header key can be any string value and you can specify it when you create your webhook destination for RisingWave. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
+| `test_secret` | Provides the expected signature. In the example above, we directly compare the secret value of `test_secret` with the signature provided in the headers to verify the requests. |
+| `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
+
+## 3. Set up webhook in Amazon EventBridge
+
+After configuring RisingWave to accept webhook data, set up Amazon EventBridge to send events to your RisingWave instance.
+
+### RisingWave webhook URL
+
+The webhook URL should follow this format:
+```
+https://<HOST>/webhook/<database>/<schema_name>/<table_name>
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `HOST` | The hostname or IP address where your RisingWave instance is accessible. This could be a domain name or an IP address. |
+| `database` | The name of the RisingWave database where your table resides |
+| `schema_name` | The schema name of your table, typically `public` unless specified otherwise. |
+| `table_name` | The name of the table you created to receive webhook data, e.g., `wbhtable`. |
+
+
+### Configure webhook in Amazon EventBridge
+
+For more detailed instructions, refer to the [Amazon EventBridge documentation](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-setup.html).
+
+Before configuring RisingWave as a target in EventBridge, it's important to understand two key concepts:
+
+- **Event Bus**: An EventBridge event bus is a logical collection point for events. Events from various sources flow into an event bus. You can use the default event bus or create your own custom event bus to organize and isolate your events.
+
+- **Rule**: A rule in EventBridge matches incoming events and routes them to targets based on defined event patterns or schedules. When a rule matches an event, it sends the event to the configured target—in this case, your RisingWave webhook.
+
+<Steps>
+<Step>
+Open the Amazon EventBridge Console:  
+Sign in to the AWS Management Console and navigate to **Amazon EventBridge**.
+</Step>
+<Step>
+Create or Select an Event Bus:  
+- In the EventBridge console, go to **Event buses**.  
+- You can use the default event bus or create a new custom event bus. To create a new event bus, click **Create event bus**, provide a name, and click **Create**.
+</Step>
+<Step>
+Create a Rule for the Event Bus:  
+- Navigate to **Rules** in the left sidebar.  
+- Click **Create rule**.  
+- Enter a name and description for your rule.
+- Under **Event bus**, select the event bus you created or the default one if you wish to use it.
+- Define the event pattern or schedule that determines when this rule triggers.
+</Step>
+<Step>
+Add a Target to the Rule under **Select targets**:  
+- From the **Target** dropdown, select **EventBridge API destination**. Create a new target or use a existing target.
+- For a new target, click **Create a new API destination**. In the **API destination endpoint** field, enter your RisingWave webhook URL. Set **HTTP method** to `POST`.  
+</Step>
+<Step>
+Configure Authentication:  
+- Under **Configure authorization**, select `Custom configuration`.
+- For **Authorization type**, select `API Key`. Add an `Authorization` header in **API key name**. The **API key name** should match the key specified in your RisingWave table’s validation clause (e.g., `Authorization`), and the **Value** should be the secret you created in RisingWave (e.g., `TEST_WEBHOOK`).
+</Step>
+<Step>
+Finish Other Configurations and Save Your Configuration:  
+- Review your settings to ensure correctness.  
+- Click **Create rule** to finalize the configuration.
+</Step>
+</Steps>
+
+## 4. Push Data from Amazon EventBridge via Webhook
+
+With the webhook configured, Amazon EventBridge will automatically send HTTP POST requests to your RisingWave webhook URL whenever there are data generated from your AWS platform. RisingWave will receive these requests, validate the signatures, and insert the payload data into the target table.
+
+## 5. Further event processing
+
+The data in the table is already ready for further processing. You can access the fields using `data->'field_name'` in SQL queries.
+
+You can create a materialized view to extract specific fields from the JSON payload.
+
+```sql
+CREATE MATERIALIZED VIEW eventbridge_events AS
+SELECT
+  data->>'id' AS id,
+  data->'sender'->>'login' AS sender_login,
+  data->>'created_at' AS event_time
+FROM wbhtable;
+```
+
+You can now query `eventbridge_events` like a regular table to perform analytics, generate reports, or trigger further processing.
