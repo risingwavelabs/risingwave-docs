@@ -25,7 +25,11 @@ Here's an example of how to create a new meta snapshot with `risectl`:
 risectl meta backup-meta
 ```
 
-`risectl` is included in the pre-built RisingWave binary. For details, see [Quick start](/get-started/quickstart#binaries).
+`risectl` is included in the pre-built RisingWave binary. Use the following command instead:
+
+```bash
+./risingwave ctl meta backup-meta
+```
 
 ## View existing meta snapshots
 
@@ -65,7 +69,7 @@ If the cluster has been using a SQL database as meta store backend, follow these
 This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
 </Note>
 2. Create a new meta store, i.e. a new SQL database instance.
-Note that this new SQL database instance must have the exact same tables defined as the original, but all tables should remain empty. To achieve this, you can optionally use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model%5Fv2/migration) to create tables, then truncate those non-empty tables populated by the tool.
+Note that this new SQL database instance must have the exact same tables defined as the original, but all tables should remain empty. To achieve this, you can optionally use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool.
 3. Restore the meta snapshot to the new meta store.
 ```
 risectl \
