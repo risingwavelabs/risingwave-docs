@@ -41,7 +41,7 @@ CREATE TABLE wbhtable (
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
 | `headers->>'...'` | Extracts the signature provided by Segment in the `x-signature` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
-| encode(...)` | Computes the expected signature. In the example above, it generates an `HMAC SHA-1` hash of the payload (`data`) using the secret (`test_secret`), encodes it in hexadecimal. |
+| `encode(...)` | Computes the expected signature. In the example above, it generates an `HMAC SHA-1` hash of the payload (`data`) using the secret (`test_secret`), encodes it in hexadecimal. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
 
 
@@ -76,19 +76,18 @@ Log in to your Segment workspace.
 <Step>
 In the left sidebar, click on **Connections** > **Add Destination**.
 - Search for `webhook` in the list of available destinations.
-- Select **Webhooks (Actions)** and click **Add destination** to proceed to configure it.
+- Select **Webhooks (Actions)** and click **Add destination** to proceed.
 </Step>
 <Step>
-- Select data source, which identify the source you want to send events from and follow the steps to name your destination.
-- On the **Settings** > **Basic Settings** > **Shared Secret** tab: Enter the same secret string you used when creating the RisingWave 
-- secret (e.g., `'TEST_WEBHOOK'`). This ensures that Segment signs the payloads using this secret, allowing RisingWave to validate them.
-- Check the **Settings** > **Basic Settings** > **Enable Destination** tab and ensure it's enabled.
+- Select the data source that identifies the source you want to send events from and follow the steps to name your destination.
+- Click on the tab **Settings** > **Basic Settings** > **Shared Secret**, enter the same secret string you used when creating the RisingWave secret (e.g., `'TEST_WEBHOOK'`). This ensures that Segment signs the payloads using this secret, allowing RisingWave to validate them.
+- Click on the tab **Settings** > **Basic Settings** > **Enable Destination** and make sure it is enabled.
 </Step>
 <Step>
 Configure the webhook description on the **Mappings** tab.
 - Click **New Mapping** and then **Send**.
-- Choose the event type you want to send to RisingWave
-- Fill the configuration for the webhook requests based on the source information. You can also directly fill the values, filling RisingWave webhook URL as `URL, `POST` as `Method`. 
+- Choose the event type you want to send to RisingWave.
+- Fill the configuration for the webhook requests based on the source information. You can also directly fill the values, filling RisingWave webhook URL as `URL`, `POST` as `Method`. 
 </Step>
 At the end of the page, you can send the test message via **Send test event**.
 Review your settings, click **Next** and specify a name.

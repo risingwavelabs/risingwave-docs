@@ -41,7 +41,7 @@ create table wbhtable (
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
 | `headers->>'...'` | Extracts the signature provided by Amazon EventBridge in the `authorization` HTTP header. The header key can be any string value and you can specify it when you create your webhook destination for RisingWave. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
-| test_secret | Provides the expected signature. In the example above, we directly compare the secret value of `test_secret` with the signature provided in the headers to verify the requests. |
+| `test_secret` | Provides the expected signature. In the example above, we directly compare the secret value of `test_secret` with the signature provided in the headers to verify the requests. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
 
 ## 3. Set up webhook in Amazon EventBridge
@@ -81,8 +81,7 @@ Sign in to the AWS Management Console and navigate to **Amazon EventBridge**.
 <Step>
 Create or Select an Event Bus:  
 - In the EventBridge console, go to **Event buses**.  
-- You can use the default event bus or create a new custom event bus.  
-  - To create a new event bus, click **Create event bus**, provide a name, and click **Create**.
+- You can use the default event bus or create a new custom event bus. To create a new event bus, click **Create event bus**, provide a name, and click **Create**.
 </Step>
 <Step>
 Create a Rule for the Event Bus:  

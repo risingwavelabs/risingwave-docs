@@ -6,7 +6,7 @@ sidebarTitle: HubSpot webhook
 
 HubSpot is a CRM platform that provides various marketing, sales, and customer service features. It allows you to leverage webhooks through its workflow automation features. With these webhooks, you can receive real-time HTTP POST requests whenever specific events occur—such as a contact filling out a form or a deal reaching a certain stage—and forward that data to other systems. For example, you can automatically post a contact’s information to another CRM once they complete a form submission, or send deal details to an external shipment-handling system to initiate a purchase order. By integrating these HubSpot webhooks with RisingWave, you gain the ability to ingest and process this event data within your database, enabling real-time analytics and deeper insights into user behavior and engagement.
 
-HubSpot Webhooks are not available on all HubSpot plans. You must have the appropriate subscription level (e.g., certain Operations Hub Enterprise plans) to access HubSpot Webhook functionality. Check your HubSpot plan details before proceeding.
+HubSpot webhooks are not available on all HubSpot plans. You must have the appropriate subscription level (e.g., certain Operations Hub Enterprise plans) to access HubSpot Webhook functionality. Check your HubSpot plan details before proceeding.
 
 This guide will walk through the steps to set up RisingWave as a destination for HubSpot webhooks.
 
@@ -50,7 +50,7 @@ CREATE TABLE wbhtable (
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
 | `headers->>'...'` | Extracts the signature provided by HubSpot in the `x-hubspot-signature` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
-| encode(...)` | Computes the expected signature by concatenating the secret, HTTP method (`POST`), RisingWave Webhook URL (`http://127.0.0.1:4560/webhook/dev/public/` in this example), and the request body converted from UTF-8 `data`. It then takes a `SHA-256` hash of this string and encodes it in hex. |
+| `encode(...)` | Computes the expected signature by concatenating the secret, HTTP method (`POST`), RisingWave Webhook URL (`http://127.0.0.1:4560/webhook/dev/public/` in this example), and the request body converted from UTF-8 `data`. It then takes a `SHA-256` hash of this string and encodes it in hex. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
 
 In HubSpot Webhook, several request validation methods are available, including v1, v2, v3, and API Key–based authentication. Each version employs a different approach to generating and verifying signatures, and may store the signature in a distinct header field. The SQL example above illustrates how to validate a signature generated using the v2 method.
@@ -71,7 +71,7 @@ https://<HOST>/webhook/<database>/<schema_name>/<table_name>
 | Parameter | Description |
 |-----------|-------------|
 | `HOST` | The hostname or IP address where your RisingWave instance is accessible. This could be a domain name or an IP address. |
-| `database` | The name of the RisingWave database where your table resides |
+| `database` | The name of the RisingWave database where your table resides. |
 | `schema_name` | The schema name of your table, typically `public` unless specified otherwise. |
 | `table_name` | The name of the table you created to receive webhook data, e.g., `wbhtable`. |
 
