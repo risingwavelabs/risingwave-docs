@@ -3,6 +3,68 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v2.1.0" description="2024-12-07">
+
+## SQL features
+
+- Query syntax:
+    - **Public preview:** Supports `ASOF JOIN` to join and find the closest matching record by the event time or another ordered property. [#18683](https://github.com/risingwavelabs/risingwave/pull/18683) 
+    - Supports `AGGREGATE:` prefixed scalar function in streaming aggregation. [#18205](https://github.com/risingwavelabs/risingwave/pull/18205)
+    - Supports using user-defined aggregate functions as window function. [#18181](https://github.com/risingwavelabs/risingwave/pull/18181)
+    - Supports blocking subscription cursors and configuring cursor timeouts. [#18675](https://github.com/risingwavelabs/risingwave/pull/18675)
+- SQL commands:
+    - Enhances observability of cursors and subscription cursors by improving output results of `SHOW SUBSCRIPTION CURSORS`  and `SHOW CURSORS` commands. [#18896](https://github.com/risingwavelabs/risingwave/pull/18896)
+- SQL functions & operators:
+    - **Public preview:** Supports the TVF `postgres_query`. [#18811](https://github.com/risingwavelabs/risingwave/pull/18811)
+- System catalog:
+    - Supports `pg_catalog.pg_sequence`. [#18714](https://github.com/risingwavelabs/risingwave/pull/18714)
+    - Supports `information_schema.table_constraints`. [#18716](https://github.com/risingwavelabs/risingwave/pull/18716)
+    - Supports `information_schema.schemata`. [#18709](https://github.com/risingwavelabs/risingwave/pull/18709)
+
+### **Connectors**
+
+- **Breaking change:** Changes `scan.startup.mode=latest` for NATS source connector to start consuming from next available message instead of last one. [#18733](https://github.com/risingwavelabs/risingwave/pull/18733)
+- **Public preview:** Supports shared Kafka sources, which can be disabled by session variable  `streaming_use_shared_source`. [#18749](https://github.com/risingwavelabs/risingwave/pull/18749)
+- Supports recursively scanning file sources. [#18324](https://github.com/risingwavelabs/risingwave/pull/18324)
+- Supports schemaless ingestion for data in JSON format from Kafka sources by using `INCLUDE payload` clause. [#18437](https://github.com/risingwavelabs/risingwave/pull/18437)
+- Adds a set of options for NATS source connector based on the async_nats crate. [#17615](https://github.com/risingwavelabs/risingwave/pull/17615)
+- Adds a required option, `consumer.durable_name`, for NATS source connector. [#18873](https://github.com/risingwavelabs/risingwave/pull/18873)
+- Supports option `max_packet_size` for MQTT sources. [#18520](https://github.com/risingwavelabs/risingwave/pull/18520)
+- Supports option `database.encrypt` for SQL Server CDC sources. [#18912](https://github.com/risingwavelabs/risingwave/pull/18912)
+- Supports ingesting data from a partitioned table for PostgreSQL CDC sources. [#18456](https://github.com/risingwavelabs/risingwave/pull/18456)
+- Supports option `auto.schema.change` for PostgreSQL CDC sources to enable replicating Postgres table schema change. [#18760](https://github.com/risingwavelabs/risingwave/pull/18760)
+- Requires upstream table name to also be prefixed with database name when creating a SQL Server CDC table. [#18868](https://github.com/risingwavelabs/risingwave/pull/18868)
+- Adds `JSON` encode for file sinks, allowing users to sink JSON files into object storage. [#18744](https://github.com/risingwavelabs/risingwave/pull/18744)
+- Supports `create_table_if_not_exists` option for Iceberg sink connector. [#18362](https://github.com/risingwavelabs/risingwave/pull/18362)
+- Supports WebHDFS sinks. [#18293](https://github.com/risingwavelabs/risingwave/pull/18293)
+- Removes option `bulk_write_max_entries` for MongoDB sink and option `default_max_batch_rows` for DynamoDB sink. Adds options `max_batch_item_nums` and `max_future_send_nums` for DynamoDB sink. [#17645](https://github.com/risingwavelabs/risingwave/pull/17645)
+- Sets sink decoupling as the default policy for MongoDB, DynamoDB, and Redis sink connectors. [#17645](https://github.com/risingwavelabs/risingwave/pull/17645)
+- Supports option `routing_column` for ElasticSearch sinks, allowing a column to be set as a routing key. [#18698](https://github.com/risingwavelabs/risingwave/pull/18698)
+- Supports specifying batching strategy when sinking data in Parquet format. [#18472](https://github.com/risingwavelabs/risingwave/pull/18472)
+
+### **Installation and deployment**
+
+- Adds a CLI argument of `--license-key-path` for the meta node, enabling a background task to watch and reload license key from the specified file. [#18768](https://github.com/risingwavelabs/risingwave/pull/18768)
+
+### **Cluster configuration changes**
+
+- When `visibility_mode` is set to `all`, the latest uncommitted data will be queried, but consistency is no longer guaranteed between the tables. [#18230](https://github.com/risingwavelabs/risingwave/pull/18230)
+- Supports `SET TIME ZONE INTERVAL '+00:00' HOUR TO MINUTE` as equivalent to `SET TIME ZONE UTC`. [#18705](https://github.com/risingwavelabs/risingwave/pull/18705)
+- The etcd metastore is fully deprecated and unsupported. Users previously utilizing etcd metastore must manually migrate to a SQL backend (PostgreSQL, MySQL, or SQLite) to upgrade to v2.1.
+
+### Assets
+
+- Run this version from Docker:<br/>
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.1.0-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.1.0/risingwave-v2.1.0-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.1.0.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.1.0.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v2.1.0/risectl-v2.1.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/release-2.0...release-2.1).
+
+</Update>
+
 <Update label="v2.0.0" description="2024-10-18">
 
 ## SQL features
@@ -92,7 +154,7 @@ description: This page summarizes changes in each version of RisingWave, includi
 *   [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.0.0.tar.gz).
 *   [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v2.0.0/risectl-v2.0.0-x86_64-unknown-linux.tar.gz).
 
-See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v1.10.1...v2.0.0).
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/release-1.10...release-2.0).
 
 </Update>
 
