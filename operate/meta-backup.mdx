@@ -147,35 +147,3 @@ Parameters to `risectl meta restore-meta` should be:
    * `--hummock-storage-url s3://state_bucket`. Note that the `hummock+` prefix is stripped.
    * `--hummock-storage-directory state_data`.
 4. Configure meta service to use the new meta store.
-
-## Access historical data backed up by meta snapshot
-
-Meta snapshot is used to support historical data access, also known as time travel query.
-
-Use the following steps to perform a time travel query.
-
-1. List all valid historical point-in-time (i.e., epoch) for a table. For example to query the table of id 6:
-```sql
-SELECT state_table_info->'6'->>'safeEpoch' as safe_epoch,state_table_info->'6'->>'committedEpoch' committed_epoch from rw_meta_snapshot;
-```
-Example output:
-```bash
-    safe_epoch   | committed_epoch
------------------+------------------
-7039353459507200 | 7039354678542336
-7039354678542346 | 7039622397886464
-```
-Choose an epoch to query. Valid epochs are within range \[`safe_epoch`,`committed_epoch`\], e.g. \[7039353459507200, 7039354678542336\] or \[7039354678542346, 7039622397886464\].
-2. Set session config `QUERY_EPOCH`. By default, it's 0, which means disabling historical query.
-```sql
-SET QUERY_EPOCH=[chosen epoch];
-```
-Then, batch queries in this session return data as of this epoch instead of the latest one.
-3. Disable historical query.
-```sql
-SET QUERY_EPOCH=0;
-```
-
-<Note>
-RisingWave only supports historical data access at a specific point in time backed up by at least one meta snapshot.
-</Note>
