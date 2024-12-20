@@ -21,7 +21,7 @@ In this tutorial, you will learn how to analyze the effects of a market campaign
 
 Once RisingWave is installed and deployed, run the three SQL queries below to set up the tables. You will insert data into these tables to simulate live data streams.
 
-1. The `marketing_events` table tracks user interactions with marketing campaigns and includes details on each event.
+1. The `marketing_events` table tracks user interactions with marketing campaigns and includes details, such as the number of clicks and impressions, of each event.
 
     ```sql
     CREATE TABLE marketing_events (
@@ -38,7 +38,7 @@ Once RisingWave is installed and deployed, run the three SQL queries below to se
     );
     ```
 
-2. The `campaigns` table stores information about each campaign.
+2. The `campaigns` table stores information about each marketing campaign, such as what type of campaign it was and the target audience.
 
     ```sql
     CREATE TABLE campaigns (
@@ -52,7 +52,7 @@ Once RisingWave is installed and deployed, run the three SQL queries below to se
     );
     ```
 
-3. The `ab_test_variants` contains details about A/B test variations for each campaign. 
+3. The `ab_test_variants` contains details, such as the variant type and name, about A/B test variations for campaigns. 
 
     ```sql
     CREATE TABLE ab_test_variants (
@@ -96,7 +96,7 @@ default_params = {
 
 ## Step 3: Create materialized views
 
-In this demo, you will create multiple materialized views to 
+In this demo, you will create multiple materialized views to investigate the efficacy of marketing campagins.
 
 Materialized views contain the results of a view expression and are stored in the RisingWave database. The results of a materialized view are computed incrementally and updated whenever new events arrive and do not require to be refreshed. When you query from a materialized view, it will return the most up-to-date computation results.
 
