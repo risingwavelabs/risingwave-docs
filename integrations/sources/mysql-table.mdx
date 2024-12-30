@@ -1,0 +1,102 @@
+---
+title: "Ingest data from MySQL table"
+description: "Describes how to ingest data from MySQL table to RisingWave using table-valued function."
+sidebarTitle: MySQL table
+---
+
+RisingWave allows you to query MySQL tables directly with the `mysql_query` table-valued function (TVF). It offers a simpler alternative to Change Data Capture (CDC) when working with MySQL data in RisingWave. 
+
+Unlike CDC, which continuously syncs data changes, this function lets you fetch data directly from MySQL when needed. Therefore, this approach is ideal for static or infrequently updated data, as it's more resource-efficient than maintaining a constant CDC connection.
+
+<Note>
+**PUBLIC PREVIEW**
+
+This feature is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
+</Note>
+
+<Note>
+Added in version 2.2.
+</Note>
+
+## Syntax
+
+Define `mysql_query` as follows:
+
+```sql
+mysql_query(
+    hostname varchar,      -- Database hostname
+    port varchar,          -- Database port
+    username varchar,      -- Authentication username
+    password varchar,      -- Authentication password
+    database_name varchar, -- Target database name
+    query varchar          -- SQL query to execute
+)
+```
+
+## Data type mapping
+
+The following table shows how MySQL data types are mapped to RisingWave data types:
+
+| MySQL Type | RisingWave Type |
+|:-----------|:----------------|
+| `bit(1)` | `boolean` |
+| `bit(>1)` | `bytea` |
+| `bool`/`boolean` | `smallint` |
+| `tinyint` | `smallint` |
+| `smallint` | `smallint` |
+| `mediumint` | `int` |
+| `int` | `int` |
+| `bigint` | `bigint` |
+| `float` | `float32` |
+| `double` | `float64` |
+| `decimal` | `decimal` |
+| `numeric` | `decimal` |
+| `year` | `int` |
+| `date` | `date` |
+| `time` | `time` |
+| `datetime` | `timestamp` |
+| `timestamp` | `timestamptz` |
+| `varchar` | `varchar` |
+| `char` | `varchar` |
+| `json` | `jsonb` |
+| `blob` | `bytea` |
+| `tinyblob` | `bytea` |
+| `mediumblob` | `bytea` |
+| `longblob` | `bytea` |
+| `array` | *unsupported* |
+| `enum` | *unsupported* |
+| `set` | *unsupported* |
+| `geometry` | *unsupported* |
+| `null` | *unsupported* |
+
+## Example
+
+1. In your MySQL database, create a table and populate it with sample data of various data types.
+
+```sql
+CREATE TABLE test (
+    id bigint primary key, v0 bit, v1 bool, v2 tinyint(1),
+    v3 tinyint(2), v4 smallint, v5 mediumint, v6 integer,
+    v7 bigint, v8 float, v9 double, v10 numeric(4, 2),
+    v11 decimal(4, 2), v12 char(255), v13 varchar(255),
+    v14 bit(10), v15 tinyblob, v16 blob, v17 mediumblob,
+    v18 longblob, v19 date, v20 time, v21 timestamp,
+    v22 json
+);
+
+INSERT INTO test SELECT
+    1 as id, true as v0, true as v1, 2 as v2, 3 as v3, 4 as v4, 5 as v5,
+    6 as v6, 7 as v7, 1.08 as v8, 1.09 as v9, 1.10 as v10, 1.11 as v11,
+    'char' as v12, 'varchar' as v13, b'1010' as v14, x'16' as v15, x'17' as v16,
+    x'18' as v17, x'19' as v18, '2021-01-01' as v19, '12:34:56' as v20,
+    '2021-01-01 12:34:56' as v21, JSON_OBJECT('key1', 1, 'key2', 'abc');
+```
+
+2. In RisingWave, use `postgres_query` function to perform the query.
+
+```sql
+SELECT * 
+FROM mysql_query('$MYSQL_HOST', '$MYSQL_TCP_PORT', '$RISEDEV_MYSQL_USER', '$MYSQL_PWD', 'tvf', 'select * from test;');
+----RESULT
+1 t 1 2 3 4 5 6 7 1.08 1.09 1.10 1.11 char varchar \x000a \x16 \x17 \x18 \x19 2021-01-01 12:34:56 2021-01-01 12:34:56+00:00 {"key1": 1, "key2": "abc"}
+```
