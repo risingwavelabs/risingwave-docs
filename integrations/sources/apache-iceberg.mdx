@@ -32,12 +32,18 @@ You don’t need to specify the column name for the Iceberg source, as RisingWav
 | s3.region      | Optional. The region where the S3 bucket is hosted. Either `s3.endpoint` or `s3.region` must be specified.                                                                                              |
 | s3.access.key  | Required. Access key of the S3 compatible object store.                                                                                                                                             |
 | s3.secret.key  | Required. Secret key of the S3 compatible object store.                                                                                                                                             |
+| s3.path.style.access | Optional. Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). |
 | database.name  | Required. Name of the database that you want to ingest data from.                                                                                                                                   |
 | table.name     | Required. Name of the table that you want to ingest data from.                                                                                                                                      |
 | catalog.name   | Conditional. The name of the Iceberg catalog. It can be omitted for storage catalog but required for other catalogs.                                                                                |
 | catalog.type   | Optional. The catalog type used in this table. Currently, the supported values are `storage`, `rest`, `hive`, `jdbc`, and `glue`. If not specified, `storage` is used. For details, see [Catalogs](#catalogs).  |
 | warehouse.path | Conditional. The path of the Iceberg warehouse. Currently, only S3-compatible object storage systems, such as AWS S3 and MinIO, are supported. It's required if the `catalog.type` is not `rest`.       |
 | catalog.url    | Conditional. The URL of the catalog. It is required when `catalog.type` is not `storage`.                                                                                                               |
+| catalog.credential | Optional. Credential for accessing the Iceberg catalog, used to exchange for a token in the OAuth2 client credentials flow. Applicable only in the `rest` catalog.|
+| catalog.token| Optional. A Bearer token for accessing the Iceberg catalog, used for interaction with the server. Applicable only in the `rest` catalog. |
+| catalog.oauth2-server-uri | Optional. The `oauth2-server-uri` for accessing the Iceberg catalog, serving as the token endpoint URI to fetch a token if the `rest` catalog is not the authorization server. Applicable only in the `rest` catalog.|
+| catalog.scope | Optional. Scope for accessing the Iceberg catalog, providing additional scope for OAuth2. Applicable only in the `rest` catalog. |
+| commit_checkpoint_interval | Optional. Commit every N checkpoints (N > 0). Default value is 60.|
 
 ## Data type mapping
 
@@ -82,16 +88,20 @@ Examples
 create source source_demo_rest
 with (
     connector = 'iceberg',
-    s3.endpoint = 'http://minio-0:9301',
-    s3.access.key = 'xxxxxxxxxx',
-    s3.secret.key = 'xxxxxxxxxx',
-    s3.region = 'ap-southeast-1',
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.path.style.access = 'true',
     catalog.type = 'rest',
-    catalog.name = 'demo',
-    catalog.uri = 'http://rest:8181',
-    warehouse.path = 's3://icebergdata/demo',
-    database.name = 's1',
-    table.name = 't1'
+    catalog.uri = 'http://localhost:8181/api/catalog',
+    warehouse.path = 'quickstart_catalog',
+    database.name = 'ns',
+    table.name = 't1',
+    catalog.credential='123456:123456',
+    catalog.scope='PRINCIPAL_ROLE:ALL',
+    catalog.oauth2-server-uri='xxx'
+    catalog.scope='xxx',
 );
 ```
 * Hive catalog: RisingWave supports the Hive catalog. You need to set `catalog.type` to `hive` to use it.
