@@ -170,3 +170,26 @@ SWAP WITH target_name;
 ALTER SOURCE api_data
 SWAP WITH file_data;
 ```
+
+### `PAUSE` | `RESUME`
+
+```sql
+ALTER SOURCE source_name
+    { PAUSE | RESUME };
+```
+
+| Parameter or clause | Description |
+| :----------------- | :---------- |
+| **PAUSE** | Temporarily stops the source by setting its `source_rate_limit` to 0. |
+| **RESUME** | Restarts the source by removing the rate limit. |
+
+```sql
+-- Pause a source named "kafka_source".
+ALTER SOURCE kafka_source PAUSE;
+
+-- Resume a previously paused source.
+ALTER SOURCE kafka_source RESUME;
+```
+
+
+
