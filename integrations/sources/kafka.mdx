@@ -62,6 +62,14 @@ RisingWave performs primary key constraint checks on tables but not on sources. 
 **FAQ: GroupAuthorizationFailed**
 
 If you encounter `GroupAuthorizationFailed(Broker: Group authorization failed)` while consuming from Kafka topics, consider adding all consumer groups with the `group.id.prefix` (default: `rw-consumer`) to the ACL whitelist.
+You can try the following command to set up the ACL:
+
+```
+./kafka-acls.sh --bootstrap-server <broker-addr> \
+  --add --allow-principal User:<user or service account> \
+  --consumer-group rw-consumer-.* \
+  --operation READ
+```
 </Tip>
 
 ### Other parameters
