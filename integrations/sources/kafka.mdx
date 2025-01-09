@@ -58,6 +58,11 @@ RisingWave performs primary key constraint checks on tables but not on sources. 
 | group.id.prefix               | Optional. Specify a custom group ID prefix for the source. The default prefix is `rw-consumer`. Each job (materialized view) will have a separate consumer group with a generated suffix in the group ID, so the format of the consumer group is `{group_id_prefix}-{fragment_id}`. This is used to monitor progress in external Kafka tools and for authorization purposes. RisingWave does not rely on committed offsets or join the consumer group. It only reports offsets to the group. |
 | properties.sync.call.timeout  | Optional. Specify the timeout. By default, the timeout is 5 seconds.                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | properties.client.id          | Optional. Client ID associated with the Kafka client.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+<Tip>
+**FAQ: GroupAuthorizationFailed**
+
+If you encounter `GroupAuthorizationFailed(Broker: Group authorization failed)` while consuming from Kafka topics, consider adding all consumer groups with the `group.id.prefix` (default: `rw-consumer`) to the ACL whitelist.
+</Tip>
 
 ### Other parameters
 
