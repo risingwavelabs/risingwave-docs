@@ -26,6 +26,101 @@ When you run the command `rwc byoc apply --name xxx`, it will deploy some resour
 
 Once the cluster is successfully created, you can manage it through the portal just like hosted clusters.
 
+## Configure custom settings
+
+RisingWave supports several custom settings for BYOC deployments. To use this feature, you need to create a configuration file containing the custom settings. These settings can be applied when creating a new BYOC environment or updating an existing one.
+
+Below are supported custom settings:
+
+1. Container security context that applies to all RisingWave namespaces, including:
+   * `cloudagent` (hosting the agent service for Kubernetes operation delegation)
+   * `rwproxy` (hosting psql proxy for RisingWave clusters)
+   * `risingwave-operator-system` (hosting RisingWave operator managing the RisingWave cluster CRD)
+   * `rwc-*` (namespaces hosting RisingWave clusters)
+
+   For more information, please see [Security context](https://pkg.go.dev/k8s.io/api/core/v1#SecurityContext). 
+
+2. Namespace labels to enforce Pod Security Standard for all namespaces mentioned above.
+
+   For more information, please see [Pod Security Admission labels for namespaces](https://kubernetes.io/docs/concepts/security/pod-security-admission/#pod-security-admission-labels-for-namespaces). 
+
+3. Tags for Cloud vendor resources managed by RisingWave.
+
+4. AWS custom EKS AMI version for the EKS nodes.
+
+### Create a configuration file
+
+1. Create a file at path `BYOC_CONFIG` with the custom settings mentioned above:
+
+```yaml
+container_security_context:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65521
+  seccompProfile:
+    type: RuntimeDefault
+pod_security_admission_labels:
+  pod-security.kubernetes.io/enforce: restricted
+extra_tags:
+  foo: bar
+aws_settings:
+  eks_node_ami_release_version: 1.32.0-20241225
+```
+
+2. Save the file path `$BYOC_CONFIG`, as you will use it in the later steps.
+
+
+### Apply to a BYOC environment
+
+You may either create a new BYOC environment or update your existing one to apply the custom settings.
+
+
+
+<Tabs>
+  <Tab title="Create a new BYOC environment">
+    1. Run the following command to create a new BYOC environment, with security configs. `$BYOC_CONFG` is the file path of the config file created in last step.`$BYOC_NAME` should be different from your existing one if the old one is not deleted.
+
+```bash
+$ rwc byoc create \
+	--cidr $BYOC_CIDR \
+	--cloud-account-id $ACCOUNT_ID \
+	--name $BYOC_NAME \
+	--custom-settings-path $BYOC_CONFIG
+```
+
+2. Apply custom settings to the new BYOC environment. This may take up to 30 minutes.
+
+```bash
+$ rwc byoc apply --name $BYOC_NAME
+```
+  </Tab>
+  <Tab title="Update an existing BYOC environment">
+    <Warning>
+When updating the existing BYOC environment, the existing cluster namespaces `rwc-*` will NOT adopt the security feature update.
+</Warning>
+
+1. Run the following command to trigger a BYOC environment update. `$BYOC_NAME` should be the name of your existing BYOC environment.
+
+```bash
+$ rwc byoc update \
+  --name $BYOC_NAME \
+  --version $VERSION \
+  --custom-settings-path $BYOC_CONFIG
+```
+
+2. Run the following command to apply the updated config. This may take up to 30 minutes.
+
+```bash
+$ rwc byoc apply --name $BYOC_NAME
+```
+  </Tab>
+
+</Tabs>
+
 ## Resource and permission
 
 When you customize your cloud platform, refer to the following notes to see what we've set up for you and the permissions you need to enable.
