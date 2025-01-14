@@ -49,18 +49,18 @@ kubectl port-forward -n monitoring svc/prometheus-grafana 3000:http-web --addres
 
 ## Grafana dashboard for multi-cluster
 
-If you have multiple RisingWave clusters deployed in a Kubernetes cluster, you need to generate a Grafana dashboard for the multi-cluster scenario.
+This section explains how to generate a Grafana dashboard for monitoring multiple RisingWave clusters deployed within a Kubernetes environment. These steps only generate the dashboard's JSON model and can be performed on any machine with the necessary tools.
 
-The following steps can be run in any machine, it is only for generating the Grafana dashboard JSON model.
 
-1. Clone the [risingwave](https://github.com/risingwavelabs/risingwave) repository.
+1. Clone the [risingwave](https://github.com/risingwavelabs/risingwave) repository:
 ```bash
 git clone https://github.com/risingwavelabs/risingwave.git
 ```
 
-2. Follow [the instruction](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md) to set up the toolchain.
+2. Follow the instructions in the [RisingWave Grafana directory README](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md) to configure the required toolchain.
 
-3. Run the following command to generate the Grafana dashboard JSON model.
+3. Generate the Grafana dashboard JSON model.
+Execute the following command to create the Grafana dashboard JSON model, enabling multi-cluster support:
 ```bash
 DASHBOARD_NAMESPACE_FILTER_ENABLED=true \
 DASHBOARD_RISINGWAVE_NAME_FILTER_ENABLED=true \
@@ -68,11 +68,20 @@ DASHBOARD_DYNAMIC_SOURCE=true \
 DASHBOARD_UID=risingwave_dashboard \
 ./generate.sh
 ```
+This command sets several environment variables to configure the dashboard generation:
 
-4. Import the generated JSON models (*.gen.json) into Grafana.
+- `DASHBOARD_NAMESPACE_FILTER_ENABLED=true`: Enables filtering by Kubernetes namespace.
+
+- `DASHBOARD_RISINGWAVE_NAME_FILTER_ENABLED=true`: Enables filtering by RisingWave cluster name.
+
+- `DASHBOARD_DYNAMIC_SOURCE=true`: Enables dynamic selection of the data source in Grafana.
+
+- `DASHBOARD_UID=risingwave_dashboard`: Sets the unique identifier (UID) for the dashboard.
+4. Import the generated JSON models (with the extension `.gen.json`) into your Grafana instance.
 
 
 ### Troubleshooting
 
-If the namespace filter is not working, it is probably because the metrics collected does not contain the label `risingwave_name`. In that case, you need to
-use `metricRelabelings` and `relabelings` fields in the [endpoint spec](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint) to add this label to the metrics. 
+#### Namespace filter not working
+
+If the namespace filter in your Grafana dashboard is not functioning correctly, the issue may stem from the absence of the `risingwave_name` label in your collected metrics. To resolve this, you can use the metricRelabelings and relabelings fields in the [Prometheus Operator endpoint spec](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint) to append this label to your metrics.
