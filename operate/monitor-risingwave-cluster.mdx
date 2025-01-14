@@ -46,3 +46,42 @@ kubectl port-forward -n monitoring svc/prometheus-grafana 3000:http-web --addres
 <Frame>
   <img src="/images/current/monitor-risingwave-cluster/risingwave-grafana-k8s.png"/>
 </Frame>
+
+## Generate a Grafana dashboard for multiple RisingWave clusters
+
+This section explains how to generate a Grafana dashboard for monitoring multiple RisingWave clusters deployed within a Kubernetes environment. These steps only generate the dashboard's JSON model and can be performed on any machine with the necessary tools.
+
+
+1. Clone the [risingwave](https://github.com/risingwavelabs/risingwave) repository:
+```bash
+git clone https://github.com/risingwavelabs/risingwave.git
+```
+
+2. Follow the instructions in the [RisingWave Grafana directory README](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md) to configure the required toolchain.
+
+3. Generate the Grafana dashboard JSON model.
+Execute the following command to create the Grafana dashboard JSON model, enabling multi-cluster support:
+```bash
+DASHBOARD_NAMESPACE_FILTER_ENABLED=true \
+DASHBOARD_RISINGWAVE_NAME_FILTER_ENABLED=true \
+DASHBOARD_DYNAMIC_SOURCE=true \
+DASHBOARD_UID=risingwave_dashboard \
+./generate.sh
+```
+This command sets several environment variables to configure the dashboard generation:
+
+- `DASHBOARD_NAMESPACE_FILTER_ENABLED=true`: Enables filtering by Kubernetes namespace.
+
+- `DASHBOARD_RISINGWAVE_NAME_FILTER_ENABLED=true`: Enables filtering by RisingWave cluster name.
+
+- `DASHBOARD_DYNAMIC_SOURCE=true`: Enables dynamic selection of the data source in Grafana.
+
+- `DASHBOARD_UID=risingwave_dashboard`: Sets the unique identifier (UID) for the dashboard.
+4. Import the generated JSON models (with the extension `.gen.json`) into your Grafana instance.
+
+
+### Troubleshooting
+
+#### Namespace filter not working
+
+If the namespace filter in your Grafana dashboard is not functioning correctly, the issue may stem from the absence of the `risingwave_name` label in your collected metrics. To resolve this, you can use the metricRelabelings and relabelings fields in the [Prometheus Operator endpoint spec](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint) to append this label to your metrics.
