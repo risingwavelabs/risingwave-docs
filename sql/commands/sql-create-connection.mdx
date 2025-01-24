@@ -1,6 +1,6 @@
 ---
 title: "CREATE CONNECTION"
-description: "Use the `CREATE CONNECTION` command to reuse connector properties."
+description: "Use the `CREATE CONNECTION` command to create a reusable catalog for connector parameters."
 ---
 
 The `CREATE CONNECTION` command creates a reusable connection configuration that can be referenced when creating sources, sinks, or tables. Currently supported connection types are Kafka and schema registry.
@@ -16,7 +16,7 @@ WITH (
 );
 ```
 
-Connection parameters can reference secrets using the `SECRET` keyword. This allows sensitive information to be stored securely and referenced in the connection configuration.
+Connection parameters can reference secrets using the `SECRET` keyword. This allows sensitive information to be stored securely and referenced in the connection configuration. Additionally, changes to the secret are automatically applied, so there's no need to alter the connection.
 
 
 ## Parameter
@@ -84,8 +84,11 @@ To create a Kafka connection that securely integrates secrets:
 ```sql
 CREATE CONNECTION conn_kafka WITH (
     type = 'kafka',
-    properties.bootstrap.server = SECRET sec_broker,
-    properties.security.protocol = 'plaintext'
+    properties.bootstrap.server='<broker addr>', 
+    properties.sasl.mechanism='PLAIN', 
+    properties.security.protocol='SASL_PLAINTEXT', 
+    properties.sasl.username=SECRET <username>, 
+    properties.sasl.password=SECRET <password>
 );
 ```
 
