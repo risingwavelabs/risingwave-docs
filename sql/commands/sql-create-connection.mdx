@@ -92,6 +92,14 @@ CREATE CONNECTION conn_kafka WITH (
 );
 ```
 
+```sql
+CREATE TABLE t WITH (
+    connector = 'kafka', 
+    topic = 'demo-topic', 
+    connection = conn_kafka
+) FORMAT PLAIN ENCODE AVRO (connection = sr_conn);
+```
+
 To create a source, table or sink from the connection, the name of connector and connection must match those specified above. Also, the attributes defined in the connection and the source/table/sink cannot overlap:
 
 ```sql
