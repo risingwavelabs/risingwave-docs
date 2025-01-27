@@ -41,6 +41,7 @@ RisingWave demonstrates significant performance advantages in a majority of stre
 | q21 | 626.2 | 89.377 | 692.52% | 5.1 | 8.11% | 0.20 |
 | q22 | 808.6 | 110.5 | 731.63% | 5.2 | 0.16% | 0.12Z |
 
+
 ## Benchmark methodology
 
 The performance tests were conducted using the Nexmark benchmark, a widely recognized standard in the stream processing field. In addition to the standard Nexmark queries, an extended set of 5 queries was included to cover a broader range of common SQL operators.
@@ -66,6 +67,39 @@ The performance tests were conducted using the Nexmark benchmark, a widely recog
 2. Nexmark Kafka sources were created using [**these SQLs**](https://github.com/risingwavelabs/kube-bench/blob/main/manifests/nexmark/nexmark-kafka-sources.template.yaml#L64).
 3. [**CREATE SINK (blackhole)**](https://github.com/risingwavelabs/kube-bench/blob/main/manifests/nexmark/nexmark-sinks.template.yaml) was used to test the performance and cost of Nexmark queries.
 4. The RisingWave cluster was deployed via [**kube-bench**](https://github.com/aquasecurity/kube-bench).
+
+
+## Performance comparison with Flink
+
+RisingWave's performance has been extensively benchmarked against Apache Flink, providing valuable insights into its relative strengths. The comparison reveals significant performance advantages in most streaming scenarios.
+
+### Key comparative findings
+
+- RisingWave outperformed Flink in 22 out of 27 queries
+- 12 queries showed performance improvements of ≥50% compared to Flink
+- 10 queries demonstrated more than 2x performance improvement
+- Exceptional improvements were observed in:
+  - Dynamic filtering operations (q102: 520x faster)
+  - Anti-join operations (q104: 660x faster)
+  - Complex state management queries (q7: 62x faster)
+
+### Performance characteristics by query type
+
+#### Strong performance advantage (>2x faster than Flink)
+- Queries with large internal states (>20GB)
+- Complex join operations
+- Dynamic filtering operations
+- Aggregations with large state management
+
+#### Comparable performance (90-110% of Flink)
+- Basic stateless computations
+- Simple filtering operations
+- Network I/O bound operations
+
+#### Areas for optimization (performing below Flink)
+- Window aggregations without EOWC support (q5)
+- Distinct aggregations without split optimization (q16)
+
 
 ## Key performance factors
 
