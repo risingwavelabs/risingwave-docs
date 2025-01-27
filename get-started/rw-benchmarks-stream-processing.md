@@ -96,7 +96,7 @@ RisingWave's performance has been extensively benchmarked against Apache Flink, 
 - Simple filtering operations
 - Network I/O bound operations
 
-#### Areas for optimization (<100% of Flink)
+#### Areas for optimization (performing below Flink)
 - Window aggregations without EOWC support (q5)
 - Distinct aggregations without split optimization (q16)
 
