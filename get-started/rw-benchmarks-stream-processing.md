@@ -1,0 +1,98 @@
+---
+title: "Stream processing benchmarks: Nexmark results"
+sidebarTitle: "Stream processing benchmarks"
+description: "This topic provides an overview of RisingWave's stream processing performance characteristics based on rigorous testing using the industry-standard Nexmark benchmark and an extended set of real-world SQL queries."
+---
+
+## Performance highlights
+
+RisingWave demonstrates significant performance advantages in a majority of stream processing scenarios, particularly those involving complex state management. Here are some key takeaways from the latest benchmark results:
+
+- High throughput: RisingWave consistently delivers high throughput across various Nexmark queries, reaching up to 893.2 thousand records per second (kr/s) in q1 and 770.0 kr/s in q7-rewrite.
+- Efficient resource utilization: RisingWave showcases efficient resource utilization, achieving up to 127.36 kr/s per core in q2.
+- Strong performance in complex queries: RisingWave maintains robust performance even in complex queries like q7, q9, q18, and q20, which involve significant state management.
+
+## Detailed benchmark results
+
+| **Nexmark Query** | **Throughput (kr/s)** | **Throughput/core（kr/s）** | **Compute CPU Avg** | **Compute Mem Avg(GiB)** | **Compactor CPU Avg** | **CompactorMem Avg(GiB)** |
+| --- | --- | --- | --- | --- | --- | --- |
+| q0 | 783.1 | 118.41 | 661.26% | 1.1 | 0.074% | 0.05 |
+| q1 | 893.2 | 119.37 | 748.2% | 1.9 | 0.09% | 0.05 |
+| q2 | 805.3 | 127.36 | 632.2% | 1.8 | 0.078% | 0.05 |
+| q3 | 705.0 | 97.358 | 719.93% | 7.8 | 4.2% | 0.15 |
+| q4 | 84.3 | 13.923 | 525.25% | 7.9 | 80.24% | 0.26 |
+| q5 | 42.1 | 5.2249 | 734.04% | 8.1 | 71.72% | 0.23 |
+| q5-rewrite | 70.7 | 9.08 | 694.26% | 8.0 | 83.99% | 0.26 |
+| q7 | 219.1 | 20.348 | 792.35% | 9.1 | 284.44% | 0.48 |
+| q7-rewrite | 770.0 | 99.37  | 757.67% | 5.0 | 17.21% | 0.14 |
+| q8 | 483.5 | 60.732 | 763.5% | 8.2 | 32.62% | 0.30 |
+| q9 | 38.0 | 8.2208 | 299.34% | 8.7 | 162.9% | 0.49 |
+| q10 | 730.1 | 106.15 | 681.04% | 4.8 | 6.77% | 0.14 |
+| q11 | NA |  |  |  |  |  |
+| q12 | NA |  |  |  |  |  |
+| q13 | NA |  |  |  |  |  |
+| q14 | 77.7 | 45.371 | 171.2% | 1.1 | 0.055% | 0.05 |
+| q15 | 104.1 | 78.525 | 126.12% | 6.5 | 6.45% | 0.078 |
+| q16 | 30.8 | 8.0565 | 375.85% | 8.5 | 6.45% | 0.093 |
+| q17 | 126.6 | 17.314 | 715.63% | 7.8 | 15.57% | 0.20 |
+| q18 | 77.8 | 9.8455 | 771.15% | 7.8 | 19.06% | 0.23 |
+| q19 | NA |  |  |  |  |  |
+| q20 | 83.3 | 12.726 | 372.08% | 9.1 | 282.46% | 0.56 |
+| q21 | 626.2 | 89.377 | 692.52% | 5.1 | 8.11% | 0.20 |
+| q22 | 808.6 | 110.5 | 731.63% | 5.2 | 0.16% | 0.12Z |
+
+## Benchmark methodology
+
+The performance tests were conducted using the Nexmark benchmark, a widely recognized standard in the stream processing field. In addition to the standard Nexmark queries, an extended set of 5 queries was included to cover a broader range of common SQL operators.
+
+### Environment
+
+- **Hardware:** Cloud Isolation Environment using single-node instances (8 vCPUs, 16GB memory) with S3 storage. Each pod exclusively occupies one machine.
+- **RisingWave version:** nightly-20230309
+- **RisingWave configuration:**
+    
+    ```yaml
+    [storage]
+    block_cache_capacity_mb = 2048
+    meta_cache_capacity_mb = 512
+    compactor_memory_limit_mb = 2560
+    shared_buffer_capacity_mb = 2048
+    ```
+    
+
+### Test procedure
+
+1. Data was populated into Kafka using the [**nexmark-bench**](https://github.com/risingwavelabs/nexmark-bench) tool.
+2. Nexmark Kafka sources were created using [**these SQLs**](https://github.com/risingwavelabs/kube-bench/blob/main/manifests/nexmark/nexmark-kafka-sources.template.yaml#L64).
+3. [**CREATE SINK (blackhole)**](https://github.com/risingwavelabs/kube-bench/blob/main/manifests/nexmark/nexmark-sinks.template.yaml) was used to test the performance and cost of Nexmark queries.
+4. The RisingWave cluster was deployed via [**kube-bench**](https://github.com/aquasecurity/kube-bench).
+
+## Key performance factors
+
+RisingWave's performance advantages can be attributed to several design and implementation choices:
+
+1. Rust-based architecture: RisingWave is built from the ground up in Rust and minimizes reliance on third-party JVM components. This provides inherent performance benefits at the computation layer.
+2. Direct SQL optimization: Unlike systems with multiple abstraction layers, RisingWave directly optimizes SQL queries, enabling highly customized performance tuning.
+3. Computation-aware storage: RisingWave's custom storage implementation is aware of the computation, allowing for intelligent state management and reduced storage costs by leveraging remote storage (e.g., S3, HDFS).
+
+## Areas of strength
+
+RisingWave excels in scenarios with:
+
+- Complex stateful computations: Queries requiring large and complex internal states benefit significantly from RisingWave's efficient state management.
+- Multi-stream joins: Initial tests indicate that RisingWave can efficiently handle joins of multiple data streams, making it suitable for scenarios with multiple data sources.
+
+## Considerations
+
+- Stateless computations: Performance gains in stateless computations might be less pronounced when network I/O between RisingWave and the data source (e.g., Kafka) becomes the bottleneck.
+- Performance degradation: Reducing compute node memory or introducing irregular access patterns can lead to a high cache miss rate, impacting performance due to increased access to remote storage.
+- Emit On Window Close (EOWC): RisingWave will soon support EOWC semantics, which can optimize window aggregation functions.
+- Split distinct aggregation: RisingWave will add the optimization for split distinct aggregation in the future, which will further improve the performance for queries like q16.
+
+## Future performance evaluations
+
+Further testing is planned to evaluate RisingWave's performance in areas such as:
+
+- Complex stateful computations: Including operations like JSON parsing and string processing.
+- Multi-stream joins: Releasing detailed results of multi-stream join experiments.
+- Advanced features: Assessing the impact of UDFs, watermarks, and other advanced features on performance.
