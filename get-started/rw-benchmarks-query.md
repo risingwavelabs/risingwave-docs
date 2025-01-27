@@ -1,7 +1,6 @@
-
 ---
 title: "Query performance benchmarks: sysbench results"
-sidebarTitle:  Query performance benchmarks
+sidebarTitle:  "Query performance benchmarks"
 description: "This topic provides an overview of RisingWave's query performance characteristics (latency and throughput) based on the industry-standard sysbench benchmark."
 ---
 
