@@ -9,26 +9,27 @@ RisingWave converts [well-known types](https://protobuf.dev/reference/protobuf/g
 
 | Protobuf type | RisingWave type |
 | :-- | :-- |
-| any | JSONB |
-| double | double precision |
-| float | real |
-| int32 | int |
-| int64 | bigint |
-| uint32 | bigint |
-| uint64 | decimal |
-| sint32 | int |
-| sint64 | bigint |
-| fixed32 | bigint |
-| fixed64 | decimal |
-| sfixed32 | int |
-| sfixed64 | bigint |
-| bool | boolean |
-| string | varchar |
-| bytes | bytea |
-| enum | varchar |
-| message | struct. See details in [Nested messages](#nested-messages). |
-| repeated | array |
-| map | map. See details in [Map](/sql/data-types/map-type). |
+| any | `jsonb` |
+| double | `double precision` |
+| float | `real` |
+| int32 | `int` |
+| int64 | `bigint` |
+| uint32 | `bigint` |
+| uint64 | `decimal` |
+| sint32 | `int` |
+| sint64 | `bigint` |
+| fixed32 | `bigint` |
+| fixed64 | `decimal` |
+| sfixed32 | `int` |
+| sfixed64 | `bigint` |
+| bool | `boolean` |
+| string | `varchar` |
+| bytes | `bytea` |
+| enum | `varchar` |
+| message | `struct`. See details in [Nested messages](#nested-messages). |
+| messages_as_jsonb | `jsonb`. See details in [Handle recursive definitions](#handle-recursive-definitions). |
+| repeated | `array` |
+| map | `map`. See details in [Map](/sql/data-types/map-type). |
 | google.protobuf.Struct | Not supported |
 | google.protobuf.Timestamp | `struct<seconds bigint, nanos int>` |
 | google.protobuf.Duration | `struct<seconds bigint, nanos int>` |
@@ -48,6 +49,24 @@ message NestedMessage {
 ```
 
 Will be converted to `struct<id int, name varchar>` in RisingWave.
+
+### Handle recursive definitions
+
+When detecting a recursive definition in the protobuf, RisingWave will reject the statement and show the circular dependency. Adding dependency items to `messages_as_jsonb` with full type name separated by comma can solve the case. For example:
+
+```sql
+CREATE TABLE opentelemetry_test 
+WITH ( 
+    ${RISEDEV_KAFKA_WITH_OPTIONS_COMMON}, 
+    topic = 'opentelemetry_test' 
+) 
+FORMAT PLAIN 
+ENCODE PROTOBUF ( 
+    schema.registry = '${RISEDEV_SCHEMA_REGISTRY_URL}', 
+    message = 'opentelemetry_test.OTLPTestMessage', 
+    messages_as_jsonb = 'opentelemetry.proto.common.v1.ArrayValue,opentelemetry.proto.common.v1.KeyValueList,opentelemetry.proto.common.v1.AnyValue'
+);
+```
 
 ## Related topics
 
