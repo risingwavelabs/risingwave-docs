@@ -60,7 +60,7 @@ Checks if a user has access to any column of a table in a specific way. Currentl
 has_any_column_privilege([user,] table, privilege) -> boolean
 ```
 
-```bash Example
+```sql Example
 SELECT has_any_column_privilege('test_user', 'foo_view'::regclass, 'INSERT');
 ----RESULT
 f
@@ -70,23 +70,21 @@ f
 
 Retrieves the current recovery status of the cluster. The return values can be one of `STARTING`, `RECOVERING`, or `RUNNING`.
 
-
-```bash Syntax
+```sql Syntax
 rw_recovery_status() -> varchar
 ```
 
-```bash Example
+```sql Example
 SELECT rw_recovery_status();
 -- RESULT
 'RUNNING'
-
 ```
 
 ## `pg_is_in_recovery()`
 
 Checks if the PostgreSQL instance is currently in recovery mode.
 
-```bash Syntax
+```sql Syntax
 pg_is_in_recovery() -> boolean
 ```
 
@@ -98,12 +96,11 @@ t
 
 ## `set_config()`
 
-```bash Syntax
+```sql Syntax
 set_config ( setting_name text, new_value text, is_local boolean ) → text
 ```
 
 Sets the parameter `setting_name` to `new_value`, and returns that value. If `is_local` is `true`, the new value will only apply during the current transaction. If you want the new value to apply for the rest of the current session, use `false` instead. This function corresponds to the SQL command [SET](/sql/commands/sql-set).
-
 
 ```sql Example
 SELECT set_config('rw_implicit_flush', 'true', false);
