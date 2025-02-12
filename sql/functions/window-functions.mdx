@@ -158,12 +158,12 @@ FROM t ORDER BY col1, col2;
 
 ### `first_value()` and `last_value()`
 
-The `first_value()` function returns the value of the first row in the current window frame.
+The `first_value()` function returns the value of the first row in the current window frame. If `IGNORE NULLS` is present, `first_value()` returns the first non-null value.
 
 The syntax of `first_value()` is:
 
 ```sql
-first_value ( value anyelement ) → anyelement
+first_value ( value anyelement [ IGNORE NULLS ] ) → anyelement
 ```
 
 ```sql Example
@@ -185,12 +185,12 @@ FROM t ORDER BY col1, col2;
     b |  109 |   103
 ```
 
-`last_value()` returns the value of the last row in the current window frame.
+`last_value()` returns the value of the last row in the current window frame. If `IGNORE NULLS` is present, `last_value()` returns the last non-null value.
 
 The syntax of `last_value()` is:
 
 ```sql
-last_value ( value anyelement ) → anyelement
+last_value ( value anyelement [ IGNORE NULLS ] ) → anyelement
 ```
 
 ```sql Example
@@ -232,6 +232,10 @@ FROM t ORDER BY col1, col2;
     b |  107 |  109
     b |  109 |  109
 ```
+
+<Note>
+Added in v2.3: Support `IGNORE NULLS`.
+</Note>
 
 ## Aggregate window functions
 
