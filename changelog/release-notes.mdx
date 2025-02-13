@@ -3,6 +3,59 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v2.2.0" description="2025-02-11">
+
+## SQL features
+
+- SQL commands:
+    - **Public preview:** Supports `EXPLAIN FORMAT JSON`. [#19041](https://github.com/risingwavelabs/risingwave/pull/19041)
+    - **Public preview:** Supports `EXPLAIN FORMAT (XML | YAML)`. [#19400](https://github.com/risingwavelabs/risingwave/pull/19400)
+    - Supports `ALTER...SWAP WITH...` syntax for tables, materialized views, views, sources, sinks, and subscriptions. [#19172](https://github.com/risingwavelabs/risingwave/pull/19172)
+    - Introduces a new connection that allows for reusing connector parameters, replacing the deprecated AWS PrivateLink connection. [#19270](https://github.com/risingwavelabs/risingwave/pull/19270)
+    - Supports creating connections for schema registries. [#19685](https://github.com/risingwavelabs/risingwave/pull/19685)
+    - Ensures results returned by cursors are sorted by the primary key. [#18801](https://github.com/risingwavelabs/risingwave/pull/18801)
+    - Supports `ALTER SECRET`. [#19495](https://github.com/risingwavelabs/risingwave/pull/19495)
+
+- System catalog:
+    - Adds system catalog `rw_internal_table_info`. [#19642](https://github.com/risingwavelabs/risingwave/pull/19642)
+    - Adds system catalog `rw_rate_limit`. [#19466](https://github.com/risingwavelabs/risingwave/pull/19466)
+
+## Connectors
+
+- **Public preview:** Adds a native Postgres sink connector. [#19328](https://github.com/risingwavelabs/risingwave/pull/19328)
+- **Public preview:** Supports `mysql_query` table-valued function. [#19071](https://github.com/risingwavelabs/risingwave/pull/19071)
+- Supports using the streaming developer configuration `stream_switch_jdbc_pg_to_native` to switch from `connector='jdbc'` to `connector='postgres'` for JDBC Postgres sinks. [#19703](https://github.com/risingwavelabs/risingwave/pull/19703)
+- Supports nested `Ref` for Avro encoding, except for circular dependency. [#19601](https://github.com/risingwavelabs/risingwave/pull/19601), [#19701](https://github.com/risingwavelabs/risingwave/pull/19701), [#19746](https://github.com/risingwavelabs/risingwave/pull/19746)
+- Adds parameter `messages_as_jsonb` for source’s Protobuf encoding when creating a source or table. [#19935](https://github.com/risingwavelabs/risingwave/pull/19935)
+- Supports `_rw_timestamp` system column for tables. [#19232](https://github.com/risingwavelabs/risingwave/pull/19232)
+- Allows Iceberg REST catalog to be specified as  `catalog.credential`, `catalog.scope`, `catalog.oauth2-server-uri`, or `catalog.token`. [#19406](https://github.com/risingwavelabs/risingwave/pull/19406)
+- Supports configuring parameter `commit_checkpoint_interval` when creating Iceberg engine tables. The default value is `60`.  [#19738](https://github.com/risingwavelabs/risingwave/pull/19738)
+- Supports `INCLUDE partition` when creating MQTT sources to include which topic each message is from. [#19017](https://github.com/risingwavelabs/risingwave/pull/19017)
+- Supports `INCLUDE subject` when creating NATS sources. [#19708](https://github.com/risingwavelabs/risingwave/pull/19708)
+- Supports **webhook sources**. [#19272](https://github.com/risingwavelabs/risingwave/pull/19272)
+- Adds Google BigQuery sink parameter `bigquery.credentials`. [#19798](https://github.com/risingwavelabs/risingwave/pull/19798)
+
+
+## Cluster configuration changes
+
+- Adds session variable `batch_expr_strict_mode` to control if the query fails or fills the table with `NULL` values during expression evaluation failures. [#19562](https://github.com/risingwavelabs/risingwave/pull/19562)
+- Adds runtime parameter `backfill_rate_limit` to configure source backfill. [#19445](https://github.com/risingwavelabs/risingwave/pull/19445)
+- Adds runtime parameter `dml_rate_limit`. [#19679](https://github.com/risingwavelabs/risingwave/pull/19679)
+
+## Assets
+
+- Run this version from Docker:<br/>
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.2.0-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.2.0/risingwave-v2.2.0-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.2.0.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.2.0.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v2.2.0/risectl-v2.2.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/release-2.1...release-2.2).
+
+</Update>
+
+
 <Update label="v2.1.0" description="2024-12-07">
 
 ## SQL features
@@ -21,7 +74,7 @@ description: This page summarizes changes in each version of RisingWave, includi
     - Supports `information_schema.table_constraints`. [#18716](https://github.com/risingwavelabs/risingwave/pull/18716)
     - Supports `information_schema.schemata`. [#18709](https://github.com/risingwavelabs/risingwave/pull/18709)
 
-### **Connectors**
+## Connectors
 
 - **Breaking change:** Changes `scan.startup.mode=latest` for NATS source connector to start consuming from next available message instead of last one. [#18733](https://github.com/risingwavelabs/risingwave/pull/18733)
 - **Public preview:** Supports shared Kafka sources, which can be disabled by session variable  `streaming_use_shared_source`. [#18749](https://github.com/risingwavelabs/risingwave/pull/18749)
@@ -42,17 +95,17 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Supports option `routing_column` for ElasticSearch sinks, allowing a column to be set as a routing key. [#18698](https://github.com/risingwavelabs/risingwave/pull/18698)
 - Supports specifying batching strategy when sinking data in Parquet format. [#18472](https://github.com/risingwavelabs/risingwave/pull/18472)
 
-### **Installation and deployment**
+## Installation and deployment
 
 - Adds a CLI argument of `--license-key-path` for the meta node, enabling a background task to watch and reload license key from the specified file. [#18768](https://github.com/risingwavelabs/risingwave/pull/18768)
 
-### **Cluster configuration changes**
+## Cluster configuration changes
 
 - When `visibility_mode` is set to `all`, the latest uncommitted data will be queried, but consistency is no longer guaranteed between the tables. [#18230](https://github.com/risingwavelabs/risingwave/pull/18230)
 - Supports `SET TIME ZONE INTERVAL '+00:00' HOUR TO MINUTE` as equivalent to `SET TIME ZONE UTC`. [#18705](https://github.com/risingwavelabs/risingwave/pull/18705)
 - The etcd metastore is fully deprecated and unsupported. Users previously utilizing etcd metastore must manually migrate to a SQL backend (PostgreSQL, MySQL, or SQLite) to upgrade to v2.1.
 
-### Assets
+## Assets
 
 - Run this version from Docker:<br/>
 `docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.1.0-standalone single_node`
