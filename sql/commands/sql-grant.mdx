@@ -17,7 +17,7 @@ TO user_name [WITH GRANT OPTION] [GRANTED BY user_name];
 Grant schema privileges to a user.
 
 ```sql
-GRANT {CREATE | ALL [PRIVILEGES]}
+GRANT {{USAGE | CREATE}[, ...]| ALL [PRIVILEGES]}
 ON SCHEMA schema_name [, ...]
 TO user_name [WITH GRANT OPTION] [GRANTED BY user_name];
 ```
@@ -25,13 +25,13 @@ TO user_name [WITH GRANT OPTION] [GRANTED BY user_name];
 Grant table privileges to a user.
 
 ```sql
-GRANT {{CREATE | SELECT | UPDATE | INSERT | DELETE} [, ...]| ALL [PRIVILEGES]}
+GRANT {{SELECT | UPDATE | INSERT | DELETE} [, ...]| ALL [PRIVILEGES]}
 ON { TABLE table_name [, ...]
     | ALL TABLES IN SCHEMA schema_name [, ...] }
 TO user_name [WITH GRANT OPTION] [GRANTED BY user_name];
 ```
 
-For sources and materialized views, only the `SELECT` privilege can be assigned and revoked.
+For sources, sinks and materialized views, only the `SELECT` privilege can be assigned and revoked.
 
 Grant source privileges to a user.
 
@@ -39,6 +39,15 @@ Grant source privileges to a user.
 GRANT { SELECT | ALL [PRIVILEGES]}
 ON {  source_or_table_name [, ...]
     | ALL SOURCES IN SCHEMA schema_name [, ...] }
+TO user_name [WITH GRANT OPTION] [GRANTED BY user_name];
+```
+
+Grant sink privileges to a user.
+
+```sql
+GRANT { SELECT | ALL [PRIVILEGES]}
+ON {  sink_name [, ...]
+    | ALL SINKS IN SCHEMA schema_name [, ...] }
 TO user_name [WITH GRANT OPTION] [GRANTED BY user_name];
 ```
 
