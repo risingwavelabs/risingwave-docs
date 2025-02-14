@@ -58,6 +58,10 @@ Here we take the Vim text editor as an example.
 # Import components from the arrow-udf module
 from arrow_udf import udf, udtf, UdfServer
 
+# import openAI and set your API key if you want to use the openAI API
+import openai
+client = OpenAI(api_key="your_openai_api_key")
+
 # Define a scalar function that returns a single value
 @udf(input_types=['INT', 'INT'], result_type='INT')
 def gcd(x, y):
@@ -83,12 +87,36 @@ def series(n):
     for i in range(n):
         yield i
 
+# Define get_completion function to use openAI API
+def get_completion(prompt):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# Define a function to use the get_completion function
+
+@udf(input_types=[], result_type='VARCHAR')
+def get_a_joke():
+    prompt = "Please give a joke in one sentence"
+    result = get_completion(prompt)
+    print(result)
+    return result
+
 # Start a UDF server
 if __name__ == '__main__':
     server = UdfServer(location="0.0.0.0:8815") # You can use any available port in your system. Here we use port 8815.
     server.add_function(gcd)
     server.add_function(key_value)
     server.add_function(series)
+    server.add_function(get_a_joke)
     server.serve()
 ```
 <Accordion
@@ -98,12 +126,13 @@ The script first imports the `struct` and `socket` modules and three components 
 
 `udf` and `udtf` are decorators used to define scalar and table functions respectively.
 
-The code defines three scalar functions and one table function:
+The code defines four scalar functions and one table function:
 
 * The scalar function `gcd`, decorated with `@udf`, takes two integer inputs and returns the greatest common divisor of the two integers.
 * The scalar function `blocking`, decorated with `@udf`. The `io_threads` parameter specifies the number of threads that the Python UDF will use during execution to enhance processing performance of IO-intensive functions. Please note that multithreading can not speed up compute-intensive functions due to the GIL.
 * The scalar function `key_value`, decorated with `@udf`, takes a single string input and returns a structured output.
 * The table function `series`, decorated by `@udtf`, takes an integer input and yields a sequence of integers from 0 to `n-1`.
+* The scalar function `get_a_joke`, decorated with `@udf`, provides a prompt and returns a joke.
 
 Finally, the script starts a UDF server using `UdfServer` and listens for incoming requests on port 8815 of the local machine. It then adds the `gcd`, `key_value` and `series` functions to the server and starts the server using the `serve()` method. The `if __name__ == '__main__':` conditional is used to ensure that the server is only started if the script is run directly, rather than being imported as a module.
 </Accordion>
@@ -149,6 +178,9 @@ USING LINK 'http://localhost:8815'; -- If you are running RisingWave using Docke
 CREATE FUNCTION series(int) RETURNS TABLE (x int)
 AS series
 USING LINK 'http://localhost:8815'; -- If you are running RisingWave using Docker, replace the address with 'http://host.docker.internal:8815'.
+
+CREATE FUNCTION get_a_joke() RETURNS varchar
+LANGUAGE python AS get_a_joke USING LINK 'http://localhost:8815'; -- If you are running RisingWave using Docker, replace the address with 'http://host.docker.internal:8815'.
 ```
 
 ## 5\. Use your functions in RisingWave
@@ -177,6 +209,10 @@ SELECT * FROM series(5);
 2
 3
 4
+
+SELECT get_a_joke();
+---
+"Why couldn't the bicycle find its way home? Because it lost its bearings!"
 ```
 
 ## 6\. Scale the UDF Server
