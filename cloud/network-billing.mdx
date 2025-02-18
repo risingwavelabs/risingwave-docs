@@ -14,10 +14,12 @@ Network traffic charges are based on the volume of data moved across public inte
 
 - **Ingress** (Data entering RisingWave):
     - **Streaming Data Integration**: Continuously ingesting real-time data streams from external message brokers or sources into RisingWave for immediate processing.
-    - **Batch Data Imports**: Loading data from external systems, such as databases or cloud storage, into RisingWave for analytics or processing.
+    - **Batch Data Imports via External Sources**: When using `INSERT ... SELECT` to pull data from external streaming sources (like Kafka, S3, etc.) into RisingWave tables.
+    
+    Note: Direct data imports using client `INSERT` statements are free and do not incur ingress charges.
+
 - **Egress** (Data leaving RisingWave):
     - **Data Export to External Destinations**: Sending processed data to external databases, message brokers, or other sinks.
-    - **Client Application Queries**: When client applications retrieve query results from RisingWave, the outbound data transfer constitutes egress traffic.
 
 ### 2. PrivateLink Usage
 
@@ -36,20 +38,20 @@ Network usage costs are calculated based on actual consumption. Here's a detaile
 
 | Category | US and EU Regions | Singapore |
 | --- | --- | --- |
-| **Ingress** | $0.07 /GB | $0.082 /GB |
-| **Egress** | $0.17 /GB | $0.215 /GB |
-| **PrivateLink Ingress Throughput** | $0.013 /GB | $0.013 /GB |
-| **PrivateLink Egress Throughput** | $0.013 /GB | $0.013 /GB |
-| **PrivateLink Endpoint Hours** | $0.03 /hr | $0.03 /hr |
+| **Ingress** | $0.07/GB | $0.082/GB |
+| **Egress** | $0.17/GB | $0.215/GB |
+| **PrivateLink Ingress Throughput** | $0.013/GB | $0.013/GB |
+| **PrivateLink Egress Throughput** | $0.013/GB | $0.013/GB |
+| **PrivateLink Endpoint Hours** | $0.03/hr | $0.03/hr |
 
 ### GCP Pricing
 
 | Category | Price |
 | --- | --- |
-| **Ingress** | $0.063 /GB |
-| **Egress** | $0.198 /GB |
-| **Private Service Connect Throughput** | $0.013 /GB |
-| **Private Service Connect Hours** | $0.03 /hr |
+| **Ingress** | $0.063/GB |
+| **Egress** | $0.198/GB |
+| **Private Service Connect Throughput** | $0.013/GB |
+| **Private Service Connect Hours** | $0.03/hr |
 
 #### Example Cost Calculation
 
@@ -70,4 +72,4 @@ To optimize network usage and reduce costs in RisingWave Cloud, consider the fol
 
 - **Monitor and Analyze Network Usage**: Use the Metrics page in the cloud portal to track network usage and identify unexpected traffic in ingress and egress.
 - **Use Compression**: Compress data before transferring to minimize network usage.
-- **Leverage PrivateLink for Secure and Cost-Effective Transfers**: If connecting from AWS environments, use PrivateLink instead of public internet connections to reduce egress charges.
+- **Leverage PrivateLink for Secure and Cost-Effective Transfers**: If connecting from AWS environments, use PrivateLink instead of public internet connections to reduce both ingress and egress charges.
