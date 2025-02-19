@@ -6,11 +6,15 @@ description: "The `CREATE AGGREGATE` command can be used to create [user-defined
 ## Syntax
 
 ```sql
-CREATE AGGREGATE function_name ( argument_type [, ...] )
+CREATE AGGREGATE [IF NOT EXISTS] function_name ( argument_type [, ...] )
     RETURNS return_type
     LANGUAGE language_name
     AS $$ function_body $$;
 ```
+
+<Note>
+Added in v2.3: Support `IF NOT EXISTS`.
+</Note>
 
 ### Parameters
 
@@ -43,7 +47,7 @@ See examples below for more details.
 The following command creates an aggregate function named `weighted_avg` to calculate the weighted average.
 
 ```python Python UDAF
-create aggregate weighted_avg(value int, weight int) returns float language python as $$
+CREATE AGGREGATE weighted_avg(value int, weight int) RETURNS float LANGUAGE python AS $$
 def create_state():
     return (0, 0)
 
@@ -79,7 +83,7 @@ For more details, see [Use UDFs in Python](/sql/udfs/embedded-python-udfs).
 The following command creates an aggregate function named `weighted_avg` to calculate the weighted average.
 
 ```js Javascript UDAF
-create aggregate weighted_avg(value int, weight int) returns float language javascript as $$
+CREATE AGGREGATE weighted_avg(value int, weight int) RETURNS float LANGUAGE javascript AS $$
     export function create_state() {
         return { sum: 0, weight: 0 };
     }
@@ -116,18 +120,18 @@ After creating aggregate functions, you can use them in SQL queries like any bui
 
 ```sql Use UDAF
 -- call UDAF in a batch query
-select weighted_avg(value, weight) from (values (1, 1), (null, 2), (3, 3)) as t(value, weight);
+SELECT weighted_avg(value, weight) FROM (VALUES (1, 1), (NULL, 2), (3, 3)) AS t(value, weight);
 -----RESULT
 2.5
 
 -- call UDAF in a materialized view
-create table t(value int, weight int);
-create materialized view mv as select weighted_avg(value, weight) from t;
+CREATE TABLE t(value int, weight int);
+CREATE MATERIALIZED VIEW mv AS SELECT weighted_avg(value, weight) FROM t;
 
-insert into t values (1, 1), (null, 2), (3, 3);
-flush;
+INSERT INTO t VALUES (1, 1), (NULL, 2), (3, 3);
+FLUSH;
 
-select * from mv;
+SELECT * FROM mv;
 -----RESULT
 2.5
 ```
