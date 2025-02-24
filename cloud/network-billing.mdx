@@ -1,75 +1,75 @@
 ---
-title: Network Billing
-description: This document outlines how network usage is charged in RisingWave Cloud.
-sidebarTitle: Network Billing
+title: Network billing
+description: Understand how network usage is charged in RisingWave Cloud.
+sidebarTitle: Network billing
 ---
 
-## Pricing Dimensions
+## Pricing dimensions
 
-Network usage is billed based on the following dimensions:
+RisingWave Cloud bills network usage based on two primary dimensions: **Public network traffic** and **PrivateLink usage**.
 
-### 1. Public Network Traffic
+### 1. Public network traffic
 
-Network traffic charges are based on the volume of data moved across public internet, measured in gigabytes (GB). This includes:
+Public network traffic charges are based on the volume of data (in gigabytes, GB) transferred over the public internet. This includes:
 
-- **Ingress** (Data entering RisingWave):
-    - **Streaming Data Integration**: Continuously ingesting real-time data streams from external message brokers or sources into RisingWave for immediate processing.
-    - **Batch Data Imports via External Sources**: When using `INSERT ... SELECT` to pull data from external streaming sources (like Kafka, S3, etc.) into RisingWave tables.
-    
-    Note: Direct data imports using client `INSERT` statements are free and do not incur ingress charges.
+*   **Ingress (data entering RisingWave):**
+    *   **Streaming data ingestion:** When you continuously ingest real-time data streams from external message brokers (like Kafka) or other sources into RisingWave.
+    *   **Batch data imports:** When you use `INSERT ... SELECT` to pull data from external sources (like Kafka, S3, etc.) into RisingWave tables.
+    *   **Note:** Data imported directly using client `INSERT` statements *is not* charged for ingress.
 
-- **Egress** (Data leaving RisingWave):
-    - **Data Export to External Destinations**: Sending processed data to external databases, message brokers, or other sinks.
+*   **Egress (data leaving RisingWave):**
+    *   **Data export:** When you send processed data from RisingWave to external destinations, such as databases, message brokers, or other sinks.
 
-### 2. PrivateLink Usage
+### 2. PrivateLink usage
 
-PrivateLink enables secure, private connections between your Virtual Private Cloud (VPC) and RisingWave Cloud without exposing traffic to the public internet. Charges for PrivateLink are based on:
+PrivateLink provides a secure and private connection between your Virtual Private Cloud (VPC) and RisingWave Cloud, bypassing the public internet. This improves security and can reduce network costs.
 
-- **PrivateLink Hours**: Billed per hour for each active PrivateLink endpoint.
-- **PrivateLink Throughput**: Billed per GB of data transferred through the PrivateLink connection.
+**PrivateLink pricing:**
 
-For more details about how PrivateLink works in RisingWave Cloud, refer to the [PrivateLink Overview](https://docs.risingwave.com/cloud/privatelink-overview).
+*   **PrivateLink endpoint hours:** You are billed per hour for each active PrivateLink endpoint.
+*   **PrivateLink throughput:** You are billed per GB of data transferred through your PrivateLink connection.
 
-## Pricing Calculation
+For more details about how PrivateLink works in RisingWave Cloud, refer to the [PrivateLink Overview](/cloud/privatelink-overview).
 
-Network usage costs are calculated based on actual consumption. Here's a detailed breakdown by cloud provider:
+## Pricing calculation
 
-### AWS Pricing
+Network usage costs are calculated based on your actual consumption. Here's a detailed breakdown by cloud provider:
 
-| Category | US and EU Regions | Singapore |
-| --- | --- | --- |
-| **Ingress** | $0.07/GB | $0.082/GB |
-| **Egress** | $0.17/GB | $0.215/GB |
-| **PrivateLink Ingress Throughput** | $0.013/GB | $0.013/GB |
-| **PrivateLink Egress Throughput** | $0.013/GB | $0.013/GB |
-| **PrivateLink Endpoint Hours** | $0.03/hr | $0.03/hr |
+### AWS pricing
 
-### GCP Pricing
+| Category                      | US and EU Regions | Singapore |
+| ----------------------------- | ----------------- | --------- |
+| **Ingress**                   | $0.07/GB          | $0.082/GB  |
+| **Egress**                    | $0.17/GB          | $0.215/GB  |
+| **PrivateLink Ingress**     | $0.013/GB         | $0.013/GB  |
+| **PrivateLink Egress**      | $0.013/GB         | $0.013/GB  |
+| **PrivateLink Endpoint Hours** | $0.03/hr          | $0.03/hr  |
 
-| Category | Price |
-| --- | --- |
-| **Ingress** | $0.063/GB |
-| **Egress** | $0.198/GB |
+### GCP pricing
+
+| Category                             | Price     |
+| ------------------------------------ | --------- |
+| **Ingress**                          | $0.063/GB |
+| **Egress**                           | $0.198/GB |
 | **Private Service Connect Throughput** | $0.013/GB |
-| **Private Service Connect Hours** | $0.03/hr |
+| **Private Service Connect Hours**     | $0.03/hr  |
 
-#### Example Cost Calculation
+#### Example monthly cost calculation (AWS - US Regions)
 
-To help illustrate how these charges work in practice, here's a sample monthly calculation for AWS (US Regions pricing):
-
-- Ingress: 100 GB × $0.07 = $7.00
-- Egress: 50 GB × $0.17 = $8.50
-- PrivateLink Hours: 720 hours × $0.03 = $21.60
-- PrivateLink Throughput: 150 GB × $0.013 = $1.95
-
-Total Monthly Cost = $39.05
+| Usage                 | Calculation               | Cost    |
+| --------------------- | ------------------------- | ------- |
+| Ingress: 100 GB       | 100 GB × $0.07/GB          | $7.00   |
+| Egress: 50 GB        | 50 GB × $0.17/GB           | $8.50   |
+| PrivateLink Hours: 720 | 720 hours × $0.03/hr       | $21.60  |
+| PrivateLink Data: 150 GB   | 150 GB × $0.013/GB        | $1.95   |
+| **Total**             |                           | **$39.05**|
 
 For detailed pricing information specific to your usage and region, refer to your billing dashboard or contact support.
 
-## Best Practices for Reducing Network Cost
+## Best practices for reducing network costs
 
-To optimize network usage and reduce costs in RisingWave Cloud, consider the following best practices:
+Here are some best practices to optimize your network usage and reduce costs in RisingWave Cloud:
 
-- **Monitor and Analyze Network Usage**: Use the Metrics page in the cloud portal to track network usage and identify unexpected traffic in ingress and egress.
-- **Use Compression**: Compress data before transferring to minimize network usage.
-- **Leverage PrivateLink for Secure and Cost-Effective Transfers**: If connecting from AWS environments, use PrivateLink instead of public internet connections to reduce both ingress and egress charges.
+*   **Monitor and analyze:** Use the Metrics page in the cloud portal to track your network usage and identify any unexpected traffic patterns (both ingress and egress).
+*   **Use compression:** Compress your data before transferring it to minimize network usage.
+*   **Leverage PrivateLink:** If you are connecting from an AWS environment, consider using PrivateLink instead of public internet connections. This can significantly reduce both ingress and egress charges and improve security.
