@@ -10,9 +10,9 @@ HubSpot webhooks are not available on all HubSpot plans. You must have the appro
 
 This guide will walk through the steps to set up RisingWave as a destination for HubSpot webhooks.
 
-## 1. Create a secret in RisingWave
+## 1. Create a secret in RisingWave (Optional)
 
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from HubSpot.
+First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from HubSpot. This is the recommended way to verify the signature. You could also use a raw string to verify.
 
 ```sql
 CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
@@ -56,6 +56,27 @@ CREATE TABLE wbhtable (
 In HubSpot Webhook, several request validation methods are available, including v1, v2, v3, and API Key–based authentication. Each version employs a different approach to generating and verifying signatures, and may store the signature in a distinct header field. The SQL example above illustrates how to validate a signature generated using the v2 method.
 
 If you prefer to use an API key, you can simply include a key-value pair in the HTTP headers and validate against that value instead. For comprehensive details on all supported validation methods, refer to [HubSpot’s official documentation](https://developers.hubspot.com/beta-docs/guides/apps/authentication/validating-requests).
+
+Or you can also use raw string for verification without secret:
+
+```sql
+CREATE TABLE wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'x-hubspot-signature',
+  encode(
+    sha256(
+      convert_to(
+        ('TEST_WEBHOOK' || 'POST' || 'http://127.0.0.1:4560/webhook/dev/public/' || convert_from(data, 'utf8'))
+      , 'UTF8'
+      )
+    ) 
+  , 'hex'
+  )
+);
+```
 
 ## 3. Set up webhook in HubSpot
 

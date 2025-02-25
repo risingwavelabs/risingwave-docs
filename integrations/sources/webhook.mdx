@@ -11,14 +11,6 @@ RisingWave can serve as a webhook destination, directly accepting HTTP requests 
 
 This direct integration eliminates the need for an intermediary message broker like Kafka. Instead of setting up and maintaining an extra Kafka cluster, you can directly send data to RisingWave to process it in real-time, which enables efficient data ingestion and stream processing without extra infrastructure.
 
-<Tip>
-**PREMIUM EDITION FEATURE**
-
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
-</Tip>
-
 <Note>
 **PUBLIC PREVIEW**
 
@@ -52,6 +44,19 @@ CREATE TABLE wbhtable (
 | `header_of_signature` | Specifies which HTTP header contains the incoming signature. |
 | `signature_generation_expressions` | Expression to compute the expected signature using the secret and payload. |
 
+
+Currently, secret management is an premium edition feature. You can also use raw string for verification. The following example use raw string `'secret_value'` to compute signature.
+
+```sql
+create table wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook',
+) VALIDATE AS secure_compare(
+  headers->>'x-hub-signature',
+  'sha1=' || encode(hmac('secret_value', data, 'sha1'), 'hex')
+);
+```
 
 ## Supported webhook sources and authentication methods
 RisingWave has been verified to work with the following webhook sources and authentication methods:

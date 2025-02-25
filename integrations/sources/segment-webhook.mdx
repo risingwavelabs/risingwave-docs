@@ -8,9 +8,9 @@ Segment is a Customer Data Platform (CDP) that collects event data from various 
 
 This guide will walk through the steps to set up RisingWave as a destination for Segment webhooks.
 
-## 1. Create a secret in RisingWave
+## 1. Create a secret in RisingWave (Optional)
 
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from Segment.
+First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from Segment. This is the recommended way to verify the signature. You could also use a raw string to verify.
 
 ```sql
 CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
@@ -44,6 +44,18 @@ CREATE TABLE wbhtable (
 | `encode(...)` | Computes the expected signature. In the example above, it generates an `HMAC SHA-1` hash of the payload (`data`) using the secret (`test_secret`), encodes it in hexadecimal. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
 
+Or you can also use raw string for verification without secret:
+
+```sql
+CREATE TABLE wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'x-signature',
+  encode(hmac('TEST_WEBHOOK', data, 'sha1'), 'hex')
+);
+```
 
 ## 3. Set up webhook in Segment
 
