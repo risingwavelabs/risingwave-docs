@@ -48,11 +48,12 @@ In GitHub webhook, you can choose between `SHA-1` and `SHA-256 HMAC` algorithms 
 
 Or you can also use raw string for verification without secret:
 
-```sql Example using SHA-1 and raw string `'TEST_WEBHOOK'` to generate signature.
-create table wbhtable (
+```sql
+-- Example using SHA-1 and raw string 'TEST_WEBHOOK' to generate signature.
+CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
-  connector = 'webhook',
+  connector = 'webhook'
 ) VALIDATE SECRET test_secret AS secure_compare(
   headers->>'x-hub-signature',
   'sha1=' || encode(hmac('TEST_WEBHOOK', data, 'sha1'), 'hex')
@@ -66,9 +67,7 @@ After configuring RisingWave to accept webhook data, set up GitHub to send event
 ### RisingWave webhook URL
 
 The webhook URL should follow this format:
-```
-https://<HOST>/webhook/<database>/<schema_name>/<table_name>
-```
+`https://<HOST>/webhook/<database>/<schema_name>/<table_name>`.
 
 | Parameter | Description |
 |-----------|-------------|

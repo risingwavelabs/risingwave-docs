@@ -46,11 +46,12 @@ create table wbhtable (
 
 Or you can also use raw string for verification without secret:
 
-```sql Example using raw string `'TEST_WEBHOOK'` to generate signature.
-create table wbhtable (
+```sql
+-- Example using raw string 'TEST_WEBHOOK' to generate signature.
+CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
-  connector = 'webhook',
+  connector = 'webhook'
 ) VALIDATE AS secure_compare(
   headers->>'authorization',
   'TEST_WEBHOOK'
@@ -64,9 +65,7 @@ After configuring RisingWave to accept webhook data, set up Amazon EventBridge t
 ### RisingWave webhook URL
 
 The webhook URL should follow this format:
-```
-https://<HOST>/webhook/<database>/<schema_name>/<table_name>
-```
+`https://<HOST>/webhook/<database>/<schema_name>/<table_name>`.
 
 | Parameter | Description |
 |-----------|-------------|
