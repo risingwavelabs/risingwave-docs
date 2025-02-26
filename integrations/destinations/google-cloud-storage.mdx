@@ -12,7 +12,7 @@
 CREATE SINK [ IF NOT EXISTS ] sink_name
 [FROM sink_from | AS select_query]
 WITH (
-   connector='gcs',
+   connector= 'gcs' | 'iceberg',
    connector_parameter = 'value', ...
 );
 ```
@@ -21,16 +21,17 @@ WITH (
 
 | Parameter names | Description |
 |-|-|
-| connector             | Required. Support the GCS connector only.|
+| connector             | Required. Support GCS or Iceberg connector.|
 | gcs.bucket_name        | Required. The name of the bucket where the sink data is stored in. |
 | gcs.credential             | Required. Base64-encoded credential key obtained from the GCS service account key JSON file. To get this JSON file, refer to the [guides of GCS documentation](https://cloud.google.com/iam/docs/keys-create-delete#iam-service-account-keys-create-console). <ul><li>To encode it in base64, run the following command: <code>cat ~/Downloads/rwc-byoc-test-464bdd851bce.json &#124; base64 -b 0 &#124; pbcopy</code>, and then paste the output as the value for this parameter.</li><li>If this field is not specified, ADC (application default credentials) will be used.</li></ul>|
 | gcs.service_account| Optional. The service account of the GCS sink. If `gcs.credential` or ADC is not specified, the credentials will be derived from the service account.|
 | gcs.path | Required. The directory where the sink file is located. |
 | type | Required. Defines the type of the sink. The GCS sink only supports `append-only`. |
+| catalog.type   | Conditional. This can be set when the connector is Iceberg. The currently supported values are `storage` and `rest`.  |
 
 ## Example
 
-```sql
+```sql GCS connector
 CREATE SINK gcs_sink AS SELECT v1
 FROM t1
 WITH (
@@ -44,3 +45,18 @@ WITH (
 ```
 
 For more information about encode `Parquet` or `JSON`, see [Sink data in parquet or json format](/delivery/overview#sink-data-in-parquet-or-json-format).
+
+```sql Iceberg connector on GCS
+CREATE SINK sink_t FROM t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+    database.name = 'public',
+    table.name = 't',
+    catalog.name = 'demo',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181',
+    warehouse.path = 'gs://bucket/path',
+    gcs.credential = 'xxxxxxxx'
+);
+```
