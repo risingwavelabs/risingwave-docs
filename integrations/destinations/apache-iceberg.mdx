@@ -335,3 +335,22 @@ WITH (
     primary_key='seq_id'
 );
 ```
+
+### Iceberg connector on GCS
+
+RisingWave supports creating Iceberg sinks on GCS with catalog types `storage` or `rest`. For more information about `gcs.credential`, see [parameters](/integrations/destinations/google-cloud-storage#parameters).
+
+```sql 
+CREATE SINK sink_t FROM t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+    database.name = 'public',
+    table.name = 't',
+    catalog.name = 'demo',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181',
+    warehouse.path = 'gs://bucket/path',
+    gcs.credential = 'xxxxxxxx'
+);
+```
