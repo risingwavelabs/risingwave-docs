@@ -227,11 +227,15 @@ SELECT * FROM t FOR SYSTEM_VERSION AS OF 4476030648521181855;
 SELECT * FROM t FOR SYSTEM_TIME AS OF '2024-04-03 08:54:22.488+00:00';
 ```
 
-## Examples[](#examples "Direct link to Examples")
+## Examples
+
+### Creating and querying an Iceberg source
 
 Firstly, create an append-only Iceberg table, see [Append-only sink from upsert source](/integrations/destinations/apache-iceberg#append-only-sink-from-upsert-source) for details.
 
-```sql Secondly, create an Iceberg source:
+Secondly, create an Iceberg source:
+
+```sql
 CREATE SOURCE iceberg_source
 WITH (
     connector = 'iceberg',
@@ -261,4 +265,21 @@ Furthermore, if you have a Kafka upstream on the Iceberg table, you can use `SIN
 
 ```sql
 CREATE SINK s INTO TABLE t AS SELECT * FROM kafka_source;
+```
+
+### Iceberg source on GCS
+
+RisingWave supports creating Iceberg sources on GCS with catalog types `storage` or `rest`. For more information about `gcs.credential`, see [parameters](/integrations/sources/google-cloud-storage#connector-parameters).
+
+```sql 
+CREATE SOURCE gcs_iceberg_source
+WITH (
+    connector = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181',
+    warehouse.path = 'gs://bucket/path',
+    gcs.credential = 'xxxxxxxx',
+    database.name = 'public',
+    table.name = 't',
+);
 ```
