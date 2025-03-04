@@ -7,12 +7,6 @@ The data from a subscription includes both the existing data in the table at the
 
 This feature allows you to monitor all data changes without relying on external event stores like Kafka. Compared to the Kafka sink or other event store sinks, a subscription requires fewer components and thus, less maintenance.
 
-<Note>
-**PUBLIC PREVIEW**
-
-This feature is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
-</Note>
-
 ## Manage subscription
 
 Use the syntax below to create, drop or alter subscription.
@@ -55,7 +49,7 @@ ALTER SUBSCRIPTION <subscription_name>
 
 A subscription cursor is a unit used to consume data from a subscription. In RisingWave, it’s a tool specifically designed to work in conjunction with a subscription, differing from the general cursor.
 
-In RisingWave, the subscription cursor allows you to specify a specific starting point within the data of the subscription. Once the subscription cursor is created, you can use a loop to fetch and consume the data starting from that point onwards. A subscription can have multiple subscription cursors, which can be used to consume different ranges or intervals of data from the subscription.
+In RisingWave, the subscription cursor allows you to specify a specific starting point within the subscription data. After creating the subscription cursor, you can use a loop to fetch and consume data starting from that point onwards. Results returned by the cursor are sorted by primary key. A subscription can have multiple subscription cursors, each consuming different ranges or intervals of data from the subscription.
 
 ### Syntax[](#syntax "Direct link to Syntax")
 
@@ -149,7 +143,7 @@ insert into t1 values(1,1,1);
 create subscription sub from t1 with (retention = '1D');
 
 -- Create a subscription cursor.
-declare cur subscription cursor for sub;
+declare cur subscription cursor for sub full;
 ```
 
 After creation, we can use the `FETCH NEXT FROM cursor_name` statement to fetch data from this cursor:

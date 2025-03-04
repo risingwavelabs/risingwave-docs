@@ -121,7 +121,80 @@ DROP MATERIALIZED VIEW orders;
 ALTER MATERIALIZED VIEW orders_new RENAME TO orders;
 ```
 
-## Why is it not possible to modify a streaming job in place?
+## Modifying a streaming job in place
+
+Only `SINK INTO TABLE` supports modifying the streaming job logic in place. This approach decouples the streaming processing logic from the persistence layer (the materialization step).
+
+For instance, you can convert a materialized view into `SINK INTO TABLE`:
+
+```sql
+CREATE MATERIALIZED VIEW m1 AS SELECT id, v1 FROM t;
+
+-- Converted to SINK INTO TABLE
+CREATE TABLE m1_store (id INT PRIMARY KEY, v1 INT) ON CONFLICT OVERWRITE;
+CREATE SINK m1_stream INTO m1_store AS SELECT id, v1 FROM t;
+```
+
+Why not always use `SINK INTO TABLE`? There are performance implications to consider. Materialized views can trust their upstreams to issue consistent records (for example, no duplicate inserts or deletes for the same primary key). However, tables can have multiple sinks writing records to them, which may cause conflicts. These conflicts require resolution, as specified by the `ON CONFLICT OVERWRITE` clause above.
+
+This trade-off allows for dynamic changes to `SINK INTO TABLE`, but at the cost of some performance overhead for conflict resolution.
+
+### Example
+
+Here is an example of modifying a streaming job in place.
+
+<Steps>
+  <Step title="Create the initial objects">
+    Given the source table `t`:
+
+```sql
+CREATE TABLE t(v1 int);
+```
+
+Create an initial materialized view:
+
+```sql
+CREATE MATERIALIZED VIEW m1 as select count(*) from t;
+```
+
+Modify this materialized view:
+
+```sql
+CREATE MATERIALIZED VIEW m2 as select count(*), max(v1) from t;
+```
+  </Step>
+  <Step title="Convert to `SINK INTO TABLE`">
+    The output schema changes from `int` to `int, int`. Since this is a materialized view with potential downstream dependencies, we cannot simply drop and recreate it. Instead, let's convert it to use `SINK INTO TABLE`:
+
+```sql
+CREATE TABLE m1_store(key int primary key, cnt int) ON CONFLICT OVERWRITE; 
+-- SINK INTO TABLE requires a primary key, so we add a dummy column.
+-- The ON CONFLICT clause will handle conflicts between old and updated records from new streaming job.
+
+CREATE SINK m1_stream INTO m1_store AS SELECT 1 as key, count(*) as cnt from t;
+```
+  </Step>
+  <Step title="Add column">
+
+Alter the table and add a column to it:
+
+```sql
+ALTER TABLE m1_store ADD COLUMN max int DEFAULT 0;
+```
+
+Drop the existing streaming job:
+```
+DROP SINK m1_stream;
+```
+
+Replace it with the new definition:
+```
+CREATE SINK m1_stream INTO m1_store AS SELECT 1 as key, count(*) as cnt, max(v1) as max from t;
+```
+  </Step>
+</Steps>
+
+## Why is it not possible to modify an MV in place?
 
 Streaming systems like RisingWave need to maintain **internal state** for streaming operators, such as joins and aggregations. Generally, modifying a materialized view would require consistent changes to the internal state accordingly, which is not always feasible. Let’s see an example.
 

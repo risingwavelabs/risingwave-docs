@@ -14,12 +14,16 @@ The `CREATE FUNCTION` command is used to declare these UDFs. After that, you can
 ### Syntax
 
 ```sql
-CREATE FUNCTION function_name ( argument_type [, ...] )
+CREATE FUNCTION [ IF NOT EXISTS ] function_name ( argument_type [, ...] )
     [ RETURNS return_type | RETURNS TABLE ( column_name column_type [, ...] ) ]
     [ LANGUAGE language_name ]
     AS function_name_defined_in_server
     USING LINK 'udf_server_address';
 ```
+
+<Note>
+Added in v2.3: Support `IF NOT EXISTS`.
+</Note>
 
 ### Parameters
 
@@ -35,19 +39,12 @@ CREATE FUNCTION function_name ( argument_type [, ...] )
 
 ### Examples
 
-Use `CREATE FUNCTION` to declare a UDF defined by Python. For more details, see [Use UDFs in Python](/sql/udfs/use-udfs-in-python).
-
-```sql
-CREATE FUNCTION gcd(int, int) RETURNS int
-LANGUAGE python AS gcd USING LINK 'http://localhost:8815'; -- If you are running RisingWave using Docker, replace the address with 'http://host.docker.internal:8815'.
-```
-
-Use `CREATE FUNCTION` to declare a UDF defined by Java. For more details, see [Use UDFs in Java](/sql/udfs/use-udfs-in-java).
+Use `CREATE FUNCTION` to declare an external UDF defined by Python or Java. For more details, see [Use UDFs in Python](/sql/udfs/use-udfs-in-python) or [Use UDFs in Java](/sql/udfs/use-udfs-in-java).
 
 ```sql
 CREATE FUNCTION gcd(int, int) RETURNS int
 AS gcd
-USING LINK 'http://localhost:8815';
+USING LINK 'http://localhost:8815'; -- If you are running RisingWave using Docker, replace the address with 'http://host.docker.internal:8815'.
 ```
 
 ## Embedded UDFs
@@ -57,8 +54,8 @@ Embedded UDFs are functions that run in the language runtime embedded in RisingW
 Here are some examples of embedded UDFs, along with links to specific guides on creating them with different languages.
 
 ```sql Embedded UDFs
-# Embedded Python UDF
-create function gcd(a int, b int) returns int language python as $$
+-- Embedded Python UDF
+CREATE FUNCTION gcd(a int, b int) RETURNS int LANGUAGE python AS $$
 def gcd(a, b):
     while b != 0:
         a, b = b, a % b
@@ -69,8 +66,8 @@ $$;
 For more details, see [Embedded Python UDFs](/sql/udfs/embedded-python-udfs).
 
 ```sql Embedded UDFs
-# Embedded JavaScript UDF
-create function gcd(a int, b int) returns int language javascript as $$
+-- Embedded JavaScript UDF
+CREATE FUNCTION gcd(a int, b int) RETURNS int LANGUAGE javascript AS $$
     while (b != 0) {
         let t = b;
         b = a % b;
@@ -83,8 +80,8 @@ $$;
 For more details, see [Use UDFs in JavaScript](/sql/udfs/use-udfs-in-javascript).
 
 ```sql Embedded UDFs
-# Embedded Rust UDF
-create function gcd(int, int) returns int language rust as $$
+-- Embedded Rust UDF
+CREATE FUNCTION gcd(int, int) RETURNS int LANGUAGE rust AS $$
     fn gcd(mut a: i32, mut b: i32) -> i32 {
         while b != 0 {
             let t = b;
@@ -105,11 +102,15 @@ SQL UDFs in RisingWave are designed to expand directly into expressions at the f
 The `CREATE FUNCTION` command is used to define SQL UDFs. You can read our guide on [SQL UDFs](/sql/udfs/sql-udfs) for more details.
 
 ```sql Syntax of SQL UDFs
-CREATE FUNCTION function_name ( argument_type [, ...] )
+CREATE FUNCTION [ IF NOT EXISTS ] function_name ( argument_type [, ...] )
     RETURNS return_type
     LANGUAGE sql
     { AS as_definition | RETURN return_definition };
 ```
+
+<Note>
+Added in v2.3: Support `IF NOT EXISTS`.
+</Note>
 
 ## See also
 

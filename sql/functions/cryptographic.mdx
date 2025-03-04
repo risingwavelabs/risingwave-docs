@@ -7,14 +7,14 @@ description: "Raw encryption functions are basic encryption functions that perfo
 
 Please note they solely apply a cipher to the data and do not provide additional security measures.
 
-```bash
+```sql
 encrypt(data bytea, key bytea, type text) -> bytea
 decrypt(data bytea, key bytea, type text) -> bytea
 ```
 
 The cipher method is specified by `type`. The syntax of the `type` string is:
 
-```bash
+```
 algorithm [-mode][/pad:padding]
 ```
 
@@ -36,20 +36,20 @@ algorithm [-mode][/pad:padding]
 The given encryption/decryption key MUST match length 16/24/32 bytes as required by aes-128/192/256.
 </Note>
 
-```bash Examples of type text
+``` Examples of type text
 aes-cbc/pad:pkcs => AES algorithm, cbc mode, enabling padding
 aes => AES algorithm, cbc mode, enabling padding
 aes-ecb => AES algorithm, ecb mode, enabling padding
 ```
 
-```bash Example of raw encryption functions
+```sql Example of raw encryption functions
 SELECT encrypt('Hello, World!', 'my_secret_key111', 'aes-cbc/pad:pkcs');
 ----RESULT
 \x9cf6a49f90b3ac816aeeeed286606fdb
 (1 row)
 ```
 
-```bash Example of raw encryption functions
+```sql Example of raw encryption functions
 SELECT decrypt('\x9cf6a49f90b3ac816aeeeed286606fdb','my_secret_key111', 'aes-cbc/pad:pkcs');)
 ----RESULT
 \x48656c6c6f2c20576f726c6421

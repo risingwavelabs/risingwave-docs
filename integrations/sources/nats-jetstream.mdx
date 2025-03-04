@@ -8,12 +8,6 @@ sidebarTitle: NATS JetStream
 
 [NATS JetStream](https://docs.nats.io/nats-concepts/jetstream) is a streaming data platform built on top of NATS. It enables real-time and historical access to streams of data via durable subscriptions and consumer groups.
 
-<Note>
-**PUBLIC PREVIEW**
-
-This feature is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
-</Note>
-
 ## Prerequisites
 
 Before ingesting data from NATS JetStream into RisingWave, please ensure the following:
@@ -32,6 +26,7 @@ When creating a source, you can choose to persist the data from the source in Ri
 ```sql
 CREATE { TABLE | SOURCE} [ IF NOT EXISTS ] source_name
 [ schema_definition ]
+[INCLUDE { partition | offset | payload | subject } [AS <column_name>]]
 WITH (
    connector='nats',
    server_url='<your nats server>:<port>', [ <another_server_url_if_available>, ...]

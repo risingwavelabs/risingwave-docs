@@ -2,12 +2,6 @@
 title: "Emit on window close"
 ---
 
-<Note>
-**Public Preview**
-
-This feature is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
-</Note>
-
 In streaming systems, there are typically two types of triggering policies for window calculations:
 
 * **Emit on update**: This policy calculates and emits partial window results even before the window is closed.
@@ -16,9 +10,10 @@ In streaming systems, there are typically two types of triggering policies for w
 Taking the following query as an example,
 
 ```sql
-SELECT window_start, COUNT(*)
+CREATE MATERIALIZED VIEW window_count AS
+SELECT window_start, window_end, COUNT(*)
 FROM TUMBLE(events, event_time, INTERVAL '1' MINUTE)
-GROUP BY window_start;
+GROUP BY window_start, window_end;
 ```
 
 * **Emit on update:** With this policy, the aggregation operator emits a new `count(*)` result downstream whenever each barrier passes (default interval is 1 second). This updated count is then reflected in the materialized view or outputted to external systems.
@@ -37,9 +32,9 @@ We can modify the query above to use emit-on-window-close semantics:
 
 ```sql
 CREATE MATERIALIZED VIEW window_count AS
-SELECT window_start, COUNT(*)
+SELECT window_start, window_end, COUNT(*)
 FROM TUMBLE(events, event_time, INTERVAL '1' MINUTE)
-GROUP BY window_start
+GROUP BY window_start, window_end
 EMIT ON WINDOW CLOSE;
 ```
 
@@ -54,6 +49,10 @@ CREATE SOURCE t (
 ```
 
 After making this modification, the `window_count` results will no longer include any partial aggregation results from the most recent window. Instead, a final result will only be delivered when the `event_time` watermark surpasses the end time of the window.
+
+<Note>
+Changed in v2.3: Support grouping by `window_start` and `window_end` at the same time in emit-on-window-close queries.
+</Note>
 
 ## What queries can achieve better performance with the emit-on-window-close triggering policy?
 

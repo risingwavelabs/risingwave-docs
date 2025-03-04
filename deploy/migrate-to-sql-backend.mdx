@@ -39,9 +39,10 @@ The migration process from etcd to a SQL backend is performed offline, so we rec
 
 Follow the steps below to migrate an existing cluster from the etcd backend to a SQL backend.
 
-1. Stop all components except etcd
+1. Upgrade the cluster to version 2.0.5, which includes important migration fixes.
+2. Stop all components except etcd
 To safely migrate your metadata, stop all running components of the RisingWave cluster, except the etcd service. This ensures that no new data is written to etcd during the migration process.
-2. Run the migration command
+3. Run the migration command
 Execute the RisingWave migration command to transfer metadata from etcd to the SQL backend. You need to provide the necessary options, including the addresses for both the etcd source and the SQL backend target.
 ```
 risingwave ctl meta migration --etcd-endpoints <etcd_address> --sql-endpoint <sql_address> -f

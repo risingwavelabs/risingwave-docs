@@ -8,9 +8,9 @@ RudderStack is a Customer Data Platform (CDP) that enables you to collect, route
 
 This guide will walk through the steps to set up RisingWave as a destination for RudderStack webhooks.
 
-## 1. Create a secret in RisingWave
+## 1. Optional: Create a secret in RisingWave
 
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from RudderStack.
+First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from RudderStack. This is the recommended way to verify the signature. You could also use a raw string to verify.
 
 ```sql
 CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
@@ -42,6 +42,19 @@ create table wbhtable (
 | `headers->>'...'` | Extracts the signature provided by RudderStack in the `authorization` HTTP header. The header key can be any string value and you can specify it when you create your webhook destination for RisingWave. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
 | `test_secret` | Provides the expected signature. In the example above, we directly compare the secret value of `test_secret` with the signature provided in the headers to verify the requests. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
+
+Or you can also use raw string for verification without secret:
+
+```sql
+create table wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook',
+) VALIDATE AS secure_compare(
+  headers->>'authorization',
+  'TEST_WEBHOOK'
+);
+```
 
 ## 3. Set up webhook in RudderStack
 

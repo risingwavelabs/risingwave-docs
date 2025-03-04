@@ -4,12 +4,6 @@ description: "This guide describes how to sink data from RisingWave to Apache Ic
 sidebarTitle: Apache Iceberg
 ---
 
-<Note>
-**PUBLIC PREVIEW**
-
-This feature is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
-
-</Note>
 ## Prerequisites
 * Ensure you already have an Iceberg table that you can sink data to. For additional guidance on creating a table and setting up Iceberg, refer to this [quickstart guide](https://iceberg.apache.org/spark-quickstart/) on creating an Iceberg table.
 * Ensure you have an upstream materialized view or source that you can sink data from.
@@ -29,12 +23,13 @@ WITH (
 
 | Parameter Names              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| type                         | Required. Allowed values: appendonly and upsert.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| type                         | Required. Allowed values: `append-only` and `upsert`.                                                                                                                                                                                                                                                                                                                                                                                                        |
 | force\_append\_only          | Optional. If true, forces the sink to be append-only, even if it cannot be.                                                                                                                                                                                                                                                                                                                                                                             |
 | s3.endpoint                  | Optional. Endpoint of the S3. <ul><li>For MinIO object store backend, it should be `http://${MINIO_HOST}:${MINIO_PORT}`. </li><li>For AWS S3, refer to [S3](https://docs.aws.amazon.com/general/latest/gr/s3.html). </li></ul>                                                                                                                                                                                                                                                      |
 | s3.region                    | Optional. The region where the S3 bucket is hosted. Either s3.endpoint or s3.region must be specified.                                                                                                                                                                                                                                                                                                                                                  |
 | s3.access.key                | Required. Access key of the S3 compatible object store.                                                                                                                                                                                                                                                                                                                                                                                                 |
 | s3.secret.key                | Required. Secret key of the S3 compatible object store.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| s3.path.style.access | Optional. Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). |
 | database.name                | Required. The database of the target Iceberg table.                                                                                                                                                                                                                                                                                                                                                                                                     |
 | table.name                   | Required. The name of the target Iceberg table.                                                                                                                                                                                                                                                                                                                                                                                                         |
 | catalog.name                 | Conditional. The name of the Iceberg catalog. It can be omitted for storage catalog but required for other catalogs.                                                                                                                                                                                                                                                                                                                                    |
@@ -43,6 +38,11 @@ WITH (
 | catalog.url                  | Conditional. The URL of the catalog. It is required when catalog.type is not storage.                                                                                                                                                                                                                                                                                                                                                                   |
 | primary\_key                 | The primary key for an upsert sink. It is only applicable to the upsert mode.                                                                                                                                                                                                                                                                                                                                                                           |
 | commit\_checkpoint\_interval | Optional. Commit every N checkpoints (N > 0). Default value is 10. <br/>The behavior of this field also depends on the `sink_decouple` setting:<ul><li>If `sink_decouple` is true (the default), the default value of `commit_checkpoint_interval` is 10.</li> <li>If `sink_decouple` is set to false, the default value of `commit_checkpoint_interval` is 1.</li> <li>If `sink_decouple` is set to false and `commit_checkpoint_interval` is set to larger than 1, an error will occur.</li></ul>|
+| create_table_if_not_exists | Optional. When set to `true`, it will automatically create a table for the Iceberg sink. |
+| catalog.credential | Optional. Credential for accessing the Iceberg catalog, used to exchange for a token in the OAuth2 client credentials flow. Applicable only in the `rest` catalog.|
+| catalog.token| Optional. A Bearer token for accessing the Iceberg catalog, used for interaction with the server. Applicable only in the `rest` catalog. |
+| catalog.oauth2-server-uri | Optional. The `oauth2-server-uri` for accessing the Iceberg catalog, serving as the token endpoint URI to fetch a token if the `rest` catalog is not the authorization server. Applicable only in the `rest` catalog.|
+| catalog.scope | Optional. Scope for accessing the Iceberg catalog, providing additional scope for OAuth2. Applicable only in the `rest` catalog. |
 
 ## Data type mapping
 
@@ -100,16 +100,20 @@ with (
     connector = 'iceberg',
     type = 'append-only',
     force_append_only = true,
-    s3.endpoint = 'http://minio-0:9301',
-    s3.access.key = 'xxxxxxxxxx',
-    s3.secret.key = 'xxxxxxxxxx',
-    s3.region = 'ap-southeast-1',
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.path.style.access = 'true',
     catalog.type = 'rest',
-    catalog.name = 'demo',
-    catalog.uri = 'http://rest:8181',
-    warehouse.path = 's3://icebergdata/demo',
-    database.name = 's1',
-    table.name = 't1'
+    catalog.uri = 'http://localhost:8181/api/catalog',
+    warehouse.path = 'quickstart_catalog',
+    database.name = 'ns',
+    table.name = 't1',
+    catalog.credential='123456:123456',
+    catalog.scope='PRINCIPAL_ROLE:ALL',
+    catalog.oauth2-server-uri='xxx'
+    catalog.scope='xxx',
 );
 ```
 
@@ -206,7 +210,9 @@ This section includes several examples that you can use if you want to quickly e
 
 ### Create an Iceberg table (if you do not already have one)
 
-For example, the following `spark-sql` command creates an Iceberg table named `table` under the database `dev` in AWS S3\. The table is in an S3 bucket named `my-iceberg-bucket` in region `ap-southeast-1` and under the path `path/to/warehouse`. The table has the property `format-version=2`, so it supports the upsert option. There should be a folder named `s3://my-iceberg-bucket/path/to/warehouse/dev/table/metadata`.
+Set `create_table_if_not_exists` to `true` to automatically create an Iceberg table.
+
+Alternatively, use Spark to create a table. For example, the following `spark-sql` command creates an Iceberg table named `table` under the database `dev` in AWS S3\. The table is in an S3 bucket named `my-iceberg-bucket` in region `ap-southeast-1` and under the path `path/to/warehouse`. The table has the property `format-version=2`, so it supports the upsert option. There should be a folder named `s3://my-iceberg-bucket/path/to/warehouse/dev/table/metadata`.
 
 Note that only S3-compatible object store is supported, such as AWS S3 or MinIO.
 
@@ -319,6 +325,7 @@ In RisingWave, you can directly sink data as upserts into Iceberg tables.
 CREATE SINK s1_sink FROM s1_table
 WITH (
     connector = 'iceberg',
+    type = 'upsert',
     warehouse.path = 's3a://my-iceberg-bucket/path/to/warehouse,
     s3.endpoint = 'https://s3.ap-southeast-1.amazonaws.com',
     s3.access.key = '${ACCESS_KEY}',
@@ -326,5 +333,28 @@ WITH (
     database.name='dev',
     table.name='table',
     primary_key='seq_id'
+);
+```
+
+### Iceberg sink on GCS
+
+<Note>
+Added in version 2.3.
+</Note>
+
+RisingWave supports creating Iceberg sinks on GCS with catalog types `storage` or `rest`. For more information about `gcs.credential`, see [parameters](/integrations/destinations/google-cloud-storage#parameters).
+
+```sql 
+CREATE SINK sink_t FROM t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+    database.name = 'public',
+    table.name = 't',
+    catalog.name = 'demo',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181',
+    warehouse.path = 'gs://bucket/path',
+    gcs.credential = 'xxxxxxxx'
 );
 ```

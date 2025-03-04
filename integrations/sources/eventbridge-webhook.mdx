@@ -9,9 +9,9 @@ Amazon EventBridge is a serverless event bus service that enables you to easily 
 
 This guide will walk through the steps to set up RisingWave as a destination for Amazon EventBridge webhooks.
 
-## 1. Create a secret in RisingWave
+## 1. Optional: Create a secret in RisingWave
 
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from Amazon EventBridge .
+First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from Amazon EventBridge. This is the recommended way to verify the signature. You could also use a raw string to verify.
 
 ```sql
 CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
@@ -44,6 +44,20 @@ create table wbhtable (
 | `test_secret` | Provides the expected signature. In the example above, we directly compare the secret value of `test_secret` with the signature provided in the headers to verify the requests. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
 
+Or you can also use raw string for verification without secret:
+
+```sql
+-- Example using raw string 'TEST_WEBHOOK' to generate signature.
+CREATE TABLE wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'authorization',
+  'TEST_WEBHOOK'
+);
+```
+
 ## 3. Set up webhook in Amazon EventBridge
 
 After configuring RisingWave to accept webhook data, set up Amazon EventBridge to send events to your RisingWave instance.
@@ -51,9 +65,7 @@ After configuring RisingWave to accept webhook data, set up Amazon EventBridge t
 ### RisingWave webhook URL
 
 The webhook URL should follow this format:
-```
-https://<HOST>/webhook/<database>/<schema_name>/<table_name>
-```
+`https://<HOST>/webhook/<database>/<schema_name>/<table_name>`.
 
 | Parameter | Description |
 |-----------|-------------|

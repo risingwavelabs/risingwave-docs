@@ -9,7 +9,7 @@ sidebarTitle: "Ingest additional source fields"
 To add additional columns, use the `INCLUDE` clause.
 
 ```sql
-INCLUDE { header | key | offset | partition | timestamp | payload } [AS <column_name>]
+INCLUDE { header | key | offset | partition | timestamp | payload | subject } [AS <column_name>]
 ```
 
 If `<column_name>` is not specified, a default one will be generated in the format `_rw_{connector}_{col}`, where `connector` is the name of the source connector used (Kafka, Pulsar, Kinesis, etc.), and `col` is the type of column being generated (key, offset, timestamp, etc.). For instance, if an offset column is added to a Kafka source, the default column name would be `_rw_kafka_offset`.
@@ -73,6 +73,40 @@ When ingesting data from Kinesis, here are some things to note when including th
 
 For more components, see [Struct aws\_sdk\_kinesis::types::Record](https://docs.rs/aws-sdk-kinesis/latest/aws%5Fsdk%5Fkinesis/types/struct.Record.html).
 
+### MongoDB CDC
+
+When ingesting data from MongoDB CDC, the following additional fields can be included.
+
+| Allowed components | Default type | Note                              |
+| :------------------| :------------| :---------------------------------|
+| timestamp          | `timestamp with time zone`      | The upstream commit timestamp.     |
+| partition          | `varchar`      | The partition the record is from.     |
+| offset             | `varchar`      | The offset in the partition.                 |
+| database_name             | `varchar`      | Name of the database.                 |
+| collection_name           | `varchar`      | Name of the MongoDB collection.                 |
+
+
+### MQTT
+
+When ingesting data from MQTT, the following additional fields can be included.
+
+| Allowed components | Default type | Note                              |
+| :------------------| :------------| :---------------------------------|
+| partition          | `varchar`      | The partition the record is from.     |
+| offset             | `varchar`      | The offset in the partition.                 |
+
+
+### NATS
+
+When ingesting data from NATS, the following additional fields can be included.
+
+| Allowed components | Default type | Note                              |
+| :------------------| :------------| :---------------------------------|
+| partition          | `varchar`      | The partition the record is from.     |
+| offset             | `varchar`      | The offset in the partition.                 |
+| payload | `json` | The actual content or data of the message. Only supports `JSON` format. |
+| subject | `varchar` |  The subject the message is from. | 
+
 ### Pulsar
 
 When ingesting data from Pulsar, here are some things to note when including the following fields.
@@ -96,13 +130,7 @@ When ingesting data from AWS S3, GCS or Azure Blob, the following additional fie
 | offset             | `varchar`      | The offset in the file.      |
 | payload | `json` | The actual content or data of the message. Only supports `JSON` format. |
 
-### MQTT
 
-When ingesting data from MQTT, the following additional fields can be included.
-
-| Allowed components | Default type | Note                              |
-| :------------------| :------------| :---------------------------------|
-| partition          | varchar      | The topic the record is from.     |
 
 ## Examples
 

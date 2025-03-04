@@ -1,18 +1,55 @@
 ---
 title: Product lifecycle
-description: "This page lists RisingWave's product release lifecycle, how RisingWave defines each stage, and a complete list of all features in the public preview stage."
+description: "This topic describes the product release lifecycle and feature deprecation policy of RisingWave, and provides a list of all features in the public preview stage."
 ---
+
+In RisingWave, the release of product features typically follows three main stages: **Technical Preview**, **Public Preview**, and **General Availability (GA)**. Each stage reflects the feature's maturity and readiness for production use.
+
+Over time, features may also be deprecated and eventually removed from the product. To ensure transparency and minimize disruption, we have established a clear Feature Deprecation Policy. This policy outlines how we communicate and manage feature deprecations, which you can find detailed below.
+
 
 ## Product release lifecycle
 
 In RisingWave, the release of product typically follows three main stages:
 
-1.  **Technical preview**: The technical preview stage is where we release a new feature for testing and feedback. It's not fully polished or finalized and is subject to change. We cannot guarantee its continued support in future releases, and it may be discontinued without notice. You may use this feature at your own risk.
+- **Technical preview**: The technical preview stage is where we release a new feature for testing and feedback. It’s not fully polished or finalized and is subject to change. We cannot guarantee its continued support in future releases, and it may be discontinued without notice. You may use this feature at your own risk.
 
-2.  **Public preview**: The public preview stage is where we've incorporated feedback from the technical preview and are nearing the final product. It's more stable than the technical preview, but there may still be some bugs and issues. During this stage, the corresponding guides are available in the official documentation for your reference. For the overview of all such features, see the list below.
+- **Public preview**: The public preview stage is where we’ve incorporated feedback from the technical preview and are nearing the final product. It’s more stable than the technical preview, but there may still be some bugs and issues. During this stage, the corresponding guides are available in the official documentation for your reference. For the overview of all such features, see the list below.
 
-3.  **General availability (GA)**: All other features are considered to be generally available. The general availability stage is where the feature is fully developed, tested, and ready for use in production environments.
+- **General availability (GA)**: All other features are considered to be generally available. The general availability stage is where the feature is fully developed, tested, and ready for use in production environments. While GA features are stable and supported, they may eventually be deprecated as part of the product lifecycle. For details on how we manage feature deprecations, see the [Feature Deprecation Policy](/changelog/product-lifecycle#feature-deprecation-policy).
 
+## Feature deprecation policy
+
+In RisingWave, features may be deprecated and removed as part of the product lifecycle. We aim to handle deprecations transparently and with minimal disruption to our users. Here’s how we manage feature deprecations:
+
+### Communication   
+
+We provide clear and timely communication about feature deprecations through multiple channels, including blog posts, release notes, direct emails, and in-product notifications. Each deprecation announcement includes:
+
+- The name of the feature being deprecated.
+- The reason for its deprecation.
+- A detailed timeline, including the announcement date and the final removal (sunset) date.
+- Migration alternatives, tools, and resources to assist users.
+
+### Advanced notice
+
+To give users sufficient time to adapt, we provide at least 3 months' notice before a feature is removed. The exact timeline may vary depending on the feature’s complexity and impact. Whenever applicable, we also provide tools, documentation, or guidance to facilitate migration.
+
+### Exceptions
+
+In certain circumstances, features may be deprecated and removed with shorter notice. These include:
+
+- Addressing critical security vulnerabilities.
+- Meeting legal or regulatory requirements.
+- Resolving performance issues that significantly affect the product.
+
+In such cases, we notify users as soon as possible and provide guidance to minimize disruption.
+
+### Feedback mechanism
+
+We encourage users to share feedback during the deprecation phase. This helps us address concerns, improve migration experiences, and better serve our users.
+
+For more information about how we manage feature deprecations, please contact us via our [Slack channel](https://go.risingwave.com/slack).
 
 ## Features in the public preview stage
 
@@ -22,7 +59,9 @@ Below is a list of all features in the public preview phase:
 
 | Feature name |  Start version |
 | :-- | :-- |
-| [EXPLAIN FORMAT JSON](/sql/commands/sql-explain#explain-options)| 2.2 |
+| [Sink connector `postgres`](/integrations/destinations/postgresql#create-a-sink)| 2.2 |
+| [Ingest data from MySQL table](/integrations/sources/mysql-table)| 2.2 |
+| [EXPLAIN option of FORMAT](/sql/commands/sql-explain#explain-options)| 2.2 |
 | [Ingest data from Postgres table](/integrations/sources/postgresql-table) | 2.1 |
 | [Ingest data from webhook](/integrations/sources/webhook) | 2.1 |
 | [Shared source](/sql/commands/sql-create-source#shared-source)  | 2.1  |
@@ -36,27 +75,5 @@ Below is a list of all features in the public preview phase:
 | [Sink data in Parquet format](/delivery/overview#sink-data-in-parquet-or-json-format) | 2.0 |
 | [Time travel queries](/processing/time-travel-queries) | 2.0 |
 | [Manage secrets](/operate/manage-secrets) | 2.0 |
-| [Amazon DynamoDB sink](/integrations/destinations/amazon-dynamodb) | 1.10 |
-| Auto-map upstream table schema in [MySQL](/integrations/sources/mysql-cdc#automatically-map-upstream-table-schema) and [PostgreSQL](/integrations/sources/postgresql-cdc#automatically-map-upstream-table-schema) | 1.10 |
-| [Version column](/sql/commands/sql-create-table#pk-conflict-behavior) | 1.9 |
-| [Snowflake sink](/integrations/destinations/snowflake) | 1.9 |
-| [Subscription](/delivery/subscription) | 1.9 |
-| [RisingWave as PostgreSQL FDW](/delivery/risingwave-as-postgres-fdw) | 1.9 |
-| [Iceberg source](/integrations/sources/apache-iceberg) | 1.8 |
-| [Google BigQuery sink](/integrations/destinations/bigquery) | 1.4 |
-| [SET BACKGROUND\_DDL command](/sql/commands/sql-set-background-ddl) | 1.3 |
-| [Decouple sinks](/delivery/overview#sink-decoupling) | 1.3 |
-| [Pulsar sink](/integrations/destinations/apache-pulsar) | 1.3 |
-| [Cassandra sink](/integrations/destinations/cassandra-or-scylladb) | 1.2 |
-| [Elasticsearch sink](/integrations/destinations/elasticsearch) | 1.2 |
-| [NATS sink](/integrations/destinations/nats-and-nats-jetstream) | 1.2 |
-| [NATS source](/integrations/sources/nats-jetstream) | 1.2 |
-| [Append-only tables](/sql/commands/sql-create-table#parameters) | 1.1 |
-| [Emit on window close](/processing/emit-on-window-close) | 1.1 |
-| [Read-only transactions](/sql/commands/sql-start-transaction) | 1.1 |
-| [AWS Kinesis sink](/integrations/destinations/aws-kinesis) | 1.0 |
-| [CDC Citus source](/integrations/sources/citus-cdc) | 0.19 |
-| [Iceberg sink](/integrations/destinations/apache-iceberg) | 0.18 |
-| [Pulsar source](/integrations/sources/pulsar) | 0.1 |
 
 This table will be updated regularly to reflect the latest status of features as they progress through the release stages.

@@ -48,7 +48,7 @@ SELECT * FROM source_name
 WHERE _rw_kafka_timestamp > now() - interval '10 minute';
 ```
 
-For specific source types, their support for streaming ingestion and ad-hoc ingestion varies. Please refer to [our documentation](/integrations/sources/overview) for the specific source.
+For specific source types, their support for streaming ingestion and ad-hoc ingestion varies. Please refer to [our documentation](/integrations/sources/kafka) for the specific source.
 
 ### Table with connectors
 
@@ -74,11 +74,11 @@ The statement will create a streaming job that continuously ingests data from th
 4. **Stronger consistency guarantee**: When using a table with connectors, all downstream jobs will be guaranteed to have a consistent view of the data persisted in the table; while for source, different jobs may see inconsistent results due to different ingestion speed or data retention in the external system.
 5. **Greater flexibility**: Like regular tables, you can use DML statements like [INSERT](/sql/commands/sql-insert), [UPDATE](/sql/commands/sql-update) and [DELETE](/sql/commands/sql-delete) to insert or modify data in tables with connectors, and use [CREATE SINK INTO TABLE](/sql/commands/sql-create-sink-into) to merge other data streams into the table.
 
-### PostgreSQL table
+### Table-valued function
 
-RisingWave supports using the table-valued function `postgres_query` to directly query PostgreSQL databases. This function connects to a specified PostgreSQL instance, executes the provided SQL query, and returns the results as a table in RisingWave.
+RisingWave supports using the table-valued function (TVF) `postgres_query` or `mysql_query` to directly query PostgreSQL or MySQL databases. This function connects to a specified instance, executes the provided SQL query, and returns the results as a table in RisingWave.
 
-To use it, specify connection details (such as hostname, port, username, password, database name) and the desired SQL query. This makes it easier to integrate PostgreSQL data directly into RisingWave workflows without needing additional data transfer steps. For more information, see [Ingest data from Postgres tables](/integrations/sources/postgresql-table).
+To use it, specify connection details (such as hostname, port, username, password, database name) and the desired SQL query. This makes it easier to integrate databases directly into RisingWave workflows without needing additional data transfer steps. For more information, see [Ingest data from Postgres tables](/integrations/sources/postgresql-table) and [Ingest data from MySQL tables](/integrations/sources/mysql-table).
 
 ## DML on tables
 
@@ -187,4 +187,4 @@ The information presented above provides a brief overview of the data ingestion 
    * To learn about how to manage schemas and ingest additional fields from sources :
          * [Modify source or table schemas](/ingestion/modify-source-or-table-schemas)
          * [Ingest additional fields with INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause)
-* To learn about how to ingest data from a particular source, see specific [Data ingestion guides](/integrations/sources/overview).
+* To learn about how to ingest data from a particular source, see specific [Data ingestion guides](/integrations/overview).
