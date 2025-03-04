@@ -423,25 +423,25 @@ If you let RisingWave create the publication, it will automatically set `publish
 
 Please be aware that PostgreSQL does not support adding both a partitioned table and its individual partitions to the same publication; however, it does not generate an error if attempted. If you need to ingest data from both the root table and its partitions, you should create separate publications for each. Otherwise, you will not be able to read from the table partitions. Meanwhile, in RisingWave, you should create separate sources with dedicated publication names for the partitioned table and its partitions.
 
-## Expression as A Column
+## Expression as a column
 
 RisingWave allows users to define expressions as table columns. For example, in the SQL statement below, `next_id` is not a column from the source PostgreSQL table. Instead, it is a generated column that RisingWave computes dynamically while ingesting data. The value of `next_id` for each row is always equal to `id + 1`:
 
 ```sql
 CREATE TABLE person (
-  id integer primary key,
+  id integer PRIMARY KEY,
   name varchar,
-  next_id int as id + 1,
+  next_id int AS id + 1,
   PRIMARY KEY (id)
 ) FROM pg_mydb TABLE 'public.person';
 ```
 
-However, due to the current implementation, generated columns must appear at the end of the schema definition. If a column from the upstream source appears after a generated column, RisingWave will return an error. For example, the following statement will fail because `name`, an upstream column, is placed after the generated column `next_id`:
+Currently, generated columns must appear at the end of the schema definition. If a column from the upstream source appears after a generated column, RisingWave will return an error. For example, the following statement will fail because `name`, an upstream column, is placed after the generated column `next_id`:
 
 ```sql
 CREATE TABLE person (
-  id integer primary key,
-  next_id int as id + 1,
+  id integer PRIMARY KEY,
+  next_id int AS id + 1,
   name varchar,
   PRIMARY KEY (id)
 ) FROM pg_mydb TABLE 'public.person';
