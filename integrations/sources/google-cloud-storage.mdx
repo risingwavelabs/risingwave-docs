@@ -62,6 +62,18 @@ The GCS connector does not guarantee the sequential reading of files.
 
 For example, RisingWave reads file F1 to offset O1 and crashes. After RisingWave rebuilds the task queue, it is not guaranteed the next task is reading file F1.
 
+## Read Parquet files from GCS
+
+You can use the table function `file_scan()` to read Parquet files from GCS, either a single file or a directory of Parquet files.
+
+```sql Function signature
+file_scan (parquet, gcs, credential, service_account, file_loaction)
+```
+
+<Note>
+When reading a directory of Parquet files, the schema will be based on the first Parquet file listed. Please ensure that all Parquet files in the directory have the same schema.
+</Note>
+
 ## Examples
 Here are examples of connecting RisingWave to an GCS source to read data from individual streams.
 <Tabs>
