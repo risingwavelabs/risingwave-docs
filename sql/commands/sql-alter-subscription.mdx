@@ -52,13 +52,13 @@ ALTER SUBSCRIPTION sub0 RENAME TO sub1;
 
 ```sql
 ALTER SUBSCRIPTION subscription_name
-SET PARALLELISM = parallelism_number;
+SET PARALLELISM { TO | = } parallelism_number;
 ```
 
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                              |
 | :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                  |
-| _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. |
+| parallelism_number | Can be ADAPTIVE or a fixed number (e.g., 1, 2, 3). Setting it to ADAPTIVE expands the job's parallelism to all available units, while a fixed number locks it at that value. Setting it to 0 is equivalent to ADAPTIVE. |
 
 ```sql
 -- Set the parallelism of the SUBSCRIPTION "s" to 4.
