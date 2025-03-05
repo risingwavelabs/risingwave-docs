@@ -103,13 +103,13 @@ ALTER TABLE test_table SET SCHEMA test_schema;
 
 ```sql
 ALTER TABLE table_name
-SET PARALLELISM = parallelism_number;
+SET PARALLELISM { TO | = } parallelism_number;
 ```
 
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. After setting the parallelism, the parallelism status of a table can be observed within the internal [rw\_table\_fragments](/operate/view-configure-runtime-parameters) table or the [rw\_fragments](/operate/view-configure-runtime-parameters)table. |
+| parallelism_number | Can be ADAPTIVE or a fixed number (e.g., 1, 2, 3). Setting it to ADAPTIVE expands the job's parallelism to all available units, while a fixed number locks it at that value. Setting it to 0 is equivalent to ADAPTIVE. After setting, the parallelism status of a table can be observed within the internal [rw\_table\_fragments](/operate/view-configure-runtime-parameters) table or the [rw\_fragments](/operate/view-configure-runtime-parameters)table. |
 
 ```sql
 ALTER TABLE test_table SET PARALLELISM = 8;
