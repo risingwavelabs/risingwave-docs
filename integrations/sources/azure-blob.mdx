@@ -58,6 +58,18 @@ FORMAT data_format ENCODE data_encode (
 | _file_   | Optional. The column contains the file name where current record comes from.                                                |
 | _offset_ | Optional. The column contains the corresponding bytes offset (record offset for parquet files) where current message begins |
 
+## Read Parquet files from Azure Blob
+
+You can use the table function `file_scan()` to read Parquet files from Azure Blob, either a single file or a directory of Parquet files.
+
+```sql Function signature
+file_scan (parquet, azblob, account_name, account_key, endpoint, file_location)
+```
+
+<Note>
+When reading a directory of Parquet files, the schema will be based on the first Parquet file listed. Please ensure that all Parquet files in the directory have the same schema.
+</Note>
+
 ## Examples
 
 Here are examples of connecting RisingWave to the Azblob source to read data from individual streams.
