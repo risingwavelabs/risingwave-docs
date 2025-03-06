@@ -8,7 +8,7 @@ RisingWave lets you connect to various external data sources, ingest data for re
 ## Key concepts
 
 *   **Source:** A connection to an external data source (for example, Kafka, PostgreSQL, or S3). Creating a source, by itself, does *not* store data within RisingWave.
-*   **Table:** Represents data stored within RisingWave's internal storage. There are two main types of tables:
+*   **Table:** Represents data stored within RisingWave's internal storage. There are two main types:
     *   **Standard (batch) tables:** Created using a regular `CREATE TABLE` statement *without* a `WITH` clause. You populate these tables manually (for example, using `INSERT` statements).
         ```sql
         CREATE TABLE my_batch_table (
@@ -16,7 +16,7 @@ RisingWave lets you connect to various external data sources, ingest data for re
             name VARCHAR
         );
         ```
-    *   **Streaming (connector-backed) tables:** Created using a `CREATE TABLE ... WITH (connector=...)` statement. These tables are automatically and continuously populated by ingesting data from an external source connected via a *connector*.
+    *   **Streaming (connector-backed) tables:** Created using a `CREATE TABLE ... WITH (connector=...)` statement.  These tables are automatically and continuously populated by ingesting data from an external source.
         ```sql
         CREATE TABLE my_streaming_table (
             id INT PRIMARY KEY,
@@ -27,9 +27,9 @@ RisingWave lets you connect to various external data sources, ingest data for re
             properties.bootstrap.server='localhost:9092'
         ) FORMAT PLAIN ENCODE JSON;
         ```
-*   **Connector:** A component that enables RisingWave to interface with a specific type of data source or sink (for example, Kafka or PostgreSQL).
-*   **Materialized View:** A materialized view represents the results of a query, similar to a view. However, unlike a view, the results of a materialized view are stored and continuously updated in the background, enabling low-latency access to precomputed data.
-*   **Sink:** A connection to an *external system* where RisingWave can *deliver* processed data (for example, Kafka, PostgreSQL, or cloud storage). **Creating a sink is optional.** Applications can also directly query data within RisingWave.
+*   **Connector:** A built-in component that enables RisingWave to interface with a specific type of data source or sink (for example, Kafka or PostgreSQL).
+*   **Materialized view:**  A *continuously updated* view of data.  Unlike a regular (non-materialized) view, which is just a stored query, a materialized view in RisingWave *stores the results* of the query and *automatically updates* those results as new data arrives from the underlying source(s) or table(s).  Materialized views are *streaming jobs*.
+*   **Sink:**  A *streaming job* that continuously delivers data from RisingWave to an *external system* (for example, Kafka, PostgreSQL, or cloud storage).  **Creating a sink is optional.** Applications can also directly query data within RisingWave.
 
 ## Primary ingestion methods
 
@@ -43,14 +43,14 @@ RisingWave provides two primary commands for connecting to external data sources
         *   Building streaming pipelines using *materialized views* and/or *sinks*.
         *   Running one-time queries against the source.
     *   **Data availability:** Data is typically available only while your RisingWave session is active (the exact behavior depends on the specific source connector).
-    *   **Learn more:** [Connecting with `CREATE SOURCE`](/path/to/create-source)
+    *   **Learn more:** [Connecting with `CREATE SOURCE`](/ingestion/getting-started/connect-with-create-source)
 
 2.  **`CREATE TABLE ... WITH (connector=...)` (data stored, continuous ingestion):**
 
     *   **Description:** Creates a *streaming (connector-backed) table*. This establishes a connection to a data source *and* continuously ingests the data into RisingWave's internal storage.
     *   **Use cases:** Historical analysis, improved query performance, primary key support, CDC handling.
     *   **Data availability:** Data is stored and remains available.
-    *   **Learn More:** [Connecting with `CREATE TABLE`](/path/to/create-table)
+    *   **Learn More:** [Connecting with `CREATE TABLE`](/ingestion/getting-started/connect-with-create-table)
 
 **Choosing a method:** Use `CREATE SOURCE` for temporary connections, quick exploration, or to build streaming pipelines with materialized views and/or sinks. Use `CREATE TABLE ... WITH (connector=...)` for continuous ingestion when you need to store the *full raw data* for historical analysis or other benefits.
 
@@ -59,8 +59,8 @@ RisingWave provides two primary commands for connecting to external data sources
 A common pattern in RisingWave is to:
 
 1.  **Ingest data from external sources using `CREATE SOURCE` or `CREATE TABLE ... WITH (connector=...)`.**
-2.  **(Optional) Create *materialized views* to transform the data.** Materialized views continuously process data from sources or tables and store the *results* in RisingWave. This is an efficient way to build streaming pipelines without storing all the raw data.
-3.  **(Optional) Create *sinks* using `CREATE SINK` to deliver processed data to external systems.** Applications can also connect *directly* to RisingWave and query the results of materialized views or tables *without* a sink.
+2.  **(Optional) Create *materialized views* to transform the data.** Materialized views are *streaming jobs* that continuously process incoming data from sources or tables and store the *results* in RisingWave. This is an efficient way to build streaming pipelines.
+3.  **(Optional) Create *sinks* using `CREATE SINK` to deliver processed data to external systems.** Sinks are also *streaming jobs* that continuously send data to their destination. Applications can also connect *directly* to RisingWave and query the results of materialized views or tables *without* a sink.
 
 ## Copying data from a source to a table
 
@@ -79,29 +79,23 @@ INSERT INTO my_batch_table SELECT * FROM my_source;
 
 This is useful for one-time data loading or transformations before storing data. 
 
-<Note>
-
-Whether a CREATE SOURCE provides continuous data or a one-time snapshot depends on the source connector.
-
-</Note>
-
 ## Supported data sources
 
 RisingWave supports a wide range of data sources, including:
 
 *   **Message queues:** Apache Kafka, Redpanda, Pulsar
-*   **Databases (via CDC):** PostgreSQL, MySQL, SQL Server, MongoDB, Citus
+*   **Databases (via CDC):** PostgreSQL, MySQL, SQL Server, MongoDB
 *   **Cloud storage:** Amazon S3, Google Cloud Storage, Azure Blob Storage
 *   **Others:** NATS JetStream, MQTT, Apache Iceberg
 
-See [Supported data sources](/path/to/supported-sources) for a complete list. RisingWave uses *connectors* to interface with each source.
+See [Supported data sources](/ingestion/getting-started/sources) for a complete list. RisingWave uses *connectors* to interface with each source.
 
 ## Supported data formats and encodings
 
-RisingWave supports various data formats and encodings. See [Supported data formats and encodings](/path/to/supported-formats) for details.
+RisingWave supports various data formats and encodings. See [Supported data formats and encodings](/ingestion/getting-started/data-formats-and-encoding-options) for details.
 
 ## Next steps
 
-*   Explore the [Supported data sources](/path/to/supported-sources) and [Supported data formats and encodings](/path/to/supported-formats).
-*   Learn how to connect to specific sources using the individual connector guides (e.g., [Connect to Kafka](/path/to/kafka-connect)).
-*   Learn more about using [`CREATE SOURCE`](/path/to/create-source) and [`CREATE TABLE`](/path/to/create-table).
+*   Explore the [Supported data sources](/ingestion/getting-started/sources) and [Supported data formats and encodings](/ingestion/getting-started/data-formats-and-encoding-options).
+*   Learn how to connect to specific sources using the individual connector guides (e.g., [Connect to Kafka](/ingestion/sources/apache-kafka-guide)).
+*   Learn more about using [`CREATE SOURCE`](/ingestion/getting-started/connect-with-create-source) and [`CREATE TABLE`](/ingestion/getting-started/connect-with-create-table).
