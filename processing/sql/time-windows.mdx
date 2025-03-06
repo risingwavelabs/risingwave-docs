@@ -15,9 +15,11 @@ For tumbling and hopping windows, RisingWave supports them by **time window func
 
 Time window functions are used in the **FROM** clause. They take a table/source/materialized view, a time column and some other arguments as input, and assign each input row a time window by augmenting the row with two new columns: `window_start` and `window_end`. The two augmented columns represent the start and end of time windows respectively.
 
-## `tumble()` time window function
+### `tumble()` time window function
 
 Tumbling windows are contiguous non-overlapping time intervals.
+
+![Tumble time window](/images/tumble_time_window.png)
 
 The syntax of the `tumble()` is as follows:
 
@@ -67,9 +69,11 @@ The result looks like this:
  6       | 1006    | 2022-07-01 22:06:00 | 2022-07-01 22:06:00 | 2022-07-01 22:08:00
 ```
 
-## `hop()` time window function
+### `hop()` time window function
 
 The `hop()` time window function also assigns each row a time window with a fixed size, which is very similar to `tumble()`, except that the assigned time windows may overlap.
+
+![Hop time window](/images/hop_time_window.png)
 
 See below for the syntax of the `hop()` time window function.
 
@@ -112,13 +116,15 @@ The result looks like the table below. Note that the number of rows in the resul
  6       | 1006    | 2022-07-01 22:06:00 | 2022-07-01 22:06:00 | 2022-07-01 22:08:00
 ```
 
-## Session windows
+### Session windows
 
 In RisingWave, session windows are supported by a special type of window function frame: `SESSION` frame. You can refer to [Window function calls](/sql/query-syntax/value-exp#window-function-calls) for detailed syntax.
 
 <Note>
 Currently, `SESSION` frame is only supported in batch mode and emit-on-window-close streaming mode.
 </Note>
+
+![Session time window](/images/session_time_window.png)
 
 When using session windows, you can achieve the effect that is very similar to `tumble()` and `hop()` time window functions, that is, to assign each row a time window by augmenting it with `window_start` and `window_end`. Here is an example:
 
