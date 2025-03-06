@@ -41,20 +41,20 @@ FORMAT format_type ENCODE encode_type (
 
 *   `(column_name data_type [AS source_column_name] [NOT NULL], ...)`: This section defines the *schema* of the data you are ingesting. It's a comma-separated list of column definitions.
     *   `column_name`: The name you want to use for the column within RisingWave (e.g., `user_id`).
-    *   `data_type`: The RisingWave data type of the column (e.g., `INT`, `VARCHAR`, `TIMESTAMP`). See [Data Types](/path/to/data-types) for a complete list of supported types.
+    *   `data_type`: The RisingWave data type of the column (e.g., `INT`, `VARCHAR`, `TIMESTAMP`). See [Data Types](/sql/data-types/overview) for a complete list of supported types.
     *   `AS source_column_name`: This part is *optional*. Use `AS` if the column name in the *source* is different from the name you want to use in RisingWave. For example: `user_id INT AS external_id`.
     *   `NOT NULL`: This part is *optional*. Use it to specify that a column cannot contain `NULL` values.
 
 *   `[, PRIMARY KEY (column_name, ...)]`: This part is *optional* in general but *required* when using `UPSERT` formats (to handle updates and deletes). The primary key uniquely identifies each row in the table.
 
 *   `WITH (connector='connector_name', connector_property='value', ...)`: This section specifies the connector to use and its connection properties.
-    *   `connector`: This is *required*. It specifies the name of the connector to use (e.g., `'kafka'`, `'pulsar'`, `'s3'`). See [Supported Data Sources](/path/to/supported-sources) for a list of available connectors.
+    *   `connector`: This is *required*. It specifies the name of the connector to use (e.g., `'kafka'`, `'pulsar'`, `'s3'`). See [Sources](/ingestion/getting-started/sources) for a list of available connectors.
     *   `connector_property='value'`: These are *connector-specific* settings. The available properties and their required values depend on the connector you are using. See the documentation for each individual connector for details (e.g., for Kafka, you'll need to specify `topic` and `properties.bootstrap.server`).
 
 *   `FORMAT format_type ENCODE encode_type (...)`: This section specifies how the data is formatted and encoded.
     *   `FORMAT`: This is *required*. It specifies the high-level data format (e.g., `PLAIN`, `UPSERT`, `DEBEZIUM`).
     *   `ENCODE`: This is *required*. It specifies the specific data encoding (e.g., `JSON`, `AVRO`, `PROTOBUF`).
-    *   `(...)`: These are *format- and encoding-specific* options. The available options depend on the chosen `FORMAT` and `ENCODE`. See [Supported Data Formats and Encodings](/path/to/supported-formats) for details.
+    *   `(...)`: These are *format- and encoding-specific* options. The available options depend on the chosen `FORMAT` and `ENCODE`. See [Data formats and encoding options](/ingestion/getting-started/data-formats-and-encoding-options) for details.
 
 ## Example (Kafka)
 
@@ -75,6 +75,6 @@ CREATE TABLE my_kafka_table (
 
 ## Next steps
 
-- See all [Supported data sources](ingestion/getting-started/supported-data-sources).
-- Learn about [Supported data formats and encoding](ingestion/getting-started/supported-data-formats-and-encoding).
-- See the documentation for specific connectors (e.g., [Connect to Kafka](ingestion/apache-kafka-guide)).
+- See all [Sources](/ingestion/getting-started/sources).
+- Learn about [Data formats and encoding options](/ingestion/getting-started/data-formats-and-encoding-options).
+- See the documentation for specific connectors (e.g., [Connect to Kafka](/ingestion/sources/apache-kafka)).
