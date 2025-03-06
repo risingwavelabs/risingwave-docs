@@ -3,12 +3,10 @@ title: "DROP SCHEMA"
 description: "Use the `DROP SCHEMA` command to remove a schema from a database."
 ---
 
-Before you can remove a schema, you must remove all its dependent objects (tables, materialized views, etc.).
-
 ## Syntax
 
 ```sql
-DROP SCHEMA [ IF EXISTS ] [database_name.]schema_name;
+DROP SCHEMA [ IF EXISTS ] [database_name.]schema_name [ CASCADE ];
 ```
 
 ## Parameters
@@ -16,8 +14,9 @@ DROP SCHEMA [ IF EXISTS ] [database_name.]schema_name;
 | Parameter or clause  | Description                                                                                                                                                                                                                                                                    |
 | :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **IF EXISTS** clause | Do not return an error if the specified schema does not exist.                                                                                                                                                                                                                 |
-| _database_           | Specify the name of a database to remove the schema in that database. You can use [SHOW DATABASES](/sql/commands/sql-show-databases) to get a list of all available databases. If you don't specify a database, the specified schema in the default database will be removed. |
-| _schema_             | The name of the schema you want to remove. The default schema is public. You can use [SHOW SCHEMAS](/sql/commands/sql-show-schemas) to get a list of all available schemas.                                                                                                   |
+| database_name           | Specify the name of a database to remove the schema in that database. You can use [SHOW DATABASES](/sql/commands/sql-show-databases) to get a list of all available databases. If you don't specify a database, the specified schema in the default database will be removed. |
+| schema_name             | The name of the schema you want to remove. The default schema is public. You can use [SHOW SCHEMAS](/sql/commands/sql-show-schemas) to get a list of all available schemas.                                                                                                   |
+| **CASCADE** | Automatically drops the schema's dependent objects (tables, materialized views, etc.) and any objects that depend on those objects. |
 
 ## Examples
 
@@ -33,8 +32,14 @@ This statement removes the `rw_schema` schema from the `dev` database (default d
 DROP SCHEMA rw_schema;
 ```
 
-Use this statement if you don't want RisingWave to return an error if the schema you want to remove does not exist:
+Use this statement to avoid an error if the schema does not exist:
 
 ```sql
 DROP SCHEMA IF EXISTS rw_schema;
+```
+
+This statement removes the `rw_schema` schema and everything it contains from the database:
+
+```sql
+DROP SCHEMA rw_schema CASCADE;
 ```
