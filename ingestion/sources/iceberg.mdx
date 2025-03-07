@@ -1,0 +1,80 @@
+---
+title: "Connect to Apache Iceberg"
+sidebarTitle: Connect to Iceberg
+description: "Connect RisingWave to your Apache Iceberg tables for batch ingestion."
+---
+
+This guide explains how to connect RisingWave to your Apache Iceberg tables for *batch* data ingestion.  RisingWave supports reading data from Iceberg tables stored on S3-compatible storage (including AWS S3 and MinIO) and Google Cloud Storage (GCS).
+
+## Prerequisites
+
+*   An existing Apache Iceberg table.
+*   Access credentials for the underlying storage system (e.g., S3 access key and secret key).
+*   Network connectivity between RisingWave and your storage system.
+* Know your Iceberg catalog type.
+
+## Connection methods
+
+RisingWave supports connecting to Iceberg using `CREATE SOURCE`.
+Currently, RisingWave does not support creating a table backed by an Iceberg table using `CREATE TABLE ... WITH (connector=...)`. If you create a table to store data, and ingest from the Iceberg source, the table is not an Iceberg table.
+
+## Basic connection example (S3)
+
+The following example shows how to connect to an Iceberg table stored on S3:
+
+```sql
+CREATE SOURCE iceberg_source
+WITH (
+    connector = 'iceberg',
+    type='append-only',
+    warehouse.path = 's3://your-bucket/path/to/iceberg/warehouse',
+    database.name = 'your_iceberg_db',
+    table.name = 'your_iceberg_table',
+    s3.endpoint = 'http://your-s3-endpoint:port', -- e.g., 'http://minio:9000'
+    s3.access.key = 'YOUR_ACCESS_KEY',
+    s3.secret.key = 'YOUR_SECRET_KEY',
+    s3.region = 'your-s3-region'  -- Optional if endpoint is specified
+) ;
+```
+
+Replace the placeholders with your actual values.
+
+<Info>The example shows connecting to s3 compatible storage systems. For different catalog types and storage systems, please refer to Apache Iceberg Configuration Options.</Info>
+
+## Query data
+
+You can query data from source directly.
+
+```sql
+SELECT * FROM iceberg_source;
+```
+
+## Data type mapping
+
+RisingWave converts data types from Iceberg to RisingWave according to the following table:
+
+| Iceberg Type | RisingWave Type |
+| ------------ | --------------- |
+| boolean      | boolean         |
+| integer      | int             |
+| long         | bigint          |
+| float        | real            |
+| double       | double          |
+| string       | varchar         |
+| date         | date            |
+| timestamptz  | timestamptz     |
+| timestamp    | timestamp       |
+| decimal      | decimal         |
+
+## Time travel
+
+RisingWave's Iceberg source supports time travel. Please refer to [Apache Iceberg configuration options](/ingestion/sources/iceberg-config) for more details.
+
+## System tables
+
+RisingWave offers system tables to query Iceberg metadata. Please refer to [Apache Iceberg configuration options](/ingestion/sources/iceberg-config) for more details.
+
+## What's next?
+
+- All configuration options: [Apache Iceberg configuration options](/ingestion/sources/iceberg-config)
+
