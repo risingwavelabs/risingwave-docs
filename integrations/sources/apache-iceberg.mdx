@@ -30,7 +30,7 @@ You don’t need to specify the column name for the Iceberg source, as RisingWav
 | database.name  | Required. Name of the database that you want to ingest data from.                                                                                                                                   |
 | table.name     | Required. Name of the table that you want to ingest data from.                                                                                                                                      |
 | catalog.name   | Conditional. The name of the Iceberg catalog. It can be omitted for storage catalog but required for other catalogs.                                                                                |
-| catalog.type   | Optional. The catalog type used in this table. Currently, the supported values are `storage`, `rest`, `hive`, `jdbc`, and `glue`. If not specified, `storage` is used. For details, see [Catalogs](#catalogs).  |
+| catalog.type   | Optional. The catalog type used in this table. Currently, the supported values are `storage`, `rest`, `hive`, `jdbc`, `glue` and `snowflake`. If not specified, `storage` is used. For details, see [Catalogs](#catalogs).  |
 | warehouse.path | Conditional. The path of the Iceberg warehouse. Currently, only S3-compatible object storage systems, such as AWS S3 and MinIO, are supported. It's required if the `catalog.type` is not `rest`.       |
 | catalog.url    | Conditional. The URL of the catalog. It is required when `catalog.type` is not `storage`.                                                                                                               |
 | catalog.credential | Optional. Credential for accessing the Iceberg catalog, used to exchange for a token in the OAuth2 client credentials flow. Applicable only in the `rest` catalog.|
@@ -60,11 +60,11 @@ RisingWave converts data types from Iceberg to RisingWave according to the follo
 
 Iceberg supports these types of catalogs:
 
-* Storage catalog: The Storage catalog stores all metadata in the underlying file system, such as Hadoop or S3\. Currently, we only support S3 as the underlying file system.
-Examples
-```bash
-create source source_demo_storage
-with (
+* Storage catalog: The Storage catalog stores all metadata in the underlying file system, such as Hadoop or S3\. Currently, we only support S3 as the underlying file system. Example:
+
+```sql
+CREATE SOURCE source_demo_storage
+WITH (
     connector = 'iceberg',
     catalog.type = 'storage',
     warehouse.path = 's3://icebergdata/demo',
@@ -76,11 +76,11 @@ with (
     table.name = 't1'
 );
 ```
-* REST catalog: RisingWave supports the [REST catalog](https://iceberg.apache.org/concepts/catalog/#decoupling-using-the-rest-catalog), which acts as a proxy to other catalogs like Hive, JDBC, and Nessie catalog. This is the recommended approach to use RisingWave with Iceberg tables.
-Examples
-```bash
-create source source_demo_rest
-with (
+* REST catalog: RisingWave supports the REST catalog, which acts as a proxy to other catalogs like Hive, JDBC, and Nessie catalog. This is the recommended approach to use RisingWave with Iceberg tables. Example:
+
+```sql
+CREATE SOURCE source_demo_rest
+WITH (
     connector = 'iceberg',
     s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
     s3.region = 'ap-southeast-2',
@@ -98,11 +98,11 @@ with (
     catalog.scope='xxx',
 );
 ```
-* Hive catalog: RisingWave supports the Hive catalog. You need to set `catalog.type` to `hive` to use it.
-Examples
-```bash
-create source source_demo_hive
-with (
+* Hive catalog: RisingWave supports the [Hive catalog](https://iceberg.apache.org/docs/latest/hive/). You need to set `catalog.type` to `hive` to use it. Example:
+
+```sql
+CREATE SOURCE source_demo_hive
+WITH (
     connector = 'iceberg',
     catalog.type = 'hive',
     catalog.uri = 'thrift://metastore:9083',
@@ -116,11 +116,11 @@ with (
     table.name = 't1'
 );
 ```
-* Jdbc catalog: RisingWave supports the [JDBC catalog](https://iceberg.apache.org/docs/latest/jdbc/#configurations).
-Examples
-```bash
-create source source_demo_jdbc
-with (
+* Jdbc catalog: RisingWave supports the [JDBC catalog](https://iceberg.apache.org/docs/latest/jdbc/#configurations). Example:
+
+```sql
+CREATE SOURCE source_demo_jdbc
+WITH (
     connector = 'iceberg',
     warehouse.path = 's3://icebergdata/demo',
     s3.endpoint = 'http://minio-0:9301',
@@ -136,11 +136,11 @@ with (
     table.name = 't1'
 );
 ```
-* Glue Catalog: RisingWave supports the Glue catalog. You should use AWS S3 if you use the Glue catalog. Below are example codes for using this catalog:
-Examples
-```bash
-create source source_test
-with (
+* Glue catalog: RisingWave supports the Glue catalog. You should use AWS S3 if you use the Glue catalog. Below are example codes for using this catalog:
+
+```sql
+CREATE SOURCE source_test
+WITH (
     connector = 'iceberg',
     catalog.type = 'glue',
     warehouse.path = 's3://my-iceberg-bucket/test',
@@ -152,25 +152,45 @@ with (
 );
 ```
 
+* Snowflake catalog: RisingWave supports the [Snowflake catalog](https://docs.snowflake.com/en/user-guide/tables-iceberg#catalog). Example:
+
+```sql
+CREATE SOURCE iceberg_t1_source
+WITH (
+    connector = 'iceberg',
+    s3.region = 'ap-northeast-2',
+    s3.access.key = 'xxx',
+    s3.secret.key = 'xxx',
+    catalog.name = 'demo1',
+    catalog.type = 'snowflake',
+    catalog.uri = 'jdbc:snowflake://<account_identifier>.snowflakecomputing.com/',
+    catalog.jdbc.user = 'xxx',
+    catalog.jdbc.password = 'xxx',
+    warehouse.path = 's3://xxx',
+    database.name = 'xxx',
+    table.name = 'xxx'
+    );
+```
+
 ## Time travel
 
 Our Iceberg source provides time travel capabilities, allowing you to query data from a specific point in time or version, rather than just the current state of the data. You can achieve this by specifying a timestamp or a version identifier.
 
 Here is the syntax for specifying a system time. The timestamp here should be in a format like `YYYY-MM-DD HH:MM:SS` or a UNIX timestamp in seconds.
 
-```bash
+```sql
 FOR SYSTEM_TIME AS OF [STRING | NUMBER];
 ```
 
 Here is the syntax for specifying a system version:
 
-```bash
+```sql
 FOR SYSTEM_VERSION AS OF [SNAPSHOT_ID];
 ```
 
 Here are some examples:
 
-```bash
+```sql
 -- Querying data using a timestamp
 SELECT * FROM s FOR SYSTEM_TIME AS OF '2100-01-01 00:00:00+00:00';
 SELECT * FROM s FOR SYSTEM_TIME AS OF 4102444800;
@@ -185,7 +205,7 @@ We currently support system tables [rw\_iceberg\_files and rw\_iceberg\_snapshot
 
 Read Iceberg files
 
-```bash
+```sql
  SELECT * FROM rw_iceberg_files;
 ```
 
@@ -206,11 +226,11 @@ Read Iceberg files
 
 Read all Iceberg snapshots
 
-```bash
+```sql
 SELECT * FROM rw_iceberg_snapshots;
 ```
 
-```bash
+```
  source_id | schema_name |source_name| sequence_number |     snapshot_id     |         timestamp_ms          |                                                        manifest_list                                      |                                                                                                                                                                                                                    summary
 -----------+-------------+-----------------------------+-----------------+---------------------+-------------------------------+-----------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
          1 | public      | t         |               1 | 4476030648521181855 | 2024-04-03 08:54:22.488+00:00 | s3a://hummock001/demo_db/t/metadata/snap-4476030648521181855-1-f06c9623-1ae5-4646-b117-b765d4154221.avro  | {"added-data-files": "2", "added-files-size": "1814", "added-records": "2", "changed-partition-count": "1", "operation": "append", "spark.app.id": "local-1712134455383", "total-data-files": "2", "total-delete-files": "0", "total-equality-deletes": "0", "total-files-size": "1814", "total-position-deletes": "0", "total-records": "2"}
