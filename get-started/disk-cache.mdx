@@ -1,18 +1,18 @@
 ---
 title: Pluggable disk cache
 description: "This topic describes the pluggable disk cache feature of RisingWave."
-sidebarTitle: "Disk cache"
+sidebarTitle: "Pluggable disk cache"
 ---
 
 <Note>
-The pluggable disk cache is a Premium Edition feature. Detailed instructions for enabling and configuring the disk cache will be provided when the feature is officially released in RisingWave v2.3.
+Detailed instructions for enabling and configuring the disk cache will be provided when the feature is officially released in RisingWave v2.3.
 </Note>
 
 RisingWave is designed for high-performance stream processing, and it achieves this by **leveraging S3 as its primary storage**. This means all data, including the internal states of streaming jobs, tables, and materialized views, is persisted in S3. To optimize performance, RisingWave also utilizes local memory as a cache, allowing for rapid data access.
 
 However, local memory is finite. When the data required for a streaming operation (the "working set") exceeds the available memory, a cache miss occurs. This forces RisingWave to retrieve the data from S3, introducing latency and potentially increasing costs due to frequent S3 access. While S3 provides cost-effective storage for large datasets, repeated access for active processing can become expensive.
 
-To address this challenge, RisingWave offers the **pluggable disk cache**, a Premium Edition feature designed to significantly reduce S3 access and improve performance. The pluggable disk cache utilizes **local disk storage**, such as NVMe SSDs or AWS EBS volumes, as an extension of the memory cache. This allows RisingWave to keep a larger portion of the working set readily available, minimizing the need to fetch data from S3.
+To address this challenge, RisingWave offers the **pluggable disk cache** to significantly reduce S3 access and improve performance. The pluggable disk cache utilizes **local disk storage**, such as NVMe SSDs or AWS EBS volumes, as an extension of the memory cache. This allows RisingWave to keep a larger portion of the working set readily available, minimizing the need to fetch data from S3.
 
 ![Tiered storage architecture](/images/tiered-storage-architecture.png)
 
