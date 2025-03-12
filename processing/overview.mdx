@@ -18,6 +18,8 @@ RisingWave uses Postgres-compatible SQL as the interface for declaring data proc
 
 There are 2 execution modes in our system serving different analytics purposes. The results of these two modes are the same and the difference lies in the timing of data processing, whether it occurs at the time of data ingestion(on write) or when the query is executed(on read).
 
+### Understanding execution modes
+
 **Streaming**: RisingWave allows users to predefine SQL queries with [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) statement. RisingWave continuously listens changes in upstream tables (in the `FROM` clause) and incrementally update the results automatically.
 
 **Ad-hoc**: Also like traditional databases, RisingWave allows users to send [SELECT](/sql/commands/sql-select) statement to query the result. At this point, RisingWave reads the data from the current snapshot, processes it, and returns the results.
@@ -31,14 +33,33 @@ Both modes have their unique advantages. Here are some considerations:
 
 **Flexibility**: The streaming mode is less flexible to changes in query requirements. The ad-hoc query usually is created on-the-fly to fulfill immediate and specific information needs. Unlike predefined queries, ad-hoc queries are generated in real-time based on your current requirements. They are commonly used in data analysis, decision-making, and exploratory data tasks, where flexibility and quick access to information are crucial.
 
+### Querying data across databases
+
+<Note>
+Added in version 2.3.
+</Note>
+
+RisingWave supports cross-database queries in both streaming mode and ad-hoc mode, allowing you to access and combine data from multiple databases within your instance for a more comprehensive view. To get started, 
+
+- There must be at least one subscription on the upstream table or materialized view in the external database.
+
+- Users must be a superuser or have `CONNECT` permissions for the upstream databases, and must also have the corresponding relation's query permissions.
+
+Here are some implementation details of cross-database queries:
+
+- **Cross-database binding**: Supported in batch operations, `CREATE MATERIALIZED VIEW`, and `CREATE SINK`.
+- **Privilege checks**: The system enforces database CONNECT privilege checks for all cross-database queries.
+- **Snapshot backfill**: An integrated executor handles initial data loading from external databases.
+- **Safety measures**: The system prevents `DROP MATERIALIZED VIEW/SINK CASCADE` operations that involve cross-database dependencies to avoid unintended consequences.
+- **Log store verification**: During DDL operations, it verifies that log stores exist for all cross-database upstreams to maintain data consistency.
+
+
 ## Examples
 
 ### Create a table
 To illustrate, let's consider a hypothetical scenario where we have a table called `sales_data`. This table stores information about product IDs (`product_id`) and their corresponding sales amounts (`sales_amount`).
 
-sales\_data
-
-```bash
+```bash table of sales_data
 product_id | sales_amount
 ------------+--------------
           1 |           75
