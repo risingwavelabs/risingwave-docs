@@ -39,20 +39,24 @@ Both modes have their unique advantages. Here are some considerations:
 Added in version 2.3.
 </Note>
 
-RisingWave supports cross-database queries in both streaming mode and ad-hoc mode, allowing you to access and combine data from multiple databases within your instance for a more comprehensive view. To get started, 
+RisingWave supports cross-database queries in both modes, allowing you to access and combine data from multiple databases within your instance for a more comprehensive view. It is implemented through the following key functionalities:
+
+- Enables cross-database binding for batch operations, `CREATE MATERIALIZED VIEW`, and `CREATE SINK`.
+
+- Enforces database `CONNECT` privilege checks for all cross-database queries to ensure secure access.
+
+- Integrates the cross-database snapshot backfill executor, and addresses issues in metadata validation.
+
+- Rejects `DROP MATERIALIZED VIEW CASCADE` or `DROP SINK CASCADE` operations with cross-database upstreams to avoid accidental data loss.
+
+- Verifies the existence of log stores for all cross-database upstreams during DDL operations.
+
+
+To get started, please note the following requirements:
 
 - There must be at least one subscription on the upstream table or materialized view in the external database.
 
-- Users must be a superuser or have `CONNECT` permissions for the upstream databases, and must also have the corresponding relation's query permissions.
-
-Here are some implementation details of cross-database queries:
-
-- **Cross-database binding**: Supported in batch operations, `CREATE MATERIALIZED VIEW`, and `CREATE SINK`.
-- **Privilege checks**: The system enforces database CONNECT privilege checks for all cross-database queries.
-- **Snapshot backfill**: An integrated executor handles initial data loading from external databases.
-- **Safety measures**: The system prevents `DROP MATERIALIZED VIEW/SINK CASCADE` operations that involve cross-database dependencies to avoid unintended consequences.
-- **Log store verification**: During DDL operations, it verifies that log stores exist for all cross-database upstreams to maintain data consistency.
-
+- Users must be a superuser or have `CONNECT` permissions for the upstream databases, and also have the corresponding `QUERY` permissions on the relations.
 
 ## Examples
 
