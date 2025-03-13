@@ -28,22 +28,28 @@ But RisingWave does more. It provides both **online and offline storage**:
 * **[Online serving](/serve/overview):** Row-based storage for ad-hoc point/range queries with single-digit millisecond latency.
 * **[Offline persistence](/reference/data-persistence):** Apache Iceberg-based storage that persists streaming data at low cost, enabling open access by other query engines.
 
-## Key design decisions
+## Key design decisions  
 
-RisingWave is designed to be easier to use and more cost-efficient:
+RisingWave is built for ease of use and cost efficiency.  
 
-### PostgreSQL compatibility
+### PostgreSQL compatibility  
 
-* **Seamless integration:** Connects via the PostgreSQL wire protocol, working with psql, JDBC, and any Postgres tool.  
-* **[Expressive SQL](/sql/overview):** Supports structured, semi-structured, and unstructured data with a familiar SQL dialect.
-* **No manual state tuning:** Eliminates complex state management configurations.
+RisingWave is wire-compatible with PostgreSQL, enabling:  
+- **[Expressive SQL](/sql/overview):** Supports structured, semi-structured, and unstructured data with a familiar SQL dialect.  
+- **Seamless integration:** Works with psql, JDBC, and any PostgreSQL-compatible tool via the PostgreSQL wire protocol.  
+- **No manual state tuning:** Eliminates the need for complex state management configurations.  
 
-### Zero disk architecture
+### S3 as primary storage  
 
-* **Cloud-native storage:** Stores data in S3 (or equivalent), using local disk as a cache.
-* **High performance:** Optimized for complex queries like joins and time windowing.
-* **Fast recovery:** Recovers from system crashes within seconds.
-* **[Dynamic scaling](/deploy/k8s-cluster-scaling):** Instantly adjusts resources for workload spikes.
+RisingWave stores tables, materialized views, and internal states of stream processing jobs in S3 (or equivalent object storage), providing:  
+- **High performance:** Optimized for complex queries, including joins and time windowing.  
+- **Fast recovery:** Restores from system failures within seconds.  
+- **[Dynamic scaling](/deploy/k8s-cluster-scaling):** Instantly adjusts resources to handle workload spikes.  
+
+### Pluggable disk cache
+
+Beyond caching hot data in memory, RisingWave supports [**pluggable disk cache**](/get-started/disk-cache), leveraging local disks or EBS for efficient data caching.
+
 
 ## In what use cases does RisingWave excel?
 

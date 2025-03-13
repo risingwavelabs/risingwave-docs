@@ -270,6 +270,32 @@ And this it the output of `DESCRIBE supplier;`
 (10 rows)
 ```
 
+## Expression as a column
+
+RisingWave allows users to define expressions as table columns. For example, in the SQL statement below, `next_id` is not a column from the source SQL Server table. Instead, it is a generated column that RisingWave computes dynamically while ingesting data. The value of `next_id` for each row is always equal to `id + 1`:
+
+```sql
+CREATE TABLE person (
+  id integer PRIMARY KEY,
+  name varchar,
+  next_id int AS id + 1,
+  PRIMARY KEY (id)
+) FROM mssql_mydb TABLE 'dbo.person';
+```
+
+Currently, generated columns must appear at the end of the schema definition. If a column from the upstream source appears after a generated column, RisingWave will return an error. For example, the following statement will fail because `name`, an upstream column, is placed after the generated column `next_id`:
+
+```sql
+CREATE TABLE person (
+  id integer PRIMARY KEY,
+  next_id int AS id + 1,
+  name varchar,
+  PRIMARY KEY (id)
+) FROM mssql_mydb TABLE 'dbo.person';
+```
+
+To avoid errors, ensure that all generated columns are positioned at the end of the schema definition.
+
 ## Monitor the progress of direct CDC
 
 To observe the progress of direct CDC for SQL Server, use the following methods:
