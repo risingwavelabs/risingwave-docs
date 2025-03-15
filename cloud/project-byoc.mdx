@@ -128,13 +128,17 @@ When you customize your cloud platform, refer to the following notes to see what
 <Tabs>
 <Tab title="AWS">
 * **Required service-linked role**
-The role `AWSServiceRoleForAutoScaling` needs to be in place. If it is not ready yet, you need to create it manually. See [Create a service-linked role](https://docs.aws.amazon.com/autoscaling/ec2/userguide/autoscaling-service-linked-role.html#create-service-linked-role-manual) for detailed steps.
+
+   The role `AWSServiceRoleForAutoScaling` needs to be in place. If it is not ready yet, you need to create it manually. See [Create a service-linked role](https://docs.aws.amazon.com/autoscaling/ec2/userguide/autoscaling-service-linked-role.html#create-service-linked-role-manual) for detailed steps.
 * **Required quota increase**
-For optimal performance, the quota for managed node groups per cluster should be increased to 36 or more. See [Service quotas](https://docs.aws.amazon.com/eks/latest/userguide/service-quotas.html#sq-text) for more details.
+
+   For optimal performance, the quota for managed node groups per cluster should be increased to 36 or more. See [Service quotas](https://docs.aws.amazon.com/eks/latest/userguide/service-quotas.html#sq-text) for more details.
 * **Required permissions for BYOC environment creation/deletion**
-We recommend using an IAM role/user with Administrator permissions for the AWS account to deploy the infrastructure.
+
+   We recommend using an IAM role/user with Administrator permissions for the AWS account to deploy the infrastructure.
 * **Resources provisioned in BYOC environment**
-We will set up the following resources in a BYOC environment:
+
+   We will set up the following resources in a BYOC environment:
    * 1 VPC: including VPC, its subnets, security, and IPs to host all BYOC resources.
    * 1 EKS cluster: to host all service and RisingWave clusters workloads.
    * 2 S3 buckets: for RisingWave cluster data and infra state data respectively.
@@ -154,7 +158,8 @@ We will set up the following resources in a BYOC environment:
 </Tab>
 <Tab title="GCP">
 * **Required APIs for BYOC environment creation/deletion**
-You need to enable the following APIs to create or delete a BYOC environment:
+
+   You need to enable the following APIs to create or delete a BYOC environment:
    * **Compute Engine API** for VPC resources provision.
    * **Cloud DNS API** for VPC private service connect setup.
    * **Kubernetes Engine API** for provisioning the GKE cluster the data plane is hosted.
@@ -162,7 +167,8 @@ You need to enable the following APIs to create or delete a BYOC environment:
    * **Service Networking API** for Cloud SQL (as meta store) connection.
    * **Cloud SQL Admin API** for Cloud SQL (as meta store) provisioning.
 * **Required permission for BYOC environment creation/deletion**
-Before running the command-line interface to create or delete a BYOC environment, you need to have a Google IAM (IAM user/Service account) with the following roles.
+
+   Before running the command-line interface to create or delete a BYOC environment, you need to have a Google IAM (IAM user/Service account) with the following roles.
    * [Compute Network Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.networkAdmin)
    * [Compute Security Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.securityAdmin)
    * [DNS Administrator](https://cloud.google.com/iam/docs/understanding-roles#dns.admin)
@@ -177,7 +183,8 @@ These permissions are only required for creating or deleting a BYOC environment.
 </Note>
 
 * **Resources provisioned in BYOC environment**
-We will set up the following resources in a BYOC environment:
+
+   We will set up the following resources in a BYOC environment:
    * 1 VPC: including VPC, its subnets, firewalls, IPs to host all BYOC resources.
    * 1 GKE cluster: to host all service and RisingWave clusters workloads.
    * 2 GCS buckets: for RisingWave cluster data and infra state data respectively.
@@ -185,18 +192,22 @@ We will set up the following resources in a BYOC environment:
    * 1 External network load balancer (optional): to expose RWProxy to the Internet.
    * A few IAM roles for EKS and K8s workloads, and each role is granted the least privilege it requires.
 * **Required permission for deployed services**
-We will provision a Google Service Account for the deployed services. The services require the following permissions:
+
+   We will provision a Google Service Account for the deployed services. The services require the following permissions:
    * [Storage Admin](https://cloud.google.com/iam/docs/understanding-roles#storage.admin) to manage GCS objects and bucket access for RisingWave clusters.
    * [Compute Network Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.networkAdmin) to manage private links for the source/sink of RisingWave clusters.
    * [Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin) to manage the IAM service account RisingWave clusters.
 </Tab>
 <Tab title="Azure">
 * **Required feature flags**
-You need to enable the feature flag `EnableAPIServerVnetIntegrationPreview` for the subscription to deploy a BYOC environment. See [Feature flag](https://learn.microsoft.com/en-us/azure/aks/api-server-vnet-integration#register-the-enableapiservervnetintegrationpreview-feature-flag) for more details.
+
+   You need to enable the feature flag `EnableAPIServerVnetIntegrationPreview` for the subscription to deploy a BYOC environment. See [Feature flag](https://learn.microsoft.com/en-us/azure/aks/api-server-vnet-integration#register-the-enableapiservervnetintegrationpreview-feature-flag) for more details.
 * **Required permission for BYOC environment creation/deletion**
-We recommend utilizing a service principal or user with owner permissions of the Azure subscription to provision the infrastructure.
+
+   We recommend utilizing a service principal or user with owner permissions of the Azure subscription to provision the infrastructure.
 * **Resources provisioned in BYOC environment**
-We will set up the following resources in a BYOC environment:
+   
+   We will set up the following resources in a BYOC environment:
    * 1 VPC: including VPC, its subnets, firewalls, IPs to host all BYOC resources.
    * 1 AKS cluster: to host all service and RisingWave clusters workloads.
    * 2 Azure storage account with on blob container in it: for RisingWave cluster data and infra state data respectively.
@@ -211,6 +222,19 @@ We will set up the following resources in a BYOC environment:
    * Role [Monitoring Reader](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor#monitoring-reader)
    * A custom role with `Microsoft.Network/networkInterfaces/read` permission
    * A custom role with `Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials/*` permission
+
+* **Required API permissions for Azure AD**
+
+   For service principal authentication (one of the following combinations):
+   * `AppRoleAssignment.ReadWrite.All` and `Application.Read.All`
+   * `AppRoleAssignment.ReadWrite.All` and `Directory.Read.All`
+   * `Application.ReadWrite.All`
+   * `Directory.ReadWrite.All`
+
+   For user principal authentication (one of the following directory roles):
+   * `Application Administrator`
+   * `Global Administrator`
+
 </Tab>
 </Tabs>
 
