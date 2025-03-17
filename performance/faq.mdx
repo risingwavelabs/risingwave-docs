@@ -1,48 +1,109 @@
 ---
-title: "FAQs"
-description: This topic addresses common queries related to resource allocation and adjustment for both streaming and batch queries. This will assist you in fine-tuning performance and maximizing efficiency.
-mode: wide
+title: "Frequently asked questions (FAQ)"
+sidebarTitle: "FAQs"
+description: "Answers to common questions about RisingWave performance tuning and troubleshooting."
 ---
 
+This topic addresses frequently asked questions related to RisingWave performance, resource allocation, and troubleshooting. It serves as a quick reference and reinforces key concepts covered in the Performance Guide. For more in-depth information, refer to the linked sections.
+
 <AccordionGroup>
-  <Accordion title="How to adjust the resources allocated to each streaming query?">
-There is one session variable called `streaming_parallelism` to adjust the parallelism of a streaming query. It affects all the streaming queries created after the variable is set to a certain number within the same session.
+  <Accordion title="How do I adjust the resources allocated to each streaming query?">
+    RisingWave uses a session variable called `streaming_parallelism` to control the parallelism of streaming queries. This variable affects all streaming queries created *after* the variable is set within the same session.
 
-Suppose we have a RisingWave cluster that has 3 compute nodes, each with 8 CPUs. By default, the `streaming_parallelism` is set to 0, allowing a streaming query to access a maximum of 24 CPUs. However, reaching 100% CPU utilization may not occur in reality due to factors such as insufficient data ingestion or lightweight computations. If we change `streaming_parallelism` to 2, the maximum CPU resources streaming queries can use is `3*2=6` CPUs in total.
+    Suppose you have a RisingWave cluster with 3 compute nodes, each with 8 CPUs. By default, `streaming_parallelism` is set to 0, allowing a streaming query to access a maximum of 24 CPUs (3 nodes * 8 CPUs/node).  However, reaching 100% CPU utilization may not occur in reality due to factors like insufficient data ingestion or lightweight computations. If you set `streaming_parallelism` to 2, the maximum CPU resources streaming queries can use is 3 nodes * 2 CPUs/node = 6 CPUs total.
 
-One may ask what if I have multiple streaming queries and all of them can use 24 CPUs at most? There are two cases:
+    If you have multiple streaming queries, their CPU resource allocation is approximately proportional to the `streaming_parallelism` value when the query was created, *if* the total CPU demand exceeds the available resources.  Otherwise, each query gets the resources it needs.
 
-1. If the real aggregated CPU utilization of all streaming queries does not exceed 24 CPUs, then there are more than enough CPU resources. Every query is happy.
-2. If it does exceed, we can consider that each streaming query’ share of CPU resources is approximately proportional to the `streaming_parallelism` when the query is created. For example, one query can use at most 15 CPUs and the other query can use at most 24 CPUs. Then the first query gets `24*15/(15+24)~=9` CPUs, while the second query gets the rest 15 CPUs.
-
-Don’t worry about setting a less ideal configuration variable for the streaming queries at the beginning. RisingWave will support runtime adjustment of the parallelism for streaming queries. This means you can tweak the variable constantly as you become more familiar with the resource requirements of your queries.
+    Don't worry about setting a perfect value initially. RisingWave supports runtime adjustment of `streaming_parallelism`, so you can tweak it as you become more familiar with your queries' resource requirements. See [Best practices - Resource allocation](/performance/best-practices#resource-allocation) for more details.
   </Accordion>
-    <Accordion title="How to adjust the resources allocated to each batch query?">
-There is another session variable called `batch_parallelism`. It works just like `streaming_parallelism` but is applicable to batch queries.
 
-We remark that we don’t encourage users to **frequently** do **ad-hoc** OLAP queries that compute over a huge amount of input data by RisingWave. RisingWave has the ability to do so, but it will never outpace a column-based OLAP system. We suggest sinking output from RisingWave to a dedicated OLAP database to process such queries.
+  <Accordion title="How do I adjust the resources allocated to each batch query?">
+    RisingWave uses another session variable called `batch_parallelism`, which works similarly to `streaming_parallelism` but applies to batch queries.
 
-We encourage users to process batch queries that can be accelerated by indexes and/or take a relatively small number of rows as input. These queries typically complete within the range of single-digit milliseconds to single-digit seconds and do not require many CPU resources. We will discuss the good practice of creating indexes in detail later.
+    It's generally *not* recommended to frequently run ad-hoc OLAP queries that process huge amounts of input data using RisingWave. While RisingWave can handle such queries, it's not optimized for this use case and will not outperform a dedicated column-based OLAP system. It's recommended to sink output from RisingWave to a dedicated OLAP database for such queries.
 
-In short, it is rarely needed to change `batch_parallelism`.
+    RisingWave *is* well-suited for batch queries that can be accelerated by indexes and/or process a relatively small number of rows. These queries typically complete in milliseconds to seconds and don't require significant CPU resources.  For details about creating indexes, see [CREATE INDEX](/sql/commands/sql-create-index).
 
+    In short, it's rarely necessary to change `batch_parallelism`.
   </Accordion>
-    <Accordion title="When to choose to deploy a dedicated batch-serving cluster?">
-By default, all the computes will run both streaming queries and batch queries. CPU and memory resources of each compute node are shared among both types of queries, leading to resource competition. Therefore, it is hard to guarantee the performance of both types of queries.
 
-As mentioned earlier, batch queries suitable for RisingWave to process are those with sub-second latency. In production, it is intolerable to have huge latency fluctuation due to resource competition. This is when a dedicated batch-serving cluster can help.
+  <Accordion title="What are the differences between `streaming_parallelism` and `batch_parallelism`?">
+    Both `streaming_parallelism` and `batch_parallelism` control CPU resource allocation, but they apply to different query types:
 
-Additionally, the failure of compute nodes for stream processing does not affect the availability of processing batch queries.
+    *   `streaming_parallelism`: Limits CPU resources for *streaming* queries (those that continuously process data). It affects all new streaming queries within the same session after the variable is set.
+    *   `batch_parallelism`: Limits CPU resources for *batch* queries (one-time queries that process a finite dataset).
+
+    See [Best practices - Resource allocation](/performance/best-practices#resource-allocation) for more details.
   </Accordion>
+
+  <Accordion title="When should I deploy a dedicated batch-serving cluster?">
+    By default, all compute nodes run both streaming and batch queries. This can lead to resource competition, making it difficult to guarantee the performance of both query types.
+
+    If you have batch queries that require sub-second latency, a dedicated batch-serving cluster is recommended. This isolates batch query workloads, preventing resource contention with streaming jobs.  It also improves the availability of batch query processing, as failures of compute nodes used for stream processing won't affect batch queries. See [Best practices - Resource allocation](l/performance/best-practices#resource-allocation).
+  </Accordion>
+
     <Accordion title="Is there any difference between configuring a compute node for stream processing only and for batch serving only?">
-Yes. The default configuration, i.e., without providing a customized `toml` configuration file (examples can be found [here](https://github.com/risingwavelabs/risingwave/tree/main/src/config)), is mainly optimized for processing streaming queries. In essence, we allocate more memory for streaming queries’ operator cache to reduce fetching data and state from the object store, and less memory for storage’s block cache and meta cache.
+    Yes. The default configuration is optimized for streaming queries, allocating more memory to the operator cache to reduce fetching data from the object store.
 
-When a compute node is used for batch serving only, the operator cache is no longer needed. We can increase the memory size of the block cache and meta cache so that more data for batch queries can be cached to reduce the number of remote I/Os to S3.
+    When a compute node is used for batch serving only, the operator cache is not needed.  You can increase the memory allocated to the block cache and meta cache to improve performance for batch queries by caching more data locally.
 
-We recommend using this [configuration](https://github.com/risingwavelabs/risingwave/blob/main/src/config/serving-only.toml).
+    We recommend using this [configuration](https://github.com/risingwavelabs/risingwave/blob/main/src/config/serving-only.toml) for batch-serving compute nodes. For other configuration examples, check out the [RisingWave repository](https://github.com/risingwavelabs/risingwave/tree/main/src/config).
 
-For any other questions or tips regarding performance tuning, feel free to join our [Slack community](https://www.risingwave.com/slack) and become part of our growing network of users. Engage in discussions, seek assistance, and share your experiences with fellow users and our engineers who are eager to provide insights and solutions.
+    </Accordion>
 
-  </Accordion>
+    <Accordion title="What are the key performance metrics to monitor?">
+    See [Monitoring and metrics](/performance/metrics) for a detailed list and explanation of the key performance indicators (KPIs) you should monitor, including CPU usage, memory usage, cache miss ratios, barrier latency, and more.
+    </Accordion>
+
+    <Accordion title="How can I tell if my streaming query is under-resourced?">
+    Several indicators can suggest that your streaming query is under-resourced:
+
+    *   High CPU utilization (see [Monitoring and metrics - Resource utilization](/performance/metrics#resource-utilization)).
+    *   High memory usage (see [Monitoring and metrics - Resource utilization](/performance/metrics#resource-utilization)).
+    *   High cache miss ratios (see [Monitoring and metrics - Cache performance](/performance/metrics#cache-performance)).
+    *   High barrier latency (see [Monitoring and metrics - Barrier monitoring](/performance/metrics#barrier-monitoring) and [High latency](/performance/troubleshoot-high-latency)).
+    *   Backpressure (see [Workload analysis](/performance/workload-analysis) and [High latency](/performance/troubleshoot-high-latency)).
+
+    See [Best practices - Resource allocation](/performance/best-practices#resource-allocation) for guidance on adjusting resources.
+    </Accordion>
+
+    <Accordion title="How can I optimize my queries for performance?">
+    Optimizing queries involves several techniques, including:
+
+    *   **Using appropriate indexes:** See [Best practices - Query optimization](/performance/best-practices#query-optimization).
+    *   **Tuning parallelism:** Adjust `streaming_parallelism` and `batch_parallelism` as needed.
+    *   **Writing efficient SQL:**  Avoid common performance pitfalls like unnecessary joins, full table scans, and inefficient `WHERE` clauses. See [Best practices - Query optimization](/performance/best-practices#query-optimization).
+    * **Data modeling**: See [Best practices - Data modeling](/performance/best-practices#data-modeling).
+    </Accordion>
+
+    <Accordion title="What are common causes of high latency?">
+    High latency can be caused by various factors, including:
+
+    *   Resource constraints (CPU, memory, disk I/O).
+    *   Inefficient queries.
+    *   Backpressure.
+    *   Network issues.
+    *   Slow upstream sources.
+
+    See [High latency](/performance/troubleshoot-high-latency) for a detailed guide to diagnosing and resolving high latency problems.
+    </Accordion>
+
+    <Accordion title="What is the operator cache, and how does it affect performance?">
+    The operator cache is a memory area used by stateful operators (like joins and aggregations) to store intermediate data and state.  A larger operator cache can reduce the need to fetch data from storage (e.g., S3), improving performance. See [Monitoring and metrics - Cache performance](/performance/metrics#cache-performancee) and [Best practices - Resource allocation](/performance/best-practices#resource-allocation) for more information.
+    </Accordion>
+
+    <Accordion title="How does data modeling affect performance?">
+    Proper data modeling is crucial for efficient query processing. Consider factors like data types, primary keys, and how data is distributed. See [Best practices - Data modeling](/performance/best-practices#data-modeling).
+    </Accordion>
+
+    <Accordion title="What is the impact of using materialized views on performance?">
+    Materialized views can significantly improve query performance by pre-computing results. However, they also consume resources (CPU, memory, storage). See [Best practices - Using materialized views](/performance/best-practices#using-materialized-views).
+    </Accordion>
+
+<Accordion title="Where can I view the performance metrics?">
+You can access performance metrics through RisingWave's Grafana dashboards. See [Monitoring and metrics](/performance/metrics) for details on accessing and interpreting these metrics.
+</Accordion>
+
 </AccordionGroup>
 
+For any other questions or tips regarding performance tuning, feel free to join our [Slack community](https://www.risingwave.com/slack) and become part of our growing network of users. Engage in discussions, seek assistance, and share your experiences with fellow users and our engineers who are eager to provide insights and solutions.

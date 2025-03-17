@@ -15,7 +15,8 @@ The details of the dashboard can be found [here](https://github.com/risingwavela
 
 Monitoring resource utilization helps you understand how efficiently your cluster is using its CPU, memory, and other resources. High utilization can indicate bottlenecks, while low utilization might suggest opportunities for cost savings.
 
-### CPU Usage
+### CPU usage
+
 <Frame>
   <img src="/images/CPU_Usage.png"/>
 </Frame>
@@ -44,7 +45,7 @@ In the figure above, we have allocated 12 GB of memory to the compute node. The 
 
 1. If the memory is kept below 5.88 GB (70% of usable memory), we can be sure that the workload only asks for this amount. In other words, the data/state is completely kept in memory, as the eviction is never triggered. As a result, we can tune down the memory resources to save costs.
 2. If the memory is higher than 70% of the usable memory, we consider allocating more memory to speed up if the extra cost is acceptable. Additionally, we recommend taking the cache miss ratio below into consideration when making this decision. 
-See [Best Practices - Resource Allocation](link-to-resource-allocation) for guidance on adjusting memory.  If you are experiencing high latency or slow stream processing, see [Troubleshooting - High Query Latency](link-to-high-latency) and [Troubleshooting - Slow Stream Processing](link-to-slow-stream-processing).
+See [Best Practices - Resource Allocation](/performance/best-practices#resource-allocation) for guidance on adjusting memory.  If you are experiencing high latency or slow stream processing, see [Troubleshooting - High Latency](/performance/troubleshoot-high-latency).
 
 ## Cache performance
 
@@ -54,7 +55,7 @@ Operators such as join and aggregation are stateful. They maintain intermediate 
 
 For example, the following are the cache miss ratio metrics of the join operator, showing the metrics at the actor level. Each operator is parallelized by multiple actors, whose number is equal to the `streaming_parallelism`. By default, the parallelism is the same as the number of CPUs on compute nodes.
 <Frame>
-  <img src="/images/cash_miss_1.png"/>
+  <img src="/images/cache_miss_1.png"/>
 </Frame>
 
 The `total lookups` metric denotes how many lookups a join operator performs per second, and the `cache miss` metric denotes how many times the key does not exist in the memory and RisingWave has to fetch it from the storage engine.
@@ -63,7 +64,7 @@ In the case above, the cache miss rate is `707/10.8K~=6%`, which is quite low. I
 
 Below is the same metric but for the aggregation operator.
 <Frame>
-  <img src="/images/cash_miss_2.png"/>
+  <img src="/images/cache_miss_2.png"/>
 </Frame>
 
 The cache miss rate of actor 25 is `658/2.45K ~= 27%`, which is relatively high. It indicates that we are likely to improve the performance if we increase the memory.
@@ -72,7 +73,7 @@ Other than the operator cache, the storage engine named Hummock on each compute 
 
 We also track the cache miss ratio of these two caches:
 <Frame>
-  <img src="/images/cash_miss_3.png"/>
+  <img src="/images/cache_miss_3.png"/>
 </Frame>
 
 We calculate the cache miss rate of the block (data) cache to be `9.52/401 = 2%` and the cache miss rate of the meta cache to be `0.203/90.2K ~= 0.0002%`.
@@ -88,7 +89,7 @@ It implies that even just a small percentage of cache misses in the meta cache c
 3. Whether we want to increase memory to improve performance is both user-dependent and workload-dependent:
    - How much extra cost the user can afford
    - The number of cache misses may be reduced a little (a lot) if the workload has a weak (strong) data locality.
-4. If you are experiencing high latency or slow stream processing due to cache misses, see [Troubleshooting - High Query Latency](link-to-high-latency) and [Troubleshooting - Slow Stream Processing](link-to-slow-stream-processing). You may also need to address specific resource bottlenecks as described in [Troubleshooting - Specific Bottlenecks](link-to-specific-bottlenecks).
+4. If you are experiencing high latency or slow stream processing due to cache misses, see [Troubleshooting - High Latency](/performance/troubleshoot-high-latency). You may also need to address specific resource bottlenecks as described in [Troubleshooting - Specific Bottlenecks](/performance/specific-bottlenecks).
 
 ## Compaction
 
@@ -105,7 +106,7 @@ This metric illustrates the amount of pending workload from the compactor’s pe
 
 **Takeaway**
 
-Since the total pending bytes keep changing, we first calculate its average over a time period of more than 10 minutes. As a general rule of thumb, we then divide the average over 4 GB to estimate the ideal number of CPUs. If compaction is consistently lagging, it can lead to performance degradation.  See [Troubleshooting - Specific Bottlenecks - Compaction Bottleneck](link-to-compaction-bottleneck) for more details.
+Since the total pending bytes keep changing, we first calculate its average over a time period of more than 10 minutes. As a general rule of thumb, we then divide the average over 4 GB to estimate the ideal number of CPUs. If compaction is consistently lagging, it can lead to performance degradation. See [Troubleshooting - Specific Bottlenecks - Compaction Bottleneck](/performance/specific-bottlenecks#compaction-bottleneck) for more details.
 
 ## Barrier monitoring
 
@@ -124,7 +125,7 @@ RisingWave by default generates a barrier every second and ingests it into the s
 
 In a perfect world, the barrier latency should stay at 1 second. But in reality, we may observe two phenomena in general:
 
-1. The barrier latency keeps climbing and never enters a stabilized phase. At the same time, the number of barriers also keeps increasing. This implies that the system is in serious congestion, i.e., the current resource falls short of handling the workload. We likely need to increase CPU or memory resources by checking the other metrics mentioned above. See [Troubleshooting - High Query Latency](link-to-high-latency) and [Troubleshooting - Slow Stream Processing](link-to-slow-stream-processing). Also, see [Workload Analysis](link-to-workload-analysis) for a deeper understanding of how backpressure impacts barrier latency.
+1. The barrier latency keeps climbing and never enters a stabilized phase. At the same time, the number of barriers also keeps increasing. This implies that the system is in serious congestion, i.e., the current resource falls short of handling the workload. We likely need to increase CPU or memory resources by checking the other metrics mentioned above. See [Troubleshooting - High Latency](/performance/troubleshoot-high-latency). Also, see [Workload Analysis](/performance/workload-analysis) for a deeper understanding of how backpressure impacts barrier latency.
 2. The barrier latency and the barrier number fluctuate but still stabilize around a certain level. This is not abnormal. Due to the dynamic nature of streaming data and RisingWave’s dynamic back-pressure mechanism, it is fine to experience such phenomena as RisingWave keeps adjusting at any given second.
 
 **Takeaway**
