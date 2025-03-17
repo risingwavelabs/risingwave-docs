@@ -49,11 +49,6 @@
       "name": "GitHub",
       "icon": "github",
       "url": "https://github.com/risingwavelabs/risingwave"
-    },
-    {
-      "name": "Website",
-      "icon": "link",
-      "url": "https://risingwave.com/"
     }
   ],
   "tabs": [
@@ -64,10 +59,6 @@
     {
       "name": "Python SDK",
       "url": "python-sdk"
-    },
-    {
-      "name": "Integrations",
-      "url": "integrations"
     },
     {
       "name": "Client Libraries",
@@ -298,7 +289,7 @@
     {"source": "/docs/current/sql-udfs", "destination": "/sql/udfs/sql-udfs"},
     {"source": "/docs/current/rw-integration-summary", "destination": "/integrations/overview"},
     {"source": "/docs/current/use-dbt", "destination": "/integrations/other/dbt"},
-    {"source": "/docs/current/create-sink-kafka", "destination": "/integrations/destinations/apache-kafka"},
+    {"source": "/docs/current/create-sink-kafka", "destination": "/integrations/destinations/kafka"},
     {"source": "/docs/current/sink-to-pulsar", "destination": "/integrations/destinations/apache-pulsar"},
     {"source": "/docs/current/sink-to-aws-kinesis", "destination": "/integrations/destinations/aws-kinesis"},
     {"source": "/docs/current/sink-to-nats", "destination": "/integrations/destinations/nats-and-nats-jetstream"},
@@ -376,6 +367,10 @@
     {"source": "/performance/metrics", "destination": "/performance/metrics"},
     {"source": "/performance/best-practices", "destination": "/performance/best-practices"},
     {"source": "/performance/faq", "destination": "/performance/faq"}
+    {"source": "/integrations/sources/kafka", "destination": "/ingestion/sources/kafka"},
+    {"source": "/integrations/sources/apache-iceberg", "destination": "/ingestion/sources/iceberg"},
+    {"source": "/integrations/sources/postgresql-cdc", "destination": "/ingestion/sources/pg-cdc"},
+    {"source": "/ingestion/overview", "destination": "/ingestion/getting-started/overview"}
   ],
   "navigation": [
     {
@@ -418,6 +413,7 @@
           ]
         },
         "get-started/rw-premium-edition-intro",
+        "get-started/disk-cache",
         {
           "group": "Performance benchmarks",
           "pages": [
@@ -445,25 +441,125 @@
       ]
     },
     {
-      "group": "Manage data",
+      "group": "Working with data",
       "pages": [
         {
           "group": "Ingest data",
           "pages": [
-            "ingestion/overview",
-            "ingestion/supported-source-connectors",
-            "ingestion/change-data-capture-with-risingwave",
-            "ingestion/generate-test-data",
-            "ingestion/format-and-encode-parameters",
-            "ingestion/supported-sources-and-formats",
-            "ingestion/modify-source-or-table-schemas",
-            "ingestion/ingest-additional-fields-with-include-clause"
+           {
+            "group": "Getting started",
+            "pages": [
+              "ingestion/getting-started/overview",
+              "ingestion/getting-started/sources",
+              "ingestion/getting-started/formats-and-encoding-options",
+              "ingestion/getting-started/connect-with-create-source",
+              "ingestion/getting-started/connect-with-create-table"
+            ]
+           },
+           {
+            "group": "Apache Kafka",
+            "pages": [
+              "ingestion/sources/kafka",
+              "ingestion/sources/kafka-config"
+            ]
+           },
+           {
+            "group": "Apache Iceberg",
+            "pages": [
+              "ingestion/sources/iceberg",
+              "ingestion/sources/iceberg-config"
+            ]
+           },
+           {
+            "group": "PostgreSQL CDC",
+            "pages": [
+              "ingestion/sources/pg-cdc",
+              "ingestion/sources/pg-cdc-config"
+            ]
+           },
+           "integrations/sources/mysql-cdc",
+         "integrations/sources/nats-jetstream",
+           {
+            "group": "Webhooks",
+            "pages": [
+              "integrations/sources/webhook",
+              "integrations/sources/github-webhook",
+              "integrations/sources/segment-webhook",
+              "integrations/sources/hubspot-webhook",
+              "integrations/sources/eventbridge-webhook",
+              "integrations/sources/rudderstack-webhook"
+            ]
+          },
+          {
+            "group": "Other connectors",
+            "pages": [
+              {
+                "group": "Message queues",
+                "pages": [
+                  "integrations/sources/Apache pulsar",
+                  "integrations/sources/kinesis",
+                  "integrations/sources/google-pub-sub",
+                  {
+                    "group": "Kafka",
+                    "pages": [
+                      "integrations/sources/confluent-cloud",
+                      "integrations/sources/amazon-msk",
+                      "integrations/sources/automq-kafka",
+                      "integrations/sources/instaclustr-kafka",
+                      "integrations/sources/redhat-amq-streams",
+                      "integrations/sources/warpstream"
+                    ]
+                  },
+                  {
+                    "group": "MQTT",
+                    "pages": [
+                      "integrations/sources/mqtt",
+                      "integrations/sources/coreflux-broker",
+                      "integrations/sources/emqx",
+                      "integrations/sources/hivemq"
+                    ]
+                  },
+                  "integrations/sources/redpanda",
+                  "integrations/sources/solace"
+                ]
+              },
+              {
+                "group": "Databases",
+                "pages": [
+                  "integrations/sources/postgresql-table",
+                  "integrations/sources/mysql-table",
+                  "integrations/sources/sql-server-cdc",
+                  "integrations/sources/mongodb-cdc",
+                  "integrations/sources/citus-cdc",
+                  "integrations/sources/neon-cdc",
+                  "integrations/sources/supabase-cdc"
+                ]
+              },
+              {
+                "group": "Object storage",
+                "pages": [
+                  "integrations/sources/s3",
+                  "integrations/sources/azure-blob",
+                  "integrations/sources/google-cloud-storage"
+                ]
+              }
+              ]
+            },
+           {
+            "group": "Advanced topics",
+            "pages": [
+              "ingestion/advanced/generate-test-data",
+              "ingestion/advanced/modify-source-or-table-schemas",
+              "ingestion/advanced/extract-metadata-from-sources"
+            ]
+           }
           ]
         },
         {
           "group": "Process data",
           "pages": [
             "processing/overview",
+            "integrations/other/dbt",
             {
               "group": "SQL patterns",
               "pages": [
@@ -489,7 +585,18 @@
           "pages": [
             "serve/overview",
             "serve/query-with-select",
-            "serve/query-from-visualization-tools",
+            {
+              "group": "Query from visualization tools",
+              "pages": [
+                "integrations/visualization/overview",
+                "integrations/visualization/beekeeper-studio",
+                "integrations/visualization/dbeaver",
+                "integrations/visualization/grafana",
+                "integrations/visualization/looker",
+                "integrations/visualization/metabase",
+                "integrations/visualization/superset"
+              ]
+            },
             "serve/risingwave-as-postgres-fdw",
             "serve/subscription"
           ]
@@ -498,9 +605,62 @@
           "group": "Deliver data",
           "pages": [
             "delivery/overview",
-            "delivery/supported-sink-connectors"
+            "integrations/destinations/apache-iceberg",
+            "integrations/destinations/apache-kafka",
+            "integrations/destinations/clickhouse",
+            "integrations/destinations/elasticsearch",
+            "integrations/destinations/postgresql",
+            "integrations/destinations/mysql",
+            {
+              "group": "Other connectors",
+              "pages": [
+                {
+              "group": "Message queues",
+              "pages": [
+                "integrations/destinations/apache-pulsar",
+                "integrations/destinations/aws-kinesis",
+                "integrations/destinations/nats-and-nats-jetstream",
+                "integrations/destinations/google-pub-sub",
+                "integrations/destinations/mqtt"
+              ]
+            },            
+            {
+              "group": "Operational",
+              "pages": [
+                "integrations/destinations/mongodb",
+                "integrations/destinations/amazon-dynamodb",
+                "integrations/destinations/sql-server",
+                "integrations/destinations/redis",
+                "integrations/destinations/supabase",
+                "integrations/destinations/tidb",
+                "integrations/destinations/cockroachdb",
+                "integrations/destinations/cassandra-or-scylladb"
+              ]
+            },
+            {
+              "group": "Analytical",
+              "pages": [
+                "integrations/destinations/apache-doris",
+                "integrations/destinations/starrocks",
+                "integrations/destinations/snowflake",
+                "integrations/destinations/bigquery",
+                "integrations/destinations/opensearch",
+                "integrations/destinations/delta-lake"
+              ]
+            },
+            {
+              "group": "Object storages",
+              "pages": [
+                "integrations/destinations/aws-s3",
+                "integrations/destinations/azure-blob",
+                "integrations/destinations/google-cloud-storage",
+                "integrations/destinations/webhdfs"
+              ]
+            }
           ]
         }
+      ]
+    }
       ]
     },
     {
@@ -688,177 +848,7 @@
             },
             "sql/udfs/sql-udfs"
           ]
-        }
-    ,
-    {
-      "group": "Integrations",
-      "pages": [
-        "integrations/overview"
-      ]
-    },
-    {
-      "group": "Sources",
-      "pages": [
-        "integrations/sources/kafka",
-        "integrations/sources/apache-iceberg",
-        "integrations/sources/nats-jetstream",
-        "integrations/sources/postgresql-cdc",
-        "integrations/sources/mysql-cdc",
-        {
-          "group": "Webhooks",
-          "pages": [
-            "integrations/sources/webhook",
-            "integrations/sources/github-webhook",
-            "integrations/sources/segment-webhook",
-            "integrations/sources/hubspot-webhook",
-            "integrations/sources/eventbridge-webhook",
-            "integrations/sources/rudderstack-webhook"
-          ]
         },
-        {
-          "group": "Other connectors",
-          "pages": [
-            {
-              "group": "Message queues",
-              "pages": [
-                "integrations/sources/pulsar",
-                "integrations/sources/kinesis",
-                "integrations/sources/google-pub-sub",
-                {
-                  "group": "Kafka",
-                  "pages": [
-                    "integrations/sources/confluent-cloud",
-                    "integrations/sources/amazon-msk",
-                    "integrations/sources/automq-kafka",
-                    "integrations/sources/instaclustr-kafka",
-                    "integrations/sources/redhat-amq-streams",
-                    "integrations/sources/warpstream"
-                  ]
-                },
-                {
-                  "group": "MQTT",
-                  "pages": [
-                    "integrations/sources/mqtt",
-                    "integrations/sources/coreflux-broker",
-                    "integrations/sources/emqx",
-                    "integrations/sources/hivemq"
-                  ]
-                },
-                "integrations/sources/redpanda",
-                "integrations/sources/solace"
-              ]
-            },
-            {
-              "group": "Databases",
-              "pages": [
-                "integrations/sources/postgresql-table",
-                "integrations/sources/mysql-table",
-                "integrations/sources/sql-server-cdc",
-                "integrations/sources/mongodb-cdc",
-                "integrations/sources/citus-cdc",
-                "integrations/sources/neon-cdc",
-                "integrations/sources/supabase-cdc"
-              ]
-            },
-            {
-              "group": "Object storages",
-              "pages": [
-                "integrations/sources/s3",
-                "integrations/sources/azure-blob",
-                "integrations/sources/google-cloud-storage"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "group": "Destinations",
-      "pages": [
-        "integrations/destinations/apache-kafka",
-        "integrations/destinations/clickhouse",
-        "integrations/destinations/elasticsearch",
-        "integrations/destinations/postgresql",
-        "integrations/destinations/mysql",
-        {
-          "group": "Other connectors",
-          "pages": [
-            {
-              "group": "Message queues",
-              "pages": [
-                "integrations/destinations/apache-pulsar",
-                "integrations/destinations/aws-kinesis",
-                "integrations/destinations/nats-and-nats-jetstream",
-                "integrations/destinations/google-pub-sub",
-                "integrations/destinations/mqtt"
-              ]
-            },
-            {
-              "group": "Databases",
-              "pages": [
-                {
-                  "group": "Operational",
-                  "pages": [
-                    "integrations/destinations/mongodb",
-                    "integrations/destinations/amazon-dynamodb",
-                    "integrations/destinations/sql-server",
-                    "integrations/destinations/redis",
-                    "integrations/destinations/supabase",
-                    "integrations/destinations/tidb",
-                    "integrations/destinations/cockroachdb",
-                    "integrations/destinations/cassandra-or-scylladb"
-                  ]
-                },
-                {
-                  "group": "Analytical",
-                  "pages": [
-                    "integrations/destinations/apache-doris",
-                    "integrations/destinations/starrocks",
-                    "integrations/destinations/snowflake",
-                    "integrations/destinations/bigquery",
-                    "integrations/destinations/opensearch"
-                  ]
-                }
-              ]
-            },
-            {
-              "group": "Data lakes",
-              "pages": [
-                "integrations/destinations/apache-iceberg",
-                "integrations/destinations/delta-lake"
-              ]
-            },
-            {
-              "group": "Object storages",
-              "pages": [
-                "integrations/destinations/aws-s3",
-                "integrations/destinations/azure-blob",
-                "integrations/destinations/google-cloud-storage",
-                "integrations/destinations/webhdfs"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "group": "Visualization tools",
-      "pages": [
-        "integrations/visualization/overview",
-        "integrations/visualization/beekeeper-studio",
-        "integrations/visualization/dbeaver",
-        "integrations/visualization/grafana",
-        "integrations/visualization/looker",
-        "integrations/visualization/metabase",
-        "integrations/visualization/superset"
-      ]
-    },
-    {
-      "group": "Other",
-      "pages": [
-        "integrations/other/dbt"
-      ]
-    },
     {
       "group": "Deploy & operate",
       "pages":
@@ -978,7 +968,6 @@
           "group": "About",
           "pages": [
             "cloud/intro",
-            "cloud/whats-new",
             "cloud/faq"
           ]
         },

@@ -8,9 +8,9 @@ GitHub webhook allows you to build or set up integrations that subscribe to cert
 
 This guide will walk through the steps to set up RisingWave as a destination for GitHub webhooks.
 
-## 1. Create a secret in RisingWave
+## 1. Optional: Create a secret in RisingWave
 
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from GitHub.
+First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from GitHub. This is the recommended way to verify the signature. You could also use a raw string to verify.
 
 ```sql
 CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
@@ -46,16 +46,17 @@ CREATE TABLE wbhtable (
 
 In GitHub webhook, you can choose between `SHA-1` and `SHA-256 HMAC` algorithms for signing the payload. The example above uses `SHA-256 HMAC`. If you want to use `SHA-1`, change `x-hub-signature-256` into `x-hub-signature`, `sha256` into `sha1` in the `VALIDATE` clause.
 
-```sql Example using SHA-1
-CREATE SECRET test_secret WITH ( backend = 'meta') AS 'TEST_WEBHOOK';
--- webhook table example github
-create table wbhtable (
+Or you can also use raw string for verification without secret:
+
+```sql
+-- Example using SHA-1 and raw string 'TEST_WEBHOOK' to generate signature.
+CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
-  connector = 'webhook',
+  connector = 'webhook'
 ) VALIDATE SECRET test_secret AS secure_compare(
   headers->>'x-hub-signature',
-  'sha1=' || encode(hmac(test_secret, data, 'sha1'), 'hex')
+  'sha1=' || encode(hmac('TEST_WEBHOOK', data, 'sha1'), 'hex')
 );
 ```
 
@@ -66,9 +67,7 @@ After configuring RisingWave to accept webhook data, set up GitHub to send event
 ### RisingWave webhook URL
 
 The webhook URL should follow this format:
-```
-https://<HOST>/webhook/<database>/<schema_name>/<table_name>
-```
+`https://<HOST>/webhook/<database>/<schema_name>/<table_name>`.
 
 | Parameter | Description |
 |-----------|-------------|

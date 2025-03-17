@@ -1,0 +1,122 @@
+---
+title: "Apache Iceberg configuration options"
+sidebarTitle: Iceberg config
+description: "Reference for all configuration parameters for connecting to Apache Iceberg."
+---
+
+This page provides a complete reference for all configuration parameters used when connecting RisingWave to Apache Iceberg tables via the `WITH` clause of a `CREATE SOURCE` statement.
+
+## Syntax
+
+```sql
+CREATE SOURCE [IF NOT EXISTS] source_name
+WITH (
+   connector='iceberg',
+   connector_parameter='value', ...
+);
+```
+
+<Note>
+You don’t need to specify the column names for the Iceberg source, as RisingWave can derive them from the Iceberg table metadata directly. Use the [DESCRIBE](/sql/commands/sql-describe) statement to view the column names and data types.
+</Note>
+
+## Parameters
+
+| Parameter             | Description                                                                                                                                   | Required (Conditional)     |
+| :---------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------- |
+| `connector`             | Must be set to `'iceberg'`.                                                                                                                         | Yes      |
+| `type`                  | The type of the Iceberg source. Allowed values: <ul><li>`'append-only'`: For Iceberg tables where data is only appended (no updates or deletes). This is the most common and efficient option.</li><li>`'upsert'`: For Iceberg tables that support updates and deletes (using the "merge-on-read" approach).  This option has performance implications, as it requires more complex processing.</li></ul>    | Yes      |
+| `database.name`     | The name of the Iceberg database containing the table.         | Yes      |
+| `table.name`            | The name of the Iceberg table to ingest data from.      | Yes      |
+
+## Storage configuration (S3-compatible)
+
+These parameters configure the connection to the underlying S3-compatible storage system where the Iceberg data files are stored. This includes AWS S3, MinIO, and other compatible services.
+
+| Parameter             | Description                                                                                                | Required (Conditional)    |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------- | :-------------------------- |
+| `warehouse.path`        | The base path to your Iceberg warehouse in the S3-compatible storage.  Example:  `'s3://my-bucket/iceberg-warehouse'`                  | Conditional                 |
+| `s3.endpoint`       | The endpoint URL for your S3-compatible storage service. <ul><li> *Example (MinIO):* `'http://minio-host:9000'` </li><li> *Example (AWS S3):* See [AWS S3 documentation](https://docs.aws.amazon.com/general/latest/gr/s3.html) for your region's endpoint.</li></ul>     | Conditional                 |
+| `s3.region`         | The AWS region where your S3 bucket is located (e.g., `'us-east-1'`, `'eu-west-2'`).  *Required if using AWS S3 and `s3.endpoint` is not specified.*       | Conditional                 |
+| `s3.access.key`     | Your S3 access key ID.    | Conditional                     |
+| `s3.secret.key`     | Your S3 secret access key.    | Conditional                    |
+| `s3.path.style.access` | Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). | No                          |
+
+## Storage configuration (GCS)
+
+These parameters configure the connection to the underlying GCS storage system where the Iceberg data files are stored.
+
+| Parameter             | Description                                                                                                  | Required (Conditional) |
+| :---------------------- | :----------------------------------------------------------------------------------------------------------- | :--------------------- |
+| `warehouse.path`        | The base path to your Iceberg warehouse in GCS. Example:  `'gs://bucket/path'` | Conditional            |
+| `gcs.credential`      | The credential to access GCS.               | Conditional        |
+
+## Catalog configuration
+
+These parameters configure the Iceberg catalog. The catalog is responsible for managing table metadata (schema, partitioning, location). RisingWave supports several catalog types.
+
+| Parameter          | Description                                                                                                                                                                                                                           | Required (Conditional)     |
+| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------- |
+| `catalog.name`     | The name of the Iceberg catalog. This is a user-defined identifier.  *Optional* for the `storage` catalog, but *required* for all other catalog types.                                     | Conditional                 |
+| `catalog.type`     | The type of Iceberg catalog to use. Supported values: <ul><li>`'storage'`: Uses the underlying file system (e.g., S3) directly for metadata.</li><li>`'rest'`: Uses the Iceberg REST catalog.</li><li>`'hive'`: Uses a Hive Metastore.</li> <li>`'jdbc'`: Uses a JDBC catalog.</li><li> `'glue'`: Uses AWS Glue Data Catalog</li></ul> If not specified, defaults to `'storage'`. | No (defaults to `storage`) |
+| `catalog.uri`      | The URI of the catalog. The required format depends on the `catalog.type`:   <ul><li>`rest`:  The base URL of the REST catalog server (e.g., `'http://rest-catalog:8181'`).</li><li>`hive`:  The Hive Metastore URI (e.g., `'thrift://hive-metastore:9083'`).</li><li> `jdbc`: The JDBC connection string (e.g., `'jdbc:postgresql://postgres:5432/iceberg'`).</li></ul>   | Conditional                 |
+|`warehouse.path`|    The path of the Iceberg warehouse. Currently, only S3-compatible object storage systems and GCS, are supported. It is required if the `catalog.type` is not `rest`. | Conditional|
+| `catalog.credential` | Credential for accessing the Iceberg catalog, used to exchange for a token in the OAuth2 client credentials flow. Applicable only in the `rest` catalog.                                             | No                          |
+| `catalog.token`        | A Bearer token for accessing the Iceberg catalog, used for interaction with the server. Applicable only in the `rest` catalog.                                                         | No                          |
+| `catalog.oauth2-server-uri`   | The `oauth2-server-uri` for accessing the Iceberg catalog, serving as the token endpoint URI to fetch a token if the `rest` catalog is not the authorization server. Applicable only in the `rest` catalog.  | No                          |
+| `catalog.scope`        |  Scope for accessing the Iceberg catalog, providing additional scope for OAuth2. Applicable only in the `rest` catalog.    | No                    |
+| `catalog.jdbc.user`        |  Username for JDBC catalog.                        | No                    |
+| `catalog.jdbc.password`        |   Password for JDBC catalog.                       | No                    |
+
+## Other parameters
+
+| Parameter                    | Description                                                                                   | Required | Default |
+| :--------------------------- | :-------------------------------------------------------------------------------------------- | :------- | :------ |
+| `commit_checkpoint_interval` | Commit every N checkpoints (N > 0).                                                           | No       | 60      |
+
+## Time travel
+
+RisingWave supports querying historical data from Iceberg tables (time travel). You can query data as of a specific timestamp or snapshot ID.
+
+### Syntax
+
+```sql
+-- Query as of a timestamp (STRING format)
+SELECT * FROM source_name FOR SYSTEM_TIME AS OF 'YYYY-MM-DD HH:MM:SS[+-HH:MM]';
+
+-- Query as of a timestamp (UNIX timestamp in seconds)
+SELECT * FROM source_name FOR SYSTEM_TIME AS OF <unix_timestamp_seconds>;
+
+-- Query as of a snapshot ID
+SELECT * FROM source_name FOR SYSTEM_VERSION AS OF <snapshot_id>;
+```
+
+### Examples
+
+```sql
+SELECT * FROM s FOR SYSTEM_TIME AS OF '2100-01-01 00:00:00+00:00'; -- Example with timezone offset
+SELECT * FROM s FOR SYSTEM_TIME AS OF '2024-04-10 12:34:56'; -- Example without timezone (local time)
+SELECT * FROM s FOR SYSTEM_TIME AS OF 4102444800; -- Example with Unix timestamp
+SELECT * FROM s FOR SYSTEM_VERSION AS OF 3023402865675048688; -- Example with Snapshot ID
+```
+
+Note: When the timestamp includes timezone, you should use the `timestamp with time zone` type.
+
+## System tables
+
+RisingWave offers system tables for querying Iceberg metadata:
+
+*   `rw_iceberg_files`: Contains information about the current data files of the Iceberg table.
+*   `rw_iceberg_snapshots`: Contains information about all snapshots of the Iceberg table.
+
+```sql
+-- Query Iceberg data files
+SELECT * FROM rw_iceberg_files;
+
+-- Query Iceberg snapshots
+SELECT * FROM rw_iceberg_snapshots;
+```
+
+## Data Type Mapping
+
+For information on how RisingWave maps Iceberg data types to RisingWave data types, see the [Iceberg RisingWave data type mapping table](/ingestion/sources/iceberg#data-type-mapping).

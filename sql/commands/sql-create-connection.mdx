@@ -23,8 +23,12 @@ Connection parameters can reference secrets using the `SECRET` keyword. This all
 
 | Parameter or clause | Description                                                                                                                      |
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------- |
-| `type` | Required. The type of connection. Supported values: `kafka`, `schema_registry`. |
+| `type` | Required. The type of connection. Supported values: `kafka`, `schema_registry`, `iceberg`. |
 | `properties.bootstrap.server` | The Kafka bootstrap server addresses. Required when `type` is `kafka`. |
+
+<Note>
+Added in v2.3: Support `iceberg` connection.
+</Note>
 
 
 <Accordion title="Click to see all supported properties for Kafka connection.">
@@ -65,6 +69,28 @@ The following properties are optional and can be included in the Kafka connectio
   - `aws.credentials.role.external_id`
 </Accordion>
 
+<Accordion title="Click to see all supported properties for Iceberg connection.">
+
+| Property name                  | Description |
+|:-------------------------------|:------------|
+| catalog.type                  | Type of the Iceberg catalog. |
+| s3.region                     | AWS S3 region. |
+| s3.endpoint                   | AWS S3 endpoint. |
+| s3.access.key                 | AWS S3 access key. |
+| s3.secret.key                 | AWS S3 secret key. |
+| gcs.credential                | Google Cloud Storage credential. |
+| warehouse.path                | Path of the Iceberg warehouse, applicable only in storage catalog. |
+| catalog.name                  | Name of the catalog, optional for storage catalog, required for others. |
+| catalog.uri                   | URI of the Iceberg catalog, applicable only in REST catalog. |
+| catalog.credential            | Credential for accessing Iceberg catalog, applicable only in REST catalog. |
+| catalog.token                 | Token for interacting with REST catalog server. |
+| catalog.oauth2-server-uri     | OAuth2 token endpoint URI, applicable only in REST catalog. |
+| catalog.scope                 | Additional OAuth2 scope for accessing the Iceberg catalog, applicable only in REST catalog. |
+| s3.path.style.access          | Enables path-style access for AWS S3. |
+| catalog.jdbc.user             | JDBC user for catalog access. |
+| catalog.jdbc.password         | JDBC password for catalog access. |
+
+</Accordion>
 
 ## Example
 
@@ -98,6 +124,34 @@ CREATE TABLE t WITH (
     topic = 'demo-topic', 
     connection = conn_kafka
 ) FORMAT PLAIN ENCODE AVRO (connection = sr_conn);
+```
+
+To create an Iceberg connection:
+
+```sql
+CREATE CONNECTION CONN WITH (
+    type = 'iceberg',
+    catalog.name = 'demo',
+    catalog.type = 'storage',
+    warehouse.path = 's3a://hummock001/iceberg-data',
+    s3.endpoint = 'http://127.0.0.1:9301',
+    s3.region = 'us-east-1',
+    s3.access.key = 'hummockadmin',
+    s3.secret.key = 'hummockadmin'
+);
+```
+
+```sql
+CREATE SINK sink1 from s1 WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    database.name = 'demo_db',
+    table.name = 'test_connection_table',
+    connection = conn,
+    create_table_if_not_exists = 'true',
+    commit_checkpoint_interval = 1,
+    primary_key = 'i1,i2',
+);
 ```
 
 To create a source, table or sink from the connection, the name of connector and connection must match those specified above. Also, the attributes defined in the connection and the source/table/sink cannot overlap:
