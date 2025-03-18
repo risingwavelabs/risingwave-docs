@@ -20,7 +20,8 @@ The following are Premium Edition features, which include a "Premium Edition Fea
 
 ### Tooling
 
-Premium Edition customers can take advantage of our on-prem management tool to enhance observability for their RisingWave clusters. This tool accelerates issue detection, streamlines troubleshooting, and optimizes performance.  
+Premium Edition customers can take advantage of our on-prem management tool to enhance observability for their RisingWave clusters. This tool accelerates issue detection, streamlines troubleshooting, and optimizes performance.
+  
 A lightweight version is available under the Apache 2.0 License: [Wavekit-lite](https://github.com/risingwavelabs/wavekit-lite).
 
 ### Performance and cost
@@ -64,6 +65,12 @@ For RisingWave Cloud users, all Premium Edition features are available out of th
 
 Users of the Community Edition need to purchase and set up a license key to access Premium Edition features. The license key, essentially a certificate, is a JSON Web Token (JWT) that encodes information such as the license tier and expiration time. The integrity of the license key is validated using asymmetric encryption.
 
+### Free trial
+
+RisingWave includes a trial of paid features for clusters with up to 4 compute node CPUs for users to evaluate those features on a small scale. When there are more CPUs in the cluster, the trial will be unavailable for both existing and future jobs, and users will need to acquire a license key to continue using the paid features.
+
+For a fresh deployment, this comes automatically. For an existing deployment upgrading to this version, users may need to refresh the license key by executing ALTER SYSTEM SET license_key TO DEFAULT; in the SQL shell to activate the trial.
+
 ### Set license key
 
 Depending on the deployment, there are several different ways of setting license key.
@@ -76,28 +83,28 @@ Depending on the deployment, there are several different ways of setting license
 
 1. Prepare a secret under the same namespace as the RisingWave object, e.g.,
 
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: risingwave-license
-stringData:
-  licenseKey: |
-    <content of the license key>
-```
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: risingwave-license
+    stringData:
+      licenseKey: |
+        <content of the license key>
+    ```
 
 2. Set the following fields of the RisingWave object.
 
-```yaml
-apiVersion: risingwave.risingwavelabs.com/v1alpha1
-kind: RisingWave
-metadata:
-  name: <your-risingwave>
-spec:
-  licenseKey:
-    secretName: risingwave-license # the name of the secret above
-    secretKey: licenseKey # the key in the secret above referencing the data of the license key
-```
+    ```yaml
+    apiVersion: risingwave.risingwavelabs.com/v1alpha1
+    kind: RisingWave
+    metadata:
+      name: <your-risingwave>
+    spec:
+      licenseKey:
+        secretName: risingwave-license # the name of the secret above
+        secretKey: licenseKey # the key in the secret above referencing the data of the license key
+    ```
 
 3. Apply the RisingWave object to Kubernetes.
 
@@ -135,15 +142,15 @@ For detailed instructions of deploying RisingWave with Helm, please check the [D
 
 3. Apply the values with the helm command-line tool.
 
-```shell
-# For fresh installation, you could provide additional values with more "-f <values.yaml>"
-# For more information of the helm install, please refer to https://helm.sh/docs/helm/helm_install/
-helm install -f values.yaml [-f <other-values.yaml>] <release-name> risingwavelabs/risingwave
+    ```shell
+    # For fresh installation, you could provide additional values with more "-f <values.yaml>"
+    # For more information of the helm install, please refer to https://helm.sh/docs/helm/helm_install/
+    helm install -f values.yaml [-f <other-values.yaml>] <release-name> risingwavelabs/risingwave
 
-# For upgrading existing one.
-# For more information of the helm upgrade, please refer to https://helm.sh/docs/helm/helm_upgrade/
-helm upgrade -f values.yaml --reuse-values <release-name> risingwavelabs/risingwave
-```
+    # For upgrading existing one.
+    # For more information of the helm upgrade, please refer to https://helm.sh/docs/helm/helm_upgrade/
+    helm upgrade -f values.yaml --reuse-values <release-name> risingwavelabs/risingwave
+    ```
 
 The pod of the meta node (or standalone node) will restart afterwards to set the license key.
 
@@ -205,4 +212,4 @@ RisingWave provides three levels of support packages:
 
 ## Pricing
 
-When you purchase the RisingWave Premium Edition, it automatically includes the Starter support package at no additional cost. If you require more advanced support, you may upgrade to the **Pro** or **Mission-Critical** support packages for an additional fee. For detailed pricing information on the Premium Edition and support packages, please contact our sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+When you purchase the RisingWave Premium Edition, it automatically includes the **Starter** support package at no additional cost. If you require more advanced support, you may upgrade to the **Pro** or **Mission-Critical** support packages for an additional fee. For detailed pricing information on the Premium Edition and support packages, please contact our sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
