@@ -7,27 +7,24 @@ description: "In RisingWave, certain configurations are node-specific and can va
 
 Node-specific configurations can be set in the `risingwave.toml` configuration file. Here's the steps on how to set them up:
 
-1. Create or locate your `risingwave.toml` file.
-This file will contain all your node-specific configurations. If it doesn't exist, create a new one.
-2. Edit the `risingwave.toml` file.
-Open the file in a text editor. Each configuration item should be specified in the format `config_name = value`. For example:
+1. Create or locate your `risingwave.toml` file. This file will contain all your node-specific configurations. If it doesn't exist, create a new one.
+2. Edit the `risingwave.toml` file. Open the file in a text editor. Each configuration item should be specified in the format `config_name = value`. For example:
 
-```bash
-[storage.data_file_cache]
-dir = "/risingwave/foyer/meta"
-capacity_mb = 20480
-```
-3. Save your changes.
-After editing, save the `risingwave.toml` file.
+    ```toml
+    [storage.data_file_cache]
+    dir = "/risingwave/foyer/meta"
+    capacity_mb = 20480
+    ```
+
+3. Save your changes. After editing, save the `risingwave.toml` file.
 4. Provide the configuration file to the node.
-You can do this via the `--config-path` command-line argument when starting the node. For example:
-```bash
-risingwave --config-path=/path/to/risingwave.toml
-```
-Alternatively, you can set the `RW_CONFIG_PATH` environment variable to the path of your `risingwave.toml` file.
-For example, in a Kubernetes environment, you can copy the configuration file into the Docker container, or mount a path containing the configuration file into the pod. Then, specify the path to the configuration file using the `RW_CONFIG_PATH` environment variable or the `--config-path` command-line argument.
-5. Restart the node.
-For the changes to take effect, you must restart the node.
+    You can do this via the `--config-path` command-line argument when starting the node. For example:
+    ```bash
+    risingwave --config-path=/path/to/risingwave.toml
+    ```
+    Alternatively, you can set the `RW_CONFIG_PATH` environment variable to the path of your `risingwave.toml` file.
+    For example, in a Kubernetes environment, you can copy the configuration file into the Docker container, or mount a path containing the configuration file into the pod. Then, specify the path to the configuration file using the `RW_CONFIG_PATH` environment variable or the `--config-path` command-line argument.
+5. Restart the node. For the changes to take effect, you must restart the node.
 
 Any items present in `risingwave.toml` will override the default values in the source code. If no configuration file is specified, the default values in `/risingwave/src/common/src/config.rs` will be used.
 
@@ -37,7 +34,7 @@ For more details about the parameters in the configuration file, see [RisingWave
 
 Configurations for different components lie under different TOML sections. Here's an example:
 
-```sql
+```toml
 [system]
 barrier_interval_ms = 1000
 checkpoint_frequency = 1
@@ -63,7 +60,7 @@ System configurations are used to **initialize** the [system parameters](/operat
 
 Example for the system configuration section:
 
-```sql
+```toml
 [system]
 barrier_interval_ms = 1000
 checkpoint_frequency = 1
@@ -79,7 +76,7 @@ For more information on system parameters, please refer to [View and configure s
 
 Streaming configurations can be set in `[streaming]` section in the configuration file. For example:
 
-```bash
+```toml
 [streaming]
 unsafe_enable_strict_consistency = true
 ```
@@ -159,3 +156,22 @@ Below is an example of the cache refill configuration for your reference.
 #### Other storage configurations
 
 Except for the above, RisingWave also provides some other storage configurations to help control the overall buffer and cache limits. Please see [Dedicated compute node](/operate/dedicated-compute-node) for more.
+
+### UDF configurations
+
+<Note>
+
+Added in v2.1.5, v2.2.4, v2.3.0: Allow enable/disable the creation of embedded Python, JavaScript, and WebAssembly UDFs.
+
+</Note>
+
+User-defined function (UDF) configurations can be set in the `[udf]` section in the configuration file. For example:
+
+```toml
+[udf]
+enable_embedded_python_udf = false
+enable_embedded_javascript_udf = true
+enable_embedded_wasm_udf = true
+```
+
+Due to security concerns, the creation of embedded Python UDFs is disabled by default in the latest versions of RisingWave. You can enable it at your own risk by setting `enable_embedded_python_udf` to `true` in the configuration file.
