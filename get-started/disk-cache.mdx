@@ -1,29 +1,29 @@
 ---
-title: Pluggable disk cache
-description: "This topic describes the pluggable disk cache feature of RisingWave."
-sidebarTitle: "Pluggable disk cache"
+title: Elastic disk cache
+description: "This topic describes the elastic disk cache feature of RisingWave."
+sidebarTitle: "Elastic disk cache"
 ---
 
 <Note>
-Detailed instructions for enabling and configuring the pluggable disk cache feature will be provided when the feature is officially released in RisingWave v2.3.
+Detailed instructions for enabling and configuring the elastic disk cache feature will be provided when the feature is officially released in RisingWave v2.3.
 </Note>
 
 RisingWave is designed for high-performance stream processing, and it achieves this by **leveraging S3 as its primary storage**. This means all data, including the internal states of streaming jobs, tables, and materialized views, is persisted in S3. To optimize performance, RisingWave also utilizes local memory as a cache, allowing for rapid data access.
 
 However, local memory is finite. When the data required for a streaming operation (the "working set") exceeds the available memory, a cache miss occurs. This forces RisingWave to retrieve the data from S3, introducing latency and potentially increasing costs due to frequent S3 access. While S3 provides cost-effective storage for large datasets, repeated access for active processing can become expensive.
 
-To address this challenge, RisingWave offers the **pluggable disk cache** to significantly reduce S3 access and improve performance. The pluggable disk cache utilizes **local disk storage**, such as NVMe SSDs or AWS EBS volumes, as an extension of the memory cache. This allows RisingWave to keep a larger portion of the working set readily available, minimizing the need to fetch data from S3.
+To address this challenge, RisingWave offers the **elastic disk cache** to significantly reduce S3 access and improve performance. The elastic disk cache utilizes **local disk storage**, such as NVMe SSDs or AWS EBS volumes, as an extension of the memory cache. This allows RisingWave to keep a larger portion of the working set readily available, minimizing the need to fetch data from S3.
 
 ![Tiered storage architecture](/images/tiered-storage-architecture.png)
 
-### Key use cases for pluggable disk cache
+### Key use cases for elastic disk cache
 
-The pluggable disk cache is particularly beneficial for users with performance-sensitive workloads, including:
+The elastic disk cache is particularly beneficial for users with performance-sensitive workloads, including:
 
 1.  **Large-state queries:** Complex streaming jobs involving joins, time windowing, aggregations, and other stateful operations can generate substantial internal state. If this state exceeds the capacity of the local memory cache, performance can degrade significantly without a disk cache.
 2.  **Data serving:** When querying data from tables or materialized views, RisingWave must fetch data from S3 if it's not present in the memory cache. This can lead to high latency and increased costs, especially for frequently accessed data. The disk cache significantly reduces this latency.
 
-### Benefits of pluggable disk cache
+### Benefits of elastic disk cache
 
 *   **Reduced S3 access & costs:** By keeping more data locally available, the disk cache minimizes the frequency and volume of data retrieved from S3, leading to lower costs.
 *   **Improved dynamic scaling:** The disk cache dramatically reduces cache warm-up time during scaling operations. New nodes can quickly access data from their local disk cache instead of relying solely on S3.
