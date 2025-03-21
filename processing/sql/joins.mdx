@@ -62,9 +62,13 @@ A full outer join (or simply, full join) returns all rows when there is a match 
 
 ## ASOF joins
 
+<Note>
+ASOF join is supported for streaming queries since v2.1 and batch queries since v2.3.
+</Note>
+
 An ASOF join returns the nearest record in a reference table based on the event time or any ordered properties.
 
-RisingWave supports these ASOF join types:
+RisingWave supports the following ASOF join types for both streaming and batch queries. Be aware that for batch queries, when multiple rows in the right table qualify as the nearest match in an ASOF JOIN (i.e., they share the same ordered property, such as timestamp), the result may vary across executions.
 
 - Inner ASOF join matches records only when both tables have corresponding data. Here's the syntax of an inner ASOF join:
 
@@ -81,7 +85,7 @@ RisingWave supports these ASOF join types:
   ON A.field1 = B.field1 AND A.field2 <= B.field2;
   ```
 In both types of ASOF joins, the join condition must include at least one equality condition (`=`) and one inequality condition (`>=`, `>`, `<=`, or `<`). The inequality condition applies to all data types that support inequality comparison while a time-related type is commonly used.
-ASOF join is currently supported for streaming operations only.
+
 For example, suppose you have two tables:
 
 - `stock_prices`: Contains stock price data at certain timestamps.
@@ -236,9 +240,7 @@ Process-time temporal joins are divided into two categories: append-only process
 
 An append-only temporal join is often used to widen a fact table. Its advantage is that it does not require RisingWave to maintain the join state, making it suitable for scenarios where the dimension table is not updated, or where updates to the dimension table do not affect the previously joined results. To further improve performance, you can use the index of a dimension table to form a join with the fact table.
 
-#### Syntax
-
-```sql
+```sql Syntax
 SELECT ... FROM <table_expression> [AS <alias>]
 [ LEFT | INNER ] JOIN <table_expression> FOR SYSTEM_TIME AS OF PROCTIME() [AS <alias>]
 ON <join_conditions>;
@@ -253,10 +255,7 @@ ON <join_conditions>;
 
 </Note>
 
-
-#### Example
-
-If you have an append-only stream that includes messages like below:
+For example, if you have an append-only stream that includes messages like below:
 
 | transaction\_id | product\_id | quantity | sale\_date | process\_time       |
 | :-------------- | :---------- | :------- | :--------- | :------------------ |
@@ -294,17 +293,13 @@ ON product_id = id WHERE process_time BETWEEN valid_from AND valid_to;
 
 Compared to the append-only temporal join, the non-append-only temporal join can accommodate non-append-only input for the left table. However, it introduces an internal state to materialize the lookup result for each left-hand side (LHS) insertion. This allows the temporal join operator to retract the join result it sends downstream when update or delete messages arrive.
 
-#### Syntax
-
 The non-append-only temporal join shares the same syntax as the append-only temporal join.
 
-```sql
+```sql Syntax
 <table_expression> [ LEFT | INNER ] JOIN <table_expression> FOR SYSTEM_TIME AS OF PROCTIME() ON <join_conditions>;
 ```
 
-#### Example
-
-Now if you update the table `sales`:
+For example, if you update the table `sales`:
 
 ```sql
 UPDATE sales SET quantity = quantity + 1;
