@@ -1,18 +1,143 @@
 ---
 title: "Architecture"
-description: "The architecture of RisingWave is illustrated in the diagram below. It comprises three main components: a meta node, compute nodes, and compactor nodes."
+description: "Written for developers who want a deeper understanding of RisingWave Architecture,
+              It covers the various nodes, their responsibilities and relationships with each other, according to our product architecture."
 sidebarTitle: Overview
 mode: wide
 ---
 
+# Cluster Overview
+
+> If you’re new to RisingWave, it will be helpful to understand what it is first: https://docs.risingwave.com/get-started/intro.
+
+RisingWave has several main components: Serving, Streaming, Compactor and the Meta service. At its core, RisingWave is a **unified batch and stream database**.
+
 <Frame>
-  <img src="/images/rw_architecture.png"/>
+  <img src="/images/rw-architecture-v2.png"/>
 </Frame>
 
-The **meta node** takes charge of managing the metadata of compute and compactor nodes and orchestrating operations across the system. Here metadata refers to the inner representation of databases, tables, materialized views, sources, and so on. Meta node acts as the brain of the entire system; loss of metadata could lead to data loss or irrecoverability across the cluster. Starting with v2.1.0, RisingWave fully deprecates the etcd meta backend and uses SQL backend to scale metadata. For more information, see the [migration guide](/deploy/migrate-to-sql-backend).
+## Serving Node
 
-The **compute nodes** are responsible for ingesting data from upstream systems, parsing and running SQL queries, and delivering data to downstream systems.
+This is the service that serves user requests. It is designed to be PostgreSQL wire compatible, so tools like `psql` can be used to connect to it.
 
-The **compactor nodes** handle data storage and retrieval from object storage. They also perform data compaction to optimize storage efficiency.
+For batch queries, it will directly execute them. For stream queries, an execution plan will be generated, and dispatched to the stream engine for execution.
 
-RisingWave employs an LSM (Log-Structured Merge) tree structure to manage the internal state of computations. The LSM tree continuously compacts and packages data, transitioning it from an unordered to an ordered state. The compaction process within the LSM tree consumes a significant amount of computational resources, hence RisingWave introduces separate **compactor nodes** to offload the compaction process, minimizing its impact on stream processing.
+### Batch Query Execution Modes
+
+There are two serving execution modes, *local* and *distributed*. Depending on the projected computation workload for the batch query, we will automatically select either of these modes.
+
+For queries which don’t require much computation, the overhead is likely in the initial optimization passes. So we use **local execution mode**. This mode avoids full optimizer passes and opts for simpler heuristic based passes. Point queries use this execution mode.
+
+For more complex queries with several joins and aggregations, we use **distributed execution mode.** It is likely that these queries take a longer time during batch execution. So we want to thoroughly optimize them, and distribute their execution over the serving worker nodes.
+
+### Iceberg Serving Engine
+
+The iceberg serving engine runs when a table has `engine=iceberg` specified, powered by [Apache Iceberg table format](https://iceberg.apache.org/). Its data is stored in columnar format for more performant ad hoc OLAP-style queries.
+
+### Batch Query Lifecycle
+
+<Frame>
+  <img src="/images/batch-query-lifecycle.png"/>
+</Frame>
+
+The user will initially send a query to the serving node. The parser will parse the raw query into an **Abstract Syntax Tree (AST).** The binder will resolve the symbols in the ASTs to concrete database objects, producing a **Bound AST**. For instance, table names will be bound to the actual table specification, resolving wildcards `*` to actual physical columns of a table. The optimizer will transform the **Bound AST** in several optimization passes, generating a batch execution plan at the end of it.
+
+The fragmenter will then break this execution plan into **fragments**. Fragments are groupings of execution nodes, where each group has the same data distribution, so they minimize data shuffling.
+
+Finally, the scheduler will schedule the execution of the fragmented execution plan. Each execution node will have multiple instances spawned per data partition, to do computation in parallel. There will always be a final shuffle to aggregate all the partitioned results to a single instance, and a root node to do any further sorting if needed. From the root node we pass the results back to the session.
+
+## Streaming Node
+
+The streaming node executes **stream queries**. This involves managing their state and doing various computations like aggregations and joins.
+
+### **Stream Queries**
+
+These are queries that run incremental, “real-time” computation. Given a normal batch query like:
+
+```sql
+select count(*) from t;
+```
+
+It can be changed to its streaming equivalent, by prefixing `CREATE MATERIALIZED VIEW`.
+
+```sql
+CREATE MATERIALIZED VIEW m1 as select count(*) from t;
+```
+
+Instead of executing once, it will execute continuously, as updates come in from its upstream relations. For instance when `t` receives a DML update like `INSERT into t values(1)`, this gets propagated to `m1`. The stream graph for `m1` will take the last count, and add 1 to it. It will then materialize this new count. The latest results can always be queried from `m1`, for instance by doing `select * from m1`.
+
+### Stream Query Lifecycle
+
+<Frame>
+  <img src="/images/stream-query-lifecycle.png"/>
+</Frame>
+
+The query will go through the same initial phases as [Batch Query Lifecycle](https://www.notion.so/Batch-Query-Lifecycle-1b9f0d69cb768040861ffb3611e7d1bb?pvs=21). After fragmentation, we will diverge from the batch execution path, and send the execution plans to the **meta node**.
+
+Using the execution plan, the meta node will schedule the jobs to streaming worker nodes. It does so by instructing the worker nodes to build the execution nodes specified in the plan. Execution nodes will run filtering, join, aggregation and other various computations. You can run `EXPLAIN` to get a sense of what the execution graph looks like. After the execution nodes are built, we then trigger the backfilling of historical data, to ensure data consistency with its upstreams. Once backfill is done, the stream job is created. It will continuously process the upstream data, materialize the updates, and propagate the transformed data stream to any downstreams.
+
+### Further Reading
+
+ https://risingwavelabs.github.io/risingwave/design/streaming-overview.html
+
+## Meta Node
+
+The meta node manages the cluster metadata by working with a metastore (a highly available SQL database like AWS RDS). All database objects are persisted in the meta store. The frontend node retrieves the database catalog from the meta node, and caches it locally to serve the queries.
+
+The meta node also manages the lifecycle of stream jobs, from creation, to checkpointing their state for consistency, and deletion.
+
+For job creation, frontend sends the planned query to meta. Meta will further instantiate them to actors and decide which compute node should run the actors. Then it will initiate their creation on Compute Node.
+
+For checkpointing, meta sends barrier to the streaming nodes. The streaming nodes will then commit their state and propagate this barrier to their downstream nodes. The terminal nodes will then send the barriers back to the meta node for collection. Once the checkpoint barriers are all collected by the meta node, and the state has been uploaded to the object store, we will finish the checkpoint and have a consistent snapshot.
+For recovery, meta initiates actor recreation on Compute Node, starting from the last checkpoint snapshot for consistency.
+Finally, the meta node also manages compaction. It will generate compaction tasks, issue these tasks to the compaction nodes, and once a compaction task is done, commit the metadata to the meta store.
+
+### Meta Store
+
+The meta store is our persistence layer for metadata. We are compatible with Postgres, MySQL and Sqlite. All of these can function as our meta store.
+
+## Compactor
+
+RisingWave uses a Log Structured Merge (LSM) Tree storage model. This means that data is written in a purely append-only way. Even for deletion, we just append tombstone records. It is also **tiered**, from L0→L6 (and potentially more). Data initially gets written to L0, and gets progressively compacted down to the higher levels. L0 will get compacted to L1, L1 to L2 and so on. Naturally this means that hot data resides at lower levels, and cold data at higher levels.
+
+Compaction is required to ensure any **reads** from storage are not slow. Initially, data is unsorted when it gets written to the object store at L0. Compaction will ensure it is sorted within each level from L1 onwards. In order to read a consistent snapshot of the data, we need to merge sort it, based on the access key range. This is because different parts of the data may lie in different levels from L0 to L6. If the data is fragmented across all levels, and there’s a large unsorted chunk of it in L0, the merge sort will take a long time. But if compaction regularly running, L0 should be regularly sorted, and kept small. By doing this ahead of time, it minimizes the amount of sorting and merging we need to do on reading. Then reads can be fast.
+
+# Node-Node Relations
+
+This section covers how different nodes interact. This provides a better understanding of resource isolation at the node level, and scaling considerations.
+
+## Compute-Storage Disaggregation
+
+The object storage is our persistence layer. We use OpenDAL to abstract over different storage backends such as AWS S3, Google Cloud Storage (GCS), Azure Blob Storage and Minio.
+
+This means that there’s no limit in terms how much data is warehoused in RisingWave. It also means we can freely scale Compute Nodes, without having to scale our storage, since there’s virtually no limit.
+
+Each Compute Node operates completely independently of the other. This allows us to have high parallelism when executing both stream and batch jobs. Data streams are partitioned, and hashed to **vnodes**. Because each compute node owns an independent set of vnodes, their computation is totally isolated from other compute nodes.
+
+## **Compute-Compactor**
+
+As the compute node scales up in resource (for instance 1 cpu to 8 cpus), the parallelism of data ingestion also increases. We could see a spike from 100K r/s being ingested to 800K r/s being ingested for instance. This means that the write pressure to storage could also greatly increase and we could accumulate a lot of unsorted data in L0.
+
+This will worsen read performance, because when reading a range of values, we need to sort them to deconflict older records with newer ones. This affects our serving performance and also streaming performance, because streaming needs to read states sometimes to update them, or to refresh the operator cache for stateful queries.
+
+Hence it is typically recommended to keep a 2:1 ratio between compute and compactor sizes. For instance with a 4 cpu core, 16 GB memory compute node, we should be using a 2 cpu core, 8 GB compactor node. In a write heavy workload, for instance where 500K rows are written to storage per second, a 1:8 compute:compactor ratio is recommended. This can typically happen during backfill of historical data, where the ingestion size is really large. You can check the section: https://docs.risingwave.com/performance/specific-bottlenecks#write-stall on how to diagnose compaction bottlenecks.
+
+In RisingWave Cloud, we can use **Serverless Compaction**, which is in the **alpha** stage, to autoscale compactors, to simplify compaction resource management.
+
+### Compute-Meta
+
+As the compute node scales up in resource, the metadata size also increases. For instance if we scaled from 1 to 64 cores, the number of actors increases 64 times. We need to capture the metadata of these new actors, and this puts pressure on the meta node.
+
+As such we generally recommend a 4:1 ratio between compute and meta sizes. For instance, with 8 cpu cores for the compute node, we recommend 2 cpu cores for the meta node.
+
+### Compute CPU:Memory Ratios
+
+When scaling vertically, we should keep a 1:4 ratio between cpu and memory. This is because memory is used by stateful operators to maintain a cache to avoid latency penalties. It is also used to cache blocks of SortedStringTable (SST) files which are fetched from S3.
+
+If memory is insufficient, disk cache can also be used to provide a cache tier in between the in-memory block-cache and object store.
+
+# Related
+
+- [key-concepts](./key-concepts.mdx)
+- [faq-using-risingwave](./faq-using-risingwave.mdx)
+- [performance-faq](./performance-faq.mdx)
