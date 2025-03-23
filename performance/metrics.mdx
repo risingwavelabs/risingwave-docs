@@ -17,9 +17,7 @@ Monitoring resource utilization helps you understand how efficiently your cluste
 
 ### CPU usage
 
-<Frame>
-  <img src="/images/CPU_Usage.png"/>
-</Frame>
+![CPU Usage](/images/CPU_Usage.png)
 
 Among all of the components, we primarily focus on the CPU usage of compute nodes and compactor nodes. In the setting of the figure above, we have allocated 8 CPUs for the compute node and 8 CPUs for the compactor node.
 
@@ -29,9 +27,10 @@ Among all of the components, we primarily focus on the CPU usage of compute node
 2. We can apply the same reasoning to compactor nodes. We will revisit this when we introduce the metrics “LSM Compact Pending Bytes”, which suggests the ideal number of CPUs to reserve for compaction workload.
 
 ### Memory usage
-<Frame>
-  <img src="/images/memory_usage.png"/>
-</Frame>
+
+
+ ![Memory Usage](/images/memory_usage.png")
+
 
 A simplified description of RisingWave’s memory control mechanism:
 
@@ -54,27 +53,25 @@ Operators such as join and aggregation are stateful. They maintain intermediate 
 ### Operator cache miss ratios
 
 For example, the following are the cache miss ratio metrics of the join operator, showing the metrics at the actor level. Each operator is parallelized by multiple actors, whose number is equal to the `streaming_parallelism`. By default, the parallelism is the same as the number of CPUs on compute nodes.
-<Frame>
-  <img src="/images/cache_miss_1.png"/>
-</Frame>
+
+![Cache Miss 1](/images/cache_miss_1.png)
 
 The `total lookups` metric denotes how many lookups a join operator performs per second, and the `cache miss` metric denotes how many times the key does not exist in the memory and RisingWave has to fetch it from the storage engine.
 
 In the case above, the cache miss rate is `707/10.8K~=6%`, which is quite low. Increasing memory may not do too much good.
 
 Below is the same metric but for the aggregation operator.
-<Frame>
-  <img src="/images/cache_miss_2.png"/>
-</Frame>
+
+ ![Cache Miss](/images/cache_miss_2.png)
+
 
 The cache miss rate of actor 25 is `658/2.45K ~= 27%`, which is relatively high. It indicates that we are likely to improve the performance if we increase the memory.
 
 Other than the operator cache, the storage engine named Hummock on each compute node maintains the block (data) cache and meta cache. The data cache stores data. Unlike the operator cache, the block (data) cache stores everything in its binary/serialized format. And all the operators share the same block cache. The meta cache stores metadata. Hummock requires metadata to locate the data files it needs to read from S3.
 
 We also track the cache miss ratio of these two caches:
-<Frame>
-  <img src="/images/cache_miss_3.png"/>
-</Frame>
+
+![Cache Miss Ratio](/images/cache_miss_3.png")
 
 We calculate the cache miss rate of the block (data) cache to be `9.52/401 = 2%` and the cache miss rate of the meta cache to be `0.203/90.2K ~= 0.0002%`.
 
@@ -98,9 +95,8 @@ Compaction is a background process that merges and reorganizes data in RisingWav
 ### LSM tree compact pending bytes
 
 As described in the CPU usage section, we can estimate the ideal CPU resources allocated for compactors by considering the LSM Tree Compact Pending Bytes.
-<Frame>
-  <img src="/images/LSM.png"/>
-</Frame>
+
+![LSM Tree Compaction Pending Byte](/images/LSM.png)
 
 This metric illustrates the amount of pending workload from the compactor’s perspective. Due to the bursty nature of the compactor’s workload, we recognize the urgency to make a change only if the pending bytes have remained above a certain threshold for more than 10 minutes.
 
@@ -113,13 +109,10 @@ Since the total pending bytes keep changing, we first calculate its average over
 Barriers are a fundamental mechanism for synchronization and consistency in RisingWave. Monitoring barrier metrics is crucial for identifying potential performance issues.
 
 ### Barrier latency and barrier number
-<Frame>
-  <img src="/images/barrier_latency.png"/>
-</Frame>
-<br/>
-<Frame>
-  <img src="/images/barrier_number.png"/>
-</Frame>
+
+![Barrier Latency](/images/barrier_latency.png)
+
+![Barrier Number](/images/barrier_number.png)
 
 RisingWave by default generates a barrier every second and ingests it into the source operator (e.g., operators that read data from upstream) among regular input data. The barrier serves multiple purposes when it flows through each operator, e.g., triggering the computation of the delta between the current barrier and the last barrier, flushing new states into the storage engine, determining the completion of a checkpoint, etc.
 
@@ -138,9 +131,7 @@ Monitoring data ingestion metrics helps you understand the rate at which RisingW
 
 ### Source throughput
 
-<Frame>
-  <img src="/images/source_throughput.png"/>
-</Frame>
+![Source Throughput](/images/source_throughput.png)
 
 Particularly among stateless queries (e.g., simple ETL queries that transform data but do not involve stateful computation), we often find that RisingWave can be bottlenecked by the limitation of RisingWave’s upstream system.
 
