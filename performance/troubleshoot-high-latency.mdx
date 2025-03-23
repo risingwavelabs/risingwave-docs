@@ -10,10 +10,8 @@ High latency, manifesting as slow stream processing in RisingWave, is a common p
 Several symptoms can indicate high latency and slow stream processing:
 
 *   **High barrier latency:** Examine the **Barrier Latency** panel in the **Grafana dashboard (dev)** > **Streaming** section. A consistently high latency curve indicates that barriers are getting stuck, signifying a slowdown in the streaming pipeline. See [Monitoring and metrics - Barrier monitoring](/performance/metrics#barrier-monitoring) for details.
-    <Frame>
-      <img src="/images/example_bad_barrier_latency.png"/>
-    </Frame>
-    *Figure 1: Example of high barrier latency in Grafana.*
+
+![High Barrier Latency](/images/example_bad_barrier_latency.png)
 
 *   **Backpressure:** Observe the **Actor Output Blocking Time Ratio (Backpressure)** panel in **Grafana dashboard (dev)** > **Streaming Actors**. High backpressure between fragments indicates that a downstream component is unable to keep up with the upstream data flow. See [Workload analysis](/performance/workload-analysis) for more details.
 *   **Low source throughput:** Check [Source throughput](/performance/metrics#source-throughput) to see if the input is the cause.  Low throughput from the source, *without* significant backpressure, often indicates a problem with the upstream system itself.
@@ -68,19 +66,11 @@ The term "Cardinality" describes how many distinct values exist in a column. For
 
 #### Identify back-pressured fragments
 
-<Frame>
-  <img src="/images/actors-and-fragments.png"/>
-</Frame>
-
-*Figure 2: Actor/Fragment panel in RisingWave Dashboard.*
+![Actors and Fragments](/images/actors-and-fragments.png)
 
 To find the root of backpressure, identify the *frontmost* back-pressured fragments in the DAG. Use the Grafana dashboard and navigate to the "Streaming - Backpressure" panel. Find channels with high backpressure and identify the one furthest upstream.
 
-<Frame>
-  <img src="/images/backpressure-panel.png"/>
-</Frame>
-
-*Figure 3: Backpressure panel in Grafana.*
+![Backpressure panel](/images/backpressure-panel.png)
 
 For example, in the image above, both `15002→15001` and `15003→15002` show high backpressure. Since backpressure propagates upstream, the root cause is likely fragment `15001`.
 
@@ -103,10 +93,8 @@ RisingWave does not have specific network metrics. If other metrics and the upst
 Examine the SQL queries used to create your materialized views and sources. Look for the common issues listed under "Potential causes" above. Specifically, look for signs of high join amplification:
 
 You can find this panel through **Grafana dashboard (dev)** > **Streaming** > **Join Executor Matched Rows**, which indicates the number of matched rows from the opposite side in the streaming join executors.
-<Frame>
-  <img src="/images/example_high_join_matched_rows.png"/>
-</Frame>
-*Figure 4: Example of high join amplification in Grafana.*
+
+![High Join Amplification](/images/example_high_join_matched_rows.png)
 
 At the same time, a log of `high_join_amplification` with the problematic join keys will be printed, such as
 
