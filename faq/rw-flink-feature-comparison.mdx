@@ -1,0 +1,325 @@
+## Fundamental Concepts
+
+| Feature              | Flink (v1.20)     | RisingWave (v2.0)  | Notes                                  |
+|----------------------|-------------------|--------------------|-----------------------------------------|
+| Dynamic Tables       | Supported         | Supported          |                                         |
+| Continuous Queries   | Supported         | Supported          |                                         |
+| Deterministic Queries| Supported         | Supported          |                                         |
+| Time Attributes     |                   |                    |                                         |
+|   Processing Time    | Supported         | Supported          |                                         |
+|   Event Time         | Supported         | Supported          |                                         |
+| Result Update Modes  | Append/Update/Delete | Append/Update/Delete |                                    |
+
+## Data Types
+
+| Feature                | Flink (v1.20)           | RisingWave (v2.0)          | Notes                                        |
+|------------------------|-------------------------|-----------------------------|--------------------------------------------|
+| **String**            |                         |                            |                                            |
+|   CHAR                | Supported               | Not Supported              | Fixed-length string.                       |
+|   VARCHAR/STRING      | Supported               | Supported                  | Variable-length string. Flink supports specifying a maximum length; RisingWave does not. |
+| **Binary String**     |                         |                            |                                            |
+|   BINARY              | Supported               | Not Supported              | Fixed-length binary string.                |
+|   VARBINARY/BYTES     | Supported               | BYTEA                      | Variable-length binary string.             |
+| **Numeric**           |                         |                            |                                            |
+|   DECIMAL             | Supported               | Supported (also as NUMERIC) |                                           |
+| **Integer Types**     |                         |                            |                                            |
+|   TINYINT             | Supported               | Not Supported              | 1-byte integer.                            |
+|   SMALLINT            | Supported               | Supported                  | 2-byte integer.                            |
+|   INT                 | Supported               | Supported                  | 4-byte integer.                            |
+|   BIGINT              | Supported               | Supported                  | 8-byte integer.                            |
+|   RW_INT256           | Not Supported           | Supported                  | 32-byte integer (RisingWave-specific).     |
+| **Floating-Point**    |                         |                            |                                            |
+|   FLOAT               | Supported               | REAL                       | 4-byte single-precision floating-point.    |
+|   DOUBLE              | Supported               | Supported (also as DOUBLE PRECISION) | 8-byte double-precision floating-point. |
+| **Temporal Types**    |                         |                            |                                            |
+|   DATE                | Supported               | Supported                  |                                            |
+|   TIME                | Supported               | Supported                  |                                            |
+|   TIMESTAMP           | Supported               | Supported                  |                                            |
+|   TIMESTAMP_LTZ       | Supported               | Supported                  | `TIMESTAMP_LTZ` in Flink, implicitly supported with timezone handling in RisingWave. |
+|   INTERVAL            | Supported               | Supported                  |                                            |
+| **Structured Types**  |                         |                            |                                            |
+|   STRUCT              | Supported               | ROW                        |                                            |
+|   ARRAY               | Supported               | Supported                  |                                            |
+|   MAP                 | Supported               | Supported                  |                                            |
+|   MULTISET            | Supported               | Not Supported              |                                            |
+| **JSON**              |                         |                            |                                            |
+|   JSONB               | Not Supported           | Supported                  |                                            |
+| **Other Types**       |                         |                            |                                            |
+|   BOOLEAN             | Supported               | Supported                  |                                            |
+
+## SELECT Query Clauses
+
+| Feature   | Flink (v1.20) | RisingWave (v2.0) | Notes |
+|-----------|---------------|-------------------|-------|
+| WITH      | Supported     | Supported         |       |
+| WHERE     | Supported     | Supported         |       |
+| DISTINCT  | Supported     | Supported         |       |
+
+## Windowing
+
+| Feature                | Flink (v1.20) | RisingWave (v2.0) | Notes                                    |
+|------------------------|---------------|-------------------|------------------------------------------|
+| Tumbling Window        | Supported     | Supported         |                                          |
+| Sliding Window         | Supported     | Supported         |                                          |
+| Cumulative Window      | Supported     | Not Supported     |                                          |
+| Session Window         | Supported     | Supported         |                                          |
+| Late Data Handling     | Supported     | Supported         | Handling of data arriving after the window closes. |
+| Window Offset          | Supported     | Supported         |                                          |
+| Window Aggregation     | Supported     | Supported         |                                          |
+
+## Aggregation
+
+| Feature        | Flink (v1.20) | RisingWave (v2.0) | Notes |
+|----------------|---------------|-------------------|-------|
+| GROUP BY       | Supported     | Supported         |       |
+| GROUPING SETS  | Supported     | Supported         |       |
+| ROLLUP         | Supported     | Supported         |       |
+| CUBE           | Supported     | Supported         |       |
+| HAVING         | Supported     | Supported         |       |
+
+## Window Functions (OVER)
+
+| Feature      | Flink (v1.20) | RisingWave (v2.0) | Notes |
+|--------------|---------------|-------------------|-------|
+| OVER         | Supported     | Supported         |       |
+| RANK         | Supported     | Supported         |       |
+| DENSE_RANK   | Supported     | Supported         |       |
+| ROW_NUMBER   | Supported     | Supported         |       |
+| LEAD         | Supported     | Supported         |       |
+| LAG          | Supported     | Supported         |       |
+| FIRST_VALUE  | Supported     | Supported         |       |
+| LAST_VALUE   | Supported     | Supported         |       |
+
+## Joins
+
+| Feature                    | Flink (v1.20) | RisingWave (v2.0) | Notes                                     |
+|----------------------------|---------------|-------------------|-------------------------------------------|
+| **Regular Joins**          |               |                   | Flink: State is managed with TTL. RisingWave: Joins result in unbounded streams; data is stored in the source/materialized view. |
+| INNER JOIN                 | Supported     | Supported         |                                           |
+| LEFT JOIN                  | Supported     | Supported         |                                           |
+| RIGHT JOIN                 | Supported     | Supported         |                                           |
+| FULL JOIN                  | Supported     | Supported         |                                           |
+| **Interval Join**          | Supported     | Supported         | Joins based on a time interval, useful for real-time scenarios. |
+| **Temporal Join**          |               |                   |                                           |
+| Event Time Temporal Join   | Supported     | Not Supported     | Join a table with a *versioned* table (dynamic table) using event time. |
+| Processing Time Temporal Join | Supported  | Supported         | Join a table with a *versioned* table (dynamic table) using processing time. |
+| **Window Join**            | Supported     | Supported         |                                           |
+
+## Set Operations
+
+| Feature       | Flink (v1.20) | RisingWave (v2.0) | Notes                                      |
+|---------------|---------------|-------------------|---------------------------------------------|
+| UNION         | Supported     | Supported         | Combines results, removes duplicates.       |
+| UNION ALL     | Supported     | Supported         | Combines results, keeps duplicates.         |
+| INTERSECT     | Supported     | Supported         | Returns common rows, removes duplicates.    |
+| INTERSECT ALL | Supported     | Not Supported     | Returns common rows, keeps duplicates.      |
+| EXCEPT        | Supported     | Supported         | Returns rows that are in the first query but not the second, removes duplicates. |
+| EXCEPT ALL    | Supported     | Not Supported     | Returns rows that are in the first query but not the second, keeps duplicates. |
+| IN            | Supported     | Supported         | Subquery check, typically used for filtering. |
+| EXISTS        | Supported     | Not Supported     | Subquery check, typically used for filtering. Often replaced by a LEFT JOIN in practice. |
+| CORRESPONDING | Not Supported | Supported         | Performs set operations (UNION, INTERSECT, EXCEPT) on specified columns. |
+
+## Ordering and Limiting
+
+| Feature    | Flink (v1.20) | RisingWave (v2.0) | Notes |
+|------------|---------------|-------------------|-------|
+| ORDER BY   | Supported     | Supported         |       |
+| LIMIT      | Supported     | Supported         |       |
+| Top N      | Supported     | Supported         |       |
+
+## Pattern Matching
+
+| Feature                          | Flink (v1.20) | RisingWave (v2.0) | Notes                                       |
+|----------------------------------|---------------|-------------------|---------------------------------------------|
+| CEP (Complex Event Processing)   | Supported     | Not Supported     | Flink's CEP library for defining complex event patterns. |
+
+## DDL Statements (CREATE)
+
+| Feature                   | Flink (v1.20) | RisingWave (v2.0) | Notes                                        |
+|---------------------------|---------------|-------------------|----------------------------------------------|
+| CREATE TABLE              | Supported     | Supported         |                                              |
+| CREATE SOURCE             | Not Supported | Supported         | RisingWave-specific: Creates a source to ingest data. |
+| CREATE OR REPLACE TABLE   | Supported     | Not Supported     |                                              |
+| CREATE DATABASE           | Supported     | Supported         |                                              |
+| CREATE VIEW               | Supported     | Supported         |                                              |
+| CREATE MATERIALIZED VIEW  | Supported     | Supported         |                                              |
+| CREATE INDEX              | Not Supported | Supported         | RisingWave-specific: Creates an index on a materialized view. |
+| CREATE CONNECTION         | Not Supported | Supported         | RisingWave-specific: Defines a connection to an external system (e.g., Kafka, Pulsar). |
+| CREATE FUNCTION           | Supported     | Supported         |                                              |
+| CREATE SCHEMA             | Not Supported | Supported         | RisingWave-specific.                         |
+| CREATE SECRET             | Not Supported | Supported         | RisingWave-specific: For storing sensitive information like passwords. |
+| CREATE SINK INTO          | Not Supported | Supported         | RisingWave-specific: Creates a sink and implicitly creates a materialized view to store the results. |
+| CREATE SINK               | Not Supported | Supported         | RisingWave-specific: Creates a sink to output data. |
+| CREATE USER               | Not Supported | Supported         | RisingWave-specific.                         |
+| CREATE AGGREGATE          | Not Supported | Supported         | RisingWave-specific: Creates a user-defined aggregate function. |
+
+## DDL Statements (DROP)
+
+| Feature                   | Flink (v1.20) | RisingWave (v2.0) | Notes                                        |
+|---------------------------|---------------|-------------------|----------------------------------------------|
+| DROP TABLE                | Supported     | Not Supported     | Dropping tables directly is not supported in current versions of RisingWave. You drop materialized views/sources/sinks. |
+| DROP SOURCE               | Not Supported | Supported         | RisingWave-specific.                         |
+| DROP DATABASE             | Supported     | Supported         |                                              |
+| DROP VIEW                 | Supported     | Supported         |                                              |
+| DROP MATERIALIZED VIEW    | Supported     | Supported         |                                              |
+| DROP INDEX                | Not Supported | Supported         | RisingWave-specific.                         |
+| DROP AGGREGATE            | Not Supported | Supported         | RisingWave-specific.                         |
+| DROP CONNECTION           | Not Supported | Supported         | RisingWave-specific.                         |
+| DROP FUNCTION             | Supported     | Supported         |                                              |
+| DROP SCHEMA               | Not Supported | Supported         | RisingWave-specific.                         |
+| DROP SECRET               | Not Supported | Supported         | RisingWave-specific.                         |
+| DROP SINK                 | Not Supported | Supported         | RisingWave-specific.                         |
+| DROP USER                 | Not Supported | Supported         | RisingWave-specific.                         |
+
+## DDL Statements (ALTER)
+
+| Feature                   | Flink (v1.20) | RisingWave (v2.0) | Notes                                        |
+|---------------------------|---------------|-------------------|----------------------------------------------|
+| ALTER TABLE               | Supported     | Not Supported     | In RisingWave, altering the schema of a source or materialized view is generally not directly supported. Limited `ALTER` capabilities exist (see below). |
+| ALTER SOURCE              | Not Supported | Supported         | RisingWave specific                          |
+| ALTER DATABASE            | Supported     | Supported         |                                              |
+| ALTER VIEW                | Supported     | Supported         |                                              |
+| ALTER MATERIALIZED VIEW   | Supported     | Supported         | In RisingWave, some `ALTER` commands are supported for materialized views, such as renaming or changing the owner. |
+| ALTER INDEX               | Not Supported | Supported         |                                              |
+| ALTER CONNECTION          | Not Supported | Supported         | RisingWave specific                          |
+| ALTER FUNCTION            | Supported     | Supported         |                                              |
+| ALTER SCHEMA              | Not Supported | Supported         | RisingWave specific                          |
+| ALTER SINK                | Not Supported | Supported         | RisingWave specific                          |
+| ALTER SYSTEM              | Not Supported | Supported         | RisingWave specific                          |
+| ALTER USER                | Not Supported | Supported         | RisingWave specific                          |
+
+## DML Statements (INSERT)
+
+| Feature              | Flink (v1.20) | RisingWave (v2.0) | Notes                                        |
+|----------------------|---------------|-------------------|----------------------------------------------|
+| Insert Query Results | Supported     | Supported         |                                              |
+| Insert Values        | Supported     | Supported         |                                              |
+| Multi-Table Inserts  | Supported     | Not Supported     | Flink supports inserting into multiple tables in a single statement. |
+
+## SHOW Statements
+
+| Feature                    | Flink (v1.20)                   | RisingWave (v2.0)                     | Notes                       |
+|----------------------------|----------------------------------|---------------------------------------|------------------------------|
+| SHOW CLUSTER               | Not Supported                    | Supported                             | RisingWave specific          |
+| SHOW DATABASES             | Supported                        | Supported                             |                              |
+| SHOW CURRENT DATABASE      | Supported                        | Not Supported, `SELECT current_database()` | Use function instead    |
+| SHOW TABLES                | Supported                        | Supported                             |                              |
+| SHOW CREATE TABLE          | Supported                        | Supported                             |                              |
+| SHOW PARTITIONS table_name | Supported                        | Not Supported                         |                              |
+| SHOW COLUMNS               | Supported                        | Supported                             |                              |
+| SHOW VIEWS                 | Supported                        | Supported                             |                              |
+| SHOW CREATE VIEW           | Supported                        | Supported                             |                              |
+| SHOW CREATE INDEX          | Not Supported                    | Supported                             |                              |
+| SHOW CREATE MATERIALIZED VIEW | Not Supported                 | Supported                             |                              |
+| SHOW JARS                  | Supported                        | Not Supported                         | Flink specific               |
+| SHOW JOBS                  | Supported                        | Supported                             |                              |
+| SHOW CONNECTIONS           | Not Supported                    | Supported                             | RisingWave specific          |
+| SHOW CREATE SINK           | Not Supported                    | Supported                             |                              |
+| SHOW CURSORS               | Not Supported                    | Supported                             | RisingWave specific          |
+| SHOW FUNCTIONS             | Supported                        | Supported                             |                              |
+| SHOW INTERNAL TABLES       | Not Supported                    | Supported                             | RisingWave specific          |
+| SHOW PARAMETERS            | Not Supported                    | Supported                             |                              |
+| SHOW PROCESSLIST           | Not Supported                    | Supported                             | RisingWave specific. Shows running processes. |
+| SHOW SCHEMAS               | Not Supported                    | Supported                             | RisingWave specific          |
+| SHOW SINKS                 | Not Supported                    | Supported                             | RisingWave specific          |
+| SHOW SUBSCRIPTION CURSORS  | Not Supported                    | Supported                             | RisingWave specific          |
+
+## DML Statements (UPDATE/DELETE)
+
+| Feature | Flink (v1.20) | RisingWave (v2.0) | Notes                                        |
+|---------|---------------|-------------------|----------------------------------------------|
+| UPDATE  | Supported     | Supported         | Update existing rows. In RisingWave, updates are reflected in the materialized view. |
+| DELETE  | Supported     | Supported         | Delete existing rows. In RisingWave, deletions are reflected in the materialized view. |
+
+## Other Statements
+
+| Feature    | Flink (v1.20)                      | RisingWave (v2.0)                          | Notes                                      |
+|------------|------------------------------------|--------------------------------------------|-------------------------------------------|
+| DESCRIBE   | Show metadata of tables/views/catalogs | Show metadata of tables/sources/views/sinks/materialized views |                   |
+| EXPLAIN    | Supported                          | Supported                                  | Shows the execution plan of a statement.   |
+| USE        | Supported                          | Supported                                  | Sets the current catalog/database.         |
+| SET        | Supported                          | Supported                                  | Modifies configuration settings.           |
+
+## JAR Management (Flink-Specific)
+
+| Feature      | Flink (v1.20) | RisingWave (v2.0) | Notes                                  |
+|--------------|---------------|-------------------|----------------------------------------|
+| JAR          | Supported     | Not Supported     | Manage user-defined JAR files.         |
+| ADD JAR      | Supported     | Not Supported     | Adds a JAR to the Flink SQL classpath. |
+| SHOW JAR     | Supported     | Not Supported     | Lists added JAR files.                 |
+| REMOVE JAR   | Supported     | Not Supported     | Removes a JAR from the session.        |
+
+## Job Management
+
+| Feature                        | Flink (v1.20) | RisingWave (v2.0) | Notes |
+|--------------------------------|---------------|-------------------|-------|
+| SHOW JOBS                      | Supported     | Supported         |       |
+| CANCEL [ JOB \| JOBS ] job_id  | Supported     | Supported         |       |
+
+## Materialized Views
+
+| Feature                                             | Flink (v1.20) | RisingWave (v2.0) | Notes                                        |
+|-----------------------------------------------------|---------------|-------------------|----------------------------------------------|
+| Materialized Table (Flink) / Materialized View (RW) | Supported     | Supported         | RisingWave's core concept is the materialized view. Flink *can* create materialized tables, but it's less central to its architecture. |
+| FLUSH                                               | Not Supported | Supported         | RisingWave-specific: Commits data changes after DML statements. |
+
+## Access Control (RisingWave-Specific)
+
+| Feature | Flink (v1.20) | RisingWave (v2.0) | Notes                          |
+|---------|---------------|-------------------|--------------------------------|
+| GRANT   | Not Supported | Supported         | Grants privileges to users.    |
+| REVOKE  | Not Supported | Supported         | Revokes privileges from users. |
+
+## User-Defined Functions (UDFs)
+
+| Feature                | Flink (v1.20)                  | RisingWave (v2.0)                 | Notes                                       |
+|------------------------|--------------------------------|-----------------------------------|---------------------------------------------|
+| **External UDFs**      |                                |                                   |                                             |
+| UDF                    | Supported (Python, Java)       | Not Supported                     | External UDFs run in a separate process and are invoked via RPC (Flink). |
+| UDAF                   | Not Supported                  | Not Supported                     |                                             |
+| UDTF                   | Not Supported                  | Supported (Python, Java)          |                                             |
+| **Embedded UDFs**      |                                |                                   |                                             |
+| UDF                    | Supported (Python, Java, Scala)| Supported (Python, JavaScript, Rust) | Embedded UDFs run within the Flink/RisingWave process. |
+| UDAF                   | Supported (Python, Java, Scala)| Supported (Python, JavaScript)    |                                             |
+| UDTF                   | Supported (Python, Java, Scala)| Supported (Python, JavaScript, Rust) |                                          |
+| **SQL UDFs**           |                                |                                   |                                             |
+| UDF                    | Not Supported                  | Supported (SQL)                   | Define UDFs using SQL expressions, offering a more concise way to express complex queries (RisingWave). |
+| UDAF                   | Not Supported                  | Not Supported                     |                                             |
+| UDTF                   | Not Supported                  | Not Supported                     |                                             |
+
+## Built-in Functions
+
+| Feature Category       | Flink (v1.20)                  | RisingWave (v2.0)                | Notes               |
+|------------------------|--------------------------------|----------------------------------|---------------------|
+| Comparison Functions   | =, <>, >, >=, <, <=, IS NULL, IS NOT NULL, IS DISTINCT FROM, IS NOT DISTINCT FROM, BETWEEN, NOT BETWEEN, ANY(), SOME(), ALL() | =, <>, >, >=, <, <=, IS NULL, IS NOT NULL, IS DISTINCT FROM, IS NOT DISTINCT FROM, BETWEEN, NOT BETWEEN, ANY(), SOME(), ALL() |                     |
+| Logical Functions      | or, and, is false, is not false, is true, is not true, is unknown, is not unknown | or, and, is false, is not false, is true, is not true, is unknown, is not unknown |                     |
+| Arithmetic Operators   | +, -, *, /, %, ^, \|/, @, &, \|, #, ~ | +, -, *, /, %, ^, \|/, @, &, \|, #, ~ |                     |
+| Arithmetic Functions   | POWER/POW, CBRT, ABS, SQRT, LN, LOG10, LOG2, LOG, EXP, CEIL, FLOOR, SIN, SINH, COS, TAN, TANH, COT, ASIN, ACOS, ATAN, ATAN2, COSH, SIND, COSD, TAND, COTD, ACOSD, COTH, ASINH, ACOSH, ATANH, DEGREES, RADIANS, SIGN, ROUND, PI, E, RAND, RAND_INTEGER, UUID, BIN, HEX, TRUNCATE, TRUNC, SCALE, TRIM_SCALE, MIN_SCALE, INT_OVERFLOW, PMOD | POWER/POW, CBRT, ABS, SQRT, LN, LOG10, LOG, EXP, CEIL, FLOOR, SIN, SINH, COS, TAN, TANH, COT, ASIN, ACOS, ATAN, ATAN2, COSH, SIND, COSD, TAND, COTD, ACOSD, COTH, ASINH, ACOSH, ATANH, DEGREES, RADIANS, SIGN, ROUND, PI, RAND_INTEGER, TRUNC, SCALE, TRIM_SCALE, MIN_SCALE |                     |
+| String Operators       | (+ / \|), (^@) | (\|), (^@) |                     |
+| String Functions       | OCTET_LENGTH, CHAR_LENGTH/CHARACTER_LENGTH, BIT_LENGTH, CONVERT_FROM, CONVERT_TO, QUOTE_LITERAL, LIKE, UPPER, LOWER, POSITION/LOCATE, CONTAINS_SUBSTRING, INSTR, BTRIM, TRIM, LTRIM, RTRIM, REPEAT, OVERLAY, SUBSTR/SUBSTRING, REPLACE, CONCAT, CONCAT_WS, FORMAT, REGEXP, REGEXP_EXTRACT, REGEXP_COUNT, REGEXP_MATCH, REGEXP_MATCHS, REGEXP_REPLACE, REGEXP_SPLIT_TO_ARRAY, INITCAP, LPAD, RPAD, FROM_BASE64, TO_BASE64, ASCII, CHR, DECODE, ENCODE, TO_ASCII, TO_HEX, LEFT, RIGHT, PARSE_URL, REVERSE, STARTS_WITH, TRANSLATE, SPLIT_PART/SPLIT_INDEX, STR_TO_MAP | OCTET_LENGTH, CHAR_LENGTH/CHARACTER_LENGTH, BIT_LENGTH, CONVERT_FROM, CONVERT_TO, QUOTE_LITERAL, LIKE, UPPER, LOWER, POSITION/LOCATE, BTRIM, TRIM, LTRIM, RTRIM, REPEAT, OVERLAY, SUBSTR/SUBSTRING, REPLACE, CONCAT, CONCAT_WS, FORMAT, REGEXP_COUNT, REGEXP_MATCH, REGEXP_MATCHS, REGEXP_REPLACE, REGEXP_SPLIT_TO_ARRAY, INITCAP, LPAD, RPAD, ASCII, CHR, DECODE, ENCODE, TO_ASCII, TO_HEX, LEFT, RIGHT, REVERSE, STARTS_WITH, TRANSLATE, SPLIT_PART/SPLIT_INDEX |                     |
+| Temporal Functions     | DATE, TO_DATE, TIME, TIMESTAMP, TO_TIMESTAMP, TO_TIMESTAMP_LTZ, INTERVAL, LOCALTIME, LOCALTIMESTAMP, CURRENT_TIME, CURRENT_DATE, CURRENT_TIMESTAMP, NOW, EXTRACT, YEAR, QUARTER, MONTH, WEEK, HOUR, MINUTE, SECOND, DAYOFYEAR, DAYOFMONTH, DAYOFWEEK, FLOOR, CEIL, DATE_FORMAT/TO_CHAR, TIMESTAMPADD, DATEDIFF, TIMESTAMPDIFF, FROM_UNIXTIME, UNIX_TIMESTAMP, CURRENT_WATERMARK, MAKE_DATE, MAKE_TIME, MAKE_TIMESTAMP, PROCTIME, PG_SLEEP, PG_SLEEP_FOR | DATE, TO_DATE, TIME, TIMESTAMP, TO_TIMESTAMP, INTERVAL, CURRENT_TIMESTAMP, NOW, EXTRACT, DATE_FORMAT/TO_CHAR, FROM_UNIXTIME, UNIX_TIMESTAMP, MAKE_DATE, MAKE_TIME, MAKE_TIMESTAMP, PROCTIME, PG_SLEEP, PG_SLEEP_FOR |                     |
+| Conditional Functions  | CASE WHEN, NULLIF, IFNULL, COALESCE, IF, IS_ALPHA, IS_DECIMAL, IS_DIGIT, GREATEST, LEAST | CASE WHEN, NULLIF, COALESCE, GREATEST, LEAST |                     |
+| Type Cast Functions    | CAST, TRY_CAST, TYPEOF | CAST, pg_typeof() | RisingWave: CAST behavior differs. In queries, failed casts error. In materialized views, they result in NULL. |
+| Hashing Functions      | MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SHA2 | MD5, SHA1, SHA224, SHA256, SHA384, SHA512 |                     |
+| Aggregation Functions  | COUNT, AVG, SUM, MAX, MIN, STDDEV_POP, STDDEV_SAMP, VAR_POP, VAR_SAMP, COLLECT, VARIANCE, LISTAGG/STRING_AGG, ARRAY_AGG, NTILE, bool_and, bool_or | COUNT, AVG, SUM, MAX, MIN, STDDEV_POP, STDDEV_SAMP, VAR_POP, VAR_SAMP, VARIANCE, STRING_AGG, ARRAY_AGG, bool_and, bool_or |                     |
+| Array Functions        | array[], map[], ARRAY_APPEND, ARRAY_CONTAINS, ARRAY_CAT/ARRAY_CONCAT, ARRAY_DIMS, ARRAY_REVERSE, ARRAY_SLICE, ARRAY_DISTINCT, ARRAY_LENGTH, ARRAY_LOWER, ARRAY_MAX, ARRAY_MIN, ARRAY_NDIMS, ARRAY_POSITION, ARRAY_POSITIONS, ARRAY_PREPEND, ARRAY_REMOVE, ARRAY_REPLACE, ARRAY_SORT, ARRAY_SUM, ARRAY_JOIN, ARRAY_UNION, ARRAY_EXCEPT, ARRAY_INTERSECT, ARRAY_TRANSFORM, ARRAY_UPPER, CARDINALITY, STRING_TO_ARRAY, TRIM_ARRAY, UNNEST / CROSS JOIN UNNEST, array operators | array[], map_access, ARRAY_APPEND, ARRAY_CAT, ARRAY_DIMS, ARRAY_DISTINCT, ARRAY_LENGTH, ARRAY_LOWER, ARRAY_MAX, ARRAY_MIN, ARRAY_NDIMS, ARRAY_POSITION, ARRAY_POSITIONS, ARRAY_PREPEND, ARRAY_REMOVE, ARRAY_REPLACE, ARRAY_SORT, ARRAY_SUM, ARRAY_JOIN, ARRAY_UPPER, CARDINALITY, STRING_TO_ARRAY, TRIM_ARRAY, UNNEST, array operators |                     |
+| Map Functions          | map_from_entries(), map_from_key_values()/map_from_arrays(), map_entries(), map_keys(), map_values(), map_length(), map_contains(), map_access(), map_insert(), map_delete(), map_concat() | map_from_entries(), map_from_arrays(), map_entries(), map_keys(), map_values(), map_length(), map_contains(), map_access(), map_insert(), map_delete(), map_concat() |                     |
+| JSON Functions         | ... | ... |                     |
+| Set Returning Functions| generate_series(), range(), _pg_expandarray() | generate_series(), range(), _pg_expandarray() |                     |
+| Encryption Functions   | | encrypt(), decrypt() | RisingWave only    |
+
+## System Management
+
+| Feature                 | Flink (v1.20)  | RisingWave (v2.0)                                 | Notes                                                                                           |
+|-------------------------|----------------|---------------------------------------------------|------------------------------------------------------------------------------------------------|
+| System Management Functions | Not a database | Functions to manage the RisingWave streaming database system. | Flink is a stream processing framework, not a database, so it doesn't have system management functions in the same way. |
+| System Information        | Not a database | Functions to get system information about the RisingWave streaming database. | Flink does not have these in the same database-oriented sense. |
+
+## Other Features
+
+| Feature             | Flink (v1.20) | RisingWave (v2.0) | Notes                                                                                                                                                  |
+|----------------------|---------------|-------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Catalogs             | Supported     | Supported         | Catalogs are used to manage and access metadata.                                                                                                      |
+| SQL Client           | Supported     | Supported         | SQL clients allow users to interact with Flink/RisingWave using SQL.                                                                                  |
+| SQL Gateway          | Supported     | Supported         | SQL gateways allow remote execution of SQL.                                                                                                            |
+| Hive Compatibility   | Supported     | Not Supported     | Flink has built-in support for interacting with Hive.                                                                                                |
