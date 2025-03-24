@@ -19,6 +19,11 @@ Follow the steps below to create your own cloud environment.
 1. Navigate to the [**Projects**](https://cloud.risingwave.com/project/home/) page and click **Create project**.
 2. Select a deployment mode. Choose **BYOC**.
 3. Select a service provider. Choose your cloud platform (AWS, GCP, or Azure) and your preferred region. See [Resource and permission](#resource-and-permission) for more details.
+
+   <Warning>
+   If you're using AWS, ensure you're not using the AWS account root user for any deployment or operational tasks. Always use IAM users or roles with appropriate permissions instead.
+   </Warning>
+
 4. Prepare the BYOC environment section. Click **Setup now** and follow the steps to set up your BYOC environment. Please note that the final command `rwc byoc apply --name xxx` may take 30 to 40 minutes to complete, and a progress bar will keep you informed of its progress. During this time, it's crucial to ensure a stable internet connection. If the command is interrupted or fails due to network instability, you can safely retry it.
    <Tip>
    When you run the command `rwc byoc apply --name xxx`, it will deploy some resources in your AWS/GCP/Azure environment, such as AWS S3/Google Cloud Storage/Azure Blob Storage and EKS/GKE/AKS clusters. Please do not modify the configuration of these resources. If you encounter any issues during this process, please contact our [support team](mailto:cloud-support@risingwave-labs.com).
@@ -139,7 +144,12 @@ When you customize your cloud platform, refer to the following notes to see what
    For optimal performance, the quota for managed node groups per cluster should be increased to 36 or more. See [Service quotas](https://docs.aws.amazon.com/eks/latest/userguide/service-quotas.html#sq-text) for more details.
 * **Required permissions for BYOC environment creation/deletion**
 
-   We recommend using an IAM role/user with Administrator permissions for the AWS account to deploy the infrastructure.
+   <Warning>
+   Do not use the AWS account root user for deployment or operations. Instead, create an IAM user/role with appropriate administrator permissions following AWS security best practices.
+   </Warning>
+
+   We recommend creating an IAM role/user with Administrator permissions for the AWS account to deploy the infrastructure. This follows the principle of least privilege and AWS security best practices.
+
 * **Resources provisioned in BYOC environment**
 
    We will set up the following resources in a BYOC environment:
