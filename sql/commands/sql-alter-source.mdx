@@ -126,6 +126,27 @@ ALTER SOURCE current_source_name
 ALTER SOURCE test_source SET SCHEMA test_schema;
 ```
 
+### `SET PARALLELISM`
+
+<Note>
+Added in version 2.3.
+</Note>
+
+```sql
+ALTER SOURCE source_name
+SET PARALLELISM { TO | = } parallelism_number;
+```
+
+| Parameter or clause   | Description   |
+| :-------------------- | :------------ |
+| **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                  |
+| source_name | Should be a [shared source](/sql/commands/sql-create-source#shared-source).|
+| parallelism_number | Can be ADAPTIVE or a fixed number (e.g., 1, 2, 3). Setting it to ADAPTIVE expands the job's parallelism to all available units, while a fixed number locks it at that value. Setting it to 0 is equivalent to ADAPTIVE. |
+
+```sql
+ALTER SOURCE s_kafka SET PARALLELISM = 2;
+```
+
 ### `SET SOURCE_RATE_LIMIT`
 
 ```sql

@@ -1,0 +1,113 @@
+---
+title: "Monitor CDC progress"
+sidebarTitle: Monitor CDC progress
+description: "Monitor the progress of Change Data Capture (CDC) ingestion in RisingWave."
+---
+
+This topic explains how to monitor the progress of Change Data Capture (CDC) data ingestion in RisingWave when using native CDC connectors (currently PostgreSQL and MySQL).  Monitoring progress helps you ensure that data is being ingested correctly and identify any potential issues.
+
+## Monitoring progress
+
+RisingWave provides two main ways to monitor CDC progress:
+
+1.  **Checking backfill progress (initial snapshot):** When you first create a CDC table, RisingWave performs an initial "backfill" or "snapshot" to load existing data from the source table. You can monitor the progress of this backfill.
+2.  **Checking real-time replication progress:** After the initial backfill, RisingWave continuously streams changes from the source database.  You can monitor the progress of this real-time replication.
+
+## Checking backfill progress (initial snapshot)
+
+To check the progress of the initial data backfill:
+
+1.  **Identify the internal table:** RisingWave creates internal tables to manage the backfill process. Use the `SHOW INTERNAL TABLES;` command to list all internal tables.  The relevant table will have a name like `__internal_{source_name}_{source_id}_streamcdcscan_{executor_id}`.
+
+    ```sql
+    SHOW INTERNAL TABLES;
+    ```
+
+    Look for a table name that includes "streamcdcscan" and corresponds to your source name and ID.
+
+2.  **Query the internal table:**  Use a `SELECT` statement to query the internal table. The specific columns and their meanings may vary slightly depending on the source, but generally, you'll find information about:
+    *   `split_id`:  An identifier for the backfill task.
+    *   `backfill_finished`: A boolean indicating whether the backfill is complete (`t` for true, `f` for false).
+    *   `row_count`: The number of rows processed so far.
+    *   `cdc_offset`:  Information about the current position in the source database's change log (e.g., LSN for PostgreSQL, binlog position for MySQL).
+
+    **Example (PostgreSQL):**
+
+    ```sql
+    SELECT * FROM __internal_my_pg_source_1_streamcdcscan_4;
+    ```
+
+    This might return something like:
+
+    ```
+    split_id | id | backfill_finished | row_count | cdc_offset
+    ----------+----+-------------------+-----------+--------------------------------------------------
+    3        |  5 | t                 |         4 | {"Postgres": {"lsn": 4558482960, "txid": 35853}}
+    ```
+
+    This indicates that the backfill is complete (`backfill_finished = t`), 4 rows have been processed, and the current LSN (Log Sequence Number) in the PostgreSQL WAL is 4558482960.
+
+    **Example (MySQL):**
+     ```sql
+     SELECT * FROM __internal_my_mysql_source_1_streamcdcscan_4;
+     ```
+    This might return:
+    ```
+    split_id | id | backfill_finished | row_count |     cdc_offset
+    ----------+----+-------------------+-----------+-------------------------
+    3        |  5 | t                 |         4 | {"file": "mysql-bin.000003", "pos": 154, "gtid": null, "seq": null}
+    ```
+
+## Checking real-time replication progress
+
+To monitor the progress of real-time CDC replication:
+
+1.  **Identify the internal table:**  Use `SHOW INTERNAL TABLES;` to find the internal table associated with your *source*. This table will have a name like `__internal_{source_name}_{source_id}_source_{executor_id}`.
+
+2.  **Query the internal table:**  Use a `SELECT` statement to query the internal table. This table contains information about the current offset being consumed from the source database.
+
+    **Example (PostgreSQL):**
+
+    ```sql
+    SELECT * FROM __internal_my_pg_source_1_source_2;
+    ```
+    This shows the current LSN.
+    ```
+    source_id |       source_offset
+    -----------+--------------------------
+            1 | {"lsn": 4558482960}
+    (1 row)
+    ```
+
+    **Example (MySQL):**
+       ```sql
+       SELECT * FROM __internal_my_mysql_source_1_source_2;
+       ```
+        This might return something like:
+        ```
+         source_id | source_offset
+        -----------+-----------------------------------------------------------------
+                 1 | {"file":"mysql-bin.000003","pos":154,"gtid":null,"seq":null}
+        ```
+        This output indicates that the CDC process is reading from the binlog file `mysql-bin.000003` at position `154`.
+
+3. **Check for replication lag (optional):**
+   You may also want to check the upstream source to confirm the log status.
+
+    *   **PostgreSQL:** You can check for replication lag by querying the `pg_replication_slots` view on your PostgreSQL server.  This shows the difference between the current WAL position and the position of each replication slot.  A large lag indicates that RisingWave is falling behind.
+        ```sql
+        SELECT slot_name,
+               pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS raw,
+               pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS replicationSlotLag,
+               active
+        FROM pg_replication_slots;
+        ```
+
+    * **MySQL:** You can check for replication lag on your MySQL Server.
+     ```sql
+    SHOW SLAVE STATUS\G
+     ```
+    The value of `Seconds_Behind_Master` indicates the replication lag.
+<Note>
+RisingWave commits offsets to the upstream database, allowing the database to free up space used by log files (WAL files for PostgreSQL, binlog files for MySQL). This offset commitment happens during checkpoint commits in the CDC source. If there is high checkpoint latency, log files may accumulate on the upstream server.
+</Note>

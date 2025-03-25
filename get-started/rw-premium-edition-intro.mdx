@@ -1,6 +1,6 @@
 ---
 title: "RisingWave Premium Edition"
-sidebarTitle:  Premium edition
+sidebarTitle: Premium edition
 description: "This topic introduces the RisingWave Premium Edition and offers a complete list of all premium features."
 ---
 
@@ -12,7 +12,7 @@ While the Premium Edition is a paid offering, it is designed to complement and e
 
 The RisingWave Community Edition and Premium Edition share the same underlying binary or container image. Users of the Community Edition need to purchase a license key to access the Premium Edition features.
 
-For RisingWave Cloud users, all Premium Edition features are available out of the box without additional cost. 
+For RisingWave Cloud users, all Premium Edition features are available out of the box without additional cost.
 
 ## Premium features
 
@@ -20,33 +20,35 @@ The following are Premium Edition features, which include a "Premium Edition Fea
 
 ### Tooling
 
-Premium Edition customers can take advantage of our on-prem management tool to enhance observability for their RisingWave clusters. This tool accelerates issue detection, streamlines troubleshooting, and optimizes performance.  
-A lightweight version is available under the Apache 2.0 License: [Wavekit-lite](https://github.com/risingwavelabs/wavekit-lite).  
+Premium Edition customers can take advantage of our on-prem management tool to enhance observability for their RisingWave clusters. This tool accelerates issue detection, streamlines troubleshooting, and optimizes performance.
+  
+A lightweight version is available under the Apache 2.0 License: [Wavekit-lite](https://github.com/risingwavelabs/wavekit-lite).
 
-### Performance and cost  
-Our **Smart Caching** feature harnesses modern hardware to dramatically reduce S3 access costs - by up to **90%** - while enhancing performance and improving robustness. [Contact us](https://risingwave.com/contact-us/) to learn more.
+### Performance and cost
+
+The [**Elastic disk cache**](/get-started/disk-cache) feature harnesses modern hardware to dramatically reduce S3 access costs - by up to **90%** - while enhancing performance and improving robustness. [Contact us](https://risingwave.com/contact-us/) to learn more.
 
 ### SQL and security
 
-* [Time travel queries](/processing/time-travel-queries)
-* [Secret management](/operate/manage-secrets)
+- [Time travel queries](/processing/time-travel-queries)
+- [Secret management](/operate/manage-secrets)
 
 ### Schema management
 
-* Automatic schema mapping to the source tables for [PostgreSQL CDC](/integrations/sources/postgresql-cdc#automatically-map-upstream-table-schema) and [MySQL CDC](/integrations/sources/mysql-cdc#automatically-map-upstream-table-schema)
-* [Automatic schema change for MySQL CDC](/integrations/sources/mysql-cdc#automatically-change-schema)
-* [AWS Glue Schema Registry](/integrations/sources/kafka#read-schemas-from-aws-glue-schema-registry)
+- Automatic schema mapping to the source tables for [PostgreSQL CDC](/integrations/sources/postgresql-cdc#automatically-map-upstream-table-schema) and [MySQL CDC](/integrations/sources/mysql-cdc#automatically-map-upstream-table-schema)
+- [Automatic schema change for MySQL CDC](/integrations/sources/mysql-cdc#automatically-change-schema)
+- [AWS Glue Schema Registry](/integrations/sources/kafka#read-schemas-from-aws-glue-schema-registry)
 
 ### Connectors
 
-* [Sink to Snowflake](/integrations/destinations/snowflake)
-* [Sink to DynamoDB](/integrations/destinations/amazon-dynamodb)
-* [Sink to OpenSearch](/integrations/destinations/opensearch)
-* [Sink to BigQuery](/integrations/destinations/bigquery)
-* [Sink to SharedMergeTree table engine on ClickHouse Cloud](/integrations/destinations/clickhouse#supported-table-engines)
-* [Sink to SQL Server](/integrations/destinations/sql-server)
-* [Direct SQL Server CDC source connector](/integrations/sources/sql-server-cdc)
-* [Sink to Iceberg with glue catalog](/integrations/destinations/apache-iceberg#glue-catelogs)
+- [Sink to Snowflake](/integrations/destinations/snowflake)
+- [Sink to DynamoDB](/integrations/destinations/amazon-dynamodb)
+- [Sink to OpenSearch](/integrations/destinations/opensearch)
+- [Sink to BigQuery](/integrations/destinations/bigquery)
+- [Sink to SharedMergeTree table engine on ClickHouse Cloud](/integrations/destinations/clickhouse#supported-table-engines)
+- [Sink to SQL Server](/integrations/destinations/sql-server)
+- [Direct SQL Server CDC source connector](/integrations/sources/sql-server-cdc)
+- [Sink to Iceberg with glue catalog](/integrations/destinations/apache-iceberg#glue-catelogs)
 
 For users who are already using these features in 1.9.x or earlier versions, rest assured that the functionality of these features will be intact if you stay on the version. If you choose to upgrade to v2.0 or later versions, an error will show up to indicate you need a license to use the features.
 
@@ -63,30 +65,126 @@ For RisingWave Cloud users, all Premium Edition features are available out of th
 
 Users of the Community Edition need to purchase and set up a license key to access Premium Edition features. The license key, essentially a certificate, is a JSON Web Token (JWT) that encodes information such as the license tier and expiration time. The integrity of the license key is validated using asymmetric encryption.
 
+### Free trial
+
+RisingWave provides a trial of paid features for clusters with up to 4 compute node CPUs, allowing you to evaluate these features on a small scale. When there are more CPUs in the cluster, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
+
+- For a fresh deployment, this free trial is included automatically.
+- For an existing deployment upgrading to this version, you may need to refresh the license key by executing `ALTER SYSTEM SET license_key TO DEFAULT;` in the SQL shell to activate the trial.
+
 ### Set license key
 
-There are two primary methods for setting the license key in your environment:
+Depending on the deployment, there are several different ways of setting license key.
 
-#### Manual setup
+<Tabs>
+  <Tab title="RisingWave Operator (Kubernetes)">
+  If you used the [RisingWave Operator](https://github.com/risingwavelabs/risingwave-operator) to deploy the RisingWave, 
+  you could follow the steps to set the license key. 
+  For detailed instructions of deploying RisingWave with the RisingWave Operator, please check the [Deploy RisingWave on Kubernetes with Operator](deploy/risingwave-kubernetes).
 
-To set your license key manually:
+1. Prepare a secret under the same namespace as the RisingWave object, e.g.,
 
-1. Before launching a new cluster:
-   * Add `system.license_key` to your TOML configuration file, or
-   * Set `RW_LICENSE_KEY` environment variable on meta pod only.
-2. For an existing cluster, use this SQL command:
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: risingwave-license
+    stringData:
+      licenseKey: |
+        <content of the license key>
+    ```
+
+2. Set the following fields of the RisingWave object.
+
+    ```yaml
+    apiVersion: risingwave.risingwavelabs.com/v1alpha1
+    kind: RisingWave
+    metadata:
+      name: <your-risingwave>
+    spec:
+      licenseKey:
+        secretName: risingwave-license # the name of the secret above
+        secretKey: licenseKey # the key in the secret above referencing the data of the license key
+    ```
+
+3. Apply the RisingWave object to Kubernetes.
+
+The pod of the meta node (or standalone node) will restart to reflect the license key.
+
+If you'd like to renew the license key afterwards, you could simply update the content of the secret created above. The change will be propagated to and loaded by RisingWave automatically.
+
+  </Tab>
+<Tab title="Helm (Kubernetes)">
+
+If you used the [Helm chart](https://github.com/risingwavelabs/helm-charts/tree/main/charts/risingwave) to deploy the RisingWave,
+you could follow the steps to set the license key.
+For detailed instructions of deploying RisingWave with Helm, please check the [Deploy RisingWave on Kubernetes with Helm](deploy/risingwave-k8s-helm).
+
+1. Prepare a secret under the same namespace as the RisingWave Helm release, e.g.,
+
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: risingwave-license
+   stringData:
+     licenseKey: |
+       <content of the license key>
+   ```
+
+2. Set the following values, e.g., in the `values.yaml` file.
+
+   ```yaml
+   license:
+     secret:
+       name: "risingwave-license"
+       key: "licenseKey"
+   ```
+
+3. Apply the values with the helm command-line tool.
+
+    ```shell
+    # For fresh installation, you could provide additional values with more "-f <values.yaml>"
+    # For more information of the helm install, please refer to https://helm.sh/docs/helm/helm_install/
+    helm install -f values.yaml [-f <other-values.yaml>] <release-name> risingwavelabs/risingwave
+
+    # For upgrading existing one.
+    # For more information of the helm upgrade, please refer to https://helm.sh/docs/helm/helm_upgrade/
+    helm upgrade -f values.yaml --reuse-values <release-name> risingwavelabs/risingwave
+    ```
+
+The pod of the meta node (or standalone node) will restart afterwards to set the license key.
+
+If you'd like to renew the license key afterwards, you could simply update the content of the secret created above. The change will be propagated to and loaded by RisingWave automatically.
+
+</Tab>
+
+<Tab title="SQL">
+
+For an existing cluster, use this SQL command:
+
 ```sql
 ALTER SYSTEM SET license_key TO '...';
 ```
 
-#### Automated setup
+Note you'll need to rotate the license by yourself with the same SQL command before expiration.
 
-To set your license key automatically:
+</Tab>
+<Tab title="Local">
 
-1. Use the `--license-key-path` CLI option for the meta node to monitor and reload the license key from a specified file. This streamlines license key rotation in Cloud environments.
-2. Alternatively, set the `RW_LICENSE_KEY_PATH` environment variable on meta pod only.
+There are several ways to set your license key to a local RisingWave:
 
-The `--license-key-path` CLI option is only available for the meta node, as the license key is propagated to other nodes through system parameters. When the `--license-key-path` option is specified, any manual configuration of the license key through system parameters (`license_key`), the initial configuration (`system.license_key`), or the `RW_LICENSE_KEY` environment variable will be rejected.
+1. Add `system.license_key` to your TOML configuration file before launching a new RisingWave
+2. Set `RW_LICENSE_KEY` environment variable on meta node
+3. Use the `--license-key-path` CLI option or the `RW_LICENSE_KEY_PATH` environment variable on meta node to specify a file holding the license key.
+   Changes to the file will be monitored and meta node will reload the license key. This helps streamline license key rotation.
+
+When the `--license-key-path` option or the `RW_LICENSE_KEY_PATH` environment variable is specified, any manual configuration of the license key through
+system parameters (`license_key`), the initial configuration (`system.license_key`), or the `RW_LICENSE_KEY` environment variable will be rejected.
+
+</Tab>
+
+</Tabs>
 
 ### Verify license key
 
@@ -98,26 +196,21 @@ SELECT rw_test_paid_tier();
 
 A result of `t` means the key is valid; an error message indicates an invalid key.
 
-
-## Support
+## Support package
 
 RisingWave provides three levels of support packages:
 
-|  **Support Package**     |  **Starter**                   |  **Pro**      | **Mission-Critical** |
-| :---  | :---  | :---  | :---  |
-| Service Hours            | 8 am - 6 pm (M-F; Local Time)   | 24x7              | 24x7 |
-| Support Type             | Standard                       | Premium           | Premium|
-| Support SLA              | Urgent - 4 hrs                 | Urgent - 2 hrs  | Urgent - 1 hr |
-|                          | High - 12 hrs                  | High - 8 hrs    | High - 4 hrs |
-|                          | Normal - 48 hrs                | Normal - 24 hrs | Normal - 12 hrs |
-|                          | Low - 1 week                   | Low - 48 hrs    | Low - 24 hrs |
-|Designated Technical Account Manager      | No   |No                | Yes|
-| Slack / Team Channels    | No                             | Yes               | Yes |
-|Scheduled Service Engagement| -                            |8 hrs / month      | 16 hrs / month |
-| Business Reviews         | Annually                         | Quarterly         | Monthly |
-| Pricing                  | Included with RisingWave Premium Edition | $5,000 / month   | $10,000 / month |
-| Additional PRO Service Hours  | $200 / hr                 | $200 / hr        | $200 / hr |
+| **Support package**                  | **Starter**                   | **Pro**         | **Mission-Critical** |
+| :----------------------------------- | :---------------------------- | :-------------- | :------------------- |
+| Service Hours                        | 8 am - 6 pm (M-F; Local Time) | 24x7            | 24x7                 |
+| Support Type                         | Standard                      | Premium         | Premium              |
+| Support SLA                          | Urgent - 4 hrs                | Urgent - 2 hrs  | Urgent - 1 hr        |
+|                                      | High - 12 hrs                 | High - 8 hrs    | High - 4 hrs         |
+|                                      | Normal - 48 hrs               | Normal - 24 hrs | Normal - 12 hrs      |
+|                                      | Low - 1 week                  | Low - 48 hrs    | Low - 24 hrs         |
+| Designated Technical Account Manager | No                            | No              | Yes                  |
+| Slack / Team Channels                | No                            | Yes             | Yes                  |
 
 ## Pricing
 
-For pricing details, please contact our sales at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+When you purchase the RisingWave Premium Edition, it automatically includes the **Starter** support package at no additional cost. If you require more advanced support, you may upgrade to the **Pro** or **Mission-Critical** support packages for an additional fee. For detailed pricing information on the Premium Edition and support packages, please contact our sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).

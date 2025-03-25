@@ -1,0 +1,55 @@
+---
+title: "Performance guide overview"
+sidebarTitle: Overview
+description: "Introduction to the RisingWave Performance Guide, covering key concepts, target audience, and guide structure."
+---
+
+This performance guide provides a comprehensive resource for understanding, monitoring, and optimizing the performance of your RisingWave deployments. Whether you're looking to proactively tune your system, troubleshoot specific performance issues, or gain a deeper understanding of RisingWave's internal workings, this guide is for you.
+
+## What is performance in the context of RisingWave?
+
+Performance in RisingWave is primarily characterized by two key factors:
+
+*   **Low Latency:** This refers to the time it takes for RisingWave to process data and produce results. Lower latency means faster response times and a more real-time experience. End-to-end latency encompasses the entire data journey, from the upstream system to the downstream consumer. Processing time, a component of end-to-end latency, specifically measures the time data spends being actively processed within RisingWave.
+*   **High Throughput:** This refers to the volume of data that RisingWave can process within a given time period (e.g., events per second). Higher throughput means RisingWave can handle larger workloads and scale to meet increasing demands.
+
+Achieving optimal performance involves balancing these two factors, often within the constraints of available resources (CPU, memory, network bandwidth, etc.).
+
+## Target audience
+
+This guide is intended for a range of users, including:
+
+*   **Database administrators (DBAs):** Responsible for managing and monitoring RisingWave clusters.
+*   **Data engineers:** Building and maintaining data pipelines using RisingWave.
+*   **Application developers:** Developing applications that interact with RisingWave.
+*   **Anyone interested in understanding and optimizing RisingWave performance.**
+
+While some sections delve into technical details, the guide aims to be accessible to users with varying levels of experience. Key concepts are explained, and cross-references are provided to guide you to more in-depth information.
+
+## Key concepts
+
+Several key concepts are fundamental to understanding performance in RisingWave:
+
+-   **Latency:** As mentioned above, the time it takes to process data. We'll distinguish between *end-to-end latency* (total time) and *processing time* (time within RisingWave).
+-   **Throughput:** The volume of data processed per unit of time.
+-   **Backpressure:** A critical mechanism that prevents RisingWave from being overwhelmed by data. When a downstream component cannot keep up with the upstream data flow, backpressure signals the upstream to slow down, ensuring system stability. This is a natural and essential part of stream processing.
+-   **Resource utilization:** The consumption of resources like CPU, memory, and disk I/O. Monitoring resource utilization is key to identifying bottlenecks.
+-   **State:** Stateful operators in RisingWave (like joins and aggregations) maintain internal state. The size and access patterns of this state significantly impact performance.
+-   **Barrier:** A special type of message injected into the data stream. Barriers play a critical role in synchronization, consistency, and triggering operations within RisingWave.
+-   **Fragment**: A streaming job can be divided into multiple fragments.
+-   **Actor**: Each fragment consists of multiple parallel actors.
+-   **Operator**: Each actor includes one or more streaming operators interconnected.
+
+Understanding these concepts will be essential as you navigate the rest of this guide. For a deeper dive into backpressure and its implications, see [Workload Analysis](/performance/workload-analysis).
+
+## How this guide is organized
+
+This performance guide is structured to provide a logical progression from general concepts to specific troubleshooting techniques:
+
+1.  **Monitoring and metrics:** Explains how to monitor key performance indicators (KPIs) using RisingWave's built-in dashboards and tools. Understanding these metrics is crucial for both proactive tuning and reactive troubleshooting.
+2.  **Best practices:** Provides actionable recommendations for optimizing various aspects of your RisingWave deployment, from data modeling and query writing to resource allocation and data ingestion.
+3.  **Troubleshooting performance issues:** Offers a systematic approach to diagnosing and resolving performance problems, including general troubleshooting steps and guidance for specific issues like high latency and slow stream processing. This section also delves into specific resource bottlenecks.
+4.  **Workload analysis:** Provides a deeper understanding of key performance concepts, particularly backpressure, and its impact on system behavior.
+5.  **Frequently asked questions (FAQs):** Addresses common questions related to RisingWave performance.
+
+Throughout the guide, you'll find numerous cross-references (links) to other relevant sections. Use these links to explore topics in more detail and navigate the guide effectively.

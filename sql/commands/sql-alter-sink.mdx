@@ -58,17 +58,34 @@ ALTER SINK test_sink SET SCHEMA test_schema;
 
 ```sql
 ALTER SINK sink_name
-SET PARALLELISM = parallelism_number;
+SET PARALLELISM { TO | = } parallelism_number;
 ```
 
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                              |
 | :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                  |
-| _parallelism\_number_ | This parameter can be ADAPTIVE or a fixed number, like 1, 2, 3, etc. Altering the parameter to ADAPTIVE will expand the streaming job's degree of parallelism to encompass all available units, whereas setting it to a fixed number will lock the job's parallelism at that specific figure. Setting it to 0 is equivalent to ADAPTIVE. |
+| parallelism_number | Can be ADAPTIVE or a fixed number (e.g., 1, 2, 3). Setting it to ADAPTIVE expands the job's parallelism to all available units, while a fixed number locks it at that value. Setting it to 0 is equivalent to ADAPTIVE. |
 
 ```sql
 -- Set the parallelism of the sink "s" to 4.
 ALTER SINK s SET PARALLELISM = 4;
+```
+
+### `SET SINK_RATE_LIMIT`
+
+```sql
+ALTER SINK sink_name
+    SET SINK_RATE_LIMIT { TO | = } { default | rate_limit_number };
+```
+
+Use this statement to modify the rate limit of a sink. For the specific value of `SINK_RATE_LIMIT`, refer to [How to view runtime parameters](/operate/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
+
+```sql Example
+-- Alter the rate limit of a sink to default
+ALTER SINK s1 SET SINK_RATE_LIMIT = default;
+
+-- Alter the rate limit of a sink to 1000
+ALTER SINK s1 SET SINK_RATE_LIMIT = 1000;
 ```
 
 ### `RENAME TO`

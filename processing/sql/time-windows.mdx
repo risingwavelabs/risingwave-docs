@@ -15,9 +15,11 @@ For tumbling and hopping windows, RisingWave supports them by **time window func
 
 Time window functions are used in the **FROM** clause. They take a table/source/materialized view, a time column and some other arguments as input, and assign each input row a time window by augmenting the row with two new columns: `window_start` and `window_end`. The two augmented columns represent the start and end of time windows respectively.
 
-## `tumble()` time window function
+### `tumble()` time window function
 
 Tumbling windows are contiguous non-overlapping time intervals.
+
+![Tumble time window](/images/tumble_time_window.png)
 
 The syntax of the `tumble()` is as follows:
 
@@ -67,9 +69,11 @@ The result looks like this:
  6       | 1006    | 2022-07-01 22:06:00 | 2022-07-01 22:06:00 | 2022-07-01 22:08:00
 ```
 
-## `hop()` time window function
+### `hop()` time window function
 
 The `hop()` time window function also assigns each row a time window with a fixed size, which is very similar to `tumble()`, except that the assigned time windows may overlap.
+
+![Hop time window](/images/hop_time_window.png)
 
 See below for the syntax of the `hop()` time window function.
 
@@ -112,7 +116,7 @@ The result looks like the table below. Note that the number of rows in the resul
  6       | 1006    | 2022-07-01 22:06:00 | 2022-07-01 22:06:00 | 2022-07-01 22:08:00
 ```
 
-## Session windows
+### Session windows
 
 In RisingWave, session windows are supported by a special type of window function frame: `SESSION` frame. You can refer to [Window function calls](/sql/query-syntax/value-exp#window-function-calls) for detailed syntax.
 
@@ -120,7 +124,9 @@ In RisingWave, session windows are supported by a special type of window functio
 Currently, `SESSION` frame is only supported in batch mode and emit-on-window-close streaming mode.
 </Note>
 
-When using session windows, you can achieve the effect that is very similar to `tumble()` and `hop()` time window functions, that is, to assign each row a time window by augmenting it with `window_start` and `window_end`. Here is an example:
+When using session windows, you can achieve the effect that is very similar to `tumble()` and `hop()` time window functions, that is, to assign each row a time window by augmenting it with `window_start` and `window_end`. 
+
+![Session time window](/images/session_time_window.png)
 
 Given the following table data:
 
@@ -245,6 +251,89 @@ The result looks like this:
  1       | 2022-07-01 22:10:00 | 1
  2       | 2022-07-01 22:05:00 | 2
 ```
+
+## Handle gaps in time windows
+
+If no events occur during specific intervals, gaps may appear in time windows. To ensure continuous and complete time windows, use [`generate_series()`](/sql/functions/set-returning#advanced-usage-of-generating-timestamp) to fill in missing intervals.
+
+### Problem
+
+Consider a dataset of taxi trips where each trip is recorded with a completion timestamp:
+
+```bash 
+ trip_id | taxi_id | completed_at         | distance | duration 
+---------+---------+----------------------+----------+----------
+ 1       | 1001    | 2022-07-01 22:00:00  | 4        | 6        
+ 2       | 1002    | 2022-07-01 22:01:00  | 6        | 9        
+ 3       | 1003    | 2022-07-01 22:02:10  | 3        | 5        
+ 4       | 1004    | 2022-07-01 22:03:00  | 7        | 15       
+ 5       | 1005    | 2022-07-01 22:07:00  | 2        | 4        
+ 6       | 1006    | 2022-07-01 22:08:30  | 8        | 17       
+```
+
+Using a 2-minute tumbling window, we aggregate the trip counts per window:
+
+```sql
+SELECT window_start, window_end, COUNT(*) AS trip_count
+FROM TUMBLE (taxi_trips, completed_at, INTERVAL '2 MINUTES')
+GROUP BY window_start, window_end;
+```
+
+The result looks like this:
+
+```bash
+ window_start        | window_end           | trip_count 
+---------------------+----------------------+------------
+ 2022-07-01 22:00:00 | 2022-07-01 22:02:00  | 2          
+ 2022-07-01 22:02:00 | 2022-07-01 22:04:00  | 2          
+ 2022-07-01 22:06:00 | 2022-07-01 22:08:00  | 1          
+ 2022-07-01 22:08:00 | 2022-07-01 22:10:00  | 1          
+```
+
+Here the time window `2022-07-01 22:04:00 - 2022-07-01 22:06:00` is missing because no trips were recorded during that interval.
+
+### Solution
+
+To ensure continuous time windows, we can generate a full range of expected time windows and LEFT JOIN them with the aggregated results.
+
+```sql
+WITH time_series AS (
+    SELECT 
+        generate_series(
+            TIMESTAMP '2022-07-01 22:00:00',  -- Start time
+            NOW(),  -- End time
+            INTERVAL '2 MINUTES'              -- Step size
+        ) AS window_start
+)
+SELECT 
+    ts.window_start,
+    ts.window_start + INTERVAL '2 MINUTES' AS window_end,
+    COALESCE(t.trip_count, 0) AS trip_count
+FROM time_series ts
+LEFT JOIN (
+    SELECT 
+        window_start, 
+        COUNT(*) AS trip_count
+    FROM TUMBLE (taxi_trips, completed_at, INTERVAL '2 MINUTES')
+    GROUP BY window_start
+) t
+ON ts.window_start = t.window_start
+ORDER BY ts.window_start;
+```
+
+The final output would be continuous time windows with `0` filling for missing intervals.
+
+```bash
+ window_start         | window_end           | trip_count 
+----------------------+----------------------+------------
+ 2022-07-01 22:00:00  | 2022-07-01 22:02:00  | 2          
+ 2022-07-01 22:02:00  | 2022-07-01 22:04:00  | 2          
+ 2022-07-01 22:04:00  | 2022-07-01 22:06:00  | 0          
+ 2022-07-01 22:06:00  | 2022-07-01 22:08:00  | 1          
+ 2022-07-01 22:08:00  | 2022-07-01 22:10:00  | 1          
+```
+
+This approach ensures that every expected time window is included, even if no events occurred in some intervals.
 
 ## Window joins
 
