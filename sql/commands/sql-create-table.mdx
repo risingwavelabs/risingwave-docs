@@ -44,9 +44,10 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 
 - To know when a data record is loaded to RisingWave, you can define a column that is generated based on the processing time (`<column_name> timestamptz AS proctime()`) when creating the table or source. See also [proctime()](/sql/functions/datetime#proctime).
 
-- For a table with schema from external connector, use `*` to represent all columns from the external connector first, so that you can define a generated column on table with an external connector. See the example below
+- For a table with schema from external connector, use `*` to represent all columns from the external connector first, so that you can define a generated column on table with an external connector. Alternatively, you can partially combine the schema with generated columns or apply the schema directly to define the table structure. See the examples below:
 
   ```sql
+  -- Use * to represent all columns
   CREATE TABLE from_kafka (
     *,
     gen_i32_field INT AS int32_field + 2,
@@ -54,6 +55,17 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
   )
   INCLUDE KEY AS some_key
   [INCLUDE { header | offset | partition | timestamp } [AS <column_name>]]
+  WITH (
+    connector = 'kafka',
+    topic = 'test-rw-sink-upsert-avro',
+    properties.bootstrap.server = 'message_queue:29092'
+  )
+  FORMAT upsert ENCODE AVRO (
+    schema.registry = 'http://message_queue:8081'
+  );
+
+  -- Specify partial schema
+  CREATE TABLE t2 (bar INT, gen_col INT AS bar + 1)
   WITH (
     connector = 'kafka',
     topic = 'test-rw-sink-upsert-avro',
