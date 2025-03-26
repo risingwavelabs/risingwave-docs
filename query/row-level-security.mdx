@@ -1,34 +1,30 @@
 ---
-title: "Row-Level Security"
-description: "Guide for implement row-level security (RLS)"
-sidebarTitle: Row-Level Security
+title: "Implement Row-Level Security in RisingWave"
+Description: This guide introduces how to implement row-level security (RLS) in RisingWave by using logical views and access control.
+sidebarTitle: Implement Row-Level Security
 ---
 
-[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) is a powerful feature in PostgreSQL that allows you to control access to rows in a table based on specific policies . 
-Currently, RisingWave does not support Row Security Policies, but this doc will help you implement Row-level Security with existing features. 
+[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) serve as a powerful PostgreSQL feature that controls row-level access based on specific policies. While RisingWave does not natively support Row Security Policies, you can achieve equivalent row-level security through a combination of [logical views](/sql/commands/sql-create-view) with [access control](/operate/access-control). This approach ensures that users can only access data they are authorized to see.
 
 <Warning>
-
-Please note that in versions before to 2.4, there was a bug for logical views' access control, which could not prevent unauthorized users from accessing the view. Therefore, please ensure your RisingWave is version 2.4 or later.
+In versions prior to v2.4, a bug in logical views' access control failed to prevent unauthorized access. Ensure your RisingWave runs v2.4 or later.
 </Warning>
 
-## Using logical views implement RLS for query
-
-By using [logical views](/sql/commands/sql-create-view) with [access control](/operate/access-control), you can create a robust security model that ensures users only access data they are authorized to see.
+## Scenario
 
 Imagine you have a table `employees` that stores employee information, including their department and salary. You want to enforce the following access rules:
 
 1. **HR Managers** can view all employees in the HR department.
 2. **Engineering Managers** can view all employees in the Engineering department.
-3. **CEO** can view all employees
+3. **The CEO** can view all employees.
 
 To achieve this, we’ll use **logical views** to filter data based on user roles and **user permissions** to restrict access to the underlying table.
 
----
+## Procedure
 
-### Step 1: Create the `employees` Table
-
-First, create the `employees` table to store employee data:
+<Steps>
+  <Step title="Create the `employees` table">
+    Create the `employees` table to store employee data:
 
 ```sql
     CREATE TABLE employees (
@@ -38,95 +34,97 @@ First, create the `employees` table to store employee data:
         username TEXT
     );
 ```
+  </Step>
+  <Step title="Insert sample data">
+    Insert some sample data into the `employees` table:
 
-### Step 2: Insert Sample Data
-Insert some sample data into the employees table:
+    ```sql
+    INSERT INTO employees (name, department, salary, username) VALUES
+    ('Alice', 'HR', 50000, 'alice'),
+    ('Bob', 'Engineering', 60000, 'bob'),
+    ('Charlie', 'HR', 55000, 'charlie'),
+    ('David', 'Engineering', 65000, 'david');
+    ```
+  </Step>
+  <Step title="Create users">
+    Create three users: hr_manager, engineering_manager, and ceo.
 
-```sql
-INSERT INTO employees (name, department, salary, username) VALUES
-('Alice', 'HR', 50000, 'alice'),
-('Bob', 'Engineering', 60000, 'bob'),
-('Charlie', 'HR', 55000, 'charlie'),
-('David', 'Engineering', 65000, 'david');
-```
+    ```sql
+    CREATE USER hr_manager WITH PASSWORD 'password';
+    CREATE USER engineering_manager WITH PASSWORD 'password';
+    CREATE USER ceo WITH PASSWORD 'password';
+    ```
+  </Step>
+  <Step title="Create logical views for each user">
+    Create logical views for each user to restrict their access to specific data.
 
-### Step 3: Create Users
+    HR Manager can only view employees in the HR department:
 
-Next, create three users: hr_manager, engineering_manager, and ceo.
+    ```sql View for HR manager
+    CREATE VIEW hr_employee_view AS
+    SELECT name, department, salary
+    FROM employees
+    WHERE department = 'HR';
 
-```sql
-CREATE USER hr_manager WITH PASSWORD 'password';
-CREATE USER engineering_manager WITH PASSWORD 'password';
-CREATE USER ceo WITH PASSWORD 'password';
-```
+    GRANT SELECT ON hr_employee_view TO hr_manager;
+    ```
 
-### Step 4: Create Logical Views for Each User
-Create logical views for each user to restrict their access to specific data.
+    Engineering Manager can only view employees in the Engineering department:
 
-View for HR Manager
-HR Manager can only view employees in the HR department:
+    ```sql View for engineering manager
+    CREATE VIEW engineering_employee_view AS
+    SELECT name, department, salary
+    FROM employees
+    WHERE department = 'Engineering';
 
-```sql
-CREATE VIEW hr_employee_view AS
-SELECT name, department, salary
-FROM employees
-WHERE department = 'HR';
+    GRANT SELECT ON engineering_employee_view TO engineering_manager;
+    ```
 
-GRANT SELECT ON hr_employee_view TO hr_manager;
-```
+    The CEO can view all employees:
 
-View for Engineering Manager
-Engineering Manager can only view employees in the Engineering department:
+    ```sql View for CEO
+    CREATE VIEW all_employee_view AS
+    SELECT name, department, salary
+    FROM employees;
 
-```sql
-CREATE VIEW engineering_employee_view AS
-SELECT name, department, salary
-FROM employees
-WHERE department = 'Engineering';
-
-GRANT SELECT ON engineering_employee_view TO engineering_manager;
-```
-
-View for CEO
-CEO can view all employees:
-
-```sql
-CREATE VIEW all_employee_view AS
-SELECT name, department, salary
-FROM employees;
-
-GRANT SELECT ON all_employee_view TO ceo;
-```
-
-### Step 5: Check the privilege
-
-Now we can use the user `hr_manager` to connect to the database, but it can only query the content of `hr_employee_view` and cannot access the `employees` table or other views.
+    GRANT SELECT ON all_employee_view TO ceo;
+    ```
+  </Step>
+  <Step title="Verify privileges">
+    Now we can connect to the database as the user `hr_manager` to ensure that they can only query the `hr_employee_view` and cannot access the `employees` table or other views.
 
 
-```SQL
-$ psql -h localhost -p 4566 -d dev -U hr_manager
-Password for user hr_manager:
-psql (16.3, server 13.14.0)
-Type "help" for help.
+    ```SQL
+    $ psql -h localhost -p 4566 -d dev -U hr_manager
+    Password for user hr_manager:
+    psql (16.3, server 13.14.0)
+    Type "help" for help.
 
-dev=> select * from hr_employee_view;
-  name   | department | salary
----------+------------+--------
- Charlie | HR         |  55000
- Alice   | HR         |  50000
-(2 rows)
+    dev=> select * from hr_employee_view;
+      name   | department | salary
+    ---------+------------+--------
+    Charlie | HR         |  55000
+    Alice   | HR         |  50000
+    (2 rows)
 
 
-dev=> select * from employees;
-ERROR:  Failed to run the query
+    dev=> select * from employees;
+    ERROR:  Failed to run the query
 
-Caused by:
-  Permission denied: Do not have the privilege
+    Caused by:
+      Permission denied: Do not have the privilege
 
-dev=> select * from engineering_employee_view;
-ERROR:  Failed to run the query
+    dev=> select * from engineering_employee_view;
+    ERROR:  Failed to run the query
 
-Caused by:
-  Permission denied: Do not have the privilege
+    Caused by:
+      Permission denied: Do not have the privilege
 
-```
+    ```
+  </Step>
+</Steps>
+ 
+
+
+
+
