@@ -3,38 +3,44 @@ title: "End-to-End latency"
 description: ""
 ---
 
-Streaming applications often prioritize real-time insights, making end-to-end (E2E) latency a critical factor for success. In RisingWave, E2E latency refers to the total time taken for a data event to be ingested, processed, and delivered to the final destination. High latency can significantly impact real-time use cases such as financial transactions, anomaly detection, and real-time analytics, where even milliseconds matter.
+Streaming applications often prioritize real-time insights, making end-to-end (E2E) latency a critical factor for success. High E2E latency can significantly impact real-time use cases such as financial transactions, anomaly detection, and real-time analytics, where even milliseconds matter.
 
 ## What is E2E latency in RisingWave?
 
-E2E latency in RisingWave consists of multiple stages:
+In RisingWave, E2E latency refers to the total time taken for a data event to be ingested, processed, and delivered to its final destination. It consists of multiple stages:
 
 - Source latency: The time taken to ingest new data from upstream sources like Kafka, databases, or object storage.
-Processing Latency: The time RisingWave takes to transform and compute results on the ingested data.
-Sink Latency: The time taken to write computed results to a target system (e.g., Kafka, PostgreSQL, or MySQL).
-Each of these stages contributes to the overall E2E latency, so optimizing them collectively is essential to achieving low latency.
+- Processing latency: The time RisingWave takes to transform and compute results on the ingested data.
+- Sink latency: The time taken to write computed results to a target system (e.g., Kafka, PostgreSQL, or MySQL).
 
-Materialized Views vs. Sink Latency Considerations
-Notice that we have discussed E2E latency in terms of sinks but not materialized views. This is because updates to a materialized view are not immediately available for batch queries.
+Optimizing each of these stages collectively is essential for achieving low E2E latency.
 
-RisingWave enforces strong consistency for materialized views, meaning updates must wait for the nearest barrier to be globally committed. The commit interval is controlled by the barrier_interval_ms system parameter.
+## Materialized views vs. Sink latency considerations
+
+Be aware that we discuss E2E latency in terms of sinks but not materialized views. This is because updates to a materialized view are not immediately available for batch queries.
+
+RisingWave enforces strong consistency for materialized views, meaning updates must wait for the nearest barrier to be globally committed. The commit interval is controlled by the `barrier_interval_ms` system parameter.
 
 In contrast, sink outputs are written eagerly to the downstream system without waiting for barriers to commit.
 
-If an application requires latency ≤ 500ms, we generally recommend using a sink to trigger event-driven business logic downstream, rather than relying on a built-in materialized view with periodic polling, to ensure faster data availability.
+If your application requires latency ≤ 500ms, it's generally recommended to use a sink to trigger event-driven business logic downstream, rather than relying on a built-in materialized view with periodic polling. This ensures faster data availability.
 
-Typically, when users aim for very low E2E latency, they use a message queue like Kafka as both the source and sink. Based on our experience, when properly configured, source and sink latency can be as low as a few milliseconds 1~5ms.
+## Factors influencing processing latency
 
-As a result, the primary factor influencing E2E latency is processing latency within RisingWave. This depends on several key aspects:
+As source and sink latency can be minimized (especially when using message queues like Kafka for both source and sink, often achieving latencies of 1-5 ms), the primary driver of E2E latency is often the processing latency within RisingWave itself. This latency is influenced by several key aspects:
 
-Query Complexity and Data Patterns
-The simpler the query and data flow, the lower the processing latency. The computational overhead is largely determined by:
+### Query complexity and data patterns
 
-The number and type of operators (e.g., joins, aggregations).
-The volume of intermediate results generated, such as join amplification.
-Even with optimal configurations, if a query requires significant computation, achieving ultra-low latency may not be feasible. Therefore, if your query is computationally intensive—either due to complexity or data volume—consider rewriting the query or adjusting the business goal to better align with the desired latency constraints.
+The simpler the query and data flow, the lower the processing latency. Computational overhead is largely determined by:
 
-Tradeoff between lower latency and higher throughput
+- **The number and type of operators**: Joins and aggregations are particularly computationally intensive.
+
+- **The volume of intermediate results**: Join amplification (where a single event triggers a large number of join operations) can significantly increase processing latency.
+
+Even with optimal configurations, achieving ultra-low latency may not be feasible if a query requires significant computation. Therefore, if your query is computationally intensive, consider rewriting it or adjusting the business goal to better align with the desired latency constraints.
+
+### Tradeoff between lower latency and higher throughput
+
 https://blog.danslimmon.com/2019/02/26/the-latency-throughput-tradeoff-why-fast-services-are-slow-and-vice-versa/.
 There is an inherent trade-off between lower latency and higher throughput. Achieving ultra-low latency often requires processing events as soon as they arrive, which can limit batch optimizations and reduce overall system efficiency. Conversely, higher throughput is typically achieved by batching data, reducing per-event overhead but introducing additional delays.
 
