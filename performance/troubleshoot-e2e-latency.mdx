@@ -1,54 +1,58 @@
 ---
 title: "End-to-End latency"
-description: ""
+description: "Explore the factors affecting end-to-end latency in RisingWave and provide strategies for optimizing performance."
 ---
 
-Streaming applications often prioritize real-time insights, making end-to-end (E2E) latency a critical factor for success. High E2E latency can significantly impact real-time use cases such as financial transactions, anomaly detection, and real-time analytics, where even milliseconds matter.
+Streaming applications often prioritize real-time insights, making end-to-end (E2E) latency a critical factor for success. High E2E latency can significantly impact real-time use cases such as financial transactions, anomaly detection, and real-time analytics, where even milliseconds matter. This guide will introduce the key considerations for optimizing E2E latency and discuss how to handle the trade-off between lower latency and higher throughput.
 
-## What is E2E latency in RisingWave?
+## Understanding E2E latency
 
 In RisingWave, E2E latency refers to the total time taken for a data event to be ingested, processed, and delivered to its final destination. It consists of multiple stages:
 
-- Source latency: The time taken to ingest new data from upstream sources like Kafka, databases, or object storage.
-- Processing latency: The time RisingWave takes to transform and compute results on the ingested data.
-- Sink latency: The time taken to write computed results to a target system (e.g., Kafka, PostgreSQL, or MySQL).
+- **Source latency**: The time taken to ingest new data from upstream sources like Kafka, databases, or object storage.
+- **Processing latency**: The time RisingWave takes to transform and compute results on the ingested data.
+- **Sink latency**: The time taken to write computed results to a target system (e.g., Kafka, PostgreSQL, or MySQL).
 
 Optimizing each of these stages collectively is essential for achieving low E2E latency.
 
-## Materialized views vs. Sink latency considerations
+## Key considerations
 
-Be aware that we discuss E2E latency in terms of sinks but not materialized views. This is because updates to a materialized view are not immediately available for batch queries.
+Below are some key considerations to help you get started with optimizing E2E latency.
 
-RisingWave enforces strong consistency for materialized views, meaning updates must wait for the nearest barrier to be globally committed. The commit interval is controlled by the `barrier_interval_ms` system parameter.
+### Materialized views vs. sink latency
 
-In contrast, sink outputs are written eagerly to the downstream system without waiting for barriers to commit.
+It's important to distinguish between E2E latency in terms of sinks versus materialized views. Updates to materialized views are not immediately available for batch queries because RisingWave enforces strong consistency for materialized views. As a result, updates must wait for the nearest barrier to be globally committed, with the commit interval controlled by the [`barrier_interval_ms`](/operate/view-configure-system-parameters#what-are-system-parameters) system parameter.
 
-If your application requires latency ≤ 500ms, it's generally recommended to use a sink to trigger event-driven business logic downstream, rather than relying on a built-in materialized view with periodic polling. This ensures faster data availability.
+In contrast, sink outputs are eagerly written to the downstream system without waiting for barriers to commit.
 
-## Factors influencing processing latency
+If your application requires latency ≤ 500ms, we recommend using a sink to trigger event-driven business logic downstream, rather than relying on a built-in materialized view with periodic polling. This ensures faster data availability.
 
-As source and sink latency can be minimized (especially when using message queues like Kafka for both source and sink, often achieving latencies of 1-5 ms), the primary driver of E2E latency is often the processing latency within RisingWave itself. This latency is influenced by several key aspects:
+### Source latency and sink latency
 
-### Query complexity and data patterns
+When aiming for very low E2E latency, many users opt for message queues like Kafka as both the source and sink. With proper configuration, these systems can achieve source and sink latencies as low as 1 to 5 milliseconds. Consequently, the primary driver of E2E latency often becomes the processing latency within RisingWave itself.
 
-The simpler the query and data flow, the lower the processing latency. Computational overhead is largely determined by:
+### Query complexity and processing latency
 
-- **The number and type of operators**: Joins and aggregations are particularly computationally intensive.
+Query complexity has a direct impact on processing latency. The simpler the query and data flow, the lower the processing latency. Computational overhead is largely determined by:
 
-- **The volume of intermediate results**: Join amplification (where a single event triggers a large number of join operations) can significantly increase processing latency.
+- The number and type of operators (e.g., joins, aggregations).
+
+- The volume of intermediate results (e.g., join amplification).
 
 Even with optimal configurations, achieving ultra-low latency may not be feasible if a query requires significant computation. Therefore, if your query is computationally intensive, consider rewriting it or adjusting the business goal to better align with the desired latency constraints.
 
-### Tradeoff between lower latency and higher throughput
+## Trade-off between lower latency and higher throughput
 
-https://blog.danslimmon.com/2019/02/26/the-latency-throughput-tradeoff-why-fast-services-are-slow-and-vice-versa/.
-There is an inherent trade-off between lower latency and higher throughput. Achieving ultra-low latency often requires processing events as soon as they arrive, which can limit batch optimizations and reduce overall system efficiency. Conversely, higher throughput is typically achieved by batching data, reducing per-event overhead but introducing additional delays.
+Having discussed these various system design choices and factors, the primary factor influencing processing latency is the trade-off between lower latency and higher throughput.
 
-One notable configuration parameter in the aggregation operator is stream_hash_agg_max_dirty_groups_heap_size ([source](https://github.com/risingwavelabs/risingwave/blob/0bedf6503e7ceb50d40637083fc34bb735f0a0aa/src/config/example.toml#L153)).
+There is an [inherent trade-off](https://blog.danslimmon.com/2019/02/26/the-latency-throughput-tradeoff-why-fast-services-are-slow-and-vice-versa/) between lower latency and higher throughput in stream processing systems. Achieving ultra-low latency often requires processing events as soon as they arrive, which can limit batch optimizations and reduce overall system efficiency. Conversely, higher throughput is typically achieved by batching data, reducing per-event overhead but introducing additional delays. The key is to understand how configuration parameters and system design choices impact this trade-off. This section will explore the impact of aggregation operator and parallelism on query latency and throughput.
 
-This parameter controls how many changes the aggregation operator buffers before consolidating them and sending the results to the next operator in the query plan. The trade-off here is between latency and computation efficiency.
+### Aggregation operator configuration
 
-Example: Trade-Off Between Consolidation and Immediate Output
+One notable configuration parameter in the aggregation operator is [stream_hash_agg_max_dirty_groups_heap_size](https://github.com/risingwavelabs/risingwave/blob/0bedf6503e7ceb50d40637083fc34bb735f0a0aa/src/config/example.toml#L153). It controls how many changes the aggregation operator buffers before consolidating them and sending the results to the next operator in the query plan. The trade-off here is between latency and computation efficiency.
+
+#### Example
+
 Consider a scenario where we receive a series of updates for key K:
 
 (K, -1) → (K, +1) → (K, -1) → (K, +1)
@@ -57,22 +61,29 @@ If the aggregation operator buffers and consolidates these updates before emitti
 
 However, if we immediately propagate each individual change as it arrives, the system outputs four updates. This can have significant downstream effects, especially if multiple join operators follow, potentially leading to a large number of intermediate results.
 
-Key Considerations for Performance Tuning
-Lower values of stream_hash_agg_max_dirty_groups_heap_size prioritize low latency, ensuring changes are sent downstream as soon as they arrive. However, the second-order effect is that it can increase the load on downstream operators, potentially slowing them down due to a higher volume of intermediate results.
-Higher values buffer more updates before consolidating them, which reduces redundant computations and minimizes intermediate results—at the cost of slightly increased latency.
-When tuning this parameter, users should consider the overall query structure and whether downstream operations, such as joins, may amplify unnecessary updates if changes are emitted too frequently.
+#### Tuning tip
 
-Another trade-off between lower latency and higher throughput lies in the parallelism configuration for each streaming job.
+- Lower values of `stream_hash_agg_max_dirty_groups_heap_size` prioritize low latency, ensuring changes are sent downstream as soon as they arrive. However, the second-order effect is that it can increase the load on downstream operators, potentially slowing them down due to a higher volume of intermediate results.
 
-To achieve higher throughput, it is natural to increase parallelism and execute the job in a distributed fashion. However, higher parallelism does not always lead to lower latency, as it introduces additional overhead.
+- Higher values of `stream_hash_agg_max_dirty_groups_heap_size` buffer more updates before consolidating them, which reduces redundant computations and minimizes intermediate results—at the cost of slightly increased latency.
 
-For example, in a hash join, data from one upstream source must be shuffled to the corresponding hash partitions before being joined with data from the other upstream. If there are many upstream sources, this shuffling stage can add more latency.
+When tuning this parameter, you should consider the overall query structure and whether downstream operations, such as joins, may amplify unnecessary updates if changes are emitted too frequently.
 
-The impact becomes even more pronounced when a query involves multiple shuffle stages, such as hash joins or aggregations on different keys, where each stage introduces additional delays.
+### Parallelism configuration
 
-That said, if a query can be executed in an embarrassingly parallel manner—where tasks run independently without shuffling—this concern does not apply.
+Another trade-off between lower latency and higher throughput lies in the parallelism configuration for each streaming job. To achieve higher throughput, it is natural to increase parallelism and execute the job in a distributed manner. However, higher parallelism does not always lead to lower latency, as it introduces additional overhead.
 
-Expanding on this idea, it is often more efficient to use a single large physical machine for computation rather than multiple smaller machines, as this helps minimize shuffling overhead and reduce network latency.
+#### Example
 
-Finally, if you experience higher-than-expected latency, refer to this troubleshooting guide for initial debugging steps. If the issue persists, join our Slack community, and we can help diagnose it with more details.
+For example, in a hash join, data from one upstream source must be shuffled to the corresponding hash partitions before being joined with data from the other upstream. If there are many upstream sources, this shuffling stage can add more latency. The impact becomes even more pronounced when a query involves multiple shuffle stages, such as hash joins or aggregations on different keys, where each stage introduces additional delays.
+
+That said, if a query can be executed in an embarrassingly parallel manner where tasks run independently without shuffling, this concern does not apply.
+
+#### Tuning tip
+
+It is often more efficient to use a single large physical machine for computation rather than multiple smaller machines, as this helps minimize shuffling overhead and reduce network latency.
+
+## What's next
+
+Finally, if you experience higher-than-expected latency, refer to this [guide](/performance/troubleshoot-high-latency#high-latency) for initial debugging steps. If the issue persists, feel free to join our [Slack community](https://www.risingwave.com/slack), and we will help diagnose it in more detail.
 
