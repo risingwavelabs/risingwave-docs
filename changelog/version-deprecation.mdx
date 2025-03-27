@@ -10,19 +10,14 @@ This document describes the deprecation policy for *RisingWave software versions
 
 ## 1. Software versioning model (semantic versioning)
 
-RisingWave Database adheres to the Semantic Versioning (SemVer) scheme, using a three-digit numbering system: `Major.Minor.Patch`. Understanding this scheme is crucial for interpreting the deprecation policy.
+RisingWave adheres to the Semantic Versioning (SemVer) scheme, using a three-digit numbering system: `Major.Minor.Patch`. Understanding this scheme is crucial for interpreting the deprecation policy.
 
 *   **Major version (e.g., 2.0.0):**  Represents significant, milestone releases. These releases often introduce substantial new features, architectural changes, and *may include breaking changes*. Breaking changes might require data migration or adjustments to user workflows.  Major versions are typically released annually.
 
-    *   **Example:** A transition from version 1.x.x to 2.x.x might involve a significant change in the storage engine or a major overhaul of the SQL dialect.
-
 *   **Minor version (e.g., 2.1.0):**  Represents regular, ongoing releases that deliver new features, enhancements, and bug fixes.  Minor versions are designed to be *backward compatible* within the same major version. This means that upgrading from, for example, 2.1.0 to 2.2.0 should not break existing functionality unless explicitly communicated.  Minor versions are typically released every 45 days.
-
-    *   **Example:** Version 2.1.0 might introduce a new connector, while version 2.2.0 might add support for a new SQL function.  Both should work seamlessly with existing 2.0.0 deployments.
 
 *   **Patch version (e.g., 2.1.1):**  Represents releases focused solely on bug fixes and security patches. Patch versions do not introduce new features or breaking changes.  Multiple patch versions may be released within a single minor version's lifecycle.
 
-    *   **Example:** Version 2.1.1 might fix a bug in a specific connector introduced in 2.1.0, and 2.1.2 might address a security vulnerability.
 
 ## 2. Version deprecation policy
 
@@ -36,36 +31,33 @@ This section defines the rules governing when support for older versions of Risi
 
 *   **2.2 Minor version deprecation:**
 
-    *   Support for a minor version continues for a minimum of four months, *or* until three newer minor versions have been released, *whichever period is longer*.
+    *   Support for a minor version continues for a minimum of two and half (2.5) months, *or* until three newer minor versions have been released, *whichever period is longer*.
 
-    *   **Example 1 (Four-month minimum):**  If version 2.1.0 is released, and the next three minor versions (2.2.0, 2.3.0, 2.4.0) are released very quickly (e.g., within three months), support for 2.1.0 will still continue for the full four months.
+    *   **Example 1 (Two-and-half-month minimum):**  If version 2.1.0 is released, and the next three minor versions (2.2.0, 2.3.0, 2.4.0) are released very quickly (e.g., within three months), support for 2.1.0 will still continue for the full four months.
 
-    *   **Example 2 (Three newer versions):** If version 2.1.0 is released on January 1st, 2025, and versions 2.2.0, 2.3.0, and 2.4.0 are released on February 15th, March 30th, and May 15th, respectively, then support for 2.1.0 would end on May 15th, 2025 (when 2.4.0 is released), as this is *longer* than the four-month minimum.
+    *   **Example 2 (Three newer versions):** If version 2.1.0 is released on January 1st, 2025, and versions 2.2.0, 2.3.0, and 2.4.0 are released on February 15th, March 30th, and May 15th, respectively, then support for 2.1.0 would end on May 15th, 2025 (when 2.4.0 is released), as this is *longer* than the two-and-half-month minimum.
 
 *   **2.3 Cherry-picking fixes (backporting):**
 
     *   Critical bug fixes and security patches will be "cherry-picked" (backported) to a limited set of supported versions. This ensures that even users who haven't yet upgraded to the very latest release receive essential updates. Fixes will be applied to:
-        *   The two most recently released minor versions.
+        *   The latest released minor version.
         *   The minor version currently undergoing release testing.
-        *   The `main` development branch (which represents the next upcoming release).
         *   *Potentially*, one past major version, subject to the major version deprecation policy (section 2.1). This is evaluated on a case-by-case basis.
 
     *   **Example:** On March 5th, 2025, assume the following:
-        *   `main` branch is preparing for version 2.4.0.
         *   Version 2.3.0 is undergoing release testing.
         *   Version 2.2.0 is the latest released version.
-        *   Version 2.1.0 is a past release.
         *   Version 1.10.0 is an older major version, still within its support window.
 
         In this scenario, fixes would be backported to 2.3.0, 2.2.0, and *potentially* 1.10.0 (if it's still within the four-month grace period after the release of 2.0.0). Backporting to 2.1.0 would likely *not* occur, as it's superseded by two newer minor versions.
 *   **2.4 Exceptions:**
 
-    *   In exceptional circumstances, such as the discovery of critical security vulnerabilities, severe performance issues, or legal requirements, a version may be deprecated and removed with *shorter notice* than outlined above.  RisingWave will make every effort to inform users as soon as possible in such cases.
+    *   In exceptional circumstances, such as the discovery of critical security vulnerabilities, severe performance issues, or legal requirements, a version may be deprecated and removed with *shorter notice* than outlined above. RisingWave will make every effort to inform users as soon as possible in such cases.
 
 ## 3. RisingWave Cloud specifics
 
 *   RisingWave Cloud users will receive notifications about version deprecation directly through the cloud portal.
-*   The deprecation process will eventually be automated using published maintenance windows for each region.  Details on this automation will be provided when the feature is available.
+*   The deprecation process will be automated using published maintenance windows for each region.  Details on this automation will be provided when the feature is available.
 *   Until automation is in place, the RisingWave Cloud SRE team will coordinate with customers to ensure adherence to the version deprecation policy.
 
 ## 4. Communication and user support
@@ -75,7 +67,7 @@ This section defines the rules governing when support for older versions of Risi
     *   **Blog posts:**  Detailed explanations and migration guidance.
     *   **Release notes:**  Specific changes and deprecation notices within each release.
     *   **Direct emails:**  Targeted notifications to users of affected versions.
-    *   **In-product notifications:**  Alerts within the RisingWave Database interface.
+    *   **In-product notifications:**  Alerts within the RisingWave Cloud interface.
 
 *   **4.2 Content of notifications:**  Deprecation notices will include:
     *   The specific release being deprecated (e.g., "RisingWave 1.5.x").
@@ -86,7 +78,7 @@ This section defines the rules governing when support for older versions of Risi
     *   Guidance on migration paths and available resources.
 
 *   **4.3 Advance notice:**
-    *   RisingWave will provide at least *two (2) months'* notice before deprecating a *major* version.  The exact timeline may be adjusted based on the scope and impact of the changes in the new major release.
+    *   RisingWave will provide at least *two (2) months'* notice before deprecating a *major* version. The exact timeline may be adjusted based on the scope and impact of the changes in the new major release.
 
 *   **4.4 Migration support:**  Where applicable, RisingWave will provide tools, documentation, and support resources to assist users in migrating to newer, supported versions. This may include migration scripts, step-by-step guides, and dedicated support channels.
 
