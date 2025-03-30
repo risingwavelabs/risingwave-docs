@@ -2,16 +2,13 @@
 title: "PrivateLink connection"
 sidebarTitle: Overview
 description: In RisingWave Cloud, if you want to connect RisingWave instances with your services inside your private Virtual Private Cloud (VPC) network, you can use the PrivateLink service to establish a private and secure connection between RisingWave Cloud and your private VPC in the same region.
-
 ---
-
-
 RisingWave Cloud utilizes the private connection capability of the underlying Cloud vendors to establish the PrivateLink connection. In particular, the PrivateLink service is built on top of the following services:
 
 * [AWS PrivateLink](https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html)
 <Note>
-   When configuring AWS PrivateLink, ensure you're using an IAM user or role with appropriate permissions. Never use the AWS account root user for these operations.
-   </Note>
+When configuring AWS PrivateLink, ensure you're using an IAM user or role with appropriate permissions. Never use the AWS account root user for these operations.
+</Note>
 * [GCP Private Service Connect](https://cloud.google.com/vpc/docs/private-service-connect)
 * [Azure Private Link](https://learn.microsoft.com/en-us/azure/private-link/)
 
@@ -19,18 +16,17 @@ RisingWave Cloud utilizes the private connection capability of the underlying Cl
 Azure Private Link integration is currently in development and will be available soon.
 </Note>
 
-<Note>
+
+The diagram below depicts a high-level overview of how PrivateLink service works. All three platforms share the same pattern of network structure so that you can configure them in the same way automatically.
+
+<img src="/images/cloud/privatelink-overview/privatelink-diagram.png"/>
+
+<Info>
 All data transmitted through PrivateLink connections is automatically encrypted in transit. Additionally:
 - For AWS PrivateLink: Communication is secured using AWS's internal network and TLS encryption
 - For GCP Private Service Connect: Data is encrypted using Google's internal network encryption
 - For Azure Private Link: Traffic is automatically encrypted within the Microsoft backbone network
-</Note>
-
-The diagram below depicts a high-level overview of how PrivateLink service works. All three platforms share the same pattern of network structure so that you can configure them in the same way automatically.
-
-<Frame>
-  <img src="/images/cloud/privatelink-overview/privatelink-diagram.png"/>
-</Frame>
+</Info>
 
 On the **RisingWave Cloud** side, RisingWave Cloud will create an endpoint (specifically an AWS VPC endpoint, GCP Private Service Connect endpoint, or Azure private endpoint) and bind it with one running RisingWave project.
 
