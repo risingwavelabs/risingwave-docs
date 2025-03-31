@@ -8,9 +8,11 @@ JavaScript code is inlined in `CREATE FUNCTION` statement and then run on the em
 
 ## Define your functions
 
-You can use the [CREATE FUNCTION](/sql/commands/sql-create-function) command to create JavaScript UDFs. See the syntax as follows:
+You can use the [CREATE FUNCTION](/sql/commands/sql-create-function) command to create JavaScript UDFs. 
 
-```js
+### Basic JavaScript UDFs
+
+```sql Syntax
 CREATE FUNCTION function_name ( arg_name arg_type [, ...] )
     [ RETURNS return_type | RETURNS TABLE ( column_name column_type [, ...] ) ]
     LANGUAGE javascript
@@ -19,7 +21,7 @@ CREATE FUNCTION function_name ( arg_name arg_type [, ...] )
 
 The argument names you defined can be used in the function body. For example:
 
-```js
+```sql
 CREATE FUNCTION gcd(a int, b int) RETURNS int LANGUAGE javascript AS $$
     if(a == null || b == null) {
         return null;
@@ -37,12 +39,51 @@ See the correspondence between SQL types and JavaScript types in the [Data type 
 
 If the function you defined returns a table, you need to use the `yield` statement to return the data of each row. For example:
 
-```js
+```sql
 CREATE FUNCTION series(n int) RETURNS TABLE (x int) LANGUAGE javascript AS $$
     for(let i = 0; i < n; i++) {
         yield i;
     }
 $$;
+```
+
+### Async and batched JavaScript UDFs
+
+<Note>
+Added in v2.3.
+</Note>
+
+You can create JavaScript UDFs with asynchronous execution and batch processing using the following syntax.
+
+```sql Syntax
+CREATE FUNCTION function_name(arg_name arg_type [, ...])
+    RETURNS return_type
+    LANGUAGE javascript
+    AS $$
+export async function function_name(arg_name) {
+    ... // You can call async functions such as `await fetch()` here.
+}
+$$ WITH (
+    async = [true|false],
+    batch = [true|false]
+);
+```
+
+- `async`: Set to `true` to enable async functions like `await fetch()`.
+- `batch`: Set to `true` to process multiple batches.
+
+```sql Example
+CREATE FUNCTION fetch_weather(city varchar) 
+RETURNS varchar 
+LANGUAGE javascript 
+AS $$
+export async function fetch_weather(city) {
+    const response = await fetch('https://api.weatherapi.com/v1/current.json?key=YOUR_API_KEY&q=' + city);
+    const data = await response.json();
+    return data.current.temp_c;  // returns current temperature in Celsius
+}
+$$ 
+WITH (async = true);
 ```
 
 ## Use your functions
