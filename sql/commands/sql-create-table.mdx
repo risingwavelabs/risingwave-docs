@@ -85,8 +85,8 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 | data\_type                        | The data type of a column. With the struct data type, you can create a nested table. Elements in a nested table need to be enclosed with angle brackets (\<>).                                                                                                                                                                                                                                           |
 | DEFAULT                           | The DEFAULT clause allows you to assign a default value to a column. This default value is used when a new row is inserted, and no explicit value is provided for that column. default\_expr is any constant value or variable-free expression that does not reference other columns in the current table or involve subqueries. The data type of default\_expr must match the data type of the column. |
 | generation\_expression            | The expression for the generated column. For details about generated columns, see [Generated columns](/sql/query-syntax/generated-columns).                                                                                                                                                                                                                                                   |
-| watermark\_clause                 | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For the watermark clause to be valid, the table must be an append-only table. That is, the APPEND ONLY option must be specified. This restriction only applies to a table. For details about watermarks, refer to [Watermarks](/processing/watermarks).                                |
-| APPEND ONLY                       | When this option is specified, the table will be created as an append-only table. An append-only table cannot have primary keys. UPDATE and DELETE statements are not valid for append-only tables.                                                                            |
+| watermark\_clause                 | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For the watermark clause to be valid, the table must be an append-only table. That is, the APPEND ONLY option must be specified. This restriction only applies to a table. For details about watermarks, See [Watermarks](#watermarks) below for more.           |
+| APPEND ONLY                       | When this option is specified, the table will be created as an append-only table. An append-only table cannot have primary keys. UPDATE and DELETE statements are not valid for append-only tables. See [Watermarks](#append-only) below for more.                                                                            |
 | ON CONFLICT                       | Specify the alternative action when the newly inserted record brings a violation of PRIMARY KEY constraint on the table. See [PK conflict behavior](#pk-conflict-behavior) below for more information.                                                                                                                                                                                                  |
 | **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause).                                                                                                                                                                                                                                                     |
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See the [Data ingestion](/ingestion/overview) page for the full list of supported source as well as links to specific connector pages detailing the syntax for each source.                                                                                                                                       |
@@ -96,9 +96,27 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
 </Note>
 
+## Append only
+
+The append-only table does not support delete or update operations, nor does it support non-append-only upstream connectors. There are two main reasons for using append-only tables:
+
+- Certain features are exclusively available for append-only tables, such as watermark and TTL (Time-To-Live).
+- Streaming jobs created downstream from append-only tables can leverage their append-only property to optimize performance. 
+
 ## Watermarks
 
 RisingWave supports generating watermarks when creating an append-only streaming table. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. For more information on the syntax on how to create a watermark, see [Watermarks](/processing/watermarks).
+
+## TTL of append-only table
+
+Data in an append-only table cannot be deleted with `DELETE` statements. Therefore, RisingWave provides TTL (Time-To-Live) feature to automatically clean up expired data in the table. 
+However, please note that this cleanup only applies to the data within the table itself—it does not affect downstream materialized views or other streaming jobs. If you need to clean up data in downstream materialized views used in queries, you should use a [Temporal Filter](/processing/sql/temporal-filters) in the downstream streaming job.
+
+```sql
+CREATE TABLE t (
+    ...
+) APPEND ONLY WITH (retention_seconds = 86400);
+```
 
 ## PK conflict behavior
 
