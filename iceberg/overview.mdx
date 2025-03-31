@@ -1,0 +1,59 @@
+---
+title: Using Iceberg with RisingWave
+description: "Learn how to read data from and write data to Apache Iceberg tables using RisingWave's built-in source and sink connectors."
+---
+RisingWave integrates with Apache Iceberg, allowing you to perform batch reads using the built-in Iceberg source connector and streaming writes using the built-in Iceberg sink connector.
+
+This enables you to build a streaming lakehouse architecture with RisingWave. You can ingest data from Iceberg for real-time processing or sink processed results back into Iceberg, potentially using other query engines alongside RisingWave for diverse analytical needs.
+
+## Read data from Iceberg tables (batch source)
+
+To ingest data *from* Iceberg tables into RisingWave, use the `CREATE SOURCE` statement. For detailed syntax and parameter explanations, see [Ingest data from Iceberg](/ingestion/sources/iceberg).
+
+The following example demonstrates creating a source that reads from an Iceberg table stored on AWS S3:
+
+```sql
+CREATE SOURCE iceberg_source
+WITH (
+    connector = 'iceberg',
+    type='append-only',
+    warehouse.path = 's3://your-bucket/path/to/iceberg/warehouse',
+    database.name = 'YOUR_ICEBERG_DB',
+    table.name = 'YOUR_ICEBERG_TABLE',
+    s3.endpoint = 'http://YOUR_S3_ENDPOINT:PORT', -- e.g., 'http://minio:9000'
+    s3.access.key = 'YOUR_ACCESS_KEY',
+    s3.secret.key = 'YOUR_SECRET_KEY',
+    s3.region = 'YOUR_S3_REGION'  -- Optional if endpoint is specified
+) ;
+```
+
+## Write data to Iceberg tables
+
+To stream data from RisingWave into Iceberg tables, use the CREATE SINK statement. For detailed syntax and parameter explanations,  see [Sink data to Iceberg](/integrations/destinations/apache-iceberg).
+
+The following example assumes a stream or materialized view named `mv_name` exists in RisingWave. It demonstrates sinking data to an Iceberg table managed by a [REST catalog](https://iceberg.apache.org/concepts/catalog/#decoupling-using-the-rest-catalog).
+
+```sql Example
+CREATE SINK sink_demo_rest FROM t
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = true,
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.path.style.access = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'http://localhost:8181/api/catalog',
+    warehouse.path = 'quickstart_catalog',
+    database.name = 'ns',
+    table.name = 't1',
+    catalog.credential='123456:123456',
+    catalog.scope='PRINCIPAL_ROLE:ALL',
+    catalog.oauth2-server-uri='xxx'
+    catalog.scope='xxx',
+);
+```
+
+<Note>Ensure that the necessary networking and credentials (like S3 access keys and catalog authentication tokens) are correctly configured and accessible from your RisingWave cluster.</Note>
