@@ -1,0 +1,16 @@
+---
+title: "Overview"
+description: Learn how to store data persistently inside RisingWave.
+---
+
+This topic explains how to store data in RisingWave. Whenever you create either a materialized view or a table, RisingWave will persist the internal data inside object store (e.g., Amazon S3).
+
+RisingWave offers two types of storages: row-based storage (default), and columnar-based storage (Apache Iceberg).
+
+## Row-based storage
+
+By default, tables and materialized views are stored in row-based storage, using a specialized storage engine called [Hummock](https://risingwave.com/blog/hummock-a-storage-engine-designed-for-stream-processing/). The row-based storage will automatically cache data in local memory in order to get optimal storage. The row-based storage is good at serving ad-hoc point and short-range access. But it’s not optimized for long-range access and full-table scans.
+
+## Columnar-based storage
+
+RisingWave offers columnar-based storage. Instead of using proprietary format, RisingWave stores analytical data based on Apache Iceberg. For more details, see [Iceberg table engine](/serve/iceberg-table-engine).
