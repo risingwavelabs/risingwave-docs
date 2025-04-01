@@ -3,7 +3,11 @@ title: "CREATE CONNECTION"
 description: "Use the `CREATE CONNECTION` command to create a reusable catalog for connector parameters."
 ---
 
-The `CREATE CONNECTION` command creates a reusable connection configuration that can be referenced when creating sources, sinks, or tables. Currently supported connection types are Kafka and schema registry.
+The `CREATE CONNECTION` command creates a reusable connection configuration that can be referenced when creating sources, sinks, or tables. Currently supported connection types are Kafka, Schema Registry, and Iceberg.
+
+<Note>
+Added in v2.3: Support `iceberg` connection.
+</Note>
 
 ## Syntax
 
@@ -16,26 +20,23 @@ WITH (
 );
 ```
 
-Connection parameters can reference secrets using the `SECRET` keyword. This allows sensitive information to be stored securely and referenced in the connection configuration. Additionally, changes to the secret are automatically applied, so there's no need to alter the connection.
-
-
 ## Parameter
 
 | Parameter or clause | Description                                                                                                                      |
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------- |
-| `type` | Required. The type of connection. Supported values: `kafka`, `schema_registry`, `iceberg`. |
-| `properties.bootstrap.server` | The Kafka bootstrap server addresses. Required when `type` is `kafka`. |
-
-<Note>
-Added in v2.3: Support `iceberg` connection.
-</Note>
+| type | Required. The type of connection. Supported values: `kafka`, `schema_registry`, `iceberg`. |
+| secret_name | Use the `SECRET` keyword to reference secrets, allowing sensitive information to be stored securely and referenced in the connection configuration. Changes to the secret are automatically applied, so there's no need to alter the connection. |
 
 
 <Accordion title="Click to see all supported properties for Kafka connection.">
 
-The following properties are optional and can be included in the Kafka connection configuration as needed:
+**Required**
 
- **SSL/SASL authentication:**
+- `properties.bootstrap.server`: The Kafka bootstrap server addresses.
+ 
+**Optional**
+
+For SSL/SASL authentication:
   - `properties.security.protocol`
   - `properties.ssl.endpoint.identification.algorithm`
   - `properties.ssl.ca.location`
@@ -55,11 +56,11 @@ The following properties are optional and can be included in the Kafka connectio
   - `properties.sasl.kerberos.min.time.before.relogin`
   - `properties.sasl.oauthbearer.config`
 
- **PrivateLink connection:**
+For PrivateLink connection:
   - `privatelink.targets`
   - `privatelink.endpoint`
 
- **AWS authentication:**
+For AWS authentication:
   - `aws.region`
   - `endpoint`
   - `aws.credentials.access_key_id`
@@ -67,6 +68,16 @@ The following properties are optional and can be included in the Kafka connectio
   - `aws.credentials.session_token`
   - `aws.credentials.role.arn`
   - `aws.credentials.role.external_id`
+</Accordion>
+
+<Accordion title="Click to see all supported properties for Schema Registry.">
+
+| Property name                  | Description |
+|:-------------------------------|:------------|
+| schema.registry                  | The base URL of the Schema Registry service. |
+| schema.registry.username         | The username for authenticating to the Schema Registry service. |
+| schema.registry.password         | The password for authenticating to the Schema Registry service. |
+
 </Accordion>
 
 <Accordion title="Click to see all supported properties for Iceberg connection.">
