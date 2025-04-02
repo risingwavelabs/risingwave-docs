@@ -31,7 +31,12 @@ You don’t need to specify the column names for the Iceberg source, as RisingWa
 
 ## Storage configuration (S3-compatible)
 
+To integrate RisingWave with Iceberg tables stored in S3-compatible object storage, you must provide the necessary connection details. These configurations tell RisingWave exactly where your data warehouse resides and how to authenticate and access it.
+
+### Basic connection
+
 These parameters configure the connection to the underlying S3-compatible storage system where the Iceberg data files are stored. This includes AWS S3, MinIO, and other compatible services.
+
 
 | Parameter             | Description                                                                                                | Required (Conditional)    |
 | :-------------------- | :--------------------------------------------------------------------------------------------------------- | :-------------------------- |
@@ -41,6 +46,18 @@ These parameters configure the connection to the underlying S3-compatible storag
 | `s3.access.key`     | Your S3 access key ID.    | Conditional                     |
 | `s3.secret.key`     | Your S3 secret access key.    | Conditional                    |
 | `s3.path.style.access` | Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). | No                          |
+
+### AWS S3 Tables integration
+
+RisingWave supports using the Iceberg source with AWS S3 Tables. The following parameters configure the connection to S3 Tables. For more information, see [
+Integrate Iceberg with Amazon S3 Tables](/iceberg/overview#integrate-iceberg-with-amazon-s3-tables).
+
+| Parameter             | Description                                                                                                | Required     |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------- | :-------------------------- |
+|`catalog.rest.signing_region` | The signing region when signing requests to the `rest` catalog. | No |
+|`catalog.rest.signing_name` | The signing name when signing requests to the `rest` catalog. | No |
+|`catalog.rest.signing_region` | Specify whether to use SigV4 for signing requests to the `rest` catalog. | No |
+
 
 ## Storage configuration (GCS)
 
@@ -65,9 +82,6 @@ These parameters configure the Iceberg catalog. The catalog is responsible for m
 | `catalog.token`        | A Bearer token for accessing the Iceberg catalog, used for interaction with the server. Applicable only in the `rest` catalog.                                                         | No                          |
 | `catalog.oauth2_server_uri`   | The `oauth2_server_uri` for accessing the Iceberg catalog, serving as the token endpoint URI to fetch a token if the `rest` catalog is not the authorization server. Applicable only in the `rest` catalog.  | No                          |
 | `catalog.scope`        |  Scope for accessing the Iceberg catalog, providing additional scope for OAuth2. Applicable only in the `rest` catalog.    | No                    |
-|`catalog.rest.signing_region` | The signing region when signing requests to the `rest` catalog. | No |
-|`catalog.rest.signing_name` | The signing name when signing requests to the `rest` catalog. | No |
-|`catalog.rest.signing_region` | Specify whether to use SigV4 for signing requests to the `rest` catalog. | No |
 | `catalog.jdbc.user`        |  Username for JDBC catalog.                        | No                    |
 | `catalog.jdbc.password`        |   Password for JDBC catalog.                       | No                    |
 

@@ -57,3 +57,73 @@ WITH (
 ```
 
 <Note>Ensure that the necessary networking and credentials (like S3 access keys and catalog authentication tokens) are correctly configured and accessible from your RisingWave cluster.</Note>
+
+## Integrate Iceberg with Amazon S3 Tables
+
+Amazon S3 Tables introduces table management APIs compatible with the Apache Iceberg REST Catalog standard, allowing any Iceberg-compatible application to create, update, list, and delete tables in an S3 table bucket.  
+
+This enables **Iceberg Source, Iceberg Sink, and Iceberg Table Engine** to connect with S3 Tables. Specifically, S3 Tables offer automatic compaction, so when using the Iceberg table engine with AWS S3 Tables, they provide an alternative solution until Iceberg compaction becomes available in future releases.
+
+The following examples show how to connect, read, and write data using Iceberg with Amazon S3 Tables.
+
+```sql
+create connection my_conn
+with (
+    type = 'iceberg',
+    warehouse.path = 'arn:aws:s3tables:us-east-1:xxxxx:bucket/xxxxx',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.region = 'us-east-1',
+    catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
+    catalog.rest.signing_region='us-east-1',
+    catalog.rest.sigv4_enabled=true,
+    catalog.rest.signing_name='s3tables',
+    catalog.type = 'rest',
+);
+set iceberg_engine_connection = 'public.my_conn';
+alter system set iceberg_engine_connection = 'public.my_conn';
+
+create table t(id int primary key, name varchar) with(commit_checkpoint_interval = 5) engine = iceberg;
+```
+
+```sql
+create source t(*)
+with (
+    connector = 'iceberg',
+    warehouse.path = 'arn:aws:s3tables:us-east-1:xxxxx:bucket/xxxxx',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.region = 'us-east-1',
+    catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
+    catalog.rest.signing_region='us-east-1',
+    catalog.rest.sigv4_enabled=true,
+    catalog.rest.signing_name='s3tables',
+    catalog.type = 'rest',
+    table.name = 't',
+    database.name = 'myns'
+);
+```
+
+```sql
+create table t2 (id int primary key, v int);
+create sink s from t2
+with (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 'arn:aws:s3tables:us-east-1:xxxxx:bucket/xxxxx',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.region = 'us-east-1',
+    catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
+    catalog.rest.signing_region='us-east-1',
+    catalog.rest.sigv4_enabled=true,
+    catalog.rest.signing_name='s3tables',
+    catalog.type = 'rest',
+    table.name = 't2',
+    database.name = 'myns',
+    create_table_if_not_exists = true
+);
+```
+
+For details on connecting to the `rest` catalog provided by S3 Tables, refer to the [AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html).
