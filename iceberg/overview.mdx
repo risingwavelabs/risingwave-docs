@@ -33,7 +33,7 @@ To stream data from RisingWave into Iceberg tables, use the CREATE SINK statemen
 
 The following example assumes a stream or materialized view named `mv_name` exists in RisingWave. It demonstrates sinking data to an Iceberg table managed by a [REST catalog](https://iceberg.apache.org/concepts/catalog/#decoupling-using-the-rest-catalog).
 
-```sql Example
+```sql
 CREATE SINK sink_demo_rest FROM t
 WITH (
     connector = 'iceberg',
@@ -67,28 +67,32 @@ This enables **Iceberg Source, Iceberg Sink, and Iceberg Table Engine** to conne
 The following examples show how to connect, read, and write data using Iceberg with Amazon S3 Tables.
 
 ```sql
-create connection my_conn
-with (
+CREATE CONNECTION my_conn
+WITH (
     type = 'iceberg',
     warehouse.path = 'arn:aws:s3tables:us-east-1:xxxxx:bucket/xxxxx',
     s3.access.key = 'xxxx',
     s3.secret.key = 'xxxx',
     s3.region = 'us-east-1',
     catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
-    catalog.rest.signing_region='us-east-1',
-    catalog.rest.sigv4_enabled=true,
-    catalog.rest.signing_name='s3tables',
-    catalog.type = 'rest',
+    catalog.rest.signing_region = 'us-east-1',
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
+    catalog.type = 'rest'
 );
-set iceberg_engine_connection = 'public.my_conn';
-alter system set iceberg_engine_connection = 'public.my_conn';
 
-create table t(id int primary key, name varchar) with(commit_checkpoint_interval = 5) engine = iceberg;
+SET iceberg_engine_connection = 'public.my_conn';
+ALTER SYSTEM SET iceberg_engine_connection = 'public.my_conn';
+
+CREATE TABLE t (
+    id INT PRIMARY KEY,
+    name VARCHAR
+) WITH (commit_checkpoint_interval = 5) ENGINE = iceberg;
 ```
 
 ```sql
-create source t(*)
-with (
+CREATE SOURCE t(*)
+WITH (
     connector = 'iceberg',
     warehouse.path = 'arn:aws:s3tables:us-east-1:xxxxx:bucket/xxxxx',
     s3.access.key = 'xxxx',
@@ -105,9 +109,13 @@ with (
 ```
 
 ```sql
-create table t2 (id int primary key, v int);
-create sink s from t2
-with (
+CREATE TABLE t2 (
+    id INT PRIMARY KEY,
+    v INT
+);
+
+CREATE SINK s FROM t2
+WITH (
     connector = 'iceberg',
     type = 'upsert',
     primary_key = 'id',
@@ -116,9 +124,9 @@ with (
     s3.secret.key = 'xxxx',
     s3.region = 'us-east-1',
     catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
-    catalog.rest.signing_region='us-east-1',
-    catalog.rest.sigv4_enabled=true,
-    catalog.rest.signing_name='s3tables',
+    catalog.rest.signing_region = 'us-east-1',
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
     catalog.type = 'rest',
     table.name = 't2',
     database.name = 'myns',
