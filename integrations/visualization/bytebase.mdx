@@ -10,21 +10,20 @@ description: "Introduce how to integrate Bytebase with RisingWave for schema man
 
 Before you begin, ensure you have the following:
 
-- A running instance of **RisingWave** (self-hosted or cloud version)
-- A **Bytebase** instance (self-hosted or cloud version)
-- Database user credentials with the necessary privileges in RisingWave
+- A running instance of **RisingWave** (self-hosted or Cloud version).
+- A **Bytebase** instance (self-hosted or Cloud version).
+- Database user credentials with the necessary privileges in RisingWave.
 
-## Step 1: Set Up RisingWave
+## Step 1: Set up RisingWave
 
-### Create a RisingWave cluster
 
 Create a RisingWave cluster in [RisingWave Cloud](https://cloud.risingwave.com/) using the free plan. For more information, refer to the [RisingWave Cloud documentation](https://docs.risingwave.com/cloud/manage-projects).
 
-![image](https://github.com/user-attachments/assets/a7403d6c-67da-488e-9163-7982200d681d)
+<Frame>
+  <img src="/images/bytebase_0.png"/>
+</Frame>
 
-## Step 2: Install and Configure Bytebase
-
-### Install Bytebase
+## Step 2: Install and configure Bytebase
 
 You can run Bytebase using Docker or use Bytebase Cloud:
 
@@ -38,11 +37,13 @@ docker run --rm --init \
 
 Access Bytebase UI at `http://localhost:8080` and set up an admin account.
 
-![1](https://github.com/user-attachments/assets/8e626ad4-df07-453e-ac68-cd91e9a88238)
+<Frame>
+  <img src="/images/bytebase_1.png"/>
+</Frame>
 
-### Add RisingWave as a New Database
+Then, add RisingWave as a new database:
 
-1. Go to **Instances** → **Add Instance**.
+1. Go to **Instances** > **Add Instance**.
 2. Select RisingWave as the Instance type (since RisingWave is supported by Bytebase).
 3. Enter the following connection details:
     - **Instance Name:** Any random name
@@ -52,74 +53,85 @@ Access Bytebase UI at `http://localhost:8080` and set up an admin account.
     - **Username:** **`bytebase`  (the super user that you created)**
     - **Password:** The password you set for the `bytebase` user
 4. Click **Test Connection** to verify, then click on **Create** at the end.
+      <Frame>
+        <img src="/images/bytebase_2.png"/>
+      </Frame>
 
-![2](https://github.com/user-attachments/assets/9e377f84-a655-4242-9994-5e3757d63425)
+After creating the RisingWave instance, you will see the RisingWave databases under the **Databases** section as follows:
 
-After creating the RisingWave instance, you will be able to see the RisingWave databases under the **Databases** section as follows:
+<Frame>
+  <img src="/images/bytebase_3.png"/>
+</Frame>
 
-![3](https://github.com/user-attachments/assets/9c3560eb-73e6-44dd-8973-347021d431d7)
+## Step 3: Manage schema changes with Bytebase
 
-## Step 3: Managing Schema Changes with Bytebase
-
-### Creating a Schema Migration
+### Create a schema migration
 
 1. In Bytebase, go to **Projects** and create a new project.
 2. After creating the new project, click on it, then select **Transfer DB** and choose the RisingWave database named **dev**. This will transfer the database to the project.
 
-![4](https://github.com/user-attachments/assets/2734c6e4-f03f-473d-b144-5d92cca55a44)
+      <Frame>
+        <img src="/images/bytebase_4.png"/>
+      </Frame>
 
-Click on the new database instance to view all its details, the **Schema Diagram**, and open the **SQL Editor**.
+3. Click on the new database instance to view all its details, the **Schema Diagram**, and open the **SQL Editor**.
 
-![5](https://github.com/user-attachments/assets/d38a2bfd-99e2-457a-8830-7ff49109ad15)
+      <Frame>
+        <img src="/images/bytebase_5.png"/>
+      </Frame>
 
-Click on **SQL Editor** and use the following SQL script to create a table in RisingWave in **Admin Mode**:
+4. Click on **SQL Editor** and use the following SQL script to create a table in RisingWave in **Admin Mode**:
 
-```sql
--- Step 1: Create the transactions table
-CREATE TABLE transactions (
-    transaction_id INT,
-    customer_id INT,
-    transaction_type VARCHAR,
-    amount DECIMAL,
-    currency VARCHAR,
-    transaction_tp TIMESTAMP,
-    transaction_status VARCHAR
-);
+    ```sql
+    -- Step 1: Create the transactions table
+    CREATE TABLE transactions (
+        transaction_id INT,
+        customer_id INT,
+        transaction_type VARCHAR,
+        amount DECIMAL,
+        currency VARCHAR,
+        transaction_tp TIMESTAMP,
+        transaction_status VARCHAR
+    );
 
--- Step 2: Insert sample data into the transactions table
-INSERT INTO transactions (transaction_id, customer_id, transaction_type, amount, currency, transaction_tp, transaction_status) VALUES
-(1, 101, 'Deposit', 500.00, 'USD', '2024-03-15 09:30:00', 'Completed'),
-(2, 102, 'Withdrawal', 200.00, 'EUR', '2024-03-15 10:15:00', 'Pending'),
-(3, 103, 'Transfer', 1000.00, 'GBP', '2024-03-15 11:00:00', 'Completed'),
-(4, 104, 'Deposit', 250.50, 'INR', '2024-03-15 12:45:00', 'Failed'),
-(5, 105, 'Withdrawal', 750.75, 'USD', '2024-03-15 14:20:00', 'Completed'),
-(6, 106, 'Transfer', 5000.00, 'EUR', '2024-03-15 15:30:00', 'Pending');
+    -- Step 2: Insert sample data into the transactions table
+    INSERT INTO transactions (transaction_id, customer_id, transaction_type, amount, currency, transaction_tp, transaction_status) VALUES
+    (1, 101, 'Deposit', 500.00, 'USD', '2024-03-15 09:30:00', 'Completed'),
+    (2, 102, 'Withdrawal', 200.00, 'EUR', '2024-03-15 10:15:00', 'Pending'),
+    (3, 103, 'Transfer', 1000.00, 'GBP', '2024-03-15 11:00:00', 'Completed'),
+    (4, 104, 'Deposit', 250.50, 'INR', '2024-03-15 12:45:00', 'Failed'),
+    (5, 105, 'Withdrawal', 750.75, 'USD', '2024-03-15 14:20:00', 'Completed'),
+    (6, 106, 'Transfer', 5000.00, 'EUR', '2024-03-15 15:30:00', 'Pending');
 
--- Step 3: Show data insertion
-SELECT * FROM transactions;
-```
+    -- Step 3: Show data insertion
+    SELECT * FROM transactions;
+    ```
 
-This shows Bytebase’s SQL Editor:
+    Below is the SQL Editor of Bytebase:
 
-![6](https://github.com/user-attachments/assets/ff2d1084-165d-4cda-9622-7391eb5a983b)
+      <Frame>
+        <img src="/images/bytebase_6.png"/>
+      </Frame>
 
-This shows the result when querying the table in Bytebase's SQL editor:
+    Below is the result when querying the table in Bytebase's SQL editor:
 
-![7](https://github.com/user-attachments/assets/250ccee2-3734-4487-8729-9159e880ead5)
+      <Frame>
+        <img src="/images/bytebase_7.png"/>
+      </Frame>
 
-### Tracking Schema Versions
+### Track schema versions
 
-Bytebase maintains a history, allowing you to:
+Bytebase maintains a record of schema changes history, allowing you to:
 
 - Track schema changes
 - Roll back problematic migrations
 - Enforce approval workflows for schema modifications
 
-## Step 4: Automating Schema Deployments
+## Step 4: Automate schema deployments
 
 You can integrate Bytebase with CI/CD pipelines for automated schema deployments:
 
-### Using the Bytebase API
+### Use the Bytebase API
 
 Bytebase provides gRPC and RESTful APIs, enabling full automation of database workflows. The UI console itself runs on this API, allowing seamless integration with your internal developer platform.
 
@@ -129,7 +141,7 @@ Key capabilities:
 - **Database change deployment**: Streamline schema changes.
 - **Embedded SQL Editor**: Execute and validate queries.
 
-### GitOps Integration
+### GitOps integration
 
 Bytebase supports GitOps workflows, allowing schema changes via pull requests. Connect your repository and configure automatic deployment rules.
 
@@ -137,6 +149,4 @@ Bytebase supports GitOps workflows, allowing schema changes via pull requests. C
 
 By integrating Bytebase with RisingWave, you can efficiently manage schema changes, enforce best practices, and improve collaboration in real-time data streaming applications. This setup ensures schema consistency and reduces errors in production deployments.
 
-## Additional Resources
-
-For more information on leveraging Bytebase and its features, visit the [Bytebase Documentation](https://www.bytebase.com/docs).
+For more information on leveraging Bytebase and its features, see [Bytebase Documentation](https://www.bytebase.com/docs).
