@@ -1,11 +1,22 @@
 ---
 title: "Iceberg table engine"
-description: Learn how to use Iceberg table engine in RisingWave.
+description: "Learn how to use the Iceberg table engine in RisingWave to store data natively in the Iceberg format."
 ---
 
-RisingWave supports using Iceberg table engine to manage Iceberg table in your catalog and Cloud storage. Follow the steps below to set up Iceberg configurations and create your table with Iceberg engine.
+In RisingWave, the Iceberg table engine allows you to create and manage tables directly within the system, while storing their underlying data in the Apache Iceberg format on external object storage. This offers an alternative way to persist data compared to RisingWave's default row-based internal storage format (which also typically uses object storage).
 
-## 1. Create an Iceberg connection
+Using the Iceberg table engine provides several benefits:
+
+- Native management: RisingWave manages the table's lifecycle (creation, schema, writes). You interact with it like any other RisingWave table (querying, inserting, using in materialized views).
+- Iceberg format storage: Data is physically stored according to the Iceberg specification, using a configured Iceberg catalog and object storage path. This ensures compatibility with the Iceberg ecosystem.
+- Simplified pipelines: You don't need a separate CREATE SINK step to export data out of RisingWave into Iceberg format if Iceberg is your desired end format managed by RisingWave. Data ingested or computed can land directly in these Iceberg tables.
+- Interoperability: Tables created with the Iceberg engine are standard Iceberg tables and can be read by external Iceberg-compatible query engines (like Spark, Trino, Flink, Dremio) using the same catalog and storage configuration.
+
+This guide details how to set up and use the Iceberg table engine.
+
+## Setup and usage
+
+### 1. Create an Iceberg connection
 
 The Iceberg connection contains information about catalog and object storage. For syntax and properties, see [`CREATE CONNECTION`](/sql/commands/sql-create-connection#syntax).
 
@@ -22,14 +33,6 @@ CREATE CONNECTION public.conn WITH (
     s3.access.key = 'hummockadmin',
     s3.secret.key = 'hummockadmin'
 );
-```
-
-To protect your access key and secret key, you can use `SECRET` to provide your sensitive credentials.
-
-```sql Use SECRET
-CREATE SECRET secret_1 WITH (
-  backend = 'meta'
-) AS 'hummockadmin';
 ```
 
 The following examples show how to create an Iceberg connection using different catalog types.
@@ -75,18 +78,20 @@ CREATE CONNECTION public.conn WITH (
 );
 ```
 
-## 2. Configure connection
+### 2. Configure the engine to use the connection
 
-Configure the connection for Iceberg table engine, so Iceberg table created in the next step can use the connection by default.
+You need to configure the iceberg table engine to use the connection that was just created. All tables created with the Iceberg table engine will use the connection by default.
 
 ```sql
 SET iceberg_engine_connection = 'public.conn';
 ALTER system SET iceberg_engine_connection = 'public.conn';
 ```
 
-## 3. Create table with Iceberg engine
+## 3. Create a table with the Iceberg engine
 
-Suppose creating a table with `commit_checkpoint_interval = 1`. It means RisingWave will commit changes to the iceberg table at every checkpoint. Typically, the checkpoint time is 1s. 
+Now, you can create a table using the standard `CREATE TABLE` syntax, but adding the `ENGINE = iceberg` clause.
+
+The `commit_checkpoint_interval` parameter controls how frequently (every N checkpoints) RisingWave commits changes to the Iceberg table, creating a new Iceberg snapshot. The default value is 60. Typically, the checkpoint time is 1s. That means RisingWave will commit changes to the Iceberg table every 60s.
 
 ```sql
 CREATE TABLE t (
@@ -97,89 +102,79 @@ ENGINE = iceberg;
 
 ```
 
-## 4. Insert rows
+## 4. Basic operations (insert and select)
+
+For tables created with the Iceberg table engine, you can insert data using standard `INSERT` statements and query using `SELECT`. You can use them as base tables to create materialized views or join them with regular tables. However, RisingWave doesn't support renaming or changing the schemas of natively managed Iceberg tables.
 
 ```sql
-INSERT INTO t VALUES (1, 'xxx');
+INSERT INTO users_iceberg VALUES (1, 'Alice', NOW());
+INSERT INTO users_iceberg VALUES (2, 'Bob', NOW());
+
+SELECT * FROM users_iceberg WHERE user_id = 1;
+--  user_id | user_name |         signup_ts
+-- ---------+-----------+---------------------------
+--        1 | Alice     | 2023-10-27 10:30:00.123...
+-- (1 row)
 ```
 
-## 5. Query Iceberg table
+## 5. Streaming ingestion into Iceberg tables
+
+You can define a source connector directly within the CREATE TABLE statement that uses the Iceberg engine. Data flows from the external source (e.g., Kafka, Pulsar) directly into the Iceberg table format managed by RisingWave.
 
 ```sql
-SELECT * FROM t;
- id | name  
-----+------  
-  1 | xxx  
-(1 row)  
-
-```
-
-## 6. Streaming ingestion
-
-You can streaming ingest data to the iceberg table in a RisingWave familiar way.
-
-<Note>
-The configuration `commit_checkpoint_interval=N` for streaming ingestion. RisingWave streaming ingests data into the iceberg table and commits every N checkpoint. To mitigate the small files problem, we recommend using `commit_checkpoint_interval=60` which is the default value. Typically, if checkpoint happens every 1s, then it means we commit to iceberg table every 60s.
-</Note>
-
-You can define a connector in the table together with an iceberg engine. For example, if you use kafka connector, the table would continuously ingest data into table Iceberg table from Kafka.
-
-```sql
-CREATE TABLE t2 (
-    v1 INT, 
-    v2 VARCHAR
+-- Example: Stream Kafka topic directly into an Iceberg table
+CREATE TABLE page_views_iceberg (
+    view_id BIGINT,
+    url VARCHAR,
+    user_id INT,
+    view_ts TIMESTAMP
 ) WITH (
     connector = 'kafka',
-    topic = 'kafka_1_partition_topic',
-    properties.bootstrap.server = '127.0.0.1:9092',
-    scan.startup.mode = 'earliest'
-) 
-FORMAT PLAIN ENCODE JSON 
-ENGINE = iceberg;
+    topic = 'page_views_topic',
+    properties.bootstrap.server = 'kafka:9092',
+    scan.startup.mode = 'earliest',
+    commit_checkpoint_interval = 120 -- Commit every 120 checkpoints (e.g., ~2 mins)
+)
+FORMAT PLAIN ENCODE JSON  -- Specify the format of the incoming Kafka messages
+ENGINE = iceberg;        -- Store data natively in Iceberg format
 ```
 
-You can also use `Sink into table` to ingest data into Iceberg table as well.
-
-## 7. Cleanup
+You can also sink data from another RisingWave source, table, or materialized view into a table created with the Iceberg engine.
 
 ```sql
-DROP TABLE t;
+-- Assume users_iceberg table exists (created with ENGINE = iceberg)
+-- Assume raw_users_stream source exists
+
+CREATE SINK user_sink INTO users_iceberg FROM raw_users_stream;
 ```
 
-## Related topics
-
-This section introduces additional features and considerations when using Iceberg tables in RisingWave.
-
-### AWS S3 Tables integration
-
-RisingWave supports using the Iceberg table engine with AWS S3 Tables. Configure the following parameters to integrate with S3 Tables. For more information, see [
-Integrate Iceberg with Amazon S3 Tables](/iceberg/overview#integrate-iceberg-with-amazon-s3-tables).
-
-| Parameter Names              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| catalog.rest.signing_region | The signing region when signing requests to the `rest` catalog. |
-| catalog.rest.signing_name | The signing name when signing requests to the `rest` catalog. |
-| catalog.rest.signing_region | Specify whether to use SigV4 for signing requests to the `rest` catalog. |
+## Features and considerations
 
 ### Time travel
 
-You can run a time travel query on an Iceberg table to retrieve historical data based on a specific timestamp or snapshot ID.
+Iceberg's snapshotting mechanism enables time travel queries. You can query the state of the table as of a specific timestamp or snapshot ID using the `FOR SYSTEM_TIME AS OF` or `FOR SYSTEM_VERSION AS OF` clauses.
 
 ```sql
--- timestamp
-SELECT * FROM t FOR SYSTEM_TIME AS OF '2025-02-10 11:48:06'; 
+-- Query state based on timestamp
+SELECT * FROM users_iceberg FOR SYSTEM_TIME AS OF '2023-10-27 10:00:00';
 
--- snapshot id
-SELECT * FROM t FOR SYSTEM_VERSION AS OF 1839661944842368408;  
+-- Query state based on a specific Iceberg snapshot ID
+SELECT * FROM users_iceberg FOR SYSTEM_VERSION AS OF 876543219876543210; -- Replace with actual snapshot ID
 ```
 
-### External Access
+### External access
 
-If an external system needs to access an Iceberg table created by RisingWave, it can reuse the Iceberg connection information from Step 1.
+Since the data is stored in the standard Iceberg format, external systems (like Spark, Trino, Dremio) can directly query the tables created by RisingWave's Iceberg engine. To do this, configure the external system with the same Iceberg connection details used in RisingWave:
 
-For example, to access the table `t` in the public schema, the corresponding namespace in the Iceberg catalog is also `public`, and the table name remains `t`.
+- Catalog type (`storage`, `jdbc`, `glue`, `rest`)
+- Catalog configuration (URI, warehouse path, credentials)
+- Object storage configuration (endpoint, credentials)
 
-## Limitation
+The namespace and table name in the external catalog will typically match the schema and table name in RisingWave. For example, the table `public.users_iceberg` in RisingWave would be accessed as table `users_iceberg` within the public namespace/database in the configured Iceberg catalog by an external tool.
 
-Currently, there is no compaction service running for the Iceberg table, so you need to run compaction manually. We are working on this feature and plan to release it in a future version.
+## Limitations
+
+RisingWave does not currently have a built-in automatic compaction service for tables created with the Iceberg engine. Streaming ingestion, especially with frequent commits (low `commit_checkpoint_interval`), can lead to many small files. You may need to run compaction procedures manually using external tools that operate on Iceberg tables to optimize read performance. We are actively working on integrating compaction features.
+
+
 
