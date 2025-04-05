@@ -7,7 +7,8 @@ description: "Use the `CREATE DATABASE` command to create a new database."
 
 ```sql
 CREATE DATABASE [ IF NOT EXISTS ] database_name
-    [ WITH ] [ OWNER [=] user_name ];
+    [ WITH ] [ owner [=] user_name ]
+    [ resource_group [=] resource_group_name ];
 ```
 
 ## Parameters
@@ -16,13 +17,31 @@ CREATE DATABASE [ IF NOT EXISTS ] database_name
 | :----------------------- | :-------------------------------------------------------------------------------------------- |
 | _database_name_         | The name of the database to be created.                                                       |
 | **IF NOT EXISTS** clause | Creates a database if the database name has not already been used. Otherwise throws an error. |
-| **OWNER [=] user_name** clause | Specifies which user owns the database to be created. |
+| **owner [=] user_name** clause | Specifies which user owns the database to be created. |
+| **resource_group [=] resource_group_name** clause| Assigns the database to a specific resource group. If not set, the database belongs to the default resource group. |
+
+
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+Specifying the resource group is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+</Tip>
+
+<Note>
+**PUBLIC PREVIEW**
+
+Specifying the resource group is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
+</Note>
+
 
 ## Example
 
 ```sql
 CREATE DATABASE IF NOT EXISTS travel
-    WITH OWNER = travel_admin;
+    WITH OWNER = travel_admin
+    RESOURCE_GROUP = high_priority;
 ```
 
 <Note>
