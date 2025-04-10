@@ -70,6 +70,11 @@ CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
 --- idx_t_k2_partial_columns doesn't include column v2.
 CREATE INDEX idx_t_k2_partial_columns ON t(k2) INCLUDE (k1,v1);
 
+--- idx_t_k2_partial_columns is not utilized.
+EXPLAIN SELECT v2 FROM t WHERE k1=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: t, columns: [v2], scan_ranges: [k1 = Int32(1)] }
+
 --- idx_t_k2_partial_columns is utilized.
 EXPLAIN SELECT v1 FROM t WHERE k2=1;
  BatchExchange { order: [], dist: Single }
@@ -99,7 +104,7 @@ Examples:
 ```sql
 CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
 
---- The predicate k1=1 has been pushed down to the BatchScan.
+--- The predicate k1=1 is pushed down to the BatchScan.
 EXPLAIN SELECT * FROM t WHERE k1=1;
  BatchExchange { order: [], dist: Single }
  └─BatchScan { table: t, columns: [k1, k2, v1, v2], scan_ranges: [k1 = Int32(1)] }
