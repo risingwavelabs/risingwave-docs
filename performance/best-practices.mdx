@@ -62,6 +62,53 @@ We determine how the index should be created by checking:
 
 We remark that the incremental maintenance of indexes in RisingWave is similar to the incremental maintenance of materialized views but with minimal computation. Therefore, it is cost-effective to create indexes in RisingWave. We encourage users to detect the patterns in batch queries and create indexes if the pattern occurs frequently or/and a batch query is slow.
 
+Examples:
+
+```sql
+CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
+
+--- idx_t_k2_partial_columns doesn't include column v2.
+CREATE INDEX idx_t_k2_partial_columns ON t(k2) INCLUDE (k1,v1);
+
+--- idx_t_k2_partial_columns is utilized.
+EXPLAIN SELECT v1 FROM t WHERE k2=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: idx_t_k2_partial_columns, columns: [v1], scan_ranges: [k2 = Int32(1)] }
+
+--- idx_t_k2_partial_columns is utilized. However since it doesn't include column v2, the plan requires an additional lookup join.
+EXPLAIN SELECT v2 FROM t WHERE k2=1;
+ BatchLookupJoin { type: Inner, predicate: idx_t_k2_partial_columns.k1 IS NOT DISTINCT FROM t.k1 AND idx_t_k2_partial_columns.k2 IS NOT DISTINCT FROM t.k2 AND (t.k2 = 1:Int32), lookup table: t }
+ └─BatchExchange { order: [], dist: Single }
+   └─BatchScan { table: idx_t_k2_partial_columns, columns: [k2, k1], scan_ranges: [k2 = Int32(1)] }
+
+--- idx_t_k2_all_columns includes all columns.
+CREATE INDEX idx_t_k2_all_columns ON t(k2);
+
+--- idx_t_k2_all_columns is utilized. Compare the plan with the one that uses idx_t_k2_partial_columns.
+EXPLAIN SELECT v2 FROM t WHERE k2=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: idx_t_k2_all_columns, columns: [v2], scan_ranges: [k2 = Int32(1)] }
+```
+
+### Leverage predicate pushdown
+
+Predicate pushdown allows filtering operations (predicates) to be applied as early as possible in the query pipeline. This means that instead of retrieving all data and then filtering it, RisingWave filters the data at the storage level.
+
+```sql
+CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
+
+--- The predicate k1=1 has been pushed down to the BatchScan.
+EXPLAIN SELECT * FROM t WHERE k1=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: t, columns: [k1, k2, v1, v2], scan_ranges: [k1 = Int32(1)] }
+
+--- The predicate k2=1 cannot be pushed down to the BatchScan.
+EXPLAIN SELECT * FROM t WHERE k2=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchFilter { predicate: (t.k2 = 1:Int32) }
+   └─BatchScan { table: t, columns: [k1, k2, v1, v2] }
+```
+
 ## Backfilling optimization
 Backfilling refers to the operation where a query processes all existing or historical data.
 
