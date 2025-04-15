@@ -133,6 +133,38 @@ You can also sink data from another RisingWave source, table, or materialized vi
 CREATE SINK user_sink INTO users_iceberg FROM raw_users_stream;
 ```
 
+## Use Amazon S3 Tables
+
+RisingWave supports using the Iceberg table engine with AWS S3 Tables. When creating an Iceberg connection for S3 tables, configure the following parameters. For more information, see [Use Amazon S3 Tables](/iceberg/overview#use-amazon-s3-tables).
+
+ | Parameter Names              | Description |
+ | :--------------------------- | :---------- |
+ | catalog.rest.signing_region | The signing region when signing requests to the `rest` catalog. |
+ | catalog.rest.signing_name | The signing name when signing requests to the `rest` catalog. |
+ | catalog.rest.signing_enabled | Specify whether to use SigV4 for signing requests to the `rest` catalog. |
+
+Here's an example of creating an Iceberg connection for S3 tables and using it to create a table:
+
+```sql
+create connection my_conn
+with (
+    type = 'iceberg',
+    warehouse.path = 'arn:aws:s3tables:us-east-1:xxxxx:bucket/xxxxx',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.region = 'us-east-1',
+    catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
+    catalog.rest.signing_region='us-east-1',
+    catalog.rest.sigv4_enabled=true,
+    catalog.rest.signing_name='s3tables',
+    catalog.type = 'rest',
+);
+set iceberg_engine_connection = 'public.my_conn';
+alter system set iceberg_engine_connection = 'public.my_conn';
+
+create table t(id int primary key, name varchar) with(commit_checkpoint_interval = 5) engine = iceberg;
+```
+
 ## Features and considerations
 
 ### Time travel
