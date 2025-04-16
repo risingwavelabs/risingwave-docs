@@ -50,15 +50,55 @@ WITH (
 | catalog.oauth2_server_uri | Optional. The `oauth2_server_uri` for accessing the Iceberg catalog, serving as the token endpoint URI to fetch a token if the `rest` catalog is not the authorization server. Applicable only in the `rest` catalog. |
 | catalog.scope | Optional. Scope for accessing the Iceberg catalog, providing additional scope for OAuth2. Applicable only in the `rest` catalog. |
 
-### Use AWS S3 Tables
+### Use Amazon S3 Tables with the Iceberg sink
 
-RisingWave supports using the Iceberg sink with AWS S3 Tables. Configure the following parameters to integrate with S3 Tables. For more information, see [Integrate Iceberg with Amazon S3 Tables](/iceberg/overview#use-amazon-s3-tables).
+You can configure the RisingWave Iceberg sink connector to use Amazon S3 Tables as its catalog. This setup allows RisingWave to sink data into Iceberg tables managed by the AWS native S3 Tables catalog service.
 
-| Parameter Names | Description |
-| :------------- | :---------- |
-| catalog.rest.signing_region | The signing region when signing requests to the `rest` catalog. |
-| catalog.rest.signing_name | The signing name when signing requests to the `rest` catalog. |
-| catalog.rest.signing_region | Specify whether to use SigV4 for signing requests to the `rest` catalog. |
+To achieve this, specify the `rest` catalog type within your `CREATE SINK` statement and include the necessary parameters for SigV4 authentication against the S3 Tables REST API.
+
+**Required REST Catalog Parameters for S3 Tables:**
+
+| Parameter Name                | Description                                                      | Value for S3 Tables |
+| :---------------------------- | :--------------------------------------------------------------- | :------------------ |
+| `catalog.rest.signing_region` | The AWS region for signing REST catalog requests.                | e.g., `us-east-1`   |
+| `catalog.rest.signing_name`   | The service name for signing REST catalog requests.              | `s3tables`          |
+| `catalog.rest.sigv4_enabled`  | Enables SigV4 signing for REST catalog requests. Set to `true`. | `true`              |
+
+**Example `CREATE SINK` Statement:**
+
+```sql
+CREATE SINK my_s3_tables_sink FROM source_table
+WITH (
+    connector = 'iceberg',
+    type = 'upsert', -- Or 'append-only'
+    primary_key = 'id', -- Required for 'upsert' type
+
+    -- Specify the S3 Tables warehouse ARN
+    warehouse.path = 'arn:aws:s3tables:<your-region>:<your-account-id>:bucket/<your-bucket-name>',
+    -- AWS Credentials
+    s3.access.key = '<your-aws-access-key-id>',
+    s3.secret.key = '<your-aws-secret-access-key>',
+    s3.region = '<your-region>', -- e.g., 'us-east-1'
+
+    -- S3 Tables REST catalog endpoint
+    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+    -- REST catalog signing configurations
+    catalog.rest.signing_region = '<your-region>', -- e.g., 'us-east-1'
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
+    -- Specify REST catalog type
+    catalog.type = 'rest',
+
+    -- Target Iceberg table details within S3 Tables catalog
+    database.name = '<your-database-name>', -- Database in S3 Tables
+    table.name = '<your-table-name>',       -- Table name in S3 Tables
+    create_table_if_not_exists = true      -- Optional: Create table if it doesn't exist
+);
+
+<Note>Replace placeholder values (<...>) with your specific AWS account, region, bucket, database, table names, and credentials.</Note>
+```
+
+Once created, this sink will write data from `source_table` into the specified Iceberg table (`<your-table-name>`) within the `<your-database-name>` database, using Amazon S3 Tables to manage the table's metadata.
 
 ## Data type mapping
 
