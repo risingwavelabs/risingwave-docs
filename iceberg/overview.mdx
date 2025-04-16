@@ -1,0 +1,115 @@
+---
+title: Interact with Iceberg
+description: "Learn about different ways to use Iceberg with RisingWave"
+---
+Apache Iceberg is an open table format for huge analytic tables stored typically on object storage. RisingWave offers several ways to interact with tables using the Iceberg format, enabling you to leverage Iceberg's capabilities within your streaming pipelines.
+
+It's important to understand that RisingWave's own internal storage system (Hummock) also commonly uses object storage (like S3) to persist data, but it does so using a row-based format optimized for RisingWave's internal operations.
+
+When interacting with Iceberg, you are working with data stored in the columnar Iceberg format on object storage. RisingWave provides the following interaction methods:
+
+- Read data from Iceberg tables managed externally: Use the native Iceberg source connector to ingest data into RisingWave from Iceberg tables that are created and managed outside of RisingWave (e.g., by Spark, Flink, or batch ETL jobs).
+
+- Write data to Iceberg tables managed externally: Use the native Iceberg sink connector to stream processed results from RisingWave out to these externally managed Iceberg tables.
+
+- Store data natively within RisingWave using the Iceberg format: Use the Iceberg table engine to create and manage tables directly within RisingWave, but store their data in the Iceberg format on configured object storage, using an Iceberg catalog.
+
+This topic provides an overview of these methods.
+
+## Read from externally managed Iceberg tables (Iceberg source)
+
+You can create an Iceberg source in RisingWave to read data from an existing Iceberg table. These tables typically reside in object storage (like S3, HDFS) and their metadata/data lifecycle is managed by systems other than RisingWave. This allows you to ingest data from your existing data lake directly into RisingWave.
+
+- Use case: Ingesting data into RisingWave from Iceberg tables populated by other batch or streaming systems.
+
+- How: Use the `CREATE SOURCE` command with `connector = 'iceberg'`. You'll need to configure connection details for the Iceberg catalog and the underlying object storage. For details, see [Ingest data from Iceberg](/ingestion/sources/iceberg).
+
+The following example demonstrates creating a source that reads from an Iceberg table stored on AWS S3:
+
+```sql
+CREATE SOURCE iceberg_source
+WITH (
+    connector = 'iceberg',
+    type='append-only',
+    warehouse.path = 's3://your-bucket/path/to/iceberg/warehouse',
+    database.name = 'YOUR_ICEBERG_DB',
+    table.name = 'YOUR_ICEBERG_TABLE',
+    s3.endpoint = 'http://YOUR_S3_ENDPOINT:PORT', -- e.g., 'http://minio:9000'
+    s3.access.key = 'YOUR_ACCESS_KEY',
+    s3.secret.key = 'YOUR_SECRET_KEY',
+    s3.region = 'YOUR_S3_REGION'  -- Optional if endpoint is specified
+) ;
+```
+
+## Write to externally managed Iceberg tables (Iceberg sink)
+
+You can create an Iceberg sink to stream data from RisingWave (e.g., from a table, source, or materialied view) into an Iceberg table that is managed externally. This is useful for exporting processed results to update a data lake built on Iceberg.
+
+- Use case: Exporting processed streaming data from RisingWave to an existing data lake managed outside RisingWave.
+
+- How: Use the `CREATE SINK` command with `connector = 'iceberg'`. You need to configure the Iceberg catalog and object storage connection details corresponding to the target external table.
+
+```sql
+CREATE SINK sink_demo_rest FROM t
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = true,
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.path.style.access = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'http://localhost:8181/api/catalog',
+    warehouse.path = 'quickstart_catalog',
+    database.name = 'ns',
+    table.name = 't1',
+    catalog.credential='123456:123456',
+    catalog.scope='PRINCIPAL_ROLE:ALL',
+    catalog.oauth2_server_uri='xxx'
+    catalog.scope='xxx',
+);
+```
+
+For details, see [Sink data to Iceberg](/integrations/destinations/apache-iceberg).
+
+## Store data natively in Iceberg format (Iceberg table engine)
+
+RisingWave can store data directly in the Apache Iceberg format using the Iceberg table engine, and manage them natively within RisingWave. This provides an alternative to RisingWave's default internal storage format.
+
+When you create a table using `ENGINE = iceberg`, you are creating an Iceberg table. RisingWave manages the table's lifecycle, schema, and write operations, but persists the data according to the Iceberg specification on configured object storage, using a specified Iceberg catalog.
+
+Tables created this way are standard Iceberg tables and can be read by other Iceberg-compatible engines (like Spark, Trino, Flink) using the same catalog and storage configuration, promoting interoperability.
+
+This simplifies streaming pipelines where the final desired format is Iceberg and enables the data to be easily shared with other systems.
+
+For complete instructions on setup, configuration options (like catalog types, commit intervals), features (like time travel), and limitations, see [Iceberg table engine](/store/iceberg-table-engine).
+
+## Use Amazon S3 Tables as an Iceberg catalog
+
+Amazon S3 Tables provides an AWS-native service for managing table metadata, compatible with the Apache Iceberg REST Catalog standard. RisingWave can integrate directly with S3 Tables, allowing you to use it as a centralized catalog for your Iceberg data when interacting with RisingWave.
+
+This integration is supported across multiple RisingWave features:
+
+*   **Iceberg Source:** Configure RisingWave to read data from existing Iceberg tables whose metadata is managed by Amazon S3 Tables.
+*   **Iceberg Sink:** Sink data from RisingWave into Iceberg tables, using S3 Tables to handle the table registration and metadata updates.
+*   **Iceberg Table Engine:** Create and manage Iceberg tables directly within RisingWave (`CREATE TABLE ... ENGINE = iceberg`), while leveraging S3 Tables as the underlying catalog service.
+
+**Why use Amazon S3 Tables with RisingWave?**
+
+*   **Leverage AWS native catalog:** Utilize a managed AWS service for your Iceberg catalog needs.
+*   **Ecosystem compatibility:** Tables managed by S3 Tables can potentially be accessed by other Iceberg-compatible tools within the AWS ecosystem that also support the S3 Tables REST catalog.
+*   **Automatic compaction benefit:** S3 Tables offers automatic compaction for the underlying data files. When using RisingWave's **Iceberg Table Engine** with S3 Tables, this provides an automated way to optimize table storage, which is particularly useful until native compaction capabilities are added directly within RisingWave's engine.
+
+**Configuration Details:**
+
+To connect RisingWave's Iceberg features (Source, Sink, or Table Engine) to S3 Tables, you need to configure them to use the `rest` catalog type and provide specific parameters for SigV4 authentication against the S3 Tables endpoint.
+
+Find detailed instructions for each feature here:
+
+*   [Use S3 Tables with the Iceberg source](/ingestion/sources/iceberg-config#use-amazon-s3-tables-with-the-iceberg-source)
+*   [Use S3 Tables with the Iceberg sink](/integrations/destinations/apache-iceberg#use-amazon-s3-tables-with-the-iceberg-sink)
+*   [Use S3 Tables with the Iceberg table engine](/store/iceberg-table-engine#use-amazon-s3-tables-with-the-iceberg-table-engine)
+
+For general information on the S3 Tables REST API integration requirements from an AWS perspective, refer to the [AWS S3 Tables Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html).

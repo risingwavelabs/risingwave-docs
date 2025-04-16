@@ -84,7 +84,7 @@ If you want to use other libraries in your Rust functions, you can manually buil
 rustup target add wasm32-wasip1
 ```
 
-### 1\. Create a project
+### 1. Create a project
 
 Create a Rust project named `udf`:
 
@@ -103,7 +103,7 @@ crate-type = ["cdylib"]
 arrow-udf = "0.2"
 ```
 
-### 2\. Define your functions
+### 2. Define your functions
 In `src/lib.rs`, define your functions using the `function` macro:
 
 ```js
@@ -129,7 +129,7 @@ You can find more usages in these [functions](https://docs.rs/arrow%5Fudf/0.2.1/
 
 See the correspondence between SQL types and Rust types in the [Data type mapping](/sql/udfs/use-udfs-in-rust#data-type-mapping).
 
-### 3\. Build the project
+### 3. Build the project
 
 Build your functions into a WebAssembly module:
 
@@ -149,7 +149,7 @@ cargo install wasm-tools
 wasm-tools strip ./target/wasm32-wasip1/release/udf.wasm > udf.wasm
 ```
 
-## 4\. Declare your functions in RisingWave
+### 4. Declare your functions in RisingWave
 
 In RisingWave, use the [CREATE FUNCTION](/sql/commands/sql-create-function) command to declare the functions you defined.
 
@@ -165,7 +165,7 @@ CREATE FUNCTION gcd(int, int) RETURNS int LANGUAGE wasm USING BASE64 :'wasm_bina
 CREATE FUNCTION gcd(int, int) RETURNS int LANGUAGE wasm USING LINK 'fs:///path/to/udf.wasm';
 ```
 
-## 5\. Use your functions in RisingWave
+### 5. Use your functions in RisingWave
 
 Once the UDFs are created in RisingWave, you can use them in SQL queries just like any built-in functions. For example:
 
