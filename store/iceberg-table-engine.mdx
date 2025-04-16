@@ -133,37 +133,77 @@ You can also sink data from another RisingWave source, table, or materialized vi
 CREATE SINK user_sink INTO users_iceberg FROM raw_users_stream;
 ```
 
-## Use Amazon S3 Tables
+## Use Amazon S3 Tables with the Iceberg engine
 
-RisingWave supports using the Iceberg table engine with AWS S3 Tables. When creating an Iceberg connection for S3 tables, configure the following parameters. For more information, see [Use Amazon S3 Tables](/iceberg/overview#use-amazon-s3-tables).
+RisingWave's Iceberg table engine supports using Amazon S3 Tables as an Iceberg catalog. This allows you to manage Iceberg tables directly within AWS S3 Tables via RisingWave.
 
- | Parameter Names              | Description |
- | :--------------------------- | :---------- |
- | catalog.rest.signing_region | The signing region when signing requests to the `rest` catalog. |
- | catalog.rest.signing_name | The signing name when signing requests to the `rest` catalog. |
- | catalog.rest.signing_enabled | Specify whether to use SigV4 for signing requests to the `rest` catalog. |
+Follow these steps to configure this integration:
 
-Here's an example of creating an Iceberg connection for S3 tables and using it to create a table:
+**1. Create an Iceberg Connection**
+
+Define an Iceberg connection using the `rest` catalog type. You must provide your AWS credentials and specify the necessary S3 Tables REST catalog configurations.
+
+**Required REST Catalog Parameters:**
+
+| Parameter Name                | Description                                                      | Value for S3 Tables |
+| :---------------------------- | :--------------------------------------------------------------- | :------------------ |
+| `catalog.rest.signing_region` | The AWS region for signing REST catalog requests.                | e.g., `us-east-1`   |
+| `catalog.rest.signing_name`   | The service name for signing REST catalog requests.              | `s3tables`          |
+| `catalog.rest.sigv4_enabled`  | Enables SigV4 signing for REST catalog requests. Set to `true`. | `true`              |
+
+**Example `CREATE CONNECTION` statement:**
 
 ```sql
-create connection my_conn
-with (
+CREATE CONNECTION my_s3_tables_conn
+WITH (
     type = 'iceberg',
-    warehouse.path = 'arn:aws:s3tables:us-east-1:xxxxx:bucket/xxxxx',
-    s3.access.key = 'xxxx',
-    s3.secret.key = 'xxxx',
-    s3.region = 'us-east-1',
-    catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
-    catalog.rest.signing_region='us-east-1',
-    catalog.rest.sigv4_enabled=true,
-    catalog.rest.signing_name='s3tables',
-    catalog.type = 'rest',
+    -- Specify the S3 Tables warehouse ARN
+    warehouse.path = 'arn:aws:s3tables:<your-region>:<your-account-id>:bucket/<your-bucket-name>',
+    -- AWS Credentials
+    s3.access.key = '<your-aws-access-key-id>',
+    s3.secret.key = '<your-aws-secret-access-key>',
+    s3.region = '<your-region>', -- e.g., 'us-east-1'
+    -- S3 Tables REST catalog endpoint
+    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+    -- REST catalog signing configurations
+    catalog.rest.signing_region = '<your-region>', -- e.g., 'us-east-1'
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
+    -- Specify REST catalog type
+    catalog.type = 'rest'
 );
-set iceberg_engine_connection = 'public.my_conn';
-alter system set iceberg_engine_connection = 'public.my_conn';
 
-create table t(id int primary key, name varchar) with(commit_checkpoint_interval = 5) engine = iceberg;
+<Note>Replace placeholder values (<...>) with your specific configuration details.</Note>
+
+2. Configure the Iceberg table engine.
+
+Set the active connection for the Iceberg table engine. You can configure this for the current session or persist it at the system level.
+
+```sql
+-- Set for the current session
+SET iceberg_engine_connection = 'public.my_s3_tables_conn';
+
+-- Set globally for the system (requires admin privileges)
+ALTER SYSTEM SET iceberg_engine_connection = 'public.my_s3_tables_conn';
 ```
+
+3. Create a table using the Iceberg table engine. 
+
+With the connection configured, you can now create tables using `ENGINE = iceberg`. These tables will be registered in your specified Amazon S3 Tables catalog.
+
+```sql
+CREATE TABLE my_iceberg_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+)
+WITH (
+    -- Optional: Specify commit interval for Iceberg table engine
+    commit_checkpoint_interval = 5
+)
+ENGINE = iceberg;
+```
+
+RisingWave will now manage `my_iceberg_table` using the Iceberg format, with metadata stored and accessible via Amazon S3 Tables.
 
 ## Features and considerations
 
