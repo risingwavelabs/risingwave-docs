@@ -139,7 +139,7 @@ RisingWave's Iceberg table engine supports using Amazon S3 Tables as an Iceberg 
 
 Follow these steps to configure this integration:
 
-**1. Create an Iceberg Connection**
+1. Create an Iceberg Connection
 
 Define an Iceberg connection using the `rest` catalog type. You must provide your AWS credentials and specify the necessary S3 Tables REST catalog configurations.
 
@@ -151,9 +151,7 @@ Define an Iceberg connection using the `rest` catalog type. You must provide you
 | `catalog.rest.signing_name`   | The service name for signing REST catalog requests.              | `s3tables`          |
 | `catalog.rest.sigv4_enabled`  | Enables SigV4 signing for REST catalog requests. Set to `true`. | `true`              |
 
-**Example `CREATE CONNECTION` statement:**
-
-```sql
+```sql CREATE CONNECTION
 CREATE CONNECTION my_s3_tables_conn
 WITH (
     type = 'iceberg',
@@ -172,10 +170,11 @@ WITH (
     -- Specify REST catalog type
     catalog.type = 'rest'
 );
+```
 
-<Note>Replace placeholder values (<...>) with your specific configuration details.</Note>
+<Note>Replace placeholder values `<...>` with your specific configuration details.</Note>
 
-2. Configure the Iceberg table engine.
+2. Configure the Iceberg table engine
 
 Set the active connection for the Iceberg table engine. You can configure this for the current session or persist it at the system level.
 
@@ -187,7 +186,7 @@ SET iceberg_engine_connection = 'public.my_s3_tables_conn';
 ALTER SYSTEM SET iceberg_engine_connection = 'public.my_s3_tables_conn';
 ```
 
-3. Create a table using the Iceberg table engine. 
+3. Create a table using the Iceberg table engine
 
 With the connection configured, you can now create tables using `ENGINE = iceberg`. These tables will be registered in your specified Amazon S3 Tables catalog.
 
