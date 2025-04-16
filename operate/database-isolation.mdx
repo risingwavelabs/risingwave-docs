@@ -1,0 +1,143 @@
+---
+title: "Database isolation and resource groups"
+description: "Improve stability and fault tolerance in RisingWave using database isolation. Learn about baseline workload resilience and how resource groups assign databases to dedicated compute pools for fine-grained control and performance tuning."
+---
+
+Running multiple databases or workloads within a single RisingWave cluster provides operational efficiency. However, without proper isolation, issues in one workload (like a failing streaming job or a crashing compute node) could potentially disrupt others, affecting overall cluster stability.
+
+Starting from v2.3, RisingWave introduces significant enhancements to improve workload isolation:
+
+1. Enhanced baseline database isolation: Core improvements that make databases more resilient to localized issues by default.
+2. Resource groups (Premium Feature): A powerful mechanism for fine-grained control over fault isolation and resource allocation by assigning databases to specific pools of compute nodes.
+
+This topic explains both levels of isolation available in RisingWave.
+
+## Enhanced database isolation (baseline)
+
+Available to all users starting from RisingWave v2.3, these core improvements provide a more resilient environment for multi-database deployments out-of-the-box:
+
+* Independent checkpoints: The checkpointing process, crucial for maintaining consistent state, now operates more independently for each database (assuming no direct cross-database dependencies). A checkpoint problem triggered by a job in `database_A` is less likely to halt or affect the checkpoint process for unrelated jobs in `database_B`.
+* Localized job error recovery: If a streaming job within a specific database fails (due to internal errors, UDF issues, etc.), the necessary recovery actions are now primarily contained *within that database*. Unrelated streaming jobs in other databases can continue operating without disruption.
+
+Benefits:
+
+* Increased stability: Reduces the likelihood of cascading failures across unrelated databases.
+* Improved availability: Localized issues have a smaller impact radius, allowing unaffected workloads to continue running.
+
+Example scenario: If the Marketing team (`marketing_db`) runs an experimental UDF that fails, the enhanced isolation prevents this failure from stalling checkpoints or disrupting critical jobs running in the Sales team's database (`sales_ops_db`).
+
+<Note>While baseline isolation separates workloads logically, by default, databases might still share the same underlying pool of compute nodes. For isolation against hardware failures or for dedicated resource allocation, use resource groups.</Note>
+
+## Resource groups
+
+Resource groups provide a higher level of isolation and control, particularly useful for critical workloads, multi-tenant environments, or performance optimization.
+
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+Resource groups is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+</Tip>
+
+<Note>
+**PUBLIC PREVIEW**
+
+Resource groups is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
+</Note>
+
+### What are resource groups?
+
+A resource group is a named pool consisting of specific compute nodes (CNs) within your RisingWave cluster. You define these groups (typically via cluster configuration or administrative commands) and can then assign databases to them.
+
+<Note>Exact group creation/management steps might vary depending on deployment and are typically handled by administrators.</Note>
+
+### How do resource groups work?
+
+When you assign a database to a specific resource group during creation, all streaming jobs belonging to that database are constrained to run *only* on the compute nodes within that designated group.
+
+Primary benefits:
+
+1. Granular fault isolation (limiting the "blast radius"):
+    - By creating resource groups using distinct sets of compute nodes and assigning independent databases to separate groups, you achieve robust infrastructure fault isolation.
+    - If a compute node within `resource_group_A` crashes, it will only impact the databases assigned to `resource_group_A`. Databases assigned to `resource_group_B` (running on different CNs) remain unaffected by that specific hardware failure.
+2. Workload matching & performance optimization:
+    - Allocate workloads to hardware best suited for their needs.
+    - Example: Create a `high_cpu_pool` resource group using CNs with powerful CPUs and a `high_memory_pool` resource group using CNs with large amounts of RAM. Assign CPU-intensive databases (e.g., real-time fraud detection) to the former and memory-intensive databases (e.g., large stateful aggregations) to the latter. This optimizes performance and resource utilization.
+3. Resource governance: Gain finer control and visibility over how compute resources are consumed by different applications or tenants.
+
+Example scenario: A financial institution runs a critical, CPU-intensive fraud detection system (`fraud_db`) and a memory-intensive risk calculation system (`risk_db`). By creating `rg_fraud` (on high-CPU nodes) and `rg_risk` (on high-memory nodes) and assigning the databases respectively, they achieve:
+    - Hardware isolation: A CN failure in `rg_risk` does not impact fraud detection.
+    - Performance tuning: Each workload runs on optimal hardware.
+    - Resource predictability: Critical `fraud_db` is shielded from resource contention from `risk_db`.
+
+### How to use resource groups
+
+1. Assigning a database to a resource group
+
+Use the `WITH RESOURCE_GROUP` clause when creating a database:
+
+```sql
+CREATE DATABASE database_name
+WITH resource_group = 'resource_group_name';
+```
+
+- `database_name`: The name of the database to create.
+- `resource_group_name`: The name of an existing resource group to assign this database to. The group must exist before creating the database with this clause.
+
+```sql
+-- Example:
+CREATE DATABASE marketing_db WITH resource_group = 'rg_general_purpose';
+CREATE DATABASE critical_fraud_db WITH resource_group = 'rg_high_cpu';
+```
+
+<Note>If the `WITH resource_group` clause is omitted, the database will typically be assigned to a default resource group which might contain all available compute nodes not assigned to other specific groups, thus sharing resources more broadly.</Note>
+
+2. Monitoring resource groups and job assignment
+
+You can use system catalogs to view information about resource groups and job assignments:
+
+- `rw_resource_groups`: Lists the defined resource groups and summarizes their usage.
+
+```sql
+SELECT * FROM rw_resource_groups;
+-- Example Output:
+  name              | num_workers | total_parallelism_units | num_databases | num_streaming_jobs
+--------------------+-------------+-------------------------+---------------+--------------------
+ rg_default         |           4 |                      16 |             2 |                  5
+ rg_high_cpu        |           2 |                       8 |             1 |                  1
+ rg_general_purpose |           2 |                       8 |             1 |                  3
+(3 rows)
+```
+
+- `rw_streaming_jobs`: Shows details about active streaming jobs, including their assigned resource group.
+
+```sql
+SELECT job_id, name, status, database_id, resource_group FROM rw_streaming_jobs;
+-- Example Output:
+ job_id | name          | status  | database_id | resource_group
+--------+---------------+---------+-------------+--------------------
+      6 | fraud_alert_mv| CREATED |       10001 | rg_high_cpu
+      7 | campaign_agg_mv | CREATED |       10002 | rg_general_purpose
+      8 | user_session_mv| CREATED |       10003 | rg_default
+(3 rows)
+```
+
+### When to use resource groups
+
+While the baseline isolation benefits all users, consider using the premium resource groups feature specifically for:
+- Multi-tenant deployments: Provide stronger isolation guarantees (both logical and potentially physical) between tenants housed in separate databases.
+- Critical workloads: Ensure maximum resilience and predictable performance for essential streaming jobs by dedicating hardware pools and limiting the impact of unrelated failures.
+- Performance tuning: Optimize resource usage by matching specific workload characteristics (CPU-bound, memory-bound) to specialized hardware pools (if available).
+- Resource governance: Implement clearer boundaries and accountability for resource consumption across different teams or applications.
+
+## Availability
+
+- Enhanced baseline database isolation: Included by default in RisingWave v2.3 and later for all editions.
+- Resource groups: Available as a Premium Edition feature in RisingWave v2.3 and later.
+
+## Related topics
+
+- [`CREATE DATABASE`](/sql/commands/sql-create-database)
+- [RisingWave catalogs (`rw_resource_groups`, `rw_streaming_jobs`)](/sql/system-catalogs/rw-catalog)
+- [Premium edition](/get-started/rw-premium-edition-intro)
