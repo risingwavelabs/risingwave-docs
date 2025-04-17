@@ -87,6 +87,13 @@ Once you've created a source, you can query it directly using `SELECT`:
 SELECT * FROM my_kafka_source;
 ```
 
+When working with Kafka sources, RisingWave automatically creates a special column called `_rw_kafka_timestamp`. You can use this column to filter messages based on the messages' timestamp:
+
+```sql
+-- Retrieve only messages from the last 24 hours
+SELECT * FROM my_kafka_source WHERE _rw_kafka_timestamp > NOW() - INTERVAL '1 day';
+```
+
 ## Next steps 
 
 - See all [Sources](/ingestion/getting-started/sources).
