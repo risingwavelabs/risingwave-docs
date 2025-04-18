@@ -22,12 +22,14 @@ The Iceberg connection contains information about catalog and object storage. Fo
 
 The following examples show how to create an Iceberg connection using different catalog types.
 
+<Note>For enhanced security, you can store credentials like S3 access keys as secrets instead of providing them directly. If you wish to use this feature, see [Manage secrets](/operate/manage-secrets).</Note>
+
 ```sql JDBC catalog
 CREATE CONNECTION public.conn WITH (
     type = 'iceberg',
     warehouse.path = 's3://hummock001/iceberg-data',
-    s3.access.key = secret secret_1,
-    s3.secret.key = secret secret_1,
+    s3.access.key = <access_key_id>,
+    s3.secret.key = <secret_key>,
     s3.endpoint = 'http://127.0.0.1:9301',
     s3.region = 'ap-southeast-2',
     catalog.type = 'jdbc',
@@ -45,8 +47,8 @@ CREATE CONNECTION public.conn WITH (
     warehouse.path = 's3://my-iceberg-bucket/test',
     s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
     s3.region = 'ap-southeast-2',
-    s3.access.key = secret secret_1,
-    s3.secret.key = secret secret_1,
+    s3.access.key = <access_key_id>,
+    s3.secret.key = <secret_key>,
 );
 ```
 
@@ -58,8 +60,8 @@ CREATE CONNECTION public.conn WITH (
     warehouse.path = 'test',
     s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
     s3.region = 'ap-southeast-2'
-    s3.access.key = secret secret_1,
-    s3.secret.key = secret secret_1
+    s3.access.key = <access_key_id>,
+    s3.secret.key = <secret_key>,
 );
 ```
 
