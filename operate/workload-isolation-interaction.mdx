@@ -1,19 +1,19 @@
 ---
-title: "Workload isolation and interaction in RisingWave"
+title: "Workload isolation and interaction"
 description: "Manage multiple workloads efficiently in RisingWave using database isolation, resource groups for dedicated compute resources, and cross-database queries for unified access."
 ---
 Running multiple distinct streaming applications, managing data for different teams, or separating environments (like development and staging) within a single RisingWave cluster offers significant operational advantages. However, it also presents challenges: ensuring stability by preventing interference between workloads, managing resource allocation effectively, and providing ways to access data across logical boundaries when necessary.
 
 From v2.3, RisingWave provides a comprehensive suite of features to address these challenges, enabling robust workload isolation and flexible interaction:
 
-1.  Baseline database isolation: Core improvements providing inherent resilience between databases by default.
-2.  Resource groups: Assign databases to dedicated pools of compute nodes for strong fault isolation, performance tuning, and resource governance.
-3.  Cross-database queries: Query tables and materialized views across different databases, enabling unified analytics without data duplication, especially powerful when combined with isolated environments.
+1.  **Database isolation**: Core improvements providing inherent resilience between databases by default.
+2.  **Resource groups**: Assign databases to dedicated pools of compute nodes for strong fault isolation, performance tuning, and resource governance.
+3.  **Cross-database queries**: Query tables and materialized views across different databases, enabling unified analytics without data duplication, especially powerful when combined with isolated environments.
 
 <Tip>
 PREMIUM EDITION FEATURE
 
-**Database isolation**, **resource groups**, and **cross-database** queries are Premium Edition features. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+**Database isolation**, **resource groups**, and **cross-database queries** are Premium Edition features. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
 
 For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro).
 </Tip>
@@ -21,12 +21,12 @@ For a full list of Premium Edition features, see [RisingWave Premium Edition](/g
 <Note>
 PUBLIC PREVIEW
 
-**Database isolation**, **resource groups**, and **cross-database** queries are currently in public preview. While nearing the final product, it may still evolve. Please refer to our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage) for the latest status or reach out via our [Slack channel](https://www.risingwave.com/slack) with feedback or issues.
+**Database isolation**, **resource groups**, and **cross-database queries** are currently in public preview. While nearing the final product, it may still evolve. Please refer to our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage) for the latest status or reach out via our [Slack channel](https://www.risingwave.com/slack) with feedback or issues.
 </Note>
 
 This topic explains these capabilities and how they work together.
 
-## Baseline database isolation
+## Database isolation
 
 RisingWave incorporates foundational improvements that enhance the operational isolation between different databases within the same cluster, providing a more resilient environment out-of-the-box:
 
@@ -39,26 +39,26 @@ RisingWave incorporates foundational improvements that enhance the operational i
 *   *Improved availability:* Localized issues have a smaller impact radius, allowing unaffected parts of the cluster to continue functioning.
 
 <Note>
-While baseline isolation improves logical and operational separation, databases might still share the same underlying pool of compute nodes (CNs) by default. This means they are not isolated from hardware failures affecting that shared pool or from resource contention (CPU, memory). For stronger infrastructure isolation and dedicated resource allocation, use **Resource Groups**.
+While database isolation improves logical and operational separation, databases might still share the same underlying pool of compute nodes (CNs) by default. This means they are not isolated from hardware failures affecting that shared pool or from resource contention (CPU, memory). For stronger infrastructure isolation and dedicated resource allocation, use **Resource Groups**.
 </Note>
 
-## Resource groups (enhanced isolation & performance)
+## Resource groups
 
 Resource groups offer a powerful mechanism for fine-grained control over compute resource allocation and fault domains, essential for critical workloads, multi-tenant scenarios, and performance optimization.
 
 ### Concept
 
-A *Resource Group* is a named logical pool consisting of specific compute nodes (CNs) within your RisingWave cluster. Administrators typically define these groups and their associated CNs during cluster setup or configuration.
+A *resource group* is a named logical pool consisting of specific compute nodes (CNs) within your RisingWave cluster. Administrators typically define these groups and their associated CNs during cluster setup or configuration.
 
 ### How resource groups provide isolation and control
 
 When you assign a database to a resource group, all streaming jobs belonging to that database are constrained to run *only* on the compute nodes within that designated group. This provides two primary advantages:
 
-1.  *Granular fault isolation (limiting blast radius):*
+1.  Granular fault isolation (limiting blast radius):
     *   By assigning independent databases to resource groups backed by distinct sets of compute nodes, you achieve robust infrastructure fault isolation.
     *   *Example:* If a compute node within `resource_group_A` crashes, it only impacts databases assigned to `resource_group_A`. Databases in `resource_group_B` (running on different CNs) remain unaffected by that specific hardware failure. This is crucial for ensuring the availability of critical applications.
 
-2.  *Workload matching & performance optimization:*
+2.  Workload matching & performance optimization:
     *   You can tailor resource allocation to workload needs by creating resource groups backed by specialized hardware.
     *   *Example:* Create `rg_high_cpu` using CNs optimized for CPU and `rg_high_memory` using CNs with large RAM. Assign CPU-intensive jobs (like complex pattern matching) to `rg_high_cpu` and memory-intensive jobs (like large stateful aggregations) to `rg_high_memory` for optimal performance and efficient resource utilization.
     *   This also provides *Resource Governance*, offering clearer control and visibility over how compute resources are consumed by different applications or tenants.
@@ -114,7 +114,7 @@ Use system catalogs to inspect resource group configuration and job assignments:
     (3 rows)
     ```
 
-## Cross-database queries (Interacting across boundaries)
+## Cross-database queries
 
 While isolating databases and resources using Resource Groups is crucial for stability and organization, you often need to query or join data residing in different databases. Cross-Database Queries allow you to do this directly within RisingWave (starting v2.3), avoiding cumbersome data duplication or external pipelines. This enables unified analytics even across isolated environments.
 
@@ -211,7 +211,7 @@ Leveraging database isolation, resource groups, and cross-database queries toget
 ## Related topics
 
 *   [`CREATE DATABASE`](/sql/commands/sql-create-database) (includes `WITH RESOURCE_GROUP`)
-*   [`CREATE SUBSCRIPTION`](/sql/commands/sql-create-subscription)
+*   [Manage subscriptions](/serve/subscription)
 *   [RisingWave system catalogs](/sql/system-catalogs/rw-catalog) (see `rw_resource_groups`, `rw_streaming_jobs`)
 *   [RisingWave Premium](/get-started/rw-premium-edition-intro)
 
