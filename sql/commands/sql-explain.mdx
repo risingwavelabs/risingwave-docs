@@ -1,6 +1,6 @@
 ---
 title: "EXPLAIN"
-description: "Use the `EXPLAIN` command to show the execution plan of a statement."
+description: "Use the `EXPLAIN` command to show the execution plan of a statement, or use `DESCRIBE FRAGMENTS <job_name>` to show execution fragments of an existing job."
 ---
 
 ## Syntax
@@ -103,3 +103,7 @@ The execution plan of the statement above looks like this:
            StreamFilter { predicate: ((($3 = 'OR':Varchar) OR ($3 = 'ID':Varchar)) OR ($3 = 'CA':Varchar)) }
              StreamTableScan { table: person, columns: [id, name, city, state, _row_id], pk_indices: [4] }
 ```
+
+To check the execution fragments of an existing job, you can use [`DESCRIBE FRAGMENTS <relation_name>`](/sql/commands/sql-describe#describe-fragments),
+which has a similar format like `EXPLAIN (DISTSQL)`, but `DESCRIBE FRAGMENTS` operates on an existing job rather than a new statement being planned.
+
