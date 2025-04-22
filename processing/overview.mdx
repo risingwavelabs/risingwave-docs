@@ -33,52 +33,6 @@ Both modes have their unique advantages. Here are some considerations:
 
 **Flexibility**: The streaming mode is less flexible to changes in query requirements. The ad-hoc query usually is created on-the-fly to fulfill immediate and specific information needs. Unlike predefined queries, ad-hoc queries are generated in real-time based on your current requirements. They are commonly used in data analysis, decision-making, and exploratory data tasks, where flexibility and quick access to information are crucial.
 
-### Querying data across databases
-
-<Note>
-Added in version 2.3.
-</Note>
-
-RisingWave supports cross-database queries in both modes, allowing you to access and combine data from multiple databases within your instance for a more comprehensive view. It is implemented through the following key functionalities:
-
-- Enables cross-database binding for batch operations, `CREATE MATERIALIZED VIEW`, and `CREATE SINK`.
-
-- Enforces database `CONNECT` privilege checks for all cross-database queries to ensure secure access.
-
-- Integrates the cross-database snapshot backfill executor, and addresses issues in metadata validation.
-
-- Rejects `DROP MATERIALIZED VIEW CASCADE` or `DROP SINK CASCADE` operations with cross-database upstreams to avoid accidental data loss.
-
-- Verifies the existence of log stores for all cross-database upstreams during DDL operations.
-
-
-To get started, please note the following requirements:
-
-- There must be at least one subscription on the upstream table or materialized view in the external database.
-
-- Users must be a superuser or have `CONNECT` permissions for the upstream databases, and also have the corresponding `QUERY` permissions on the relations.
-
-Here is an example demonstrating cross-database queries:
-
-```sql
-# in database d1
-CREATE TABLE t1 (v1 INT);
-
-# at lease one subscription required to enable log store for t1
-CREATE subscription sub FROM t1 WITH (retention = '1D');
-
-# switch to database d2
-SET DATABASE TO d2;
-
-CREATE TABLE t2 (v2 INT);
-
-SELECT COUNT(*) FROM d1.public.t1;
-
-CREATE MATERIALIZED VIEW mv1 AS SELECT * FROM d1.public.t1;
-
-CREATE MATERIALIZED VIEW mv2 AS SELECT t1.v1, t2.v2 FROM d1.public.t1 JOIN t2 ON t1.v1 = t2.v2;
-```
-
 ## Examples
 
 ### Create a table
