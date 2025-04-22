@@ -1,0 +1,76 @@
+---
+title: "Streaming Optimizations"
+description: "RisingWave provides a variety of optimizations to improve the performance of streaming queries."
+sidebarTitle: Overview
+---
+
+This section outlines best practices for Streaming Optimizations.
+
+## SQL Optimizations
+
+### UNION vs UNION ALL
+
+UNION removes duplicates, while UNION ALL does not.
+If you know that your data does not contain duplicates, use UNION ALL to avoid the overhead of duplicate removal.
+Alternatively, if the duplicate set is small, you can also filter out duplicates when querying the result set.
+
+### OverWindow vs GroupTopN
+
+Given the following table:
+```sql
+create table t3(v1 int, v2 int);
+```
+
+You may create the following ranked Materialized View:
+```sql
+dev=> explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3);
+                                                                          QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ StreamMaterialize { columns: [r, t3._row_id(hidden), t3.v1(hidden)], stream_key: [t3._row_id, t3.v1], pk_columns: [t3._row_id, t3.v1], pk_conflict: NoCheck }
+ └─StreamProject { exprs: [row_number, t3._row_id, t3.v1] }
+   └─StreamOverWindow { window_functions: [row_number() OVER(PARTITION BY t3.v1 ORDER BY t3.v2 ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)] }
+     └─StreamExchange { dist: HashShard(t3.v1) }
+       └─StreamTableScan { table: t3, columns: [v1, v2, _row_id] }
+(5 rows)
+```
+
+The operator responsible for sorting the data is `StreamOverWindow`. This is a streaming operator that maintains the state of the window and computes the row number for each row in the partition.
+This can be quite expensive, especially if the partition is large.
+If you only need the top N rows from each partition, you can use the `StreamGroupTopN` operator instead.
+This can be done by simply adding a `WHERE` clause to the query, and applying it to the row column (`r` in the above example).
+
+You can view the following query as an example, which maintains top 10 rows for each partition:
+```sql
+dev=> explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3) where r < 10;
+                                                                          QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ StreamMaterialize { columns: [r, t3.v1(hidden), t3._row_id(hidden)], stream_key: [t3.v1, t3._row_id], pk_columns: [t3.v1, t3._row_id], pk_conflict: NoCheck }
+ └─StreamProject { exprs: [row_number, t3.v1, t3._row_id] }
+   └─StreamOverWindow { window_functions: [row_number() OVER(PARTITION BY t3.v1 ORDER BY t3.v2 ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)] }
+     └─StreamGroupTopN { order: [t3.v2 ASC], limit: 9, offset: 0, group_key: [t3.v1] }
+       └─StreamExchange { dist: HashShard(t3.v1) }
+         └─StreamTableScan { table: t3, columns: [v1, v2, _row_id] }
+(6 rows)
+```
+
+Given that the state size to maintain is a lot smaller, the `StreamGroupTopN` operator is much more efficient than the `StreamOverWindow` operator.
+
+### JOIN Optimizations
+
+The `JOIN` operator is used to join two streams of data together. It can be used to join two streams of data that are both being ingested in real-time.
+Whenever there's some updates on one side of the join, it will look for matches on the other side of the join.
+
+Consider a fact and dimension table join:
+```sql
+select fact.* FROM fact JOIN dimension ON fact.dim_key = dimension.key;
+```
+If fact table just needs to lookup the dimension table at the time of the join, this will be inefficient.
+This is because any updates to the dimension table will lookup the fact side and recompute the join result for
+all matching fact side rows, even if they are stale.
+
+Instead, you can use a `PROCESS TIME JOIN`, which will only look up the dimension table at the time of the join.
+This will be more efficient, as whenever there's dimension table update,
+it will not recompute the join result for all matching fact side rows.
+```sql
+select fact.* FROM fact JOIN dimension FOR SYSTEM_TIME AS OF PROCTIME() ON fact.dim_key = dimension.key;
+```
