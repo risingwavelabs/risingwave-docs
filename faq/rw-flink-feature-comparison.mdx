@@ -4,27 +4,27 @@ sidebarTitle: "RisingWave and Flink feature comparison"
 description: "A comprehensive comparison of features between RisingWave and Apache Flink, covering SQL capabilities, data types, streaming operations, and system functionalities."
 ---
 
-This document provides a detailed feature-by-feature comparison between RisingWave (targeting v2.0) and Apache Flink (targeting v1.20). While both systems excel at stream processing, they have different architectural approaches and feature sets derived from RisingWave's design as a **streaming database** and Flink's as a **stream processing framework**. This comparison helps users understand the similarities and differences across various aspects.
+This document provides a detailed feature-by-feature comparison between RisingWave (targeting v2.0) and Apache Flink (targeting v1.20). While both systems excel at stream processing, they have different architectural approaches and feature sets resulting from their different designs: RisingWave as a **streaming database** and Flink as a **stream processing framework**. This comparison helps you understand their similarities and differences across various features.
 
 <Note>
-Features noted as "RisingWave-specific" highlight capabilities tied to its database architecture, while "Flink-specific" features reflect its framework nature. Version numbers (RW 2.0, Flink 1.20) are targets; some features might have evolved slightly around these versions. Always consult official documentation for definitive support.
+Features noted as "RisingWave-specific" highlight capabilities tied to its database architecture, while "Flink-specific" features reflect its framework nature. Version numbers (RW 2.0, Flink 1.20) are targets; some features might have evolved slightly around these versions. For definitive support details, always consult the official Flink and RisingWave documentation.
 </Note>
 
 ## Fundamental concepts
 
-Both RisingWave and Flink operate on core stream processing concepts:
+RisingWave and Flink share the following core stream processing concepts:
 
 *   **Dynamic Tables:** Both represent streams as tables that change over time.
 *   **Continuous Queries:** Both execute SQL queries continuously, producing results as input data changes.
-*   **Time Attributes:** Both support **Event Time** (timestamps embedded in data) and **Processing Time** (system clock time) for operations like windowing.
-*   **Result Update Modes:** Both handle changes through **Append** (new rows), **Update** (modifying rows), and **Delete** (retracting rows) semantics, allowing them to process changelog streams and maintain state correctly.
+*   **Time attributes:** Both support **Event Time** (timestamps embedded in data) and **Processing Time** (the system clock time) for operations such as windowing.
+*   **Result Update Modes:** Both use **Append**, **Update**, and **Delete** semantics to handle changes, which allows them to correctly process changelog streams and maintain state.
 *   **Deterministic Queries:** Both systems aim for deterministic results given the same ordered input events when using event time.
 
-While sharing these fundamentals, their architectures differ: RisingWave stores state internally within its database storage layer, treating streams and materialized views as first-class database objects. Flink typically relies on pluggable state backends (like RocksDB or filesystems) and connectors manage external storage.
+While sharing these fundamentals, their architectures differ: RisingWave stores state internally within its database storage layer, treating streams and materialized views as first-class database objects. Flink typically uses pluggable state backends (such as RocksDB or filesystems), and its connectors manage external storage.
 
 ## Data types
 
-Both systems support a wide range of standard SQL data types. The table below highlights common types and key differences.
+Both systems support a wide range of standard SQL data types. The following table highlights common types and key differences.
 
 | Feature             | Flink (v1.20)        | RisingWave (v2.0)       | Notes                                             |
 |:--------------------|:---------------------|:------------------------|:---------------------------------------------------|
@@ -32,7 +32,7 @@ Both systems support a wide range of standard SQL data types. The table below hi
 | `CHAR`              | Supported            | Not Supported           | Fixed-length character string.                    |
 | `BINARY`            | Supported            | Not Supported           | Fixed-length binary string.                     |
 | **Variable-Length** |                      |                         |                                                   |
-| `VARCHAR`/`STRING`  | Supported            | Supported               | Flink supports max length spec; RW does not.    |
+| `VARCHAR`/`STRING`  | Supported            | Supported               | Flink allows specifying a maximum length; RisingWave does not. |
 | `VARBINARY`/`BYTES` | Supported            | `BYTEA`                 | Variable-length binary string.                  |
 | **Numeric**         |                      |                         |                                                   |
 | `DECIMAL`           | Supported            | `DECIMAL`/`NUMERIC`     | Arbitrary precision numbers.                      |
@@ -47,39 +47,39 @@ Both systems support a wide range of standard SQL data types. The table below hi
 | `DATE`              | Supported            | Supported               | Calendar date.                                  |
 | `TIME`              | Supported            | Supported               | Time of day (without timezone).                 |
 | `TIMESTAMP`         | Supported            | Supported               | Timestamp (without timezone).                   |
-| `TIMESTAMP_LTZ`     | Supported            | `TIMESTAMPTZ`           | Timestamp *with* local timezone interpretation (Flink) / Timestamp *with* time zone (RW, stored UTC). |
+| `TIMESTAMP_LTZ`     | Supported            | `TIMESTAMPTZ`           | Timestamp with local timezone interpretation (Flink); Timestamp with timezone, stored as UTC (RisingWave). |
 | `INTERVAL`          | Supported            | Supported               | Time interval.                                  |
 | **Structured**      |                      |                         |                                                   |
 | `STRUCT`            | Supported            | `ROW`                   | Row type with named fields.                     |
 | `ARRAY`             | Supported            | Supported               | Ordered collection of elements.                 |
 | `MAP`               | Supported            | Supported               | Key-value pairs.                                |
 | `MULTISET`          | Supported            | Not Supported           | Unordered collection allowing duplicates (Flink). |
-| **JSON**            | Via Functions        | `JSONB`                 | Flink typically handles JSON via string functions. RW has a native binary JSON type. |
+| **JSON**            | Via Functions        | `JSONB`                 | Flink typically processes JSON using string functions, while RisingWave offers a native `JSONB` (binary JSON) type. |
 | **Other**           |                      |                         |                                                   |
 | `BOOLEAN`           | Supported            | Supported               | True/False.                                     |
 
-**Summary:** Flink offers fixed-length types and `MULTISET`. RisingWave provides native `JSONB`, a large integer type (`RW_INT256`), and PostgreSQL-compatible naming (`REAL`, `TIMESTAMPTZ`, `BYTEA`). Both handle core types needed for streaming analytics. Timezone handling differs (`TIMESTAMP_LTZ` vs. `TIMESTAMPTZ`).
+**Summary:** Flink offers fixed-length types and `MULTISET`. RisingWave provides native `JSONB`, a large integer type (`RW_INT256`), and PostgreSQL-compatible naming (`REAL`, `TIMESTAMPTZ`, `BYTEA`). Both support the core data types required for streaming analytics. Timezone handling differs (`TIMESTAMP_LTZ` vs. `TIMESTAMPTZ`).
 
 ## SQL query capabilities
 
 ### Common SELECT clauses
 
-Both Flink SQL and RisingWave support the standard `SELECT` query structure:
+Flink SQL and RisingWave both support the standard clauses of a `SELECT` query:
 
 *   `WITH` (Common Table Expressions)
 *   `SELECT` (including `DISTINCT`)
 *   `FROM`
 *   `WHERE`
-*   `GROUP BY` (including `GROUPING SETS`, `ROLLUP`, `CUBE`)
+*   `GROUP BY` (including `GROUPING SETS`, `ROLLUP`, and `CUBE`)
 *   `HAVING`
 *   `ORDER BY`
 *   `LIMIT`
 
 ### Key differences in SELECT
 
-*   **`DISTINCT ON`:** RisingWave supports the PostgreSQL `SELECT DISTINCT ON (...)` syntax. Flink's support for this specific syntax is limited or non-existent in 1.20.
-*   **Complex Subqueries:** Both support subqueries (e.g., in `WHERE IN (...)`, `WHERE EXISTS (...)`, derived tables in `FROM`). Flink's SQL planner might handle certain complex or correlated subquery patterns more optimally.
-*   **Pattern Matching:** Flink provides the powerful `MATCH_RECOGNIZE` clause for Complex Event Processing (CEP) directly in SQL. RisingWave does not support `MATCH_RECOGNIZE`.
+*   **`DISTINCT ON`:** RisingWave supports the PostgreSQL `SELECT DISTINCT ON (...)` syntax. Flink 1.20 has limited or no support for this specific syntax.
+*   **Complex Subqueries:** Both support subqueries (e.g., in `WHERE IN (...)`, `WHERE EXISTS (...)`, derived tables in `FROM`). Flink's SQL planner might optimize certain complex or correlated subquery patterns more effectively.
+*   **Pattern Matching:** Flink provides the `MATCH_RECOGNIZE` clause for Complex Event Processing (CEP) directly within SQL. RisingWave does not support `MATCH_RECOGNIZE`.
 
 | Feature           | Flink (v1.20) | RisingWave (v2.0) | Notes                                        |
 |:------------------|:--------------|:------------------|:----------------------------------------------|
@@ -92,7 +92,7 @@ Both systems provide essential windowing capabilities for analyzing data over ti
 
 ### Window types (Table Value Functions)
 
-Flink uses Table Value Functions (TVFs) like `TUMBLE`, `HOP`, `SESSION`, `CUMULATE` for windowing aggregations. RisingWave primarily uses standard SQL `GROUP BY` with time functions or dedicated window syntax where applicable (though TVFs are also being added).
+Flink uses Table Value Functions (TVFs) like `TUMBLE`, `HOP`, `SESSION`, `CUMULATE` for windowing aggregations. RisingWave primarily uses standard SQL `GROUP BY` with time functions or dedicated window syntax where applicable. Support for TVFs is also being added to RisingWave.
 
 | Window Feature      | Flink (v1.20)  | RisingWave (v2.0) | Notes                                                |
 |:--------------------|:---------------|:------------------|:------------------------------------------------------|
@@ -127,11 +127,11 @@ Both systems support various SQL join types for combining data from multiple str
 | `LEFT JOIN`                 | Supported              | Supported                          |                                                                       |
 | `RIGHT JOIN`                | Supported              | Supported                          |                                                                       |
 | `FULL JOIN`                 | Supported              | Supported                          |                                                                       |
-| **State Handling Note**     | Configurable TTL       | Internal Storage                   | Flink joins require state TTL configuration. RW state is managed internally. |
+| **State Handling Note**     | Configurable TTL       | Internal Storage                   | Flink requires you to configure Time-To-Live (TTL) for join state. RisingWave manages state internally. |
 | **Interval Join**           | Supported              | Supported                          | Joins streams based on time proximity (e.g., `t1.time BETWEEN t2.time - INTERVAL '5' SECOND AND t2.time + INTERVAL '5' SECOND`). |
 | **Temporal Join**           |                        |                                    | Joins a stream against a versioned table/changelog source.            |
-|  Event Time Temporal Join   | Supported (`FOR ... AS OF`) | Supported (Implicit / `TEMPORAL JOIN`) | Flink uses explicit syntax. RW support depends on source type/query structure. |
-|  Processing Time Temporal Join | Supported (`FOR ... AS OF`) | Supported (Lookup Joins)       | Flink uses explicit syntax. RW typically via lookup joins against external tables. |
+|  Event Time Temporal Join   | Supported (`FOR ... AS OF`) | Supported (Implicit / `TEMPORAL JOIN`) | Flink requires explicit syntax. RisingWave support depends on the source type and query structure. |
+|  Processing Time Temporal Join | Supported (`FOR ... AS OF`) | Supported (Lookup Joins)       | Flink requires explicit syntax. RisingWave typically achieves this using lookup joins against external tables. |
 | **Window Join**             | Supported              | Supported                          | Joins aggregated results from windows.                                |
 | **Lookup Join**             | Supported              | Supported                          | Joins a stream against an external dimension table (often async).     |
 
@@ -151,9 +151,9 @@ Both support standard SQL set operations to combine or compare result sets.
 | `EXISTS` (Subquery) | Supported | Supported         | Checks if a subquery returns any rows.       |
 | `CORRESPONDING` | Not Supported | Supported         | Performs set ops on specified columns by name (RisingWave-specific). |
 
-## DDL Statements (Data Definition Language)
+## DDL statements (Data Definition Language)
 
-DDL statements define and manage database objects. RisingWave, as a database, has a broader set of DDL commands, especially for managing sources, sinks, users, and connections.
+As a streaming database, RisingWave has a broader set of Data Definition Language (DDL) commands, especially for managing sources, sinks, users, and connections.
 
 ### Common DDL
 
@@ -162,14 +162,14 @@ DDL statements define and manage database objects. RisingWave, as a database, ha
 | `CREATE/DROP DATABASE`     | Supported     | Supported         | Logical grouping of objects.               |
 | `CREATE/DROP VIEW`         | Supported     | Supported         | Defines a logical view based on a query. |
 | `CREATE/DROP FUNCTION`     | Supported     | Supported         | Defines user-defined functions.          |
-| `CREATE/DROP TABLE`        | Supported     | Supported         | Flink: Defines stream/table schema & connector. RW: Defines schema for source/internal table. |
-| `CREATE MATERIALIZED VIEW` | Supported     | Supported         | Defines a query whose results are stored. Core concept in RW. |
+| `CREATE/DROP TABLE`        | Supported     | Supported         | Flink: Defines the schema and connector for a stream or table. RisingWave: Defines the schema for a source or internal table. |
+| `CREATE MATERIALIZED VIEW` | Supported     | Supported         | Defines a query whose results are stored. This is a core concept in RisingWave. |
 | `DROP MATERIALIZED VIEW`   | Supported     | Supported         | Removes a materialized view.              |
 | `ALTER DATABASE/VIEW/FUNCTION` | Supported | Supported       | Modifies existing objects (scope varies).   |
 
 ### RisingWave-specific DDL
 
-RisingWave includes DDL for managing its database-specific entities:
+RisingWave includes the following DDL commands to manage its database-specific entities:
 *   `CREATE/DROP/ALTER SOURCE`: Define connections to external data sources (e.g., Kafka, Kinesis).
 *   `CREATE/DROP/ALTER SINK`: Define destinations for outputting data.
 *   `CREATE/DROP/ALTER CONNECTION`: Reusable connection configurations for sources/sinks.
@@ -187,7 +187,7 @@ RisingWave includes DDL for managing its database-specific entities:
 
 ## DML statements (Data Manipulation Language)
 
-DML statements interact with data within tables or trigger updates to materialized views.
+Data Manipulation Language (DML) statements interact with data in tables or trigger updates to materialized views.
 
 | Feature                      | Flink (v1.20) | RisingWave (v2.0) | Notes                                                               |
 |:-----------------------------|:--------------|:------------------|:---------------------------------------------------------------------|
@@ -204,15 +204,15 @@ Commands for exploring metadata, explaining queries, and managing sessions.
 
 ### Common statements
 
-*   **`SHOW DATABASES/TABLES/VIEWS/FUNCTIONS/JOBS`**: Both systems provide ways to list these common objects/entities.
-*   **`DESCRIBE [object]`**: Shows metadata (e.g., columns, types) for objects. Flink targets tables/views/catalogs. RW targets tables/sources/views/sinks/MVs.
+*   **`SHOW DATABASES | TABLES | VIEWS | FUNCTIONS | JOBS`**: List common objects or entities (supported by both).
+*   **`DESCRIBE <object>`**: Shows object metadata (e.g., columns, types). In Flink, `<object>` can be a table, view, or catalog. In RisingWave, `<object>` can be a table, source, view, sink, or materialized view.
 *   **`EXPLAIN [statement]`**: Shows the logical and physical execution plan for a query.
 *   **`USE [database/catalog]`**: Sets the current context for queries.
 *   **`SET [key = value]`**: Modifies session configuration settings.
 
 ### RisingWave-specific SHOW commands
 
-Reflecting its database nature, RisingWave offers more `SHOW` commands for system introspection:
+Reflecting its database architecture, RisingWave offers additional `SHOW` commands for system introspection:
 *   `SHOW CLUSTER`, `SHOW PROCESSLIST`, `SHOW PARAMETERS`
 *   `SHOW CONNECTIONS`, `SHOW SOURCES`, `SHOW SINKS`, `SHOW SCHEMAS`
 *   `SHOW INDEX`, `SHOW MATERIALIZED VIEWS`, `SHOW INTERNAL TABLES`
@@ -264,18 +264,18 @@ As a database system, RisingWave provides standard SQL access control.
 
 ## User-defined Functions (UDFs)
 
-Both systems allow extending SQL with custom logic.
+Both systems allow you to extend SQL with custom logic using User-defined Functions (UDFs).
 
 *   **Supported Languages:**
-    *   **Flink (1.20):** Java, Scala, Python (via external RPC mechanism primarily).
-    *   **RisingWave (2.0):** SQL, Python, Java (via JNI), JavaScript, Rust (latter via embedded WASM/FFI).
+    *   **Flink (1.20):** Java, Scala, and Python (primarily via an external Remote Procedure Call (RPC) mechanism).
+    *   **RisingWave (2.0):** SQL, Python, Java (via Java Native Interface (JNI)), JavaScript, and Rust (the latter via embedded WebAssembly (WASM) or Foreign Function Interface (FFI)).
 *   **Execution Models:**
     *   **Flink:** Embedded JVM functions (Java/Scala), External RPC functions (Python).
     *   **RisingWave:** Embedded SQL functions, Embedded language functions via WASM/FFI/JNI.
-*   **Function Types:** Both support Scalar Functions (UDF), Aggregate Functions (UDAF), and Table Functions (UDTF), though the exact implementation details and language support per type may vary.
-*   **SQL UDFs:** RisingWave allows defining simple scalar functions directly using SQL expressions, which Flink does not.
+*   **Function Types:** Both support Scalar Functions (UDF), Aggregate Functions (UDAF), and Table Functions (UDTF), although the specific implementation details and language support for each type can vary.
+*   **SQL UDFs:** RisingWave allows you to define simple scalar functions directly using SQL expressions; Flink does not offer this capability.
 
-**Summary:** Both offer extensibility, but RisingWave provides native SQL UDFs and uses WASM/FFI for several embedded languages, while Flink heavily relies on JVM languages and an RPC mechanism for Python.
+**Summary:** Both offer extensibility, but RisingWave provides native SQL UDFs and uses WASM/FFI for several embedded languages, while Flink primarily uses JVM languages and an RPC mechanism for Python.
 
 ## Built-in functions
 
@@ -311,8 +311,8 @@ Both Flink and RisingWave provide a rich library of built-in functions covering 
 
 ## System management & information
 
-*   **RisingWave:** Provides SQL functions and `SHOW` commands specifically designed for managing and monitoring the streaming database system itself (e.g., cluster status, internal tables, process lists, system parameters).
-*   **Flink:** Relies on its framework APIs, metrics system, and external tools (like its Web UI or platform integrations) for system management and monitoring, rather than built-in SQL functions for this purpose.
+*   **RisingWave:** Provides SQL functions and `SHOW` commands specifically designed for managing and monitoring the streaming database system itself, providing information such as cluster status, internal tables, process lists, and system parameters.
+*   **Flink:** Relies on its framework APIs, metrics system, and external tools (like its Web UI or platform integrations) for system management and monitoring, rather than using built-in SQL functions for these tasks.
 
 ## Other features
 
@@ -325,8 +325,8 @@ Both Flink and RisingWave provide a rich library of built-in functions covering 
 
 ## Conclusion
 
-RisingWave and Flink SQL, while both powerful stream processing tools, cater to slightly different needs and philosophies reflected in their SQL dialects and features.
-*   **Flink SQL (1.20)** excels as a flexible processing framework with strong Hive integration, `MATCH_RECOGNIZE` for CEP, and specific features like `TRY_CAST` and JAR management.
-*   **RisingWave SQL (2.0)** provides a PostgreSQL-compatible experience tailored for a streaming database, featuring core materialized views, native `JSONB`, built-in sources/sinks management, access control, and unique DDL/system management capabilities.
+RisingWave and Flink SQL, while both powerful stream processing tools, cater to slightly different needs and design philosophies, which are reflected in their SQL dialects and features.
+*   **Flink SQL (1.20)** is a flexible processing framework with strong Hive integration, `MATCH_RECOGNIZE` for CEP, and specific features like `TRY_CAST` and JAR management.
+*   **RisingWave SQL (2.0)** offers a PostgreSQL-compatible experience tailored for a streaming database, featuring core materialized views, native `JSONB`, built-in sources/sinks management, access control, and unique DDL/system management capabilities.
 
-The choice between them depends on whether you prioritize a standalone streaming database solution (RisingWave) or a flexible stream processing framework that integrates with diverse ecosystems (Flink).
+Your choice between them depends on whether you need a standalone streaming database solution (RisingWave) or a flexible stream processing framework that integrates with diverse ecosystems (Flink).
