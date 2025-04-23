@@ -219,6 +219,31 @@ FORMAT PLAIN
 ENCODE PARQUET
 ```
 
+When using a file source to read Parquet files, the schema must be defined according to the following data type mappings between Parquet and RisingWave:
+
+| Parquet data type | RisingWave file source data type |
+| :----------- | :-------------- |
+| boolean      | boolean         |
+| int16        | smallint        |
+| int32        | int             |
+| int64        | bigint          |
+| float        | real            |
+| double       | double precision|
+| string       | varchar         |
+| date         | date            |
+| decimal      | decimal         |
+| int8         | smallint        |
+| uint8        | smallint        |
+| uint16       | int             |
+| uint32       | bigint          |
+| uint64       | decimal         |
+| float16      | double precision|
+| `timestamp(_, Some(_))` | timestamptz  |
+| `timestamp(_, None)`    | timestamp    |
+
+<Note>
+Parquet sources require case-sensitive column names. However, PostgreSQL converts unquoted column names to lowercase by default. To preserve case sensitivity when defining the schema, use double quotes around column names.
+</Note>
 
 ## Parameter reference
 
