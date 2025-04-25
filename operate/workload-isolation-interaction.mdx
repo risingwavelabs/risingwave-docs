@@ -1,0 +1,217 @@
+---
+title: "Workload isolation and interaction"
+description: "Manage multiple workloads efficiently in RisingWave using database isolation, resource groups for dedicated compute resources, and cross-database queries for unified access."
+---
+Running multiple distinct streaming applications, managing data for different teams, or separating environments (like development and staging) within a single RisingWave cluster offers significant operational advantages. However, it also presents challenges: ensuring stability by preventing interference between workloads, managing resource allocation effectively, and providing ways to access data across logical boundaries when necessary.
+
+From v2.3, RisingWave provides a comprehensive suite of features to address these challenges, enabling robust workload isolation and flexible interaction:
+
+1.  **Database isolation**: Core improvements providing inherent resilience between databases by default.
+2.  **Resource groups**: Assign databases to dedicated pools of compute nodes for strong fault isolation, performance tuning, and resource governance.
+3.  **Cross-database queries**: Query tables and materialized views across different databases, enabling unified analytics without data duplication, especially powerful when combined with isolated environments.
+
+<Tip>
+PREMIUM EDITION FEATURE
+
+**Database isolation**, **resource groups**, and **cross-database queries** are Premium Edition features. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro).
+</Tip>
+
+<Note>
+PUBLIC PREVIEW
+
+**Database isolation**, **resource groups**, and **cross-database queries** are currently in public preview. While nearing the final product, it may still evolve. Please refer to our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage) for the latest status or reach out via our [Slack channel](https://www.risingwave.com/slack) with feedback or issues.
+</Note>
+
+This topic explains these capabilities and how they work together.
+
+## Database isolation
+
+RisingWave incorporates foundational improvements that enhance the operational isolation between different databases within the same cluster, providing a more resilient environment out-of-the-box:
+
+*   *Independent checkpoints:* The checkpointing process, vital for maintaining consistent state, generally operates independently per database. An issue triggering a checkpoint failure for a job in `database_A` is significantly less likely to halt or affect the checkpoint process for unrelated jobs in `database_B`, assuming no direct cross-database dependencies are created (e.g., via cross-database materialized views, see below).
+*   *Localized job error recovery:* When a streaming job within a database fails (due to internal errors, UDF issues, etc.), the recovery process is primarily contained *within that specific database*. This prevents localized job failures from unnecessarily disrupting unrelated streaming jobs in other databases.
+
+**Benefits:**
+
+*   *Increased stability:* Reduces the risk of cascading failures across independent workloads.
+*   *Improved availability:* Localized issues have a smaller impact radius, allowing unaffected parts of the cluster to continue functioning.
+
+<Note>
+While database isolation improves logical and operational separation, databases might still share the same underlying pool of compute nodes (CNs) by default. This means they are not isolated from hardware failures affecting that shared pool or from resource contention (CPU, memory). For stronger infrastructure isolation and dedicated resource allocation, use **Resource Groups**.
+</Note>
+
+## Resource groups
+
+Resource groups offer a powerful mechanism for fine-grained control over compute resource allocation and fault domains, essential for critical workloads, multi-tenant scenarios, and performance optimization.
+
+### Concept
+
+A *resource group* is a named logical pool consisting of specific compute nodes (CNs) within your RisingWave cluster. Administrators typically define these groups and their associated CNs during cluster setup or configuration.
+
+### How resource groups provide isolation and control
+
+When you assign a database to a resource group, all streaming jobs belonging to that database are constrained to run *only* on the compute nodes within that designated group. This provides two primary advantages:
+
+1.  Granular fault isolation (limiting blast radius):
+    *   By assigning independent databases to resource groups backed by distinct sets of compute nodes, you achieve robust infrastructure fault isolation.
+    *   *Example:* If a compute node within `resource_group_A` crashes, it only impacts databases assigned to `resource_group_A`. Databases in `resource_group_B` (running on different CNs) remain unaffected by that specific hardware failure. This is crucial for ensuring the availability of critical applications.
+
+2.  Workload matching & performance optimization:
+    *   You can tailor resource allocation to workload needs by creating resource groups backed by specialized hardware.
+    *   *Example:* Create `rg_high_cpu` using CNs optimized for CPU and `rg_high_memory` using CNs with large RAM. Assign CPU-intensive jobs (like complex pattern matching) to `rg_high_cpu` and memory-intensive jobs (like large stateful aggregations) to `rg_high_memory` for optimal performance and efficient resource utilization.
+    *   This also provides *Resource Governance*, offering clearer control and visibility over how compute resources are consumed by different applications or tenants.
+
+### Using and monitoring resource groups
+
+**1. Assigning a database to a resource group:**
+
+Use the `WITH RESOURCE_GROUP` clause when creating a database using `CREATE DATABASE`. The named resource group must exist beforehand.
+
+```sql
+CREATE DATABASE database_name
+WITH resource_group = 'resource_group_name';
+```
+
+```sql
+-- Example:
+CREATE DATABASE analytics_db WITH resource_group = 'rg_general_purpose';
+CREATE DATABASE critical_payments_db WITH resource_group = 'rg_high_cpu';
+```
+
+<Note>
+If the `WITH resource_group` clause is omitted, the database is typically assigned to a default resource group, potentially sharing resources more broadly with other databases not explicitly assigned elsewhere.
+</Note>
+
+**2. Monitoring resource group usage:**
+
+Use system catalogs to inspect resource group configuration and job assignments:
+
+*   `rw_resource_groups`: Lists defined groups and summarizes their assigned workers, parallelism, and the number of databases/jobs.
+
+    ```sql
+    SELECT * FROM rw_resource_groups;
+    -- Example Output:
+      name              | num_workers | total_parallelism_units | num_databases | num_streaming_jobs
+    --------------------+-------------+-------------------------+---------------+--------------------
+     rg_default         |           4 |                      16 |             2 |                  5
+     rg_high_cpu        |           2 |                       8 |             1 |                  1
+     rg_general_purpose |           2 |                       8 |             1 |                  3
+    (3 rows)
+    ```
+
+*   `rw_streaming_jobs`: Shows active streaming jobs, including their `database_id` and assigned `resource_group`.
+
+    ```sql
+    SELECT job_id, name, status, database_id, resource_group FROM rw_streaming_jobs;
+    -- Example Output:
+     job_id | name          | status  | database_id | resource_group
+    --------+---------------+---------+-------------+--------------------
+          6 | payment_processor_mv| CREATED |       10001 | rg_high_cpu
+          7 | dashboard_agg_mv | CREATED |       10002 | rg_general_purpose
+          8 | user_activity_mv | CREATED |       10003 | rg_default
+    (3 rows)
+    ```
+
+## Cross-database queries
+
+While isolating databases and resources using Resource Groups is crucial for stability and organization, you often need to query or join data residing in different databases. Cross-Database Queries allow you to do this directly within RisingWave (starting v2.3), avoiding cumbersome data duplication or external pipelines. This enables unified analytics even across isolated environments.
+
+### Capabilities
+
+RisingWave's cross-database functionality supports:
+
+*   Querying tables and materialized views in other databases using `SELECT` statements.
+*   Creating streaming Materialized Views (`CREATE MATERIALIZED VIEW`) and Sinks (`CREATE SINK`) that read from tables or MVs in other databases.
+*   Enforcement of necessary permissions (`CONNECT`, `SELECT`, etc.) for secure access.
+
+### Permissions requirements
+
+To perform cross-database operations, users generally need:
+
+1.  The `CONNECT` privilege on the target (remote) database(s) they need to access.
+2.  Standard object-level privileges (e.g., `SELECT` or `USAGE`) on the specific tables, views, or schemas being accessed in the remote database.
+3.  Alternatively, being a `superuser` bypasses these specific checks.
+
+### Ad-hoc queries across databases (`SELECT`)
+
+You can query tables or views in another database using the standard three-part naming convention: `database_name.schema_name.object_name`.
+
+```sql
+-- Example: Assuming connected to 'db2', query table 't1' in 'db1'
+SELECT COUNT(*) FROM d1.public.t1;
+
+-- Example: Join local table 't2' with remote table 'd1.public.t1'
+SELECT t1.v1, t2.v2
+FROM d1.public.t1
+JOIN public.t2 ON t1.v1 = t2.v2;
+```
+
+*Interaction with Resource Groups:* When you run an ad-hoc cross-database query, the compute resources used for executing *that specific query* are typically managed within the resource group associated with the database you are currently connected to.
+
+### Cross-database streaming DDL (`CREATE MV`, `CREATE SINK`) - Requires subscriptions
+
+The real power for continuous analysis comes from creating *Materialized Views (MVs)* or *Sinks* that process data across database boundaries. This allows you to maintain incrementally updated, unified views or data streams originating from different sources.
+
+**Critical requirement: `CREATE SUBSCRIPTION`**
+
+*   *Why?* Streaming MVs and Sinks in RisingWave update incrementally by consuming change streams (changelogs) from their upstream sources (tables or MVs). For an MV/Sink in `database_A` to react to ongoing changes in a table/MV from `database_B`, it needs durable, cross-boundary access to the changelog of the source object in `database_B`.
+*   *How?* The `CREATE SUBSCRIPTION` command makes this change stream persistently available across databases. *Before* creating an MV or Sink that reads from a table or MV in another database, you *must first create at least one subscription* for that specific upstream object *in the source database*. The upstream object must also have a primary key defined.
+*   *Verification:* RisingWave verifies the existence of these necessary log stores (enabled by subscriptions) for all cross-database upstreams during `CREATE MATERIALIZED VIEW` or `CREATE SINK` operations.
+
+**Example workflow:**
+
+1.  **In the source database (`d1`), create a subscription for the upstream table (`t1`):**
+
+    ```sql
+    -- Connect to d1
+    \c d1;
+    CREATE TABLE t1 (v1 INT PRIMARY KEY); -- Ensure PK exists
+
+    -- Create the subscription to enable cross-database access to t1's changelog
+    CREATE subscription sub_t1 FROM t1 WITH (retention = '1D');
+    ```
+
+2.  **In the target database (`d2`), create the cross-database MV:**
+
+    ```sql
+    -- Connect to d2
+    \c d2;
+    CREATE TABLE t2 (v2 INT);
+
+    -- Create an MV reading only from the remote table
+    CREATE MATERIALIZED VIEW mv1 AS SELECT * FROM d1.public.t1; -- Reads via sub_t1
+
+    -- Create an MV joining the remote table t1 with local table t2
+    CREATE MATERIALIZED VIEW mv2 AS
+    SELECT t1.v1, t2.v2
+    FROM d1.public.t1 -- Reads via sub_t1
+    JOIN t2 ON t1.v1 = t2.v2;
+    ```
+
+<Note>
+Creating a cross-database Materialized View or Sink introduces a dependency between the databases involved regarding checkpointing and job execution. Actors processing the MV/Sink might run within its database's resource group while consuming data originating from another resource group's source database via the subscription.
+
+Additionally, RisingWave provides safeguards: `DROP MATERIALIZED VIEW ... CASCADE` or `DROP SINK ... CASCADE` operations are rejected if they have cross-database dependencies to prevent accidental data loss in the upstream database.
+</Note>
+
+## Common use cases and benefits summary
+
+Leveraging database isolation, resource groups, and cross-database queries together enables several powerful patterns:
+
+*   *Multi-tenancy:* Isolate tenants in separate databases/resource groups for security and stability, while using cross-database queries for aggregated administrative reporting.
+*   *Domain-driven design:* Separate microservice or business domain data (e.g., `orders_db`, `customers_db`) for clarity and independent scaling, then use cross-database MVs in an `analytics_db` for holistic views.
+*   *Critical workload protection:* Guarantee resources and isolate critical systems (like payments or fraud detection) from less critical workloads using dedicated resource groups.
+*   *Performance optimization:* Assign resource-intensive jobs to appropriately configured hardware pools via resource groups.
+*   *Simplified architecture:* Avoid complex external ETL/replication pipelines for integrating data that already resides within the same RisingWave cluster. Query it directly.
+*   *Data consistency:* Access the single source of truth via direct queries, eliminating stale data issues common with duplication methods.
+
+
+## Related topics
+
+*   [`CREATE DATABASE`](/sql/commands/sql-create-database) (includes `WITH RESOURCE_GROUP`)
+*   [Manage subscriptions](/serve/subscription)
+*   [RisingWave system catalogs](/sql/system-catalogs/rw-catalog) (see `rw_resource_groups`, `rw_streaming_jobs`)
+*   [RisingWave Premium](/get-started/rw-premium-edition-intro)
+
