@@ -127,7 +127,7 @@ Both systems support various SQL join types for combining data from multiple str
 | `LEFT JOIN`                 | Supported              | Supported                          |                                                                       |
 | `RIGHT JOIN`                | Supported              | Supported                          |                                                                       |
 | `FULL JOIN`                 | Supported              | Supported                          |                                                                       |
-| **State Handling Note**     | Configurable TTL       | Internal Storage                   | Flink requires you to configure Time-To-Live (TTL) for join state manually. RisingWave manages state automatically and internally, simplifying operations.   |
+| **State Handling Note**     | Configurable TTL       | Internal Storage with temporal filters and configurable TTL | Flink requires manual configuration of Time-To-Live (TTL) for join state. RisingWave simplifies state management: it uses temporal filters to automatically prune state outside the required time range, and supports configurable TTL for append-only sources, both saving storage space with straightforward configuration. |
 | **Interval Join**           | Supported              | Supported                          | Joins streams based on time proximity (e.g., `t1.time BETWEEN t2.time - INTERVAL '5' SECOND AND t2.time + INTERVAL '5' SECOND`). |
 | **Temporal Join**           |                        |                                    | Joins a stream against a versioned table/changelog source.            |
 |  Event Time Temporal Join   | Supported (`FOR ... AS OF`) | Supported (Implicit / `TEMPORAL JOIN`) | Flink requires explicit syntax. RisingWave support depends on the source type and query structure. |
@@ -157,15 +157,16 @@ As a streaming database, RisingWave has a broader set of Data Definition Languag
 
 ### Common DDL
 
-| Operation                  | Flink (v1.20) | RisingWave (v2.0) | Notes                                      |
-|:---------------------------|:--------------|:------------------|:--------------------------------------------|
-| `CREATE/DROP DATABASE`     | Supported     | Supported         | Logical grouping of objects.               |
-| `CREATE/DROP VIEW`         | Supported     | Supported         | Defines a logical view based on a query. |
-| `CREATE/DROP FUNCTION`     | Supported     | Supported         | Defines user-defined functions.          |
-| `CREATE/DROP TABLE`        | Supported     | Supported         | Flink: Defines the schema and connector for a stream or table. RisingWave: Defines the schema for a source or internal table. |
-| `CREATE MATERIALIZED VIEW` | Supported     | Supported         | Defines a query whose results are stored. This is a core concept in RisingWave. |
-| `DROP MATERIALIZED VIEW`   | Supported     | Supported         | Removes a materialized view.              |
-| `ALTER DATABASE/VIEW/FUNCTION` | Supported | Supported       | Modifies existing objects (scope varies).   |
+| Operation                  | Flink (v1.20)       | RisingWave (v2.0) | Notes                                                                   |
+|:---------------------------|:--------------------|:------------------|:-------------------------------------------------------------------------|
+| `CREATE/DROP DATABASE`     | Supported           | Supported         | Logical grouping of objects.                                             |
+| `CREATE/DROP VIEW`         | Supported           | Supported         | Defines a logical view based on a query.                               |
+| `CREATE/DROP FUNCTION`     | Supported           | Supported         | Defines user-defined functions.                                        |
+| `CREATE/DROP TABLE`        | Supported           | Supported         | Flink: Defines schema/connector. RW: Defines schema for source/table. |
+| `CREATE MATERIALIZED VIEW` | Supported           | Supported         | Defines a query whose results are stored. Core concept in RisingWave.   |
+| `DROP MATERIALIZED VIEW`   | Supported           | Supported         | Removes a materialized view.                                            |
+| `ALTER MATERIALIZED VIEW`  | Limited/No          | Supported         | Modifies a materialized view (e.g., rename, set parallelism). Flink support may vary. |
+| `ALTER DATABASE/VIEW/FUNCTION` | Supported       | Supported         | Modifies existing objects (scope varies).                                |
 
 ### RisingWave-specific DDL
 
@@ -185,7 +186,7 @@ This integrated DDL allows managing the entire data flow (sources, processing, s
 ### Flink-specific DDL aspects
 
 *   `CREATE OR REPLACE TABLE`: Flink supports this atomic replacement syntax.
-*   `ALTER TABLE`: Flink's `ALTER TABLE` often has more capabilities for schema evolution depending on the connector and format, compared to RisingWave's more restricted alteration of stateful sources/MVs. RW `ALTER TABLE` mainly supports renaming.
+*   `ALTER TABLE`: Both systems support `ALTER TABLE`, but capabilities differ. Flink's focus is often on schema evolution via connectors/formats. RisingWave supports various alterations like `ADD/DROP COLUMN`, `RENAME TO`, `OWNER TO`, `SET SCHEMA`, `SET PARALLELISM`, `SET SOURCE_RATE_LIMIT`, and `REFRESH SCHEMA` (see RW docs for specifics), providing significant table management via SQL.
 
 ## DML statements (Data Manipulation Language)
 
