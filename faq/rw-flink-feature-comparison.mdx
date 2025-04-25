@@ -238,6 +238,22 @@ Both systems allow managing running streaming queries/jobs.
 | `SHOW JOBS`        | Supported     | Supported         | Lists active streaming jobs/pipelines.      |
 | `CANCEL JOB [id]`  | Supported     | Supported         | Stops a specific running job/pipeline.      |
 
+## System Management and Monitoring Interface
+
+A key difference lies in how users interact with the system for management and monitoring tasks.
+
+*   **RisingWave (SQL-centric):** Leverages its database architecture to provide a unified SQL interface for many operational tasks:
+    *   **Configuration:** Runtime parameters (`SET`/`SHOW`) and persistent system-wide parameters (`ALTER SYSTEM SET`/`SHOW PARAMETERS`) are managed via SQL. 
+    *   **Monitoring:** Job status (`SHOW JOBS`), active processes (`SHOW PROCESSLIST`), DDL progress, and detailed internal states (via system catalogs) are accessible through SQL commands.
+    *   **Alteration:** Modifying running jobs (e.g., changing parallelism with `ALTER ... SET PARALLELISM`) and stopping jobs (`CANCEL JOBS`) are done directly with SQL.
+    *   **Advantage:** Offers a consistent, familiar SQL interface for configuration, monitoring, and management, potentially simplifying operations for users comfortable with databases.
+
+*   **Flink (API/UI/Config File-centric):** As a framework, Flink relies on a combination of interfaces:
+    *   **Configuration:** System configuration is primarily done via configuration files (`flink-conf.yaml`) or command-line options. Flink SQL `SET` affects session-specific query behavior.
+    *   **Monitoring:** Rich monitoring is available through the **Web UI**, **REST API**, and integration with external **metrics systems** (e.g., Prometheus, Grafana).
+    *   **Alteration:** Stopping jobs (`flink cancel/stop`) and modifying aspects like parallelism typically involve the CLI, REST API, or UI, often requiring a job restart (potentially with savepoints).
+    *   **Note:** While powerful, requires interacting with multiple different tools and interfaces (SQL client, config files, web browser, CLI, potentially external monitoring dashboards) for full system management.
+
 ## Materialized views
 
 While both support the concept, their role differs significantly.
