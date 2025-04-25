@@ -1,14 +1,14 @@
 ---
 title: "Use UDFs in JavaScript"
 description: "This article provides a step-by-step guide for defining JavaScript functions in RisingWave."
-sidebarTitle: Javascript
+sidebarTitle: JavaScript
 ---
 
 JavaScript code is inlined in `CREATE FUNCTION` statement and then run on the embedded QuickJS virtual machine in RisingWave. It does not support access to external networks and is limited to computational tasks only. Compared to other languages, JavaScript UDFs offer the easiest way to define UDFs in RisingWave.
 
 ## Define your functions
 
-You can use the [CREATE FUNCTION](/sql/commands/sql-create-function) command to create JavaScript UDFs. 
+You can use the [CREATE FUNCTION](/sql/commands/sql-create-function) command to create JavaScript UDFs.
 
 ### Basic JavaScript UDFs
 
@@ -73,16 +73,16 @@ $$ WITH (
 - `batch`: Set to `true` to process multiple batches. Make sure each argument of the function accepts an array of `arg_type`.
 
 ```sql Example
-CREATE FUNCTION fetch_weather(city varchar) 
-RETURNS varchar 
-LANGUAGE javascript 
+CREATE FUNCTION fetch_weather(city varchar)
+RETURNS varchar
+LANGUAGE javascript
 AS $$
 export async function fetch_weather(city) {
     const response = await fetch('https://api.weatherapi.com/v1/current.json?key=YOUR_API_KEY&q=' + city);
     const data = await response.json();
     return data.current.temp_c;  // returns current temperature in Celsius
 }
-$$ 
+$$
 WITH (async = true);
 ```
 
@@ -120,7 +120,7 @@ Optional functions:
 
 The following command creates an aggregate function named `weighted_avg` to calculate the weighted average.
 
-```js Javascript UDAF
+```js JavaScript UDAF
 create aggregate weighted_avg(value int, weight int) returns float language javascript as $$
     export function create_state() {
         return { sum: 0, weight: 0 };
