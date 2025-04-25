@@ -11,6 +11,14 @@ RisingWave can run on the following hardware architectures:
 * ARM64
 * Mac with Apple Silicon
 
+
+<Note>
+The docker images for `x86_64` are built with AVX2 SIMD extensions, and the images for `aarch64` (ARM64) are built with NEON SIMD extensions. If your machine does not support these extensions, you must build the docker image with the build-arg `simd_disabled=true`.
+
+- To build the images, run the following from the project root: `docker build . -f docker/Dockerfile`.
+- To build the images without SIMD vector extensions, run the following from the project root `docker build . -f docker/Dockerfile --build-arg simd_disabled=true` and run any subsequent docker commands on the resultant image.
+</Note>
+
 ## Compute nodes
 
 Compute nodes handle query processing and state management. More resources enable higher query throughput. For cost efficiency, machines with high memory-to-CPU ratios (4:1 or higher) are recommended due to RisingWave's memory-intensive nature.
