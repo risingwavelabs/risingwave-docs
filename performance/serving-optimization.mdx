@@ -17,7 +17,7 @@ We determine how the index should be created by checking:
 1.  Which columns of the materialized views are used in the `SELECT` statement? These columns should all appear in the `INCLUDE` clause when creating the index.
 2.  Which columns of the materialized views are included in an optional `WHERE` condition in the batch queries? Suppose the batch query filters a column named timestamp with the condition `timestamp between t1 and t2`, then the column `timestamp` should be included in the `index_column`. The same principle applies to any other filter conditions such as equality and inequalities.
 
-We remark that the incremental maintenance of indexes in RisingWave is similar to the incremental maintenance of materialized views but with minimal computation. Therefore, it is cost-effective to create indexes in RisingWave. We encourage users to detect the patterns in batch queries and create indexes if the pattern occurs frequently or/and a batch query is slow.
+Indexes in RisingWave are incrementally maintained, similar to materialized views but with minimal computation. Therefore, they are cost-effective to create. We encourage users to detect the patterns in batch queries and create indexes if the pattern occurs frequently or/and a batch query is slow.
 
 Examples:
 
