@@ -8,6 +8,28 @@ This section outlines best practices for Serving Optimizations.
 
 ## SQL Optimizations
 
+### Leverage predicate pushdown
+
+Predicate pushdown allows filtering operations (predicates) to be applied as early as possible in the query pipeline. This means that instead of retrieving all data and then filtering it, RisingWave filters the data at the storage level.
+
+Examples:
+
+```sql
+CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
+
+--- The predicate k1=1 is pushed down to the BatchScan.
+EXPLAIN SELECT * FROM t WHERE k1=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: t, columns: [k1, k2, v1, v2], scan_ranges: [k1 = Int32(1)] }
+
+--- The predicate k2=1 cannot be pushed down to the BatchScan.
+--- Have to create an index on k2 to push down the predicate.
+EXPLAIN SELECT * FROM t WHERE k2=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchFilter { predicate: (t.k2 = 1:Int32) }
+   └─BatchScan { table: t, columns: [k1, k2, v1, v2] }
+```
+
 ### When to create indexes
 
 Indexes in RisingWave are used to accelerate batch queries. See the basics of indexes in [CREATE INDEX](/sql/commands/sql-create-index).
@@ -50,25 +72,4 @@ CREATE INDEX idx_t_k2_all_columns ON t(k2);
 EXPLAIN SELECT v2 FROM t WHERE k2=1;
  BatchExchange { order: [], dist: Single }
  └─BatchScan { table: idx_t_k2_all_columns, columns: [v2], scan_ranges: [k2 = Int32(1)] }
-```
-
-### Leverage predicate pushdown
-
-Predicate pushdown allows filtering operations (predicates) to be applied as early as possible in the query pipeline. This means that instead of retrieving all data and then filtering it, RisingWave filters the data at the storage level.
-
-Examples:
-
-```sql
-CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
-
---- The predicate k1=1 is pushed down to the BatchScan.
-EXPLAIN SELECT * FROM t WHERE k1=1;
- BatchExchange { order: [], dist: Single }
- └─BatchScan { table: t, columns: [k1, k2, v1, v2], scan_ranges: [k1 = Int32(1)] }
-
---- The predicate k2=1 cannot be pushed down to the BatchScan.
-EXPLAIN SELECT * FROM t WHERE k2=1;
- BatchExchange { order: [], dist: Single }
- └─BatchFilter { predicate: (t.k2 = 1:Int32) }
-   └─BatchScan { table: t, columns: [k1, k2, v1, v2] }
 ```
