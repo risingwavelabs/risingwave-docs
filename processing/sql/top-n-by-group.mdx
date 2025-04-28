@@ -71,3 +71,45 @@ SELECT r
   ) Q
 WHERE Q.r < 10;
 ```
+
+## Converting StreamOverWindow to StreamGroupTopN
+
+Given the following table:
+```sql
+create table t3(v1 int, v2 int);
+```
+
+You may create the following ranked Materialized View to sort the data over the partition `v1` and order by `v2`:
+```sql
+dev=> explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3);
+                                                                          QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ StreamMaterialize { columns: [r, t3._row_id(hidden), t3.v1(hidden)], stream_key: [t3._row_id, t3.v1], pk_columns: [t3._row_id, t3.v1], pk_conflict: NoCheck }
+ └─StreamProject { exprs: [row_number, t3._row_id, t3.v1] }
+   └─StreamOverWindow { window_functions: [row_number() OVER(PARTITION BY t3.v1 ORDER BY t3.v2 ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)] }
+     └─StreamExchange { dist: HashShard(t3.v1) }
+       └─StreamTableScan { table: t3, columns: [v1, v2, _row_id] }
+(5 rows)
+```
+
+The operator responsible for sorting the data is `StreamOverWindow`. This is a streaming operator that maintains the state of the window and computes the row number for each row in the partition.
+This can be quite expensive, especially if the partition is large.
+If you only need the top N rows from each partition, you can use the `StreamGroupTopN` operator instead.
+This can be done by simply adding a `WHERE` clause to the query, and applying it to the row column (`r` in the above example).
+
+You can view the following query as an example, which maintains top 10 rows for each partition:
+```sql
+dev=> explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3) where r < 10;
+                                                                          QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ StreamMaterialize { columns: [r, t3.v1(hidden), t3._row_id(hidden)], stream_key: [t3.v1, t3._row_id], pk_columns: [t3.v1, t3._row_id], pk_conflict: NoCheck }
+ └─StreamProject { exprs: [row_number, t3.v1, t3._row_id] }
+   └─StreamOverWindow { window_functions: [row_number() OVER(PARTITION BY t3.v1 ORDER BY t3.v2 ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)] }
+     └─StreamGroupTopN { order: [t3.v2 ASC], limit: 9, offset: 0, group_key: [t3.v1] }
+       └─StreamExchange { dist: HashShard(t3.v1) }
+         └─StreamTableScan { table: t3, columns: [v1, v2, _row_id] }
+(6 rows)
+```
+
+Given that the state size to maintain is a lot smaller, this means both reading and writing the state has less overhead.
+As a result, the `StreamGroupTopN` operator is much more efficient than the `StreamOverWindow` operator.
