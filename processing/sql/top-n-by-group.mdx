@@ -79,9 +79,9 @@ Given the following table:
 create table t3(v1 int, v2 int);
 ```
 
-You may create the following ranked Materialized View to sort the data over the partition `v1` and order by `v2`:
+You may create the following ranked materialized view to sort the data over the partition `v1` and order by `v2`:
 ```sql
-dev=> explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3);
+explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3);
                                                                           QUERY PLAN
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
  StreamMaterialize { columns: [r, t3._row_id(hidden), t3.v1(hidden)], stream_key: [t3._row_id, t3.v1], pk_columns: [t3._row_id, t3.v1], pk_conflict: NoCheck }
@@ -98,8 +98,9 @@ If you only need the top N rows from each partition, you can use the `StreamGrou
 This can be done by simply adding a `WHERE` clause to the query, and applying it to the row column (`r` in the above example).
 
 You can view the following query as an example, which maintains top 10 rows for each partition:
+
 ```sql
-dev=> explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3) where r < 10;
+explain create materialized view m1 as select r from (select *, row_number() over (PARTITION BY v1 order by v2) r from t3) where r < 10;
                                                                           QUERY PLAN
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
  StreamMaterialize { columns: [r, t3.v1(hidden), t3._row_id(hidden)], stream_key: [t3.v1, t3._row_id], pk_columns: [t3.v1, t3._row_id], pk_conflict: NoCheck }

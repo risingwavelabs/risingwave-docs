@@ -24,8 +24,10 @@ CREATE INDEX [IF NOT EXISTS] index_name ON object_name ( index_column [ ASC | DE
 ```
 
 In short,
-1.  Which columns of the materialized views are used in the `SELECT` statement? These columns should all appear in the `INCLUDE` clause when creating the index.
-2.  Which columns of the materialized views are included in an optional `WHERE` condition in the batch queries? Suppose the batch query filters a column named timestamp with the condition `timestamp between t1 and t2`, then the column `timestamp` should be included in the `index_column`. The same principle applies to any other filter conditions such as equality and inequalities.
+- All columns from the materialized view that are referenced in the `SELECT` clause should be included in the `INCLUDE` clause when creating the index.
+
+- Any columns used in the `WHERE` clause of batch queries should be specified in the `index_column` section of the index.
+For example, if a batch query includes a filter such as `timestamp BETWEEN t1 AND t2`, the timestamp column should be part of the `index_column`. The same principle applies to any other filter conditions such as equality and inequalities.
 
 Here is a simple example. Let's create two tables, `customers` and `orders`.
 
@@ -145,7 +147,7 @@ dev=> explain select * from t where (v->'field')::int = 123;
 (2 rows)
 ```
 
-## More Examples
+## More examples
 
 ```sql
 CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
