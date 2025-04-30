@@ -1,7 +1,7 @@
 ---
 title: "Best practices for optimizing performance"
 description: "Learn best practices for maximizing the performance of your RisingWave deployments."
-sidebarTitle: Best practices
+sidebarTitle: Overview
 ---
 
 This section outlines best practices for optimizing RisingWave performance.  Applying these recommendations can help you achieve lower latency, higher throughput, and more efficient resource utilization.  These best practices cover various aspects of working with RisingWave, from data modeling and query writing to resource allocation and data ingestion.
@@ -51,70 +51,9 @@ In terms of compactor nodes, we favor scaling up when the resources of the compa
 
 Writing efficient SQL queries is a critical aspect of achieving good performance.
 
-### When to create indexes
-
-Indexes in RisingWave are used to accelerate batch queries. See the basics of indexes in [CREATE INDEX](/sql/commands/sql-create-index).
-
-We determine how the index should be created by checking:
-
-1.  Which columns of the materialized views are used in the `SELECT` statement? These columns should all appear in the `INCLUDE` clause when creating the index.
-2.  Which columns of the materialized views are included in an optional `WHERE` condition in the batch queries? Suppose the batch query filters a column named timestamp with the condition `timestamp between t1 and t2`, then the column `timestamp` should be included in the `index_column`. The same principle applies to any other filter conditions such as equality and inequalities.
-
-We remark that the incremental maintenance of indexes in RisingWave is similar to the incremental maintenance of materialized views but with minimal computation. Therefore, it is cost-effective to create indexes in RisingWave. We encourage users to detect the patterns in batch queries and create indexes if the pattern occurs frequently or/and a batch query is slow.
-
-Examples:
-
-```sql
-CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
-
---- idx_t_k2_partial_columns doesn't include column v2.
-CREATE INDEX idx_t_k2_partial_columns ON t(k2) INCLUDE (k1,v1);
-
---- idx_t_k2_partial_columns is not utilized.
-EXPLAIN SELECT v2 FROM t WHERE k1=1;
- BatchExchange { order: [], dist: Single }
- └─BatchScan { table: t, columns: [v2], scan_ranges: [k1 = Int32(1)] }
-
---- idx_t_k2_partial_columns is utilized.
-EXPLAIN SELECT v1 FROM t WHERE k2=1;
- BatchExchange { order: [], dist: Single }
- └─BatchScan { table: idx_t_k2_partial_columns, columns: [v1], scan_ranges: [k2 = Int32(1)] }
-
---- idx_t_k2_partial_columns is utilized. However since it doesn't include column v2, the plan requires an additional lookup join.
-EXPLAIN SELECT v2 FROM t WHERE k2=1;
- BatchLookupJoin { type: Inner, predicate: idx_t_k2_partial_columns.k1 IS NOT DISTINCT FROM t.k1 AND idx_t_k2_partial_columns.k2 IS NOT DISTINCT FROM t.k2 AND (t.k2 = 1:Int32), lookup table: t }
- └─BatchExchange { order: [], dist: Single }
-   └─BatchScan { table: idx_t_k2_partial_columns, columns: [k2, k1], scan_ranges: [k2 = Int32(1)] }
-
---- idx_t_k2_all_columns includes all columns.
-CREATE INDEX idx_t_k2_all_columns ON t(k2);
-
---- idx_t_k2_all_columns is utilized. Compare the plan with the one that uses idx_t_k2_partial_columns.
-EXPLAIN SELECT v2 FROM t WHERE k2=1;
- BatchExchange { order: [], dist: Single }
- └─BatchScan { table: idx_t_k2_all_columns, columns: [v2], scan_ranges: [k2 = Int32(1)] }
-```
-
-### Leverage predicate pushdown
-
-Predicate pushdown allows filtering operations (predicates) to be applied as early as possible in the query pipeline. This means that instead of retrieving all data and then filtering it, RisingWave filters the data at the storage level.
-
-Examples:
-
-```sql
-CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
-
---- The predicate k1=1 is pushed down to the BatchScan.
-EXPLAIN SELECT * FROM t WHERE k1=1;
- BatchExchange { order: [], dist: Single }
- └─BatchScan { table: t, columns: [k1, k2, v1, v2], scan_ranges: [k1 = Int32(1)] }
-
---- The predicate k2=1 cannot be pushed down to the BatchScan.
-EXPLAIN SELECT * FROM t WHERE k2=1;
- BatchExchange { order: [], dist: Single }
- └─BatchFilter { predicate: (t.k2 = 1:Int32) }
-   └─BatchScan { table: t, columns: [k1, k2, v1, v2] }
-```
+You can checkout the following pages for more details on SQL optimization:
+- [Serving/Batch SQL Optimization](performance/serving-optimizations#sql-optimizations)
+- [Streaming SQL Optimization](performance/streaming-optimizations#sql-optimizations)
 
 ## Backfilling optimization
 Backfilling refers to the operation where a query processes all existing or historical data.

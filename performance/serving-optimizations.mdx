@@ -1,0 +1,39 @@
+---
+title: "Serving optimizations"
+description: "RisingWave provides a variety of optimizations to improve the performance of serving queries."
+---
+
+This section outlines best practices for serving optimizations.
+
+## SQL Optimizations
+
+### Leverage predicate pushdown
+
+Predicate pushdown allows filtering operations (predicates) to be applied as early as possible in the query pipeline. This means that instead of retrieving all data and then filtering it, RisingWave filters the data at the storage level.
+
+Examples:
+
+```sql
+CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
+
+--- The predicate k1=1 is pushed down to the BatchScan.
+EXPLAIN SELECT * FROM t WHERE k1=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: t, columns: [k1, k2, v1, v2], scan_ranges: [k1 = Int32(1)] }
+
+--- The predicate k2=1 cannot be pushed down to the BatchScan.
+--- Have to create an index on k2 to push down the predicate.
+EXPLAIN SELECT * FROM t WHERE k2=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchFilter { predicate: (t.k2 = 1:Int32) }
+   └─BatchScan { table: t, columns: [k1, k2, v1, v2] }
+```
+
+### Use indexes to accelerate your queries
+
+Indexes in RisingWave are used to accelerate batch queries.
+They are incrementally maintained, similar to materialized views but with minimal computation.
+Therefore, they are cost-effective to create.
+We encourage users to detect the patterns in batch queries and create indexes if the pattern occurs frequently or/and a batch query is slow.
+
+You can check the [Indexes](/processing/indexes) page for more details on how to create and use indexes.

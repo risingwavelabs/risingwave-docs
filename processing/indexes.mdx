@@ -23,6 +23,12 @@ CREATE INDEX [IF NOT EXISTS] index_name ON object_name ( index_column [ ASC | DE
 [ DISTRIBUTED BY ( distributed_column [, ...] ) ];
 ```
 
+In short,
+- All columns from the materialized view that are referenced in the `SELECT` clause should be included in the `INCLUDE` clause when creating the index.
+
+- Any columns used in the `WHERE` clause of batch queries should be specified in the `index_column` section of the index.
+For example, if a batch query includes a filter such as `timestamp BETWEEN t1 AND t2`, the timestamp column should be part of the `index_column`. The same principle applies to any other filter conditions such as equality and inequalities.
+
 Here is a simple example. Let's create two tables, `customers` and `orders`.
 
 ```sql
@@ -139,6 +145,39 @@ dev=> explain select * from t where (v->'field')::int = 123;
  BatchExchange { order: [], dist: Single }
  └─BatchScan { table: i, columns: [v], scan_ranges: [CAST = Int32(123)] }
 (2 rows)
+```
+
+## More examples
+
+```sql
+CREATE TABLE t(k1 INT, k2 INT, v1 INT, v2 INT, PRIMARY KEY(k1,k2));
+
+--- idx_t_k2_partial_columns doesn't include column v2.
+CREATE INDEX idx_t_k2_partial_columns ON t(k2) INCLUDE (k1,v1);
+
+--- idx_t_k2_partial_columns is not utilized.
+EXPLAIN SELECT v2 FROM t WHERE k1=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: t, columns: [v2], scan_ranges: [k1 = Int32(1)] }
+
+--- idx_t_k2_partial_columns is utilized.
+EXPLAIN SELECT v1 FROM t WHERE k2=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: idx_t_k2_partial_columns, columns: [v1], scan_ranges: [k2 = Int32(1)] }
+
+--- idx_t_k2_partial_columns is utilized. However since it doesn't include column v2, the plan requires an additional lookup join.
+EXPLAIN SELECT v2 FROM t WHERE k2=1;
+ BatchLookupJoin { type: Inner, predicate: idx_t_k2_partial_columns.k1 IS NOT DISTINCT FROM t.k1 AND idx_t_k2_partial_columns.k2 IS NOT DISTINCT FROM t.k2 AND (t.k2 = 1:Int32), lookup table: t }
+ └─BatchExchange { order: [], dist: Single }
+   └─BatchScan { table: idx_t_k2_partial_columns, columns: [k2, k1], scan_ranges: [k2 = Int32(1)] }
+
+--- idx_t_k2_all_columns includes all columns.
+CREATE INDEX idx_t_k2_all_columns ON t(k2);
+
+--- idx_t_k2_all_columns is utilized. Compare the plan with the one that uses idx_t_k2_partial_columns.
+EXPLAIN SELECT v2 FROM t WHERE k2=1;
+ BatchExchange { order: [], dist: Single }
+ └─BatchScan { table: idx_t_k2_all_columns, columns: [v2], scan_ranges: [k2 = Int32(1)] }
 ```
 
 ## See also

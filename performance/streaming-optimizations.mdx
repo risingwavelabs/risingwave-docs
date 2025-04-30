@@ -1,0 +1,32 @@
+---
+title: "Streaming optimizations"
+description: "Learn about how to improve the performance of streaming queries by rewriting them using specific patterns."
+---
+
+This section covers best practices for optimizing streaming queries.
+You can often achieve better performance by rewriting your SQL to follow certain recommended patterns.
+
+## SQL optimizations
+
+### UNION vs UNION ALL
+
+UNION removes duplicates, while UNION ALL does not.
+If you know that your data does not contain duplicates, use UNION ALL to avoid the overhead of duplicate removal.
+Alternatively, if the duplicate set is small, you can also filter out duplicates when querying the result set.
+
+### OverWindow vs GroupTopN
+
+OverWindow is a streaming operator that maintains the state of the window and computes the row number for each row in the partition.
+
+Queries look something like:
+```sql
+select *, row_number() over (PARTITION BY v1 order by v2) r from t3
+```
+
+This can be optimized by using the `GroupTopN` operator instead.
+
+Checkout [Converting StreamOverWindow to StreamGroupTopN](/processing/sql/top-n-by-group#converting-streamoverwindow-to-streamgrouptopn) for more details.
+
+## Join optimizations
+
+Checkout [Join Optimizations](/processing/sql/joins#converting-dimension-table-joins-to-process-time-joins) for more details.

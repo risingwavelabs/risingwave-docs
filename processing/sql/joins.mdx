@@ -316,3 +316,23 @@ You will get these results:
 <Note>
 Every time you update the left-hand side table, it will look up the latest data from the right-hand side table.
 </Note>
+
+## Optimizations
+
+### Converting dimension table joins to process time joins
+
+The `JOIN` operator is used to join two streams of data together. It can be used to join two streams of data that are both being ingested in real-time.
+Whenever there's some updates on one side of the join, it will look for matches on the other side of the join.
+
+Consider a fact and dimension table join:
+```sql
+select fact.* FROM fact JOIN dimension ON fact.dim_key = dimension.key;
+```
+If the fact table only needs to look up the dimension table at the time of the join, this approach will be inefficient. This is because any updates to the dimension table will trigger a lookup on the fact side and recompute the join result for all matching fact rows, even if they are stale.
+
+Instead, you can use a `PROCESS TIME JOIN`, which will only look up the dimension table at the time of the join.
+This will be more efficient, as whenever there's dimension table update,
+it will not recompute the join result for all matching fact side rows.
+```sql
+select fact.* FROM fact JOIN dimension FOR SYSTEM_TIME AS OF PROCTIME() ON fact.dim_key = dimension.key;
+```
