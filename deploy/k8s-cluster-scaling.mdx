@@ -23,16 +23,48 @@ RisingWave supports adaptive and fixed parallelism for each streaming job, inclu
 
 - Fixed parallelism
 
-  Fixed parallelism is the advanced mode that allows manually specifying a parallelism number that remains constant as the cluster resizes. It’s commonly used to throttle stream bandwidth and ensures predictable resource allocation. For example:
+  Fixed parallelism is the advanced mode that allows manually specifying a parallelism number that remains constant as the cluster resizes. It's commonly used to throttle stream bandwidth and ensures predictable resource allocation. For example:
 
   ```sql
   ALTER TABLE t SET PARALLELISM = 16; -- Replace 16 with the desired parallelism
   ```
-  When there are many streaming jobs running in the cluster, it’s recommended to use fixed parallelism to avoid overloading the system.
+  When there are many streaming jobs running in the cluster, it's recommended to use fixed parallelism to avoid overloading the system.
 
 RisingWave distributes its computation across lightweight threads called "streaming actors," which run simultaneously on CPU cores. By spreading these streaming actors across cores, RisingWave achieves parallel computation, resulting in improved performance, scalability, and throughput.
 
 In both scaling modes, streaming actors will redistribute across the cluster to maintain balanced workloads.
+
+## Configuring maximum parallelism
+
+Streaming jobs used to have a maximum parallelism of 256. Starting from RisingWave version 2.2, you can configure the maximum parallelism for streaming jobs. This is controlled by the `streaming_max_parallelism` session variable, which determines the upper limit for parallelism that can be set for a streaming job.
+
+- With adaptive parallelism, the parallelism of a streaming job will be capped at the configured maximum parallelism, even if the number of CPU cores in the cluster increases.
+- With fixed parallelism, it's not allowed to set a parallelism greater than the configured maximum parallelism.
+
+The default value is 256, and the valid range is from 2 to 32768. To modify this setting:
+
+```sql
+-- Set the maximum parallelism to 512
+SET streaming_max_parallelism = 512;
+
+-- Create a materialized view with this setting
+CREATE MATERIALIZED VIEW mv1 AS SELECT * FROM source_table;
+```
+
+This setting affects all new streaming jobs created within the session. You can also set it system-wide using:
+
+```sql
+ALTER SYSTEM SET streaming_max_parallelism = 512;
+```
+
+You can check the maximum parallelism of existing streaming jobs from system table `rw_streaming_parallelism`. See [Monitor parallelism](#monitor-parallelism) for more details.
+
+<Note>
+When deciding on a value, please note that:
+- The maximum parallelism for a job cannot be changed after creation, unless you drop and recreate it.
+- Higher values enable compute-intensive jobs to utilize more resources.
+- Lower values may provide better range scan performance on the result table/materialized view.
+</Note>
 
 ## Scale-out
 
@@ -76,11 +108,11 @@ You can use a system table to view the current scaling policy of tables, materia
 
 ```bash
 dev=> SELECT * FROM rw_streaming_parallelism;
-  id  | name |   relation_type   | parallelism
-------+------+-------------------+-------------
- 1001 | t    | table             | FIXED(4)
- 1002 | mv1  | materialized view | AUTO
- 1004 | idx  | index             | AUTO
+  id  | name |   relation_type   | parallelism | max_parallelism
+------+------+-------------------+-------------+----------------
+ 1001 | t    | table             | FIXED(4)    |            128
+ 1002 | mv1  | materialized view | AUTO        |            256
+ 1004 | idx  | index             | AUTO        |           1024
 (3 rows)
 ```
 
@@ -88,10 +120,10 @@ To view the parallelism of fragments within a specific streaming job, please use
 
 ```bash
 dev=> SELECT * FROM rw_fragment_parallelism WHERE name = 't';
-  id  | name |   relation_type   | fragment_id | distribution_type | state_table_ids | upstream_fragment_ids |        flags        | parallelism
-------+------+-------------------+-------------+-------------------+-----------------+-----------------------+---------------------+-------------
- 1001 | t    | table             |           2 | HASH              | {}              | {}                    | {SOURCE,DML}        |           4
- 1001 | t    | table             |           1 | HASH              | {1001}          | {2}                   | {MVIEW}             |           4
+  id  | name |   relation_type   | fragment_id | distribution_type | state_table_ids | upstream_fragment_ids |        flags        | parallelism | max_parallelism
+------+------+-------------------+-------------+-------------------+-----------------+-----------------------+---------------------+-------------+----------------
+ 1001 | t    | table             |           2 | HASH              | {}              | {}                    | {SOURCE,DML}        |           4 |            128
+ 1001 | t    | table             |           1 | HASH              | {1001}          | {2}                   | {MVIEW}             |           4 |            128
 ```
 
 To understand the output of the query, you may need to know about these two concepts: [streaming actors](/reference/key-concepts#streaming-actors) and [fragments](/reference/key-concepts#fragments).
