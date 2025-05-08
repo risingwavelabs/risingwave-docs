@@ -1,29 +1,36 @@
 ---
 title: "DESCRIBE"
-description: "Use the `DESCRIBE` command to view columns in the specified table, source, sink, view, or materialized view."
+description: "Use the `DESCRIBE` command to check the information or execution fragments of a relation (table, source, sink, view, materialized view)."
 ---
-
-`DESCRIBE` is a shortcut for [SHOW COLUMNS](/sql/commands/sql-show-columns).
-
-<Tip>
-`DESCRIBE` also lists the indexes on a table or materialized view, whereas `SHOW COLUMNS` doesn't.
-</Tip>
 
 ## Syntax
 
-```bash
+<Note>
+Added in v2.4: `DESCRIBE FRAGMENTS`.
+</Note>
+
+```sql
 DESCRIBE relation_name;
+DESCRIBE FRAGMENTS relation_name;
 ```
 
-## Parameters
-
-| Parameter or clause | Description                                                                      |
+| Parameter | Description                                                                      |
 | :------------------ | :------------------------------------------------------------------------------- |
 | _relation\_name_    | The table, source, sink, view or materialized view whose columns will be listed. |
 
-## Examples
 
-```sql
+
+### `DESCRIBE`
+
+This command shows the columns, primary key, distribution key, indexes, and description (comment) of a specified table, source, sink, view, or materialized view.
+
+
+<Tip>
+`DESCRIBE <relation_name>` is similar to [`SHOW COLUMNS FROM <relation_name>`](/sql/commands/sql-show-columns), but `DESCRIBE` also provides information about indexes and table/column comments.
+</Tip>
+
+```sql Examples
+-- Set up a table with columns, primary key, index, and comments
 CREATE TABLE customers (
   customer_id BIGINT PRIMARY KEY,
   name VARCHAR,
@@ -34,13 +41,12 @@ COMMENT ON COLUMN customers.name IS 'Name of the customer';
 COMMENT ON COLUMN customers.email IS 'Email address of the customer';
 COMMENT ON TABLE customers IS 'All customer records';
 CREATE INDEX idx_customers_email ON customers(email);
-```
 
-After creating the table, columns, and indexes, as well as adding comments to each of them, we can use the `DESCRIBE` command to see all the information in a structured format.
-
-```sql
+-- Describe the table
 DESCRIBE customers;
 ```
+
+**Output:**
 
 ```bash
 | Name                | Type                                                                  | Is Hidden | Description                         |
@@ -52,5 +58,63 @@ DESCRIBE customers;
 | distribution key    | customer_id                                                           |           |                                     |
 | idx_customers_email | index(email ASC, customer_id ASC) include(name) distributed by(email) |           |                                     |
 | table description   | customers                                                             |           | All customer records                |
+```
+
+
+### `DESCRIBE FRAGMENTS`
+
+This command shows the distributed execution fragments of the job associated with the specified relation (e.g., a materialized view, table, or source).
+It helps in understanding the job's physical structure, parallelism, and data flow, which is useful for debugging and optimization.
+
+```sql Examples
+CREATE TABLE customers (
+  customer_id BIGINT PRIMARY KEY,
+  name VARCHAR,
+  email VARCHAR
+);
+CREATE TABLE orders (
+  order_id BIGINT PRIMARY KEY,
+  customer_id BIGINT,
+  order_date DATE
+);
+CREATE MATERIALIZED VIEW mv AS
+SELECT name, email, count(*) FROM
+orders JOIN customers ON orders.customer_id = customers.customer_id
+GROUP BY name, email;
+
+DESCRIBE FRAGMENTS mv;
+```
+
+**Sample Output:**
 
 ```
+Fragment 12 (Actor 50,51,52,53)                                                                                                
+StreamMaterialize { columns: [name, email, count], stream_key: [name, email], pk_columns: [name, email], pk_conflict: NoCheck }
+├── output: [ customers.name, customers.email, count ]                                                                         
+├── stream key: [ customers.name, customers.email ]                                                                            
+└── StreamHashAgg { group_key: [customers.name, customers.email], aggs: [count] }                                              
+    ├── output: [ customers.name, customers.email, count ]                                                                     
+    ├── stream key: [ customers.name, customers.email ]                                                                        
+    └── MergeExecutor                                                                                                          
+        ├── output: [ customers.name, customers.email, orders.order_id, orders.customer_id, customers.customer_id ]            
+        └── stream key: [ orders.order_id, orders.customer_id ]                                                                
+                                                                                                                            
+Fragment 13 (Actor 54,55,56,57)                                                                                                
+StreamHashJoin { type: Inner, predicate: orders.customer_id = customers.customer_id }                                          
+├── output: [ customers.name, customers.email, orders.order_id, orders.customer_id, customers.customer_id ]                    
+├── stream key: [ orders.order_id, orders.customer_id ]                                                                        
+├── MergeExecutor { output: [ orders.customer_id, orders.order_id ], stream key: [ orders.order_id ] }                         
+└── MergeExecutor { output: [ customers.customer_id, customers.name, customers.email ], stream key: [ customers.customer_id ] }
+                                                                                                                            
+Fragment 14 (Actor 58,59,60,61)                                                                                                
+StreamTableScan { table: orders, columns: [customer_id, order_id] }                                                            
+├── output: [ orders.customer_id, orders.order_id ]                                                                            
+├── stream key: [ orders.order_id ]                                                                                            
+├── Upstream { output: [ customer_id, order_id ], stream key: [] }                                                             
+└── BatchPlanNode { output: [ customer_id, order_id ], stream key: [] }                                                        
+                                                                                                                            
+Fragment 15 (Actor 62,63,64,65)                                                                                                
+StreamTableScan { table: customers, columns: [customer_id, name, email] }                                                      
+```
+
+The output has a similar format like [`EXPLAIN (DISTSQL)`](/sql/commands/sql-explain), but `DESCRIBE FRAGMENTS` operates on an existing job rather than a new statement being planned.
