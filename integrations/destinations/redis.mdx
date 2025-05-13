@@ -15,7 +15,7 @@ Before sinking data from RisingWave to Redis, please ensure the following:
 * The Redis database you want to sink to is accessible from RisingWave.
 * Ensure you have an upstream materialized view or source in RisingWave that you can sink data from.
 
-## syntax
+## Syntax
 
 ```sql
 CREATE SINK [ IF NOT EXISTS ] sink_name
@@ -41,7 +41,7 @@ FORMAT data_format ENCODE data_encode [ (
 
 <Note>
 
-These options should be set in `FORMAT data_format ENCODE data_encode (key = 'value')`, instead of the `WITH` clause
+These options should be set in `FORMAT data_format ENCODE data_encode (key = 'value')`, instead of the `WITH` clause.
 </Note>
 
 | Field               | Notes                                                                                                                                                                                                                                                                                                                                                                        |
@@ -52,8 +52,17 @@ These options should be set in `FORMAT data_format ENCODE data_encode (key = 'va
 | key\_format         | Required if `data_encode` is `TEMPLATE`. Specify the format for the key as a string.                                                                                                                                                                                                                                                                                            |
 | value\_format       | Required if `data_encode` is `TEMPLATE`. Specify the format for the value as a string.                                                                                                                                                                                                                                                                                          |
 | key\_encode         | Optional. <ul><li>When specified, the key encode can only be `TEXT`, and the primary key should be one and only one of the following types: `varchar`, `bool`, `smallint`, `int`, and `bigint`;</li><li>When absent, both key and value will use the same setting of `ENCODE data_encode ( ... )`.</li></ul>                                                                                                        |
+|  redis_value_type     | Optional. If set to `pubsub`, data will be published to a Redis Pub/Sub channel instead of being written as key-value pairs. This requires `FORMAT UPSERT ENCODE TEMPLATE`. For more information, see [example](#sinking-data-to-redis-pub-sub) below.                                                                                                        |
+|  channel     | Optional. The name of the Redis Pub/Sub channel to publish messages to. Required if `redis_value_type = 'pubsub'` and `channel_column` is not set.                                                                                                        |
+|  channel_column     | Optional. The values from this column will be used as the names of the Redis Pub/Sub channels to publish messages to. Required if `redis_value_type = 'pubsub'` and `channel` is not set. The column type must be `VARCHAR`.                                                                                                        |
 
 ## Example
+
+This section provides examples for sinking data from RisingWave to Redis, covering both key-value storage and Pub/Sub messaging.
+
+### Sinking data as key-value pairs
+
+This approach is suitable when you want to use Redis as a fast data store or cache, storing data as key-value pairs.
 
 Assume we create a materialized view, `bhv_mv`, from a source.
 
@@ -94,3 +103,47 @@ FROM bhv_mv WITH (
     value_format = 'TargetID:{target_id},EventTimestamp{event_timestamp}'
 );
 ```
+
+### Sinking data to Redis Pub/Sub
+
+This approach allows RisingWave to publish messages to Redis channels. Make sure to use `FORMAT UPSERT ENCODE TEMPLATE` and specify `redis_value_type = 'pubsub'`. At least one of `channel` or `channel_column` must also be specified.
+
+Assume we have a table `t1`:
+
+```sql
+CREATE TABLE t1(v1 float, v2 float, v3 varchar, v4 varchar);
+```
+
+We can sink data from `t1` as messages to a predefined Redis Pub/Sub channel:
+
+```sql
+CREATE SINK s1
+FROM
+    t1 WITH (
+    primary_key = 'v3,v4',
+    connector = 'redis',
+    redis.url= 'redis://127.0.0.1:6379/',
+)FORMAT UPSERT ENCODE TEMPLATE
+(redis_value_type ='pubsub', 
+channel= 'test123',
+value_format = 'abcd3:{v4}'
+);
+```
+
+Alternatively, you can publish to a dynamic channel using `channel_column`:
+
+```sql
+CREATE SINK s1
+FROM
+    t1 WITH (
+    primary_key = 'v3,v4',
+    connector = 'redis',
+    redis.url= 'redis://127.0.0.1:6379/',
+)FORMAT UPSERT ENCODE TEMPLATE
+(redis_value_type ='pubsub', 
+channel_column = 'v3',
+value_format = 'abcd3:{v4}'
+);
+```
+
+
