@@ -26,7 +26,6 @@ The following example shows how to connect to an Iceberg table stored on S3:
 CREATE SOURCE iceberg_source
 WITH (
     connector = 'iceberg',
-    type='append-only',
     warehouse.path = 's3://your-bucket/path/to/iceberg/warehouse',
     database.name = 'your_iceberg_db',
     table.name = 'your_iceberg_table',
@@ -43,11 +42,23 @@ Replace the placeholders with your actual values.
 
 ## Query data
 
-You can query data from source directly.
+You can select from an iceberg source to query data from the iceberg table in RisingWave.
 
 ```sql
 SELECT * FROM iceberg_source;
 ```
+
+## Create streaming job
+
+<Note>
+Added in version 2.3. For sources created before 2.3, you need to re-create the source to create a streaming job on top of it.
+</Note>
+
+You can create a materialized view or a sink on top of an iceberg source to incrementally transform iceberg data,
+just like any other sources.
+
+Note that streaming ingestion only works for append-only iceberg tables.
+Any delete or update operations will be ignored.
 
 ## Data type mapping
 
