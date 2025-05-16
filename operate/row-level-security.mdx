@@ -1,0 +1,131 @@
+---
+title: "Implement row-level security in RisingWave"
+description: "Introduces how to implement row-level security (RLS) in RisingWave by using logical views and access control."
+sidebarTitle: Row-level security
+---
+
+[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) serve as a powerful PostgreSQL feature that controls row-level access based on specific policies. While RisingWave does not natively support Row Security Policies, you can achieve equivalent row-level security through a combination of [logical views](/sql/commands/sql-create-view) with [access control](/operate/access-control). This approach ensures that users can only access data they are authorized to see.
+
+<Note>
+Added in v2.4.
+</Note>
+
+## Scenario
+
+This article will demonstrate how to enforce role-based access control on a table named employees, which stores employee information including department and salary. The goal is to implement the following access rules:
+
+- The HR manager can view all employees in the HR department.
+
+- The Engineering manager can view all employees in the Engineering department.
+
+- The CEO can view all employees.
+
+To achieve this, logical views are created for each role to filter the data accordingly. Access to these views is then granted based on user permissions, while direct access to the base table is restricted.
+
+## Step-by-step guide
+
+1. Create the `employees` table to store employee data:
+
+    ```sql
+        CREATE TABLE employees (
+            name TEXT,
+            department TEXT,
+            salary NUMERIC,
+            username TEXT
+        );
+    ```
+
+2. Insert some sample data into the `employees` table:
+
+    ```sql
+    INSERT INTO employees (name, department, salary, username) VALUES
+    ('Alice', 'HR', 50000, 'alice'),
+    ('Bob', 'Engineering', 60000, 'bob'),
+    ('Charlie', 'HR', 55000, 'charlie'),
+    ('David', 'Engineering', 65000, 'david');
+    ```
+
+3. Create user accounts. For example, create three users: `hr_manager`, `engineering_manager`, and `ceo`.
+
+    ```sql
+    CREATE USER hr_manager WITH PASSWORD 'password';
+    CREATE USER engineering_manager WITH PASSWORD 'password';
+    CREATE USER ceo WITH PASSWORD 'password';
+    ```
+
+4. Define logical views and grant access.
+
+    HR manager can only view employees in the HR department:
+
+    ```sql View for HR manager
+    CREATE VIEW hr_employee_view AS
+    SELECT name, department, salary
+    FROM employees
+    WHERE department = 'HR';
+
+    GRANT SELECT ON hr_employee_view TO hr_manager;
+    ```
+
+    Engineering manager can only view employees in the Engineering department:
+
+    ```sql View for engineering manager
+    CREATE VIEW engineering_employee_view AS
+    SELECT name, department, salary
+    FROM employees
+    WHERE department = 'Engineering';
+
+    GRANT SELECT ON engineering_employee_view TO engineering_manager;
+    ```
+
+    The CEO can view all employees:
+
+    ```sql View for CEO
+    CREATE VIEW all_employee_view AS
+    SELECT name, department, salary
+    FROM employees;
+
+    GRANT SELECT ON all_employee_view TO ceo;
+    ```
+
+5. Verify user access.
+
+    Now we can connect to the database as the user `hr_manager` to ensure that they can only query the `hr_employee_view` and cannot access the `employees` table or other views.
+
+    Connect as `hr_manager` and test access:
+    
+    ```sql
+    $ psql -h localhost -p 4566 -d dev -U hr_manager
+    Password for user hr_manager:
+    ```
+
+    Query the HR view:
+
+    ```sql
+    SELECT * FROM hr_employee_view;
+      name   | department | salary
+    ---------+------------+--------
+    Charlie | HR         |  55000
+    Alice   | HR         |  50000
+    (2 rows)
+    ```
+
+    Access to unauthorized data will be denied:
+
+    ```sql
+    dev=> SELECT * FROM employees;
+    ERROR:  Failed to run the query
+
+    Caused by:
+    Permission denied: Do not have the privilege
+
+    dev=> SELECT * FROM engineering_employee_view;
+    ERROR:  Failed to run the query
+
+    Caused by:
+    Permission denied: Do not have the privilege
+    ```
+
+    ## Related topics
+
+    - Learn how to define logical views, see [CREATE VIEW](/sql/commands/sql-create-view)
+    - Learn more about security policies, see [Access control](/operate/access-control)
