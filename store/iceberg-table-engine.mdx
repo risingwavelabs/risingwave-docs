@@ -222,6 +222,19 @@ RisingWave will now manage `my_iceberg_table` using the Iceberg format, with met
 
 ## Features and considerations
 
+### Append-only tables
+
+<Note>
+Added in v2.4.
+</Note>
+
+You can create an [append-only table](/sql/commands/sql-create-table#append-only) with the Iceberg engine.
+This option has implications on the data storage and streaming.
+
+- For normal tables, RisingWave will keep a copy of the table in the row format, in order to support streaming
+updates. In this case, streaming data will be immediately available for downstream streaming jobs (materialized views and sinks built on the table with iceberg table engine).
+- For append-only tables, data will only be stored in Iceberg. Downstream streaming jobs will be powered by [Iceberg streaming source](/ingestion/sources/iceberg#create-streaming-jobs). Streaming data will only be available after the data is committed to Iceberg.
+
 ### Time travel
 
 Iceberg's snapshotting mechanism enables time travel queries. You can query the state of the table as of a specific timestamp or snapshot ID using the `FOR SYSTEM_TIME AS OF` or `FOR SYSTEM_VERSION AS OF` clauses.
