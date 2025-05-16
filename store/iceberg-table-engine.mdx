@@ -24,46 +24,54 @@ The following examples show how to create an Iceberg connection using different 
 
 <Note>For enhanced security, you can store credentials like S3 access keys as secrets instead of providing them directly. If you wish to use this feature, see [Manage secrets](/operate/manage-secrets).</Note>
 
-```sql JDBC catalog
-CREATE CONNECTION public.conn WITH (
-    type = 'iceberg',
-    warehouse.path = 's3://hummock001/iceberg-data',
-    s3.access.key = <access_key_id>,
-    s3.secret.key = <secret_key>,
-    s3.endpoint = 'http://127.0.0.1:9301',
-    s3.region = 'ap-southeast-2',
-    catalog.type = 'jdbc',
-    catalog.uri = 'jdbc:postgresql://127.0.0.1:8432/metadata',
-    catalog.jdbc.user = 'postgres',
-    catalog.jdbc.password = '123',
-    catalog.name = 'dev',
-);
-```
+<Tabs>
+    <Tab title="JDBC catalog">
+    ```sql JDBC catalog
+    CREATE CONNECTION public.conn WITH (
+        type = 'iceberg',
+        warehouse.path = 's3://hummock001/iceberg-data',
+        s3.access.key = <access_key_id>,
+        s3.secret.key = <secret_key>,
+        s3.endpoint = 'http://127.0.0.1:9301',
+        s3.region = 'ap-southeast-2',
+        catalog.type = 'jdbc',
+        catalog.uri = 'jdbc:postgresql://127.0.0.1:8432/metadata',
+        catalog.jdbc.user = 'postgres',
+        catalog.jdbc.password = '123',
+        catalog.name = 'dev',
+    );
+    ```
+    </Tab>
 
-```sql Glue catalog
-CREATE CONNECTION public.conn WITH (
-    type = 'iceberg',
-    catalog.type = 'glue',
-    warehouse.path = 's3://my-iceberg-bucket/test',
-    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-    s3.region = 'ap-southeast-2',
-    s3.access.key = <access_key_id>,
-    s3.secret.key = <secret_key>,
-);
-```
+    <Tab title="Glue catalog">
+    ```sql Glue catalog
+    CREATE CONNECTION public.conn WITH (
+        type = 'iceberg',
+        catalog.type = 'glue',
+        warehouse.path = 's3://my-iceberg-bucket/test',
+        s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+        s3.region = 'ap-southeast-2',
+        s3.access.key = <access_key_id>,
+        s3.secret.key = <secret_key>,
+    );
+    ```
+    </Tab>
 
-```sql Rest catalog
-CREATE CONNECTION public.conn WITH (
-    type = 'iceberg',
-    catalog.type='rest',
-    catalog.uri= 'http://localhost:8181/catalog',
-    warehouse.path = 'test',
-    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-    s3.region = 'ap-southeast-2'
-    s3.access.key = <access_key_id>,
-    s3.secret.key = <secret_key>,
-);
-```
+    <Tab title="Rest catalog">
+    ```sql Rest catalog
+    CREATE CONNECTION public.conn WITH (
+        type = 'iceberg',
+        catalog.type='rest',
+        catalog.uri= 'http://localhost:8181/catalog',
+        warehouse.path = 'test',
+        s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+        s3.region = 'ap-southeast-2'
+        s3.access.key = <access_key_id>,
+        s3.secret.key = <secret_key>,
+        );
+    ```
+    </Tab>
+</Tabs>
 
 ### 2. Configure the engine to use the connection
 
@@ -76,18 +84,44 @@ ALTER system SET iceberg_engine_connection = 'public.conn';
 
 ### 3. Create a table with the Iceberg engine
 
-Now, you can create a table using the standard `CREATE TABLE` syntax, but adding the `ENGINE = iceberg` clause.
+Now, you can create a table using the standard [`CREATE TABLE`](/sql/commands/sql-create-table) syntax, but adding the `ENGINE = iceberg` clause.
 
 The `commit_checkpoint_interval` parameter controls how frequently (every N checkpoints) RisingWave commits changes to the Iceberg table, creating a new Iceberg snapshot. The default value is 60. Typically, the checkpoint time is 1s. That means RisingWave will commit changes to the Iceberg table every 60s.
 
-```sql
-CREATE TABLE t (
-    id INT PRIMARY KEY, 
-    name VARCHAR
-) WITH (commit_checkpoint_interval = 1) 
-ENGINE = iceberg;
+<Tabs>
+    <Tab title="Simple table">
+    ```sql
+    CREATE TABLE t (
+        id INT PRIMARY KEY, 
+        name VARCHAR
+    ) WITH (commit_checkpoint_interval = 1) 
+    ENGINE = iceberg;
+    ```
 
-```
+    </Tab>
+
+    <Tab title="Table with connector">
+    You can also define a source connector directly within the CREATE TABLE statement that uses the Iceberg engine. Data flows from the external source (e.g., Kafka, Pulsar) directly into the Iceberg table format managed by RisingWave.
+
+    ```sql
+    -- Example: Stream Kafka topic directly into an Iceberg table
+    CREATE TABLE page_views_iceberg (
+        view_id BIGINT,
+        url VARCHAR,
+        user_id INT,
+        view_ts TIMESTAMP
+    ) WITH (
+        connector = 'kafka',
+        topic = 'page_views_topic',
+        properties.bootstrap.server = 'kafka:9092',
+        scan.startup.mode = 'earliest',
+        commit_checkpoint_interval = 120 -- Commit every 120 checkpoints (e.g., ~2 mins)
+    )
+    FORMAT PLAIN ENCODE JSON  -- Specify the format of the incoming Kafka messages
+    ENGINE = iceberg;        -- Store data natively in Iceberg format
+    ```
+    </Tab>
+</Tabs>
 
 ### 4. Basic operations (insert and select)
 
@@ -106,27 +140,7 @@ SELECT * FROM users_iceberg WHERE user_id = 1;
 
 ### 5. Streaming ingestion into Iceberg tables
 
-You can define a source connector directly within the CREATE TABLE statement that uses the Iceberg engine. Data flows from the external source (e.g., Kafka, Pulsar) directly into the Iceberg table format managed by RisingWave.
-
-```sql
--- Example: Stream Kafka topic directly into an Iceberg table
-CREATE TABLE page_views_iceberg (
-    view_id BIGINT,
-    url VARCHAR,
-    user_id INT,
-    view_ts TIMESTAMP
-) WITH (
-    connector = 'kafka',
-    topic = 'page_views_topic',
-    properties.bootstrap.server = 'kafka:9092',
-    scan.startup.mode = 'earliest',
-    commit_checkpoint_interval = 120 -- Commit every 120 checkpoints (e.g., ~2 mins)
-)
-FORMAT PLAIN ENCODE JSON  -- Specify the format of the incoming Kafka messages
-ENGINE = iceberg;        -- Store data natively in Iceberg format
-```
-
-You can also sink data from another RisingWave source, table, or materialized view into a table created with the Iceberg engine.
+Besides creating a table with connector, you can also sink data from another RisingWave source, table, or materialized view into a table created with the Iceberg engine.
 
 ```sql
 -- Assume users_iceberg table exists (created with ENGINE = iceberg)
