@@ -37,6 +37,65 @@ select count(*) from rw_actors;
 
 If the number exceeds 50000, please pay close attention and check the following items.
 
+### Limit Parallelism for less intensive Stream Jobs
+
+If you want to limit the parallelism for certain types of jobs, you can use session parameters like `streaming_parallelism_for_table` to set specific limits.
+
+```sql
+/* set the global parallelism*/
+dev=> set streaming_parallelism = 1;
+SET_VARIABLE
+dev=> create table t_normal(v int);
+CREATE_TABLE
+/* specify the parallelism for the table type*/
+dev=> set streaming_parallelism_for_table = 2;
+SET_VARIABLE
+dev=> create table t(v int);
+CREATE_TABLE
+/* specify the parallelism for the index type*/
+dev=> set streaming_parallelism_for_index = 3;
+SET_VARIABLE
+dev=> create index i on t(v);
+CREATE_INDEX
+dev=> select * from rw_streaming_parallelism;
+ id |   name   | relation_type | parallelism | max_parallelism
+----+----------+---------------+-------------+-----------------
+  7 | t        | table         | FIXED(2)    |             256
+  6 | t_normal | table         | FIXED(1)    |             256
+  8 | i        | index         | FIXED(3)    |             256
+(3 rows)
+```
+
+By setting the parallelism strategy for a specific streaming job, you can specify the exact parallelism when creating the corresponding job.
+
+If you want to reset to the default strategy, simply set it to "default" and it will revert to the global streaming_parallelism.
+
+```
+dev=> set streaming_parallelism = adaptive;
+SET_VARIABLE
+dev=> set streaming_parallelism_for_table = 1;
+SET_VARIABLE
+dev=> create table t(v int);
+CREATE_TABLE
+dev=> set streaming_parallelism_for_table = default;
+SET_VARIABLE
+dev=> create table t_default(v int);
+CREATE_TABLE
+dev=> select * from rw_streaming_parallelism;
+ id |   name    | relation_type | parallelism | max_parallelism
+----+-----------+---------------+-------------+-----------------
+  9 | t_default | table         | ADAPTIVE    |             256
+  8 | t         | table         | FIXED(1)    |             256
+(2 rows)
+```
+
+
+You can also use this syntax to sync this configuration globally.
+
+```sql
+alter system set streaming_parallelism_for_table to 4;
+```
+
 ### Decrease the parallelism
 
 When the total number of actors in the cluster is large, excessive parallelism can be counterproductive. After v1.7.0, you can check the parallelism number of the running streaming jobs in the system table `rw_fragment_parallelism`, and you can alter the streaming jobs's parallelism with the `ALTER` statement. For more information, refer to [Cluster scaling](/deploy/k8s-cluster-scaling).
@@ -119,4 +178,3 @@ In some references, `/risingwave/bin/risingwave ctl scale horizon --include-work
 
 * Resources of meta store (etcd) and meta node: During recovering or scaling processes,there might be spikes in resource usage on the nodes. If you encounter OOM errors or observe some error logs in the meta such as `{"level":"ERROR","fields":{"message":"lease keeper failed","error":"grpc request error: status: Unavailable, message: \"etcdserver: request timed out, waiting for the applied index took too long\",}`, please try to scale up the nodes.
 * Resources of the prometheus or other monitoring systems: The number of metrics' time series grows linearly with the number of actors, so please pay attention to the resource requirements of your monitoring system and ensure that it can handle the growing number of metrics efficiently.
-* If you want to limit the parallelism for certain types of jobs, you can use session parameters like `streaming_parallelism_for_table` to set specific limits.
