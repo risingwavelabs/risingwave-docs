@@ -35,6 +35,8 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 
 ## Notes
 
+- RisingWave supports **NOT NULL** constraints in table schemas. For batch inserts and updates, RisingWave throws an error if any row contains NULL in a NOT NULL column; for streaming ingestion, rows with NULL in NOT NULL columns are silently ignored.
+
 - For tables with primary key constraints, if you insert a new data record with an existing key, the new record will overwrite the existing record.
 
 - A [generated column](/sql/query-syntax/generated-columns) that is defined with non-deterministic functions cannot be specified as part of the primary key. For example, if `A1` is defined as `current_timestamp()`, then it cannot be part of the primary key.
