@@ -5,13 +5,16 @@ description: "Use the `EXPLAIN ANALYZE` command to analyze the actual runtime pe
 
 As [`EXPLAIN`](/sql/commands/sql-explain) shows the execution plan of a query or job before execution, `EXPLAIN ANALYZE` analyzes a running stream job, including table, materialized view, sink, or index, and collects runtime statistics to help identify performance bottlenecks.
 
-## Syntax
+`EXPLAIN ANALYZE` is enabled by default. To disable it, set `enable_explain_analyze_stats = false` under `[streaming.developer]`.
 
-To disable it, set `enable_explain_analyze_stats = false` under `[streaming.developer]`.
+## Syntax
 
 ```sql
 EXPLAIN ANALYZE (duration_secs <secs>) [TABLE <name> | MATERIALIZED VIEW <name> | SINK <name> | INDEX <name> | ID <job_id>]
 ```
+
+`duration_secs` specifies the profiling duration in seconds.
+
 
 ## Metrics
 
@@ -19,7 +22,6 @@ When you run `EXPLAIN ANALYZE`, it returns a table showing runtime statistics fo
 
 | Field name                 | Description                                                                 |
 |---------------------------|-----------------------------------------------------------------------------|
-| `operator_id`             | A unique identifier for each operator.                                       |
 | `identity`                | The name and hierarchical structure of the operator (e.g., StreamHashJoin, MergeExecutor. |
 | `actor_ids`               | The IDs of concurrent actors running this operator.                         |
 | `output_rps`              | The number of records output per second (records per second).               |
@@ -43,45 +45,45 @@ EXPLAIN ANALYZE MATERIALIZED VIEW m1;
 Sample output:
 
 ```
- operator_id |                    identity                    |  actor_ids  | output_rps | avg_output_pending_ratio
--------------+------------------------------------------------+-------------+------------+--------------------------
- 12884901902 | StreamMaterialize                              | 12,11,10,9  | 41589.1    | 0.00005
- 12884901901 | └─ MergeExecutor                               | 12,11,10,9  | 41589.1    | 0.8149749999999999
- 4           |    └─ Dispatcher                               |             | 0          | NaN
- 17179869196 |       └─ StreamHashJoin                        | 16,15,14,13 | 41560.1    | 0.859225
- 17179869195 |          ├─ StreamHashJoin                     | 16,15,14,13 | 152.6      | 0.93265
- 17179869194 |          │  ├─ MergeExecutor                   | 16,15,14,13 | 25.6       | 1.6336749999999998
- 9           |          │  │  └─ Dispatcher                   |             | 0          | NaN
- 38654705673 |          │  │     └─ StreamFilter              | 20,19,18,17 | 0          | 0
- 38654715839 |          │  │        └─ StreamTableScan        | 20,19,18,17 | 0          | 0
- 38654715838 |          │  │           ├─ BatchPlanNode       | 20,19,18,17 | 0          | 0
- 38654705664 |          │  │           └─ Upstream            | 20,19,18,17 | 0          | 0
- 17179869192 |          │  └─ MergeExecutor                   | 16,15,14,13 | 0          | 0
- 8           |          │     └─ Dispatcher                   |             | 0          | NaN
- 34359738375 |          │        └─ StreamFilter              | 28,27,26,25 | 0          | 0
- 34359748538 |          │           └─ StreamTableScan        | 28,27,26,25 | 0          | 0
- 34359748537 |          │              ├─ BatchPlanNode       | 28,27,26,25 | 0          | 0
- 34359738368 |          │              └─ Upstream            | 28,27,26,25 | 0          | 0
- 17179869190 |          └─ MergeExecutor                      | 16,15,14,13 | 51.2       | 0.71425
- 5           |             └─ Dispatcher                      |             | 0          | NaN
- 21474836485 |                └─ StreamHashJoin               | 24,23,22,21 | 51.2       | 0.711325
- 21474836484 |                   ├─ MergeExecutor             | 24,23,22,21 | 0          | 0
- 7           |                   │  └─ Dispatcher             |             | 0          | NaN
- 30064771075 |                   │     └─ StreamFilter        | 36,35,34,33 | 0          | 0
- 30064781234 |                   │        └─ StreamTableScan  | 36,35,34,33 | 0          | 0
- 30064781233 |                   │           ├─ BatchPlanNode | 36,35,34,33 | 0          | 0
- 30064771072 |                   │           └─ Upstream      | 36,35,34,33 | 0          | 0
- 21474836482 |                   └─ MergeExecutor             | 24,23,22,21 | 0          | 0
- 6           |                      └─ Dispatcher             |             | 0          | NaN
- 25769803777 |                         └─ StreamFilter        | 32,31,30,29 | 0          | 0
- 25769813933 |                            └─ StreamTableScan  | 32,31,30,29 | 0          | 0
- 25769813932 |                               ├─ BatchPlanNode | 32,31,30,29 | 0          | 0
- 25769803776 |                               └─ Upstream      | 32,31,30,29 | 0          | 0
+                     identity                   |  actor_ids  | output_rps | avg_output_pending_ratio
+------------------------------------------------+-------------+------------+--------------------------
+ StreamMaterialize                              | 12,11,10,9  | 41589.1    | 0.00005
+ └─ MergeExecutor                               | 12,11,10,9  | 41589.1    | 0.8149749999999999
+    └─ Dispatcher                               |             | 0          | NaN
+       └─ StreamHashJoin                        | 16,15,14,13 | 41560.1    | 0.859225
+          ├─ StreamHashJoin                     | 16,15,14,13 | 152.6      | 0.93265
+          │  ├─ MergeExecutor                   | 16,15,14,13 | 25.6       | 1.6336749999999998
+          │  │  └─ Dispatcher                   |             | 0          | NaN
+          │  │     └─ StreamFilter              | 20,19,18,17 | 0          | 0
+          │  │        └─ StreamTableScan        | 20,19,18,17 | 0          | 0
+          │  │           ├─ BatchPlanNode       | 20,19,18,17 | 0          | 0
+          │  │           └─ Upstream            | 20,19,18,17 | 0          | 0
+          │  └─ MergeExecutor                   | 16,15,14,13 | 0          | 0
+          │     └─ Dispatcher                   |             | 0          | NaN
+          │        └─ StreamFilter              | 28,27,26,25 | 0          | 0
+          │           └─ StreamTableScan        | 28,27,26,25 | 0          | 0
+          │              ├─ BatchPlanNode       | 28,27,26,25 | 0          | 0
+          │              └─ Upstream            | 28,27,26,25 | 0          | 0
+          └─ MergeExecutor                      | 16,15,14,13 | 51.2       | 0.71425
+             └─ Dispatcher                      |             | 0          | NaN
+                └─ StreamHashJoin               | 24,23,22,21 | 51.2       | 0.711325
+                   ├─ MergeExecutor             | 24,23,22,21 | 0          | 0
+                   │  └─ Dispatcher             |             | 0          | NaN
+                   │     └─ StreamFilter        | 36,35,34,33 | 0          | 0
+                   │        └─ StreamTableScan  | 36,35,34,33 | 0          | 0
+                   │           ├─ BatchPlanNode | 36,35,34,33 | 0          | 0
+                   │           └─ Upstream      | 36,35,34,33 | 0          | 0
+                   └─ MergeExecutor             | 24,23,22,21 | 0          | 0
+                      └─ Dispatcher             |             | 0          | NaN
+                         └─ StreamFilter        | 32,31,30,29 | 0          | 0
+                            └─ StreamTableScan  | 32,31,30,29 | 0          | 0
+                               ├─ BatchPlanNode | 32,31,30,29 | 0          | 0
+                               └─ Upstream      | 32,31,30,29 | 0          | 0
 (32 rows)
 ```
 
 ## Related topics
 
 - To check the execution plan for a new statement before it runs, see [`EXPLAIN`](/sql/commands/sql-explain).
-- To check the execution fragments of an existing streaming job, see [`/sql/commands/sql-describe#describe-fragments`].
+- To check the execution fragments of an existing streaming job, see [`DESCRIBE FRAGMENTS`](/sql/commands/sql-describe#describe-fragments).
 
