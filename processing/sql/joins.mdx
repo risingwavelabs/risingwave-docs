@@ -26,6 +26,19 @@ The syntax of INNER JOIN is as follows:
 <table_expression> NATURAL [ INNER ] JOIN <table_expression>;
 ```
 
+By default, filters that are not part of the join condition are evaluated after the inner join in streaming queries. This reduces extra computation but may hurt performance in some cases. To force filters to be pushed into the join operator in streaming mode, you can enable the following session variable `SET streaming_force_filter_inside_join = true`.
+
+```sql Example
+-- Define two tables
+CREATE TABLE t(v1 INT, v2 INT);
+CREATE TABLE t2(v3 INT, v4 INT);
+
+-- Run a join query with a filter
+SELECT * FROM t, t2 WHERE t.v1 = t2.v3 AND t.v2 > t2.v4 + 1000;
+```
+
+With this setting enabled, the filter `t.v2 > t2.v4 + 1000` is evaluated within the join rather than afterward.
+
 ### Left outer joins
 
 A left outer join (or simply left join) returns all rows from the left table expression and the matched rows from the right table expression. If no match is found, NULL values will be filled in for columns from the right table.
