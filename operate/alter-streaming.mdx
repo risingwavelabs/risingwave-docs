@@ -32,14 +32,14 @@ CREATE MATERIALIZED VIEW cust_sales AS
 
 ```
 
-Here we create a new materialized view `cust_sales_new` with the new column `sales_count`:
+Here we create a new materialized view `cust_sales_new` with the new column `sales_vount`:
 
 ```sql
 CREATE MATERIALIZED VIEW cust_sales_new AS
     SELECT
         customer_id,
         SUM(total_price) AS sales_amount,
-        COUNT(*) AS sales_count -- The new column
+        COUNT(*) AS sales_vount -- The new column
     FROM orders
     GROUP BY customer_id;
 
@@ -86,7 +86,7 @@ CREATE MATERIALIZED VIEW cust_sales AS
     GROUP BY customer_id;
 ```
 
-To add a new column `sales_count` to `cust_sales`, we need to create the new materialized views `cust_sales_new` and `orders_new` first:
+To add a new column `sales_vount` to `cust_sales`, we need to create the new materialized views `cust_sales_new` and `orders_new` first:
 <Frame>
   <img src="/images/current/alter-streaming/streaming-with-dependencies-create-new.svg"/>
 </Frame>
@@ -97,7 +97,7 @@ CREATE MATERIALIZED VIEW orders_new AS
         order_id,
         customer_id,
         SUM(price * quantity) AS total_price,
-        COUNT(*) AS item_count -- The new column
+        COUNT(*) AS item_vount -- The new column
     FROM order_items, price
     WHERE order_items.product_id = price.product_id
     GROUP BY order_id, customer_id;
@@ -106,7 +106,7 @@ CREATE MATERIALIZED VIEW cust_sales_new AS
     SELECT
         customer_id,
         SUM(total_price) AS sales_amount,
-        SUM(item_count) AS sales_count -- The new column
+        SUM(item_vount) AS sales_vount -- The new column
     FROM orders_new -- the new one
     GROUP BY customer_id;
 ```
@@ -138,19 +138,19 @@ Here is an example of modifying a streaming job in place.
     Given the source table `t`:
 
 ```sql
-CREATE TABLE t(v1 int, v2 varchar);
+CREATE TABLE t(c1 int, c2 varchar);
 ```
 
 Create an initial materialized view:
 
 ```sql
-CREATE MATERIALIZED VIEW m1 as select v2, count(*) from t group by v2;
+CREATE MATERIALIZED VIEW m1 as select c2, count(*) from t group by c2;
 ```
 
 Modify this materialized view:
 
 ```sql
-CREATE MATERIALIZED VIEW m2 as select v2, count(*), max(v1) from t group by v2;
+CREATE MATERIALIZED VIEW m2 as select c2, count(*), max(c1) from t group by c2;
 ```
   </Step>
   <Step title="Convert to `SINK INTO TABLE`">
@@ -159,13 +159,13 @@ CREATE MATERIALIZED VIEW m2 as select v2, count(*), max(v1) from t group by v2;
 ```sql
 -- The ON CONFLICT clause ensures that only newer job versions can overwrite existing data.
 CREATE TABLE m1_store(
-    v2 varchar primary key, 
+    c2 varchar primary key, 
     cnt int, 
     -- The version column is not required, but recommended. See Notes below.
     version int,
 ) ON CONFLICT OVERWRITE WITH VERSION COLUMN(version);
 
-CREATE SINK m1_stream_v1 INTO m1_store AS SELECT v2, count(*) as cnt, 1 as version from t group by v2;
+CREATE SINK m1_stream_v1 INTO m1_store AS SELECT c2, count(*) as cnt, 1 as version from t group by c2;
 ```
   </Step>
   <Step title="Add column">
@@ -176,19 +176,21 @@ Alter the table and add a column to it:
 ALTER TABLE m1_store ADD COLUMN max int DEFAULT 0;
 ```
 
-Create a new sink with the new definition, incrementing the version number:
+Create a new sink with the new definition, incrementing the version number.
+Now 2 versions of jobs will co-exist.
+
 ```sql
 CREATE SINK m1_stream_v2 INTO m1_store AS 
-SELECT v2, count(*) as cnt, max(v1) as max, 2 as version
-from t group by v2;
+SELECT c2, count(*) as cnt, max(c1) as max, 2 as version
+from t group by c2;
 ```
 
-Drop the old streaming job:
+Drop the V1 streaming job after the V2 job is fully ready.
 ```sql
 DROP SINK m1_stream_v1;
 ```
 
-Clean up old version data:
+Clean up V1 data:
 ```sql
 DELETE FROM m1_store WHERE version < 2;
 ```
@@ -213,7 +215,7 @@ Given a table `adult_users` that tracks the number of users aged ≥ 18.
 ```sql
 CREATE MATERIALIZED VIEW adult_users AS
   SELECT
-    COUNT(*) as user_count
+    COUNT(*) as user_vount
   FROM users
   WHERE age >= 18;
 ```
