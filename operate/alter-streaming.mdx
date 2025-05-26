@@ -125,16 +125,6 @@ ALTER MATERIALIZED VIEW orders_new RENAME TO orders;
 
 Only `SINK INTO TABLE` supports modifying the streaming job logic in place. This approach decouples the streaming processing logic from the persistence layer (the materialization step).
 
-For instance, you can convert a materialized view into `SINK INTO TABLE`:
-
-```sql
-CREATE MATERIALIZED VIEW m1 AS SELECT id, v1 FROM t;
-
--- Converted to SINK INTO TABLE
-CREATE TABLE m1_store (id INT PRIMARY KEY, v1 INT) ON CONFLICT OVERWRITE;
-CREATE SINK m1_stream INTO m1_store AS SELECT id, v1 FROM t;
-```
-
 Why not always use `SINK INTO TABLE`? There are performance implications to consider. Materialized views can trust their upstreams to issue consistent records (for example, no duplicate inserts or deletes for the same primary key). However, tables can have multiple sinks writing records to them, which may cause conflicts. These conflicts require resolution, as specified by the `ON CONFLICT OVERWRITE` clause above.
 
 This trade-off allows for dynamic changes to `SINK INTO TABLE`, but at the cost of some performance overhead for conflict resolution.
@@ -148,30 +138,34 @@ Here is an example of modifying a streaming job in place.
     Given the source table `t`:
 
 ```sql
-CREATE TABLE t(v1 int);
+CREATE TABLE t(v1 int, v2 varchar);
 ```
 
 Create an initial materialized view:
 
 ```sql
-CREATE MATERIALIZED VIEW m1 as select count(*) from t;
+CREATE MATERIALIZED VIEW m1 as select v2, count(*) from t group by v2;
 ```
 
 Modify this materialized view:
 
 ```sql
-CREATE MATERIALIZED VIEW m2 as select count(*), max(v1) from t;
+CREATE MATERIALIZED VIEW m2 as select v2, count(*), max(v1) from t group by v2;
 ```
   </Step>
   <Step title="Convert to `SINK INTO TABLE`">
-    The output schema changes from `int` to `int, int`. Since this is a materialized view with potential downstream dependencies, we cannot simply drop and recreate it. Instead, let's convert it to use `SINK INTO TABLE`:
+    The output schema changes from `varchar, int` to `varchar, int, int`. Since this is a materialized view with potential downstream dependencies, we cannot simply drop and recreate it. Instead, let's convert it to use `SINK INTO TABLE`:
 
 ```sql
-CREATE TABLE m1_store(key int primary key, cnt int) ON CONFLICT OVERWRITE; 
--- SINK INTO TABLE requires a primary key, so we add a dummy column.
--- The ON CONFLICT clause will handle conflicts between old and updated records from new streaming job.
+-- The ON CONFLICT clause ensures that only newer job versions can overwrite existing data.
+CREATE TABLE m1_store(
+    v2 varchar primary key, 
+    cnt int, 
+    -- The version column is not required, but recommended. See Notes below.
+    version int,
+) ON CONFLICT OVERWRITE WITH VERSION COLUMN(version);
 
-CREATE SINK m1_stream INTO m1_store AS SELECT 1 as key, count(*) as cnt from t;
+CREATE SINK m1_stream_v1 INTO m1_store AS SELECT v2, count(*) as cnt, 1 as version from t group by v2;
 ```
   </Step>
   <Step title="Add column">
@@ -182,17 +176,33 @@ Alter the table and add a column to it:
 ALTER TABLE m1_store ADD COLUMN max int DEFAULT 0;
 ```
 
-Drop the existing streaming job:
-```
-DROP SINK m1_stream;
+Create a new sink with the new definition, incrementing the version number:
+```sql
+CREATE SINK m1_stream_v2 INTO m1_store AS 
+SELECT v2, count(*) as cnt, max(v1) as max, 2 as version
+from t group by v2;
 ```
 
-Replace it with the new definition:
+Drop the old streaming job:
+```sql
+DROP SINK m1_stream_v1;
 ```
-CREATE SINK m1_stream INTO m1_store AS SELECT 1 as key, count(*) as cnt, max(v1) as max from t;
+
+Clean up old version data:
+```sql
+DELETE FROM m1_store WHERE version < 2;
 ```
   </Step>
 </Steps>
+
+<Note>
+The [version column](/sql/commands/sql-create-table#version-column) is not required, but recommended. The benefits are:
+1. You can modify the streaming job without the table being stale (i.e., old streaming job is still producing data).
+2. You can clean up old version data with a `DELETE` statement when some of the keys do not exist in the new version of the streaming job.
+
+If temporary downtime is acceptable and you don't need to clean up old version data, you can omit the version column.
+You can use a plain `ON CONFLICT OVERWRITE` clause instead. But you will need to first drop the old sink before creating the new one.
+</Note>
 
 ## Why is it not possible to modify an MV in place?
 
