@@ -149,7 +149,7 @@ A version column is a non-primary-key column that can be used with `OVERWRITE` a
 
 Common use cases include:
 1. Use a event time column as version column to ensure temporal ordering and ignore late-arriving data.
-2. Use an integer as a logical version number. With this technique, you can implement "zero-downtime incremental version upgrade" for data in the table: you insert a new version of data with a higher version number while keeping old data, and then after finishing the upgrade, you clean up old data with a `DELETE` statement (Upsert-then-Delete).
+2. Use an integer as a logical version number. You can use a Upsert-then-Delete pattern with a logical version column to implement "zero-downtime incremental version upgrade" for data in the table: you insert a new version of data with a higher version number while keeping old data, and then after finishing the upgrade, you clean up old data with a `DELETE` statement.
 
     This can be used to implement [in-place streaming job modification](/operate/alter-streaming#modifying-a-streaming-job-in-place), or re-sync external batch data into RisingWave (reverse ETL).
 
