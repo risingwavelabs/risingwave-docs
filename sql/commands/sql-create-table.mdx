@@ -127,9 +127,9 @@ CREATE TABLE t (
 
 ## PK conflict behavior
 
-The record with insert operation could introduce duplicate records with the same primary key in the table. In that case, an alternative action specified by the `ON CONFLICT conflict_action` clause will be adopted. The record can come from Insert DML statement, external connectors of the table, or [sinks into the table](/sql/commands/sql-create-sink-into).
+The record with insert operation could introduce duplicate records with the same primary key in the table. In that case, an alternative action specified by the `ON CONFLICT conflict_action` clause will be adopted. The record can come from `INSERT` statement, external connectors of the table, or [sinks into the table](/sql/commands/sql-create-sink-into).
 
-The `conflict_action` could one of the following. A [version column](#version-column) can be specified together for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When version column is specified, the insert operation will take effect only when the newly inserted row's version column is greater or equal than (and is not NULL) the existing row's version column.
+The `conflict_action` could one of the following. A [version column](#version-column) can be specified together for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When version column is specified, the insert operation will take effect only when the newly inserted row's version column is greater or equal than the existing row's version column, and is not NULL.
 
 * `IGNORE`: Ignore the newly inserted record.
 * `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Full update: replace the existing row in the table with the new row.
