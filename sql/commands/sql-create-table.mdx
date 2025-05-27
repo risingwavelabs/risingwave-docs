@@ -153,8 +153,10 @@ Common use cases include:
 
     This can be used to implement [in-place streaming job modification](/operate/alter-streaming#modifying-a-streaming-job-in-place), or re-sync external batch data into RisingWave (reverse ETL).
 
-    Note: When a row is updated with only a new version number, but other columns remain unchanged, downstream streaming jobs depending on the table won't be affected if they do not use the version column. RisingWave will
+<Note>
+When a row is updated only with a new version number and other columns remain unchanged, downstream streaming jobs that don’t use the version column won’t be affected. RisingWave will
     automatically compact "no-op" updates to prevent massive updates for downstream jobs. You can create a logical view with `SELECT * EXCEPT(version_col)` to avoid depending on the version column by mistake.
+</Note>
 
 ## Example
 
