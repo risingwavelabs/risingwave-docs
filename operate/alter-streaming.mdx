@@ -97,7 +97,7 @@ CREATE MATERIALIZED VIEW orders_new AS
         order_id,
         customer_id,
         SUM(price * quantity) AS total_price,
-        COUNT(*) AS item_vount -- The new column
+        COUNT(*) AS item_count -- The new column
     FROM order_items, price
     WHERE order_items.product_id = price.product_id
     GROUP BY order_id, customer_id;
@@ -106,7 +106,7 @@ CREATE MATERIALIZED VIEW cust_sales_new AS
     SELECT
         customer_id,
         SUM(total_price) AS sales_amount,
-        SUM(item_vount) AS sales_count -- The new column
+        SUM(item_count) AS sales_count -- The new column
     FROM orders_new -- the new one
     GROUP BY customer_id;
 ```
@@ -215,7 +215,7 @@ Given a table `adult_users` that tracks the number of users aged ≥ 18.
 ```sql
 CREATE MATERIALIZED VIEW adult_users AS
   SELECT
-    COUNT(*) as user_vount
+    COUNT(*) as user_count
   FROM users
   WHERE age >= 18;
 ```
