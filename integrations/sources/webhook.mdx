@@ -16,7 +16,9 @@ This direct integration eliminates the need for an intermediary message broker l
 To utilize webhook sources in RisingWave, you need to create a table configured to accept webhook requests. Below is a basic example of how to set up such a table:
 
 ```sql
-CREATE SECRET test_secret WITH (backend = 'meta') AS 'secret_value';
+-- Create a secret to store the webhook validation key. Note that this is optional but recommended. 
+-- Alternatively you can use a raw string (without specifying `SECRET <secret>`).
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'secret_value'; 
 
 CREATE TABLE wbhtable (
   data JSONB
