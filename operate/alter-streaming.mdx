@@ -32,14 +32,14 @@ CREATE MATERIALIZED VIEW cust_sales AS
 
 ```
 
-Here we create a new materialized view `cust_sales_new` with the new column `sales_vount`:
+Here we create a new materialized view `cust_sales_new` with the new column `sales_count`:
 
 ```sql
 CREATE MATERIALIZED VIEW cust_sales_new AS
     SELECT
         customer_id,
         SUM(total_price) AS sales_amount,
-        COUNT(*) AS sales_vount -- The new column
+        COUNT(*) AS sales_count -- The new column
     FROM orders
     GROUP BY customer_id;
 
@@ -86,7 +86,7 @@ CREATE MATERIALIZED VIEW cust_sales AS
     GROUP BY customer_id;
 ```
 
-To add a new column `sales_vount` to `cust_sales`, we need to create the new materialized views `cust_sales_new` and `orders_new` first:
+To add a new column `sales_count` to `cust_sales`, we need to create the new materialized views `cust_sales_new` and `orders_new` first:
 <Frame>
   <img src="/images/current/alter-streaming/streaming-with-dependencies-create-new.svg"/>
 </Frame>
@@ -106,7 +106,7 @@ CREATE MATERIALIZED VIEW cust_sales_new AS
     SELECT
         customer_id,
         SUM(total_price) AS sales_amount,
-        SUM(item_vount) AS sales_vount -- The new column
+        SUM(item_vount) AS sales_count -- The new column
     FROM orders_new -- the new one
     GROUP BY customer_id;
 ```
