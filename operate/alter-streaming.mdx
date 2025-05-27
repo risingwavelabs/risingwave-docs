@@ -125,9 +125,9 @@ ALTER MATERIALIZED VIEW orders_new RENAME TO orders;
 
 Only `SINK INTO TABLE` supports modifying the streaming job logic in place. This approach decouples the streaming processing logic from the persistence layer (the materialization step).
 
-Why not always use `SINK INTO TABLE`? There are performance implications to consider. Materialized views can trust their upstreams to issue consistent records (for example, no duplicate inserts or deletes for the same primary key). However, tables can have multiple sinks writing records to them, which may cause conflicts. These conflicts require resolution, as specified by the `ON CONFLICT OVERWRITE` clause above.
+Why not always use `SINK INTO TABLE`? There are performance implications to consider. Materialized views can trust their upstreams to issue consistent records (for example, no duplicate inserts or deletes for the same primary key). However, tables can have multiple sinks writing records to them, which may cause conflicts. These conflicts require resolution, as specified by the `ON CONFLICT OVERWRITE` clause.
 
-This trade-off allows for dynamic changes to `SINK INTO TABLE`, but at the cost of some performance overhead for conflict resolution.
+This trade-off allows for dynamic changes to `SINK INTO TABLE`, but comes with some performance overhead for conflict resolution.
 
 ### Example
 
@@ -177,7 +177,7 @@ ALTER TABLE m1_store ADD COLUMN max int DEFAULT 0;
 ```
 
 Create a new sink with the new definition, incrementing the version number.
-Now 2 versions of jobs will co-exist.
+Now two versions of jobs will co-exist.
 
 ```sql
 CREATE SINK m1_stream_v2 INTO m1_store AS 
@@ -185,7 +185,7 @@ SELECT c2, count(*) as cnt, max(c1) as max, 2 as version
 from t group by c2;
 ```
 
-Drop the V1 streaming job after the V2 job is fully ready.
+Drop the V1 streaming job after the V2 job is fully ready:
 ```sql
 DROP SINK m1_stream_v1;
 ```
@@ -198,17 +198,17 @@ DELETE FROM m1_store WHERE version < 2;
 </Steps>
 
 <Note>
-The [version column](/sql/commands/sql-create-table#version-column) is not required, but recommended. The benefits are:
-1. You can modify the streaming job without the table being stale (i.e., old streaming job is still producing data).
-2. You can clean up old version data with a `DELETE` statement when some of the keys do not exist in the new version of the streaming job.
+The [version column](/sql/commands/sql-create-table#version-column) is not required, but is recommended. The benefits are:
+1. You can modify the streaming job without the table becoming stale (i.e., the old streaming job continues producing data).
+2. You can clean up old version data with a `DELETE` statement when some keys do not exist in the new version of the streaming job.
 
 If temporary downtime is acceptable and you don't need to clean up old version data, you can omit the version column.
-You can use a plain `ON CONFLICT OVERWRITE` clause instead. But you will need to first drop the old sink before creating the new one.
+You can use a plain `ON CONFLICT OVERWRITE` clause instead, but you will need to first drop the old sink before creating the new one.
 </Note>
 
 ## Why is it not possible to modify an MV in place?
 
-Streaming systems like RisingWave need to maintain **internal state** for streaming operators, such as joins and aggregations. Generally, modifying a materialized view would require consistent changes to the internal state accordingly, which is not always feasible. Let’s see an example.
+Streaming systems like RisingWave need to maintain **internal state** for streaming operators, such as joins and aggregations. Generally, modifying a materialized view would require consistent changes to the internal state accordingly, which is not always feasible. Let's look at an example.
 
 Given a table `adult_users` that tracks the number of users aged ≥ 18.
 

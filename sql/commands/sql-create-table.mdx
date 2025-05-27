@@ -127,16 +127,16 @@ CREATE TABLE t (
 
 ## PK conflict behavior
 
-The record with insert operation could introduce duplicate records with the same primary key in the table. In that case, an alternative action specified by the `ON CONFLICT conflict_action` clause will be adopted. The record can come from `INSERT` statement, external connectors of the table, or [sinks into the table](/sql/commands/sql-create-sink-into).
+Records with insert operations could introduce duplicate records with the same primary key in the table. In that case, an alternative action specified by the `ON CONFLICT conflict_action` clause will be adopted. The record can come from an `INSERT` statement, external connectors of the table, or [sinks into the table](/sql/commands/sql-create-sink-into).
 
-The `conflict_action` could one of the following. A [version column](#version-column) can be specified together for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When version column is specified, the insert operation will take effect only when the newly inserted row's version column is greater or equal than the existing row's version column, and is not NULL.
+The `conflict_action` could be one of the following. A [version column](#version-column) can be specified together for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When a version column is specified, the insert operation will take effect only when the newly inserted row's version column is greater than or equal to the existing row's version column, and is not NULL.
 
 * `IGNORE`: Ignore the newly inserted record.
 * `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Full update: replace the existing row in the table with the new row.
 * `DO UPDATE IF NOT NULL [WITH VERSION COLUMN(col_name)]`: Partial update: only replace those fields with non-NULL values in the inserted row. NULL values in the inserted row means unchanged in this case.
 
 <Note>
-The delete and update operation on the table cannot break the primary key constraint on the table, so the option will not take effect for those cases.
+Delete and update operations on the table cannot break the primary key constraint on the table, so the option will not take effect for those cases.
 </Note>
 
 <Note>
@@ -148,12 +148,12 @@ When `DO UPDATE IF NOT NULL` behavior is applied, `DEFAULT` clause is not allowe
 A version column is a non-primary-key column that can be used with `OVERWRITE` and `DO UPDATE IF NOT NULL` to tune the conflict behaviors.
 
 Common use cases include:
-1. Use a event time column as version column to ensure temporal ordering and ignore late-arriving data.
-2. Use an integer as a logical version number. You can use a Upsert-then-Delete pattern with a logical version column to implement "zero-downtime incremental version upgrade" for data in the table: you insert a new version of data with a higher version number while keeping old data, and then after finishing the upgrade, you clean up old data with a `DELETE` statement.
+1. Use an event time column as the version column to ensure temporal ordering and ignore late-arriving data.
+2. Use an integer as a logical version number. You can use an Upsert-then-Delete pattern with a logical version column to implement "zero-downtime incremental version upgrade" for data in the table: you insert a new version of data with a higher version number while keeping old data, and then after finishing the upgrade, you clean up old data with a `DELETE` statement.
 
     This can be used to implement [in-place streaming job modification](/operate/alter-streaming#modifying-a-streaming-job-in-place), or re-sync external batch data into RisingWave (reverse ETL).
 
-    Note: When a row is updated with only a new version number, but other columns unchanged, downstream streaming jobs depending on the table won't be affected if they do not use the version column. RisingWave will
+    Note: When a row is updated with only a new version number, but other columns remain unchanged, downstream streaming jobs depending on the table won't be affected if they do not use the version column. RisingWave will
     automatically compact "no-op" updates to prevent massive updates for downstream jobs. You can create a logical view with `SELECT * EXCEPT(version_col)` to avoid depending on the version column by mistake.
 
 ## Example
