@@ -1,0 +1,123 @@
+---
+title: "Installation and setup"
+description: "Step-by-step guide to install and set up Wavekit using Docker, binary, or Docker Compose. Learn about key configuration variables and initial login."
+---
+
+This guide provides instructions for installing and setting up Wavekit. Wavekit requires a PostgreSQL database to store its metadata (like cluster connection details). You can use a bundled PostgreSQL for quick setup or connect to your own existing instance.
+
+## Key configuration variables
+
+Before you begin, be aware of these key environment variables that Wavekit uses:
+
+*   `WK_PORT`: (Optional) Specifies the port on which the Wavekit server will listen. Defaults to `8020`.
+*   `WK_PG_DSN`: (Required for binary and Docker Compose with external PG) The PostgreSQL connection string for Wavekit's metadata database.
+    *   Format: `postgres://<user>:<password>@<host>:<port>/<database_name>`
+    *   It's important to note that this database is used by Wavekit to store its own operational data and does *not* store your RisingWave cluster's user data.
+*   `WK_ROOT_PASSWORD`: (Optional) Sets the initial password for the `root` user in the Wavekit UI. If not set, it defaults to `root`. It's recommended to set this for any persistent deployment.
+*   `WK_RISECTLDIR`: (Optional) May be used by Wavekit if it needs to locate `risectl` resources for executing commands against your RisingWave cluster. The default behavior usually suffices.
+
+## Option 1: Quick setup with docker (bundled PostgreSQL)
+
+This is the fastest way to try Wavekit. The `risingwavelabs/wavekit:vX.Y.Z-pgbundle` image includes a PostgreSQL server. Replace `vX.Y.Z` with the desired Wavekit version (e.g., `v0.4.0`).
+
+A. Ephemeral storage (for testing only)
+All Wavekit metadata will be lost if the container is removed.
+
+   \`\`\`shell
+   docker run --rm -p 8020:8020 --name wavekit risingwavelabs/wavekit:vX.Y.Z-pgbundle
+   \`\`\`
+   To set a custom root password:
+   \`\`\`shell
+   docker run --rm -p 8020:8020 -e WK_ROOT_PASSWORD=your_secure_password --name wavekit risingwavelabs/wavekit:vX.Y.Z-pgbundle
+   \`\`\`
+
+B. Persistent storage (recommended for standalone Docker)
+Wavekit metadata is stored in a Docker volume (`wavekit-data`), ensuring data persists across container restarts or recreations.
+
+   \`\`\`shell
+   docker run -d -p 8020:8020 --name wavekit \
+     -e WK_ROOT_PASSWORD=your_secure_password \
+     -v wavekit-data:/var/lib/postgresql \
+     risingwavelabs/wavekit:vX.Y.Z-pgbundle
+   \`\`\`
+
+## Option 2: Setup with binary (requires external PostgreSQL)
+
+This method uses a standalone Wavekit binary and requires you to have a separate, running PostgreSQL database.
+
+1.  Download and install the latest Wavekit binary:
+    \`\`\`shell
+    curl https://wavekit-release.s3.ap-southeast-1.amazonaws.com/download.sh | sh
+    \`\`\`
+2.  Ensure your PostgreSQL database is accessible and set the `WK_PG_DSN` environment variable. Then, run Wavekit:
+    \`\`\`shell
+    WK_PG_DSN="postgres://your_user:your_pass@your_pg_host:5432/wavekit_db" \
+    WK_ROOT_PASSWORD="your_secure_password" \
+    ./wavekit
+    \`\`\`
+    (Adjust `WK_PG_DSN` and `WK_ROOT_PASSWORD` accordingly.)
+
+## Option 3: Recommended setup (docker compose with external PostgreSQL)
+
+This method uses Docker Compose to run Wavekit and allows you to easily manage it alongside your own PostgreSQL instance (either also as a Docker container or an external one).
+
+1.  Create a `docker-compose.yaml` file:
+
+    \`\`\`yaml
+    version: "3.9"
+    services:
+      wavekit:
+        image: risingwavelabs/wavekit:vX.Y.Z # Use the image without -pgbundle
+        ports:
+          - "8020:8020" # Or your WK_PORT
+        environment:
+          WK_PORT: 8020 # Optional, if different from default
+          WK_PG_DSN: postgres://postgres_user:postgres_password@db_host:5432/wavekit_metadata_db # IMPORTANT: Point to your PG
+          WK_ROOT_PASSWORD: your_secure_password
+          # WK_RISECTLDIR: /path/if/needed
+        depends_on:
+          - db # Only if PostgreSQL is also managed by this Docker Compose file
+
+      # Example: If running PostgreSQL in Docker Compose as well
+      db:
+        image: "postgres:15" # Or your preferred version
+        ports:
+          - "5432:5432" # Expose if needed externally, otherwise Wavekit connects via Docker network
+        environment:
+          POSTGRES_USER: postgres_user
+          POSTGRES_PASSWORD: postgres_password
+          POSTGRES_DB: wavekit_metadata_db
+        volumes:
+          - postgres_wavekit_data:/var/lib/postgresql/data
+
+    volumes:
+      postgres_wavekit_data: # For the PostgreSQL container
+    \`\`\`
+    Note:
+    *   Replace `vX.Y.Z` with the specific Wavekit version (e.g., `v0.4.0`).
+    *   Adjust `WK_PG_DSN` to point to your PostgreSQL instance. If `db` is a service in the same Docker Compose, you can use `db_host: db`.
+    *   Update PostgreSQL credentials and database name.
+
+2.  Start Wavekit:
+    \`\`\`shell
+    docker compose up -d
+    \`\`\`
+
+## Verifying the installation
+
+After starting Wavekit, check its logs to ensure it started without errors:
+*   If using Docker/Docker Compose: `docker logs wavekit` (or your service name).
+*   If using binary: Observe the terminal output.
+
+## Initial login and dashboard overview
+
+1.  Access Wavekit UI: Open your web browser and navigate to `http://localhost:8020` (or the host/port you configured).
+2.  Login:
+    *   Username: `root`
+    *   Password: The password you set via `WK_ROOT_PASSWORD`, or `root` if not set.
+3.  Dashboard: Upon successful login, you'll see the Wavekit dashboard. This is your main entry point to:
+    *   Manage 'Clusters': For connecting to your RisingWave instances.
+    *   Use the 'SQL Console': For querying your RisingWave data.
+    *   Access links to external resources and documentation.
+
+You are now ready to start [Connecting to your RisingWave clusters](/wavekit/connect-risingwave-clusters)!
