@@ -1,0 +1,89 @@
+---
+title: "EXPLAIN ANALYZE"
+description: "Use the `EXPLAIN ANALYZE` command to analyze the actual runtime performance of a streaming job."
+---
+
+As [`EXPLAIN`](/sql/commands/sql-explain) shows the execution plan of a query or job before execution, `EXPLAIN ANALYZE` analyzes a running stream job, including table, materialized view, sink, or index, and collects runtime statistics to help identify performance bottlenecks.
+
+`EXPLAIN ANALYZE` is enabled by default. To disable it, set `enable_explain_analyze_stats = false` under `[streaming.developer]`.
+
+## Syntax
+
+```sql
+EXPLAIN ANALYZE (duration_secs <secs>) [TABLE <name> | MATERIALIZED VIEW <name> | SINK <name> | INDEX <name> | ID <job_id>]
+```
+
+`duration_secs` specifies the profiling duration in seconds.
+
+
+## Metrics
+
+When you run `EXPLAIN ANALYZE`, it returns a table showing runtime statistics for each operator involved in the execution. 
+
+| Field name                 | Description                                                                 |
+|---------------------------|-----------------------------------------------------------------------------|
+| `identity`                | The name and hierarchical structure of the operator (e.g., StreamHashJoin, MergeExecutor. |
+| `actor_ids`               | The IDs of concurrent actors running this operator.                         |
+| `output_rps`              | The number of records output per second (records per second).               |
+| `avg_output_pending_ratio`| The average ratio of pending outputs in the buffer, indicating how quickly downstream operators are consuming data. |
+
+
+## Example
+
+```sql 
+CREATE TABLE t(v1 int);
+
+CREATE MATERIALIZED VIEW m1 as 
+  select * from 
+    t x join t y using(v1)
+      join t z using(v1) 
+        join t c using(v1);
+
+EXPLAIN ANALYZE MATERIALIZED VIEW m1;
+```
+
+Sample output:
+
+```
+                     identity                   |  actor_ids  | output_rps | avg_output_pending_ratio
+------------------------------------------------+-------------+------------+--------------------------
+ StreamMaterialize                              | 12,11,10,9  | 41589.1    | 0.00005
+ └─ MergeExecutor                               | 12,11,10,9  | 41589.1    | 0.8149749999999999
+    └─ Dispatcher                               |             | 0          | NaN
+       └─ StreamHashJoin                        | 16,15,14,13 | 41560.1    | 0.859225
+          ├─ StreamHashJoin                     | 16,15,14,13 | 152.6      | 0.93265
+          │  ├─ MergeExecutor                   | 16,15,14,13 | 25.6       | 1.6336749999999998
+          │  │  └─ Dispatcher                   |             | 0          | NaN
+          │  │     └─ StreamFilter              | 20,19,18,17 | 0          | 0
+          │  │        └─ StreamTableScan        | 20,19,18,17 | 0          | 0
+          │  │           ├─ BatchPlanNode       | 20,19,18,17 | 0          | 0
+          │  │           └─ Upstream            | 20,19,18,17 | 0          | 0
+          │  └─ MergeExecutor                   | 16,15,14,13 | 0          | 0
+          │     └─ Dispatcher                   |             | 0          | NaN
+          │        └─ StreamFilter              | 28,27,26,25 | 0          | 0
+          │           └─ StreamTableScan        | 28,27,26,25 | 0          | 0
+          │              ├─ BatchPlanNode       | 28,27,26,25 | 0          | 0
+          │              └─ Upstream            | 28,27,26,25 | 0          | 0
+          └─ MergeExecutor                      | 16,15,14,13 | 51.2       | 0.71425
+             └─ Dispatcher                      |             | 0          | NaN
+                └─ StreamHashJoin               | 24,23,22,21 | 51.2       | 0.711325
+                   ├─ MergeExecutor             | 24,23,22,21 | 0          | 0
+                   │  └─ Dispatcher             |             | 0          | NaN
+                   │     └─ StreamFilter        | 36,35,34,33 | 0          | 0
+                   │        └─ StreamTableScan  | 36,35,34,33 | 0          | 0
+                   │           ├─ BatchPlanNode | 36,35,34,33 | 0          | 0
+                   │           └─ Upstream      | 36,35,34,33 | 0          | 0
+                   └─ MergeExecutor             | 24,23,22,21 | 0          | 0
+                      └─ Dispatcher             |             | 0          | NaN
+                         └─ StreamFilter        | 32,31,30,29 | 0          | 0
+                            └─ StreamTableScan  | 32,31,30,29 | 0          | 0
+                               ├─ BatchPlanNode | 32,31,30,29 | 0          | 0
+                               └─ Upstream      | 32,31,30,29 | 0          | 0
+(32 rows)
+```
+
+## Related topics
+
+- To check the execution plan for a new statement before it runs, see [`EXPLAIN`](/sql/commands/sql-explain).
+- To check the execution fragments of an existing streaming job, see [`DESCRIBE FRAGMENTS`](/sql/commands/sql-describe#describe-fragments).
+

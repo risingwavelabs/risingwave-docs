@@ -58,6 +58,9 @@ The term "Cardinality" describes how many distinct values exist in a column. For
 1.  **Check barrier latency and number:** Start by examining the "Barrier Latency" and "Barrier Number" panels in Grafana, as described in the "Symptoms" section.
 2.  **Analyze backpressure:** Go to **Grafana dashboard (dev)** > **Streaming Actors** > **Actor Output Blocking Time Ratio (Backpressure)** panel and analyze backpressure between fragments.  High backpressure points to a bottleneck in the downstream fragment.
 3.  **Examine await tree dump:** Check the Await Tree Dump of all compute nodes in **RisingWave Dashboard** hosted on `http://meta-node:5691`. If the barrier is stuck, the Await Tree Dump will reveal which operation it's waiting for, helping you pinpoint the problematic part of your streaming pipeline.
+
+    To help identify bottlenecks in the await tree, you can use the [Await-Tree Analyzer](https://risingwavelabs.github.io/rw-diagnose-tools/) for analysis. This tool is also available for self-hosting, please consult the [repository](https://github.com/risingwavelabs/rw-diagnose-tools) for setup instructions.
+
 4.  **Examine resource utilization:** Check CPU usage, memory usage, and cache miss ratios as described in [Monitoring and metrics](/performance/metrics). This will help you identify potential resource constraints.
 5.  **Simplify the query:** If you suspect an inefficient query, try removing parts of the SQL query (e.g., individual `JOIN` clauses, `WHERE` conditions, or complex functions) to isolate the specific part causing the slowdown.
 6.  **Check for errors:** Examine RisingWave's logs for any error messages.

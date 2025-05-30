@@ -25,6 +25,7 @@ Currently, these system parameters are available in RisingWave.
 | pause\_on\_next\_bootstrap                 | This parameter is used for debugging and maintenance purposes. Setting it to true will pause all data sources, such as connectors and DMLs, when the cluster restarts. This parameter will then be reset to its default value (false). To resume data ingestion, simply run `risectl meta resume` or restart the cluster again.                                                                                                                                                                                                                                                                                                                                      |
 | enable\_tracing                            | Whether to enable distributed tracing. This parameter is used to toggle the opentelemetry tracing during runtime. Its default value is false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | time\_travel\_retention\_ms                | The data retention period for time travel. Defaults to 0, which disables time travel. To enable this feature, set it to a a non-zero value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| per_database_isolation                | Enables per-database failure isolation, so that failures such as streaming job errors or worker crashes in one database do not affect other databases. Defaults to `true`. For more details of database isolation, see [Workload isolation and interaction](/operate/workload-isolation-interaction).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ## How to view system parameters?
 
@@ -53,7 +54,7 @@ SHOW PARAMETERS;
  pause_on_next_bootstrap                | false               | t
  enable_tracing                         | false               | t
  time_travel_retention_ms               | 0                   | t
-
+ ...
 ```
 
 ## How to configure system parameters?
