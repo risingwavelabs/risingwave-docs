@@ -23,38 +23,38 @@ This is the fastest way to try Wavekit. The `risingwavelabs/wavekit:vX.Y.Z-pgbun
 A. Ephemeral storage (for testing only)
 All Wavekit metadata will be lost if the container is removed.
 
-   \`\`\`shell
+   ```shell
    docker run --rm -p 8020:8020 --name wavekit risingwavelabs/wavekit:vX.Y.Z-pgbundle
-   \`\`\`
+   ```
    To set a custom root password:
-   \`\`\`shell
+   ```shell
    docker run --rm -p 8020:8020 -e WK_ROOT_PASSWORD=your_secure_password --name wavekit risingwavelabs/wavekit:vX.Y.Z-pgbundle
-   \`\`\`
+   ```
 
 B. Persistent storage (recommended for standalone Docker)
 Wavekit metadata is stored in a Docker volume (`wavekit-data`), ensuring data persists across container restarts or recreations.
 
-   \`\`\`shell
+   ```shell
    docker run -d -p 8020:8020 --name wavekit \
      -e WK_ROOT_PASSWORD=your_secure_password \
      -v wavekit-data:/var/lib/postgresql \
      risingwavelabs/wavekit:vX.Y.Z-pgbundle
-   \`\`\`
+   ```
 
 ## Option 2: Setup with binary (requires external PostgreSQL)
 
 This method uses a standalone Wavekit binary and requires you to have a separate, running PostgreSQL database.
 
 1.  Download and install the latest Wavekit binary:
-    \`\`\`shell
+    ```shell
     curl https://wavekit-release.s3.ap-southeast-1.amazonaws.com/download.sh | sh
-    \`\`\`
+    ```
 2.  Ensure your PostgreSQL database is accessible and set the `WK_PG_DSN` environment variable. Then, run Wavekit:
-    \`\`\`shell
+    ```shell
     WK_PG_DSN="postgres://your_user:your_pass@your_pg_host:5432/wavekit_db" \
     WK_ROOT_PASSWORD="your_secure_password" \
     ./wavekit
-    \`\`\`
+    ```
     (Adjust `WK_PG_DSN` and `WK_ROOT_PASSWORD` accordingly.)
 
 ## Option 3: Recommended setup (docker compose with external PostgreSQL)
@@ -63,7 +63,7 @@ This method uses Docker Compose to run Wavekit and allows you to easily manage i
 
 1.  Create a `docker-compose.yaml` file:
 
-    \`\`\`yaml
+    ```yaml
     version: "3.9"
     services:
       wavekit:
@@ -92,16 +92,16 @@ This method uses Docker Compose to run Wavekit and allows you to easily manage i
 
     volumes:
       postgres_wavekit_data: # For the PostgreSQL container
-    \`\`\`
+    ```
     Note:
     *   Replace `vX.Y.Z` with the specific Wavekit version (e.g., `v0.4.0`).
     *   Adjust `WK_PG_DSN` to point to your PostgreSQL instance. If `db` is a service in the same Docker Compose, you can use `db_host: db`.
     *   Update PostgreSQL credentials and database name.
 
 2.  Start Wavekit:
-    \`\`\`shell
+    ```shell
     docker compose up -d
-    \`\`\`
+    ```
 
 ## Verifying the installation
 
