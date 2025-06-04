@@ -1,0 +1,43 @@
+---
+title: "Prerequisites for WaveKit"
+description: "Understand the essential requirements for installing and running WaveKit to connect to your RisingWave clusters."
+---
+
+Before installing WaveKit, ensure your environment meets the following prerequisites for the WaveKit host, its metadata database, and the target RisingWave clusters.
+
+## For the WaveKit host machine
+
+The machine where you install and run the WaveKit server itself needs:
+
+*   Supported operating system:
+    *   If using Docker: Any OS that can run a modern Docker daemon (Linux, macOS, Windows with WSL2).
+    *   If using the binary: A compatible Linux distribution (as specified by the binary release, typically x86_64).
+*   Docker (if using Docker installation methods): A recent version of Docker installed and running.
+*   Resources: As a web application that connects to external services, WaveKit itself is relatively lightweight. Ensure the host has sufficient resources to run the WaveKit process (or Docker container) and its bundled PostgreSQL if that installation method is chosen. Specific needs may vary based on the number of managed clusters and user activity.
+*   Network access:
+    *   Outbound internet access to download WaveKit images/binaries.
+    *   Network connectivity to its PostgreSQL metadata store (local or remote).
+    *   Network connectivity to all target RisingWave clusters on their respective ports.
+
+## For the WaveKit metadata PostgreSQL database
+
+WaveKit uses a PostgreSQL database to store its configuration, such as your RisingWave cluster connection details. It's important to note that this database only stores WaveKit's configuration (like your RisingWave cluster connection details) and does *not* store any of your RisingWave cluster's user data.
+
+*   PostgreSQL instance: A running PostgreSQL server.
+    *   This can be a self-hosted instance, a cloud-managed PostgreSQL service, or the instance bundled with the `...-pgbundle` Docker image. Consult WaveKit release notes or repository for any specific PostgreSQL version recommendations if available.
+*   Network accessibility: The WaveKit server must be able to connect to this PostgreSQL instance.
+*   Database user and permissions: WaveKit requires a database and a user with permissions to create and manage tables within that database.
+*   Connection string (`WK_PG_DSN`): You'll need the DSN (Data Source Name) for WaveKit to connect, in the format: `postgres://<user>:<password>@<host>:<port>/<database_name>`.
+
+## For target RisingWave clusters
+
+These are the RisingWave clusters you intend to connect to and manage via WaveKit:
+
+*   Existing and running: WaveKit connects to already operational RisingWave clusters; it does not provision new ones.
+*   Network connectivity: The WaveKit server must have network access to each RisingWave cluster on the following ports:
+    *   RisingWave SQL Port: Typically `4566`.
+    *   RisingWave Meta Node Port: Typically `5690`.
+    *   RisingWave HTTP Port (on Meta Node): Typically `5691`.
+    *   Ensure any firewalls between the WaveKit server and your RisingWave clusters allow traffic on these ports.
+*   Connection details: You will need the hostnames/IPs and the above port numbers for each RisingWave cluster.
+*   Compatible RisingWave versions: WaveKit is designed to work with recent versions of RisingWave. Check the WaveKit GitHub repository or release notes for specific version compatibility information.
