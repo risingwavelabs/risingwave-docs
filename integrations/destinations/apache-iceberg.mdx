@@ -259,16 +259,11 @@ Currently, RisingWave only supports Iceberg tables in format v2.
 
 ## Exactly-once delivery
 
-Exactly-once semantics ensures that each record is processed and written exactly once, even in the event of system failures or retries.
+RisingWave provides exactly-once delivery semantics for Iceberg sinks. This semantics guarantees that each data event is processed **once and only once**, even in the presence of failures such as retries or restarts. This level of delivery assurance is essential in scenarios where duplicate records can lead to incorrect analytics or data corruption in downstream systems.
 
-For Iceberg sinks, this is achieved through a two-phase commit protocol:
+Exactly-once delivery is achieved through a two-phase commit protocol involving a pre-commit phase and a commit phase. Iceberg’s commit operations are idempotent, which allows RisingWave to safely retry failed transactions without introducing duplicates.
 
-- **Pre-commit phase**: Incoming data is staged and validated. This step ensures that all necessary data are correctly prepared and consistent before committing.
-
-- **Commit phase**: Once all pre-commit steps succeed, the data is atomically committed to the Iceberg table. This guarantees that the operation is either fully applied or not applied at all.
-
-If a failure occurs before the commit, the system can safely retry without introducing duplicates, as Iceberg's commits are **idempotent**. This ensures every record hits the Iceberg sink exactly once, regardless of restarts or failures, maintaining data integrity and consistency across the pipeline.
-
+By default, exactly-once semantics is disabled. To enable it for an Iceberg sink, include `is_exactly_once = 'true'` in the `WITH` clause of the sink definition. Note that enabling this option introduces additional coordination overhead due to metadata pre-commit, which may impact sink performance in high-throughput workloads.
 
 ## Examples
 
