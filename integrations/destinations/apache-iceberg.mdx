@@ -317,6 +317,14 @@ WITH (
 
 Currently, RisingWave only supports Iceberg tables in format v2.
 
+## Exactly-once delivery
+
+RisingWave provides exactly-once delivery semantics for Iceberg sinks. This semantics guarantees that each data event is processed **once and only once**, even in the presence of failures such as retries or restarts. This level of delivery assurance is essential in scenarios where duplicate records can lead to incorrect analytics or data corruption in downstream systems.
+
+Exactly-once delivery is achieved through a two-phase commit protocol involving a pre-commit phase and a commit phase. Iceberg’s commit operations are idempotent, which allows RisingWave to safely retry failed transactions without introducing duplicates.
+
+By default, exactly-once semantics is disabled. To enable it for an Iceberg sink, include `is_exactly_once = 'true'` in the `WITH` clause of the sink definition. Note that enabling this option introduces additional coordination overhead due to metadata pre-commit, which may impact sink performance in high-throughput workloads.
+
 ## Examples
 
 This section includes several examples that you can use if you want to quickly experiment with sinking data to Iceberg.
