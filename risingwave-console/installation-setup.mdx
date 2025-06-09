@@ -1,80 +1,83 @@
 ---
 title: "Installation and setup"
-description: "Step-by-step guide to install and set up WaveKit using Docker, binary, or Docker Compose. Learn about key configuration variables and initial login."
+description: "Step-by-step guide to install and set up RisingWave Console using Docker, binary, or Docker Compose. Learn about key configuration variables and initial login."
 ---
 
-This guide provides instructions for installing and setting up WaveKit. WaveKit requires a PostgreSQL database to store its metadata (like cluster connection details). You can use a bundled PostgreSQL for quick setup or connect to your own existing instance.
+This guide provides instructions for installing and setting up RisingWave Console. RisingWave Console requires a PostgreSQL database to store its metadata (like cluster connection details). You can use a bundled PostgreSQL for quick setup or connect to your own existing instance.
 
 ## Key configuration variables
 
-Before you begin, be aware of these key environment variables that WaveKit uses:
+Before you begin, be aware of these key environment variables that RisingWave Console uses:
 
-*   `WK_PORT`: (Optional) Specifies the port on which the WaveKit server will listen. Defaults to `8020`.
-*   `WK_PG_DSN`: (Required for binary and Docker Compose with external PG) The PostgreSQL connection string for WaveKit's metadata database.
+*   `RCONSOLE_PORT`: (Optional) Specifies the port on which the RisingWave Console server will listen. Defaults to `8020`.
+*   `RCONSOLE_PG_DSN`: (Required for binary and Docker Compose with external PG) The PostgreSQL connection string for RisingWave Console's metadata database.
     *   Format: `postgres://<user>:<password>@<host>:<port>/<database_name>`
-    *   It's important to note that this database is used by WaveKit to store its own operational data and does *not* store your RisingWave cluster's user data.
-*   `WK_ROOT_PASSWORD`: (Optional) Sets the initial password for the `root` user in the WaveKit UI. If not set, it defaults to `root`. It's recommended to set this for any persistent deployment.
-*   `WK_RISECTLDIR`: (Optional) May be used by WaveKit if it needs to locate `risectl` resources for executing commands against your RisingWave cluster. The default behavior usually suffices.
+    *   It's important to note that this database is used by RisingWave Console to store its own operational data and does *not* store your RisingWave cluster's user data.
+*   `RCONSOLE_ROOT_PASSWORD`: (Optional) Sets the initial password for the `root` user in the RisingWave Console UI. If not set, it defaults to `root`. It's recommended to set this for any persistent deployment.
+*   `RCONSOLE_RISECTLDIR`: (Optional) May be used by RisingWave Console if it needs to locate `risectl` resources for executing commands against your RisingWave cluster. The default behavior usually suffices.
 
 ## Option 1: Quick setup with docker (bundled PostgreSQL)
 
-This is the fastest way to try WaveKit. The `risingwavelabs/wavekit:vX.Y.Z-pgbundle` image includes a PostgreSQL server. Replace `vX.Y.Z` with the desired WaveKit version (for example, `v0.4.0`).
+This is the fastest way to try RisingWave Console. The `risingwavelabs/risingwave-console:vX.Y.Z-pgbundle` image includes a PostgreSQL server. Replace `vX.Y.Z` with the desired RisingWave Console version (for example, `v0.4.0`).
 
-A. Ephemeral storage (for testing only)
-All WaveKit metadata will be lost if the container is removed.
+- Ephemeral storage (for testing only)
+  
+  All RisingWave Console metadata will be lost if the container is removed.
 
    ```shell
-   docker run --rm -p 8020:8020 --name wavekit risingwavelabs/wavekit:vX.Y.Z-pgbundle
+   docker run --rm -p 8020:8020 --name risingwave-console risingwavelabs/risingwave-console:vX.Y.Z-pgbundle
    ```
    To set a custom root password:
    ```shell
-   docker run --rm -p 8020:8020 -e WK_ROOT_PASSWORD=your_secure_password --name wavekit risingwavelabs/wavekit:vX.Y.Z-pgbundle
+   docker run --rm -p 8020:8020 -e RCONSOLE_ROOT_PASSWORD=your_secure_password --name risingwave-console risingwavelabs/risingwave-console:vX.Y.Z-pgbundle
    ```
 
-B. Persistent storage (recommended for standalone Docker)
-WaveKit metadata is stored in a Docker volume (`wavekit-data`), ensuring data persists across container restarts or recreations.
+- Persistent storage (recommended for standalone Docker)
+  
+  RisingWave Console metadata is stored in a Docker volume (`risingwave-console-data`), ensuring data persists across container restarts or recreations.
 
    ```shell
-   docker run -d -p 8020:8020 --name wavekit \
-     -e WK_ROOT_PASSWORD=your_secure_password \
-     -v wavekit-data:/var/lib/postgresql \
-     risingwavelabs/wavekit:vX.Y.Z-pgbundle
+   docker run -d -p 8020:8020 --name risingwave-console \
+     -e RCONSOLE_ROOT_PASSWORD=your_secure_password \
+     -v risingwave-console-data:/var/lib/postgresql \
+     risingwavelabs/risingwave-console:vX.Y.Z-pgbundle
    ```
 
 ## Option 2: Setup with binary (requires external PostgreSQL)
 
-This method uses a standalone WaveKit binary and requires you to have a separate, running PostgreSQL database.
+This method uses a standalone RisingWave Console binary and requires you to have a separate, running PostgreSQL database.
 
-1.  Download and install the latest WaveKit binary:
+1.  Download and install the latest RisingWave Console binary:
     ```shell
-    curl https://wavekit-release.s3.ap-southeast-1.amazonaws.com/download.sh | sh
+    curl https://risingwave-console-release.s3.ap-southeast-1.amazonaws.com/download.sh | sh
     ```
-2.  Ensure your PostgreSQL database is accessible and set the `WK_PG_DSN` environment variable. Then, run WaveKit:
+2.  Ensure your PostgreSQL database is accessible and set the `RCONSOLE_PG_DSN` environment variable. Then, run RisingWave Console:
     ```shell
-    WK_PG_DSN="postgres://your_user:your_pass@your_pg_host:5432/wavekit_db" \
-    WK_ROOT_PASSWORD="your_secure_password" \
-    ./wavekit
+    RCONSOLE_PG_DSN="postgres://your_user:your_pass@your_pg_host:5432/dbname" \
+    RCONSOLE_ROOT_PASSWORD="your_secure_password" \
+    ./risingwave-console
+
     ```
-    (Adjust `WK_PG_DSN` and `WK_ROOT_PASSWORD` accordingly.)
+    (Adjust `RCONSOLE_PG_DSN` and `RCONSOLE_ROOT_PASSWORD` accordingly.)
 
 ## Option 3: Recommended setup (docker compose with external PostgreSQL)
 
-This method uses Docker Compose to run WaveKit and allows you to easily manage it alongside your own PostgreSQL instance (either also as a Docker container or an external one).
+This method uses Docker Compose to run RisingWave Console and allows you to easily manage it alongside your own PostgreSQL instance (either also as a Docker container or an external one).
 
 1.  Create a `docker-compose.yaml` file:
 
     ```yaml
     version: "3.9"
     services:
-      wavekit:
-        image: risingwavelabs/wavekit:vX.Y.Z # Use the image without -pgbundle
+      risingwave-console:
+        image: risingwavelabs/risingwave-console:vX.Y.Z # Use the image without -pgbundle
         ports:
-          - "8020:8020" # Or your WK_PORT
+          - "8020:8020" # Or your RCONSOLE_PORT
         environment:
-          WK_PORT: 8020 # Optional, if different from default
-          WK_PG_DSN: postgres://postgres_user:postgres_password@db_host:5432/wavekit_metadata_db # IMPORTANT: Point to your PG
-          WK_ROOT_PASSWORD: your_secure_password
-          # WK_RISECTLDIR: /path/if/needed
+          RCONSOLE_PORT: 8020 # Optional, if different from default
+          RCONSOLE_PG_DSN: postgres://postgres_user:postgres_password@db_host:5432/risingwave_console_metadata_db # IMPORTANT: Point to your PG
+          RCONSOLE_ROOT_PASSWORD: your_secure_password
+          # RCONSOLE_RISECTLDIR: /path/if/needed
         depends_on:
           - db # Only if PostgreSQL is also managed by this Docker Compose file
 
@@ -82,44 +85,42 @@ This method uses Docker Compose to run WaveKit and allows you to easily manage i
       db:
         image: "postgres:15" # Or your preferred version
         ports:
-          - "5432:5432" # Expose if needed externally, otherwise WaveKit connects via Docker network
+          - "5432:5432" # Expose if needed externally, otherwise RisingWave Console connects via Docker network
         environment:
           POSTGRES_USER: postgres_user
           POSTGRES_PASSWORD: postgres_password
-          POSTGRES_DB: wavekit_metadata_db
+          POSTGRES_DB: risingwave_console_metadata_db
         volumes:
-          - postgres_wavekit_data:/var/lib/postgresql/data
+          - postgres_risingwave_console_data:/var/lib/postgresql/data
 
     volumes:
-      postgres_wavekit_data: # For the PostgreSQL container
+      postgres_risingwave_console_data: # For the PostgreSQL container
     ```
     Note:
-    *   Replace `vX.Y.Z` with the specific WaveKit version (for example, `v0.4.0`).
-    *   Adjust `WK_PG_DSN` to point to your PostgreSQL instance. If `db` is a service in the same Docker Compose, you can use `db_host: db`.
+    *   Replace `vX.Y.Z` with the specific RisingWave Console version (for example, `v0.4.0`).
+    *   Adjust `RCONSOLE_PG_DSN` to point to your PostgreSQL instance. If `db` is a service in the same Docker Compose, you can use `db_host: db`.
     *   Update PostgreSQL credentials and database name.
 
-2.  Start WaveKit:
+2.  Start RisingWave Console:
     ```shell
     docker compose up -d
     ```
 
 ## Verifying the installation
 
-After starting WaveKit, check its logs to ensure it started without errors:
-*   If using Docker/Docker Compose: `docker logs wavekit` (or your service name).
+After starting RisingWave Console, check its logs to ensure it started without errors:
+*   If using Docker/Docker Compose: `docker logs risingwave-console` (or your service name).
 *   If using binary: Observe the terminal output.
 
 ## Initial login and dashboard overview
 
-1.  Access WaveKit UI: Open your web browser and navigate to `http://localhost:8020` (or the host/port you configured).
+1.  Access RisingWave Console UI: Open your web browser and navigate to `http://localhost:8020` (or the host/port you configured).
 2.  Login:
     *   Username: `root`
-    *   Password: The password you set via `WK_ROOT_PASSWORD`, or `root` if not set.
-3.  Dashboard: Upon successful login, you'll see the WaveKit dashboard. This is your main entry point to:
+    *   Password: The password you set via `RCONSOLE_ROOT_PASSWORD`, or `root` if not set.
+3.  Dashboard: Upon successful login, you'll see the RisingWave Console dashboard. This is your main entry point to:
     *   Manage **Clusters**: For connecting to your RisingWave instances.
     *   Use the **SQL Console**: For querying your RisingWave data.
     *   Access links to external resources and documentation.
 
-![WaveKit home page](/images/wavekit/wavekit-home-page.png)
-
-You are now ready to [Connect to your RisingWave clusters](/wavekit/connect-risingwave-clusters)!
+You are now ready to [Connect to your RisingWave clusters](/risingwave-console/connect-risingwave-clusters)!
