@@ -43,7 +43,7 @@ WITH (
 | catalog.url | Conditional. The URL of the catalog. It is required when `catalog.type` is not storage. |
 | primary_key | The primary key for an upsert sink. It is only applicable to the upsert mode. |
 | partition_by | Optional. Specify partitioning using column names or transformations. Supported formats include: `column`, `transform(column)`, `transform(n,column)`, and `transform(n, column)`. Transformations can include functions like `bucket` or `truncate`, where `n` is an optional parameter. Ensure that the specified partition fields exist in the schema. |
-| commit_checkpoint_interval | Optional. Commit every N checkpoints (N > 0). Default value is 10. <br/>The behavior of this field also depends on the `sink_decouple` setting:<ul><li>If `sink_decouple` is true (the default), the default value of `commit_checkpoint_interval` is 10.</li> <li>If `sink_decouple` is set to false, the default value of `commit_checkpoint_interval` is 1.</li> <li>If `sink_decouple` is set to false and `commit_checkpoint_interval` is set to larger than 1, an error will occur.</li></ul> |
+| commit_checkpoint_interval | Optional. Commit every N checkpoints (N > 0). Default value is 10. The behavior of this field also depends on the `sink_decouple` setting:<ul><li>If `sink_decouple` is true (the default), the default value of `commit_checkpoint_interval` is 10.</li> <li>If `sink_decouple` is set to false, the default value of `commit_checkpoint_interval` is 1.</li> <li>If `sink_decouple` is set to false and `commit_checkpoint_interval` is set to larger than 1, an error will occur.</li></ul> The approximate time to commit to Iceberg can be calculated as `time = barrier_interval_ms × checkpoint_frequency × commit_checkpoint_interval`. `barrier_interval_ms` and `checkpoint_frequency` are [system parameters](/operate/view-configure-system-parameters) that define the base checkpointing rate; `commit_checkpoint_interval` is configurable in the Iceberg sink.   |
 | commit_retry_num | Optional. The number of times to retry a commit when an Iceberg commit fails. Default is 8. |
 | create_table_if_not_exists | Optional. When set to `true`, it will automatically create a table for the Iceberg sink. |
 | catalog.credential | Optional. Credential for accessing the Iceberg catalog, used to exchange for a token in the OAuth2 client credentials flow. Applicable only in the `rest` catalog. |
@@ -155,9 +155,8 @@ WITH (
     table.name = '<your-table-name>',       -- Table name in S3 Tables
     create_table_if_not_exists = true      -- Optional: Create table if it doesn't exist
 );
-
-<Note>Replace placeholder values (<...>) with your specific AWS account, region, bucket, database, table names, and credentials.</Note>
 ```
+<Note>Replace placeholder values with your specific AWS account, region, bucket, database, table names, and credentials.</Note>
 
 Once created, this sink will write data from `source_table` into the specified Iceberg table (`<your-table-name>`) within the `<your-database-name>` database, using Amazon S3 Tables to manage the table's metadata.
 
