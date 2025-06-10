@@ -108,15 +108,17 @@ File sink currently supports only append-only mode, so please change the query t
 Added in version 2.1.
 </Note>
 
-RisingWave implements batching strategies for file sinks, including [S3](/integrations/destinations/aws-s3), [Google Cloud Storage (GCS)](/integrations/destinations/google-cloud-storage), and [Azure Blob Storage](/integrations/destinations/azure-blob). This optimizes file management by preventing the generation of numerous small files. The batching strategy is available for Parquet, JSON, and CSV encode. 
+RisingWave implements batching strategies for file sinks, including [S3](/integrations/destinations/aws-s3), [Google Cloud Storage (GCS)](/integrations/destinations/google-cloud-storage), [Azure Blob Storage](/integrations/destinations/azure-blob), and [WebHDFS](/integrations/destinations/webhdfs). This optimizes file management by preventing the generation of numerous small files. The batching strategy is available for Parquet, JSON, and CSV encode. 
 
 ### Category
 
 - **Batching based on row numbers**:
-    RisingWave monitors the number of rows written and completes the file once the maximum row count threshold is reached.
+
+    RisingWave monitors the number of rows written and completes the file once the maximum row count threshold is reached. Specify `max_row_count` option in the `WITH` clause to configure this behavior.
 
 - **Batching based on rollover interval**:
-    RisingWave checks the threshold each time a chunk is about to be written and when a barrier is encountered.
+
+    RisingWave checks the threshold each time a chunk is about to be written and when a barrier is encountered. Specify `rollover_seconds` option in the `WITH` clause to configure this behavior.
 
 - If no batching strategy is specified, RisingWave defaults to writing a new file every 10 seconds.
 
@@ -124,7 +126,7 @@ RisingWave implements batching strategies for file sinks, including [S3](/integr
 
 ### File organization
 
-You can use `path_partition_prefix` to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
+You can specify `path_partition_prefix` option in the `WITH` clause to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
 
 Regarding file naming rules, currently, files follow the naming pattern `/Option<path_partition_prefix>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
    
