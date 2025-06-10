@@ -88,6 +88,8 @@ Now, you can create a table using the standard [`CREATE TABLE`](/sql/commands/sq
 
 The `commit_checkpoint_interval` parameter controls how frequently (every N checkpoints) RisingWave commits changes to the Iceberg table, creating a new Iceberg snapshot. The default value is 60. Typically, the checkpoint time is 1s. That means RisingWave will commit changes to the Iceberg table every 60s.
 
+The approximate time to commit to Iceberg can be calculated as `time = barrier_interval_ms × checkpoint_frequency × commit_checkpoint_interval`. `barrier_interval_ms` and `checkpoint_frequency` are [system parameters](/operate/view-configure-system-parameters) that define the base checkpointing rate; `commit_checkpoint_interval` is configurable in the Iceberg table engine.
+
 <Tabs>
     <Tab title="Simple table">
     ```sql
