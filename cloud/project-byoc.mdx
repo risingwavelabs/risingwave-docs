@@ -10,7 +10,7 @@ The Bring Your Own Cloud (BYOC) plan offers you the flexibility to tailor your c
 Before creating a BYOC deployment, familiarize yourself with the following architecture. In the BYOC environment, the entire data plane is deployed in the user's space. To manage the RisingWave clusters within this environment, we deploy two key services for operation delegation:
 
 * **Agent Service**: This service manages Kubernetes (K8s) and cloud resources. It handles tasks such as managing RisingWave Pods, storage services (including AWS S3, GCS, and Azure Blob Storage), IAM roles/accounts associated with the RisingWave cluster, network endpoints, etc.
-* **RWProxy**: This is a TCP proxy that routes SQL statements from the control plane to the appropriate RisingWave instances.
+* **RWProxy**: This is a TCP proxy that routes SQL statements from the control plane to the appropriate RisingWave instances. Control plane will issue SQL queries to retrieve cluster metadata and health status.
 
 ## Create a BYOC environment
 
@@ -20,15 +20,15 @@ Follow the steps below to create your own cloud environment.
 2. Select a deployment mode. Choose **BYOC**.
 3. Select a service provider. Choose your cloud platform (AWS, GCP, or Azure) and your preferred region. See [Resource and permission](#resource-and-permission) for more details.
 
-<Warning>
-If you're using AWS, ensure you're not using the AWS account root user for any deployment or operational tasks. Always use IAM users or roles with appropriate permissions instead.
-</Warning>
+   <Warning>
+   If you're using AWS, ensure you're not using the AWS account root user for any deployment or operational tasks. Always use IAM users or roles with appropriate permissions instead.
+   </Warning>
 
 4. Prepare the BYOC environment section. Click **Setup now** and follow the steps to set up your BYOC environment. Please note that the final command `rwc byoc apply --name xxx` may take 30 to 40 minutes to complete, and a progress bar will keep you informed of its progress. During this time, it's crucial to ensure a stable internet connection. If the command is interrupted or fails due to network instability, you can safely retry it.
-<Tip>
-When you run the command `rwc byoc apply --name xxx`, it will deploy some resources in your AWS/GCP/Azure environment, such as AWS S3/Google Cloud Storage/Azure Blob Storage and EKS/GKE/AKS clusters. Please do not modify the configuration of these resources. If you encounter any issues during this process, please contact our [support team](mailto:cloud-support@risingwave-labs.com).
-</Tip>
-5. Select compute size in RWU. For most users, standard sizes offer the best performance and cost balance. Choose **Customized** if the standard sizes don't meet your workload requirements. To learn more about the nodes, see the [architecture of RisingWave](/reference/architecture).
+   <Tip>
+   When you run the command `rwc byoc apply --name xxx`, it will deploy some resources in your AWS/GCP/Azure environment, such as AWS S3/Google Cloud Storage/Azure Blob Storage and EKS/GKE/AKS clusters. Please do not modify the configuration of these resources. If you encounter any issues during this process, please contact our [support team](mailto:cloud-support@risingwave-labs.com).
+   </Tip>
+5. Select compute size in RWU. For most users, standard sizes offer the best performance and cost balance. Choose **Custom** if the standard sizes don't meet your workload requirements. To learn more about the nodes, see the [architecture of RisingWave](/reference/architecture).
 
 6. Click **Summary**, then **Confirm**, and run the command that appears to set up a BYOC cluster in your environment.
 
@@ -61,24 +61,24 @@ Below are supported custom settings:
 
 1. Create a file at path `BYOC_CONFIG` with desired custom settings. You can include only the settings you need and omit others:
 
-```yaml
-container_security_context:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-    - ALL
-  readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 65521
-  seccompProfile:
-    type: RuntimeDefault
-pod_security_admission_labels:
-  pod-security.kubernetes.io/enforce: restricted
-extra_tags:
-  foo: bar
-aws_settings:
-  eks_node_ami_release_version: 1.32.0-20241225
-```
+   ```yaml
+   container_security_context:
+   allowPrivilegeEscalation: false
+   capabilities:
+      drop:
+      - ALL
+   readOnlyRootFilesystem: true
+   runAsNonRoot: true
+   runAsUser: 65521
+   seccompProfile:
+      type: RuntimeDefault
+   pod_security_admission_labels:
+   pod-security.kubernetes.io/enforce: restricted
+   extra_tags:
+   foo: bar
+   aws_settings:
+   eks_node_ami_release_version: 1.32.0-20241225
+   ```
 
 2. Save the file path `$BYOC_CONFIG`, as you will use it in the later steps.
 
@@ -144,11 +144,46 @@ When you customize your cloud platform, refer to the following notes to see what
    For optimal performance, the quota for managed node groups per cluster should be increased to 36 or more. See [Service quotas](https://docs.aws.amazon.com/eks/latest/userguide/service-quotas.html#sq-text) for more details.
 * **Required permissions for BYOC environment creation/deletion**
 
-<Warning>
-Do not use the AWS account root user for deployment or operations. Instead, create an IAM user/role with appropriate administrator permissions following AWS security best practices.
-</Warning>
+   The IAM role/user requires the following roles to create or delete a BYOC environment:
 
-   We recommend creating an IAM role/user with Administrator permissions for the AWS account to deploy the infrastructure. This follows the principle of least privilege and AWS security best practices.
+   - AmazonDynamoDBFullAccess
+   - AmazonEC2FullAccess
+   - AmazonElasticContainerRegistryPublicReadOnly
+   - AmazonPrometheusFullAccess
+   - AmazonS3FullAccess
+   - AmazonVPCFullAccess
+   - AWSKeyManagementServicePowerUser
+   - CloudWatchLogsFullAccess
+   - IAMFullAccess
+
+   Additionally, attach a policy that includes the following permissions:
+
+   ```json
+   {
+      "Version": "2012-10-17",
+      "Statement": [
+         {
+               "Sid": "BYOCAdditionalAccess",
+               "Effect": "Allow",
+               "Action": [
+                  "eks:*",
+                  "kms:*",
+                  "rds:DescribeDBInstances",
+                  "rds:StopDBInstance",
+                  "rds:StartDBInstance",
+                  "rds:CreateDBSubnetGroup",
+                  "rds:DeleteDBSubnetGroup",
+                  "rds:ModifyDBSubnetGroup",
+                  "rds:DescribeDBSubnetGroups",
+                  "rds:AddTagsToResource",
+                  "rds:RemoveTagsFromResource",
+                  "rds:ListTagsForResource"
+               ],
+               "Resource": "*"
+         }
+      ]
+   }
+   ```
 
 * **Resources provisioned in BYOC environment**
 
@@ -157,17 +192,51 @@ Do not use the AWS account root user for deployment or operations. Instead, crea
    * 1 EKS cluster: to host all service and RisingWave clusters workloads.
    * 2 S3 buckets: for RisingWave cluster data and infra state data respectively.
    * 2 Internal network load balancer: to expose Agent Service and RWProxy.
-   * 1 External network load balancer (optional): to expose RWProxy to the Internet.
-   * A few IAM roles for EKS and K8s workloads, and Each role is granted the least privilege it requires.
+   * (Optional) 1 External network load balancer: to expose RWProxy to the Internet.
+   * A few IAM roles for EKS and K8s workloads, and each role is granted the least privilege it requires.
+
 * **Required permission for deployed services**
-   * ec2:DescribeVpcEndpoints
-   * ec2:DescribeVpcEndpointServices
-   * ec2:DescribeSubnets
-   * s3:\*
-   * aps:GetLabels
-   * aps:GetMetricMetadata
-   * aps:GetSeries
-   * aps:QueryMetrics
+   
+   The deployed service will need the permissions to perform the following actions:
+
+   - AmazonDynamoDBFullAccess
+   - AmazonEC2FullAccess
+   - AmazonElasticContainerRegistryPublicReadOnly
+   - AmazonPrometheusFullAccess
+   - AmazonS3FullAccess
+   - AmazonVPCFullAccess
+   - AWSKeyManagementServicePowerUser
+   - CloudWatchLogsFullAccess
+   - IAMFullAccess
+
+   Additionally, attach a policy that includes the following permissions:
+
+   ```json
+   {
+      "Version": "2012-10-17",
+      "Statement": [
+         {
+               "Sid": "BYOCAdditionalAccess",
+               "Effect": "Allow",
+               "Action": [
+                  "eks:*",
+                  "kms:*",
+                  "rds:DescribeDBInstances",
+                  "rds:StopDBInstance",
+                  "rds:StartDBInstance",
+                  "rds:CreateDBSubnetGroup",
+                  "rds:DeleteDBSubnetGroup",
+                  "rds:ModifyDBSubnetGroup",
+                  "rds:DescribeDBSubnetGroups",
+                  "rds:AddTagsToResource",
+                  "rds:RemoveTagsFromResource",
+                  "rds:ListTagsForResource"
+               ],
+               "Resource": "*"
+         }
+      ]
+   }
+   ```
 
 </Tab>
 <Tab title="GCP">
@@ -183,18 +252,16 @@ Do not use the AWS account root user for deployment or operations. Instead, crea
 * **Required permission for BYOC environment creation/deletion**
 
    Before running the command-line interface to create or delete a BYOC environment, you need to have a Google IAM (IAM user/Service account) with the following roles.
+   * [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#container.admin)
    * [Compute Network Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.networkAdmin)
    * [Compute Security Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.securityAdmin)
-   * [DNS Administrator](https://cloud.google.com/iam/docs/understanding-roles#dns.admin)
-   * [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#container.admin)
+   * [Storage Admin](https://cloud.google.com/iam/docs/understanding-roles#storage.admin)
    * [Security Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.securityAdmin)
    * [Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin)
-   * [Service Account User](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountUser)
-   * [Storage Admin](https://cloud.google.com/iam/docs/understanding-roles#storage.admin)
 
-<Note>
-These permissions are only required for creating or deleting a BYOC environment. Once the environment is up and running, limited permissions are needed to operate the services.
-</Note>
+   <Note>
+   These permissions are only required for creating or deleting a BYOC environment. Once the environment is up and running, limited permissions are needed to operate the services.
+   </Note>
 
 * **Resources provisioned in BYOC environment**
 
@@ -203,23 +270,33 @@ These permissions are only required for creating or deleting a BYOC environment.
    * 1 GKE cluster: to host all service and RisingWave clusters workloads.
    * 2 GCS buckets: for RisingWave cluster data and infra state data respectively.
    * 2 Internal network load balancer: to expose Agent Service and RWProxy.
-   * 1 External network load balancer (optional): to expose RWProxy to the Internet.
-   * A few IAM roles for EKS and K8s workloads, and each role is granted the least privilege it requires.
+   *  (Optional) 1 External network load balancer: to expose RWProxy to the Internet.
+   * A few service accounts for GKE and K8s workloads, and each role is granted the least privilege it requires.
 * **Required permission for deployed services**
 
    We will provision a Google Service Account for the deployed services. The services require the following permissions:
-   * [Storage Admin](https://cloud.google.com/iam/docs/understanding-roles#storage.admin) to manage GCS objects and bucket access for RisingWave clusters.
-   * [Compute Network Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.networkAdmin) to manage private links for the source/sink of RisingWave clusters.
-   * [Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin) to manage the IAM service account RisingWave clusters.
+   - [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#container.admin) for infra management.
+   - [Compute Network Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.networkAdmin) for managing private links for the source and sink of RisingWave clusters and infra management.
+   - [Compute Security Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.securityAdmin) for infra management.
+   - [Storage Admin](https://cloud.google.com/iam/docs/understanding-roles#storage.admin) for managing GCS objects and bucket access for RisingWave clusters and infra management.
+   - [Security Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.securityAdmin) for infra management.
+   - [Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin) for managing the IAM service account RisingWave clusters runs as and infra management.
 </Tab>
 <Tab title="Azure">
 * **Required feature flags**
 
-   You need to enable the feature flag `EnableAPIServerVnetIntegrationPreview` for the subscription to deploy a BYOC environment. See [Feature flag](https://learn.microsoft.com/en-us/azure/aks/api-server-vnet-integration#register-the-enableapiservervnetintegrationpreview-feature-flag) for more details.
+   Feature flag `EnableAPIServerVnetIntegrationPreview` must be enabled for the subscription to deploy a BYOC environment, see [Instruction](https://learn.microsoft.com/en-us/azure/aks/api-server-vnet-integration#register-the-enableapiservervnetintegrationpreview-feature-flag) for more details.
+
+   The following providers must be registered in the subscription, see [Prerequisites](https://learn.microsoft.com/en-us/azure/azure-monitor/containers/kubernetes-monitoring-enable?tabs=cli#prerequisites) for more details.
+   - Microsoft.ContainerService
+   - Microsoft.Insights
+   - Microsoft.AlertsManagement
+   - Microsoft.Monitor
+
 * **Required permission for BYOC environment creation/deletion**
 
    We recommend utilizing a service principal or user with owner permissions of the Azure subscription to provision the infrastructure.
-   
+
    Additionally, the service principal or user should be granted the following Azure AD API permissions.
 
    For service principal authentication (one of the following combinations):
@@ -236,9 +313,9 @@ These permissions are only required for creating or deleting a BYOC environment.
    We will set up the following resources in a BYOC environment:
    * 1 VPC: including VPC, its subnets, firewalls, IPs to host all BYOC resources.
    * 1 AKS cluster: to host all service and RisingWave clusters workloads.
-   * 2 Azure storage account with on blob container in it: for RisingWave cluster data and infra state data respectively.
+   * 2 Azure storage accounts each with one blob container in it: for RisingWave cluster data and infra state data respectively.
    * 2 Internal network load balancer: to expose Agent Service and RWProxy.
-   * 1 External network load balancer (optional): to expose RWProxy to the Internet.
+   * (Optional) 1 External network load balancer: to expose RWProxy to the Internet.
    * A few user-assigned identities for AKS workloads, and each identity is granted the least privilege it requires.
 * **Required permission for deployed services**
    * Role [Storage Blob Data Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/storage#storage-blob-data-contributor)
@@ -246,8 +323,35 @@ These permissions are only required for creating or deleting a BYOC environment.
    * Role [Managed Identity Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/identity#managed-identity-contributor)
    * Role [Role Based Access Control Administrator](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/general#role-based-access-control-administrator)
    * Role [Monitoring Reader](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor#monitoring-reader)
-   * A custom role with `Microsoft.Network/networkInterfaces/read` permission
-   * A custom role with `Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials/*` permission
+   * A custom role with the following permissions:
+   <Accordion title="Click to see all permissions.">
+   - Microsoft.Resources/subscriptions/resourceGroups/read
+   - Microsoft.Resources/subscriptions/resourceGroups/write
+   - Microsoft.Resources/subscriptions/resourceGroups/delete
+   - Microsoft.Resources/subscriptions/resourcegroups/deployments/read
+   - Microsoft.Resources/subscriptions/resourcegroups/deployments/write
+   - Microsoft.Resources/subscriptions/resourcegroups/resources/read
+   - Microsoft.Resources/subscriptions/resourcegroups/deployments/operationstatuses/read
+   - Microsoft.Resources/subscriptions/resourcegroups/deployments/operations/read
+   - Microsoft.ManagedServices/*
+   - microsoft.monitor/accounts/read
+   - microsoft.monitor/accounts/write
+   - microsoft.monitor/accounts/delete
+   - microsoft.monitor/accounts/privateEndpointConnectionsApproval/action
+   - Microsoft.Authorization/roleAssignments/read
+   - Microsoft.Authorization/roleAssignments/write
+   - Microsoft.Authorization/roleAssignments/delete
+   - Microsoft.OperationalInsights/workspaces/read
+   - Microsoft.OperationalInsights/workspaces/delete
+   - Microsoft.OperationalInsights/workspaces/sharedkeys/read
+   - Microsoft.OperationsManagement/solutions/read
+   - Microsoft.OperationsManagement/solutions/write
+   - Microsoft.OperationsManagement/solutions/delete
+   - Microsoft.ManagedIdentity/userAssignedIdentities/assign/action
+   - Microsoft.DBforPostgreSQL/flexibleServers/start/action
+   - Microsoft.DBforPostgreSQL/flexibleServers/stop/action
+   - Microsoft.DBforPostgreSQL/flexibleServers/read
+   </Accordion>
 
 </Tab>
 </Tabs>
@@ -273,7 +377,7 @@ Follow the steps below to delete a BYOC environment deployed in your cloud.
 2. Delete resources you created that are not managed by RisingWave, such as VPC Peerings, GCP Firewalls, and other common resources you might have used.
 3. Open the terminal and execute the following commands:
 
-```bash
-$ rwc byoc terminate --name default-byoc-environment # This may take 2-3 minutes.
-$ rwc byoc delete --name default-byoc-environment # This may take 30-40 minutes.
-```
+   ```bash
+   $ rwc byoc terminate --name default-byoc-environment # This may take 2-3 minutes.
+   $ rwc byoc delete --name default-byoc-environment # This may take 30-40 minutes.
+   ```

@@ -8,20 +8,7 @@ GitHub webhook allows you to build or set up integrations that subscribe to cert
 
 This guide will walk through the steps to set up RisingWave as a destination for GitHub webhooks.
 
-## 1. Optional: Create a secret in RisingWave
-
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from GitHub. This is the recommended way to verify the signature. You could also use a raw string to verify.
-
-```sql
-CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
-```
-
-| Parameter or clause | Description |
-| :--------- | :-----------|
-|`test_secret`| The name of the secret.|
-| `TEST_WEBHOOK`| The secret string used for signing and verifying webhook payloads. Replace this with a secure, random string.|
-
-## 2. Create a table in RisingWave
+## 1. Create a table in RisingWave
 
 Next, create a table configured to accept webhook data from GitHub.
 
@@ -40,6 +27,7 @@ CREATE TABLE wbhtable (
 | Parameter or clause | Description |
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
+| `SECRET <secret>` | Use an existing [secret](/operate/manage-secrets) to verify incoming webhookd requests. This is optional. You can also use a raw string to verify.|
 | `headers->>'...'` | Extracts the signature provided by GitHub in the `x-hub-signature-256` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
 |`'sha256=' \|\| encode(...)` | Computes the expected signature. In the example above, it generates an `HMAC SHA-256` hash of the payload (`data`) using the secret (`test_secret`), encodes it in hexadecimal, and prefixes it with `sha256=`.|
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
@@ -60,7 +48,7 @@ CREATE TABLE wbhtable (
 );
 ```
 
-## 3. Set up webhook in GitHub
+## 2. Set up webhook in GitHub
 
 After configuring RisingWave to accept webhook data, set up GitHub to send events to your RisingWave instance.
 
@@ -101,11 +89,11 @@ Configure the webhook settings:
 Click **Add webhook** at the bottom of the page to save.
 </Step>
 </Steps>
-## 4. Push data from GitHub via webhook
+## 3. Push data from GitHub via webhook
 
 With the webhook configured, GitHub will automatically send HTTP POST requests to your RisingWave webhook URL whenever the specified events occur (e.g., pushes to the repository). RisingWave will receive these requests, validate the signatures, and insert the payload data into the target table.
 
-## 5. Further event processing
+## 4. Further event processing
 The data in the table is already ready for further processing. You can access the fields using `data->'field_name'` in SQL queries.
 
 You can create a materialized view to extract specific fields from the JSON payload.

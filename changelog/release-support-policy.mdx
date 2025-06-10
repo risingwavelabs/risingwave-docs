@@ -4,7 +4,7 @@ sidebarTitle: Release & support policy
 description: "Provides a summary of recent version support end dates and details the RisingWave versioning scheme (SemVer), release cadence, support rules, backporting policy, and deprecation communication."
 ---
 
-This document summarizes support end dates for recent RisingWave releases **and** provides a comprehensive overview of the software release lifecycle, including the versioning scheme, release cadence, and the detailed version support and deprecation policy. It helps users of RisingWave Cloud and the on-premises Premium edition understand how long different versions are supported and plan upgrades accordingly.
+This document summarizes support end dates for recent RisingWave releases and provides a comprehensive overview of the software release lifecycle, including the versioning scheme, release cadence, and the detailed version support and deprecation policy. It helps users of RisingWave Cloud and the on-premises Premium edition understand how long different versions are supported and plan upgrades accordingly.
 
 This policy focuses on *software versions*. For the lifecycle and deprecation of *individual features*, see [RisingWave feature lifecycle and deprecation](/changelog/product-lifecycle).
 
@@ -12,13 +12,16 @@ This policy focuses on *software versions*. For the lifecycle and deprecation of
 
 The following table summarizes support end dates for recent RisingWave releases. Refer to the detailed policy below for the rules governing these dates.
 
+**Future support-end dates will be updated as new versions are released.**
+
 | Version | Release Date | Support Ends                                           |
 | :------ | :----------- | :----------------------------------------------------- |
 | `v1.10` | Jul 30, 2024 | Jan 26, 2025                                           |
-| `v2.0`  | Sep 26, 2024 | Feb 11, 2025 *(Policy verification recommended)*       |
-| `v2.1`  | Dec 7, 2024  | May 7, 2025                                |
+| `v2.0`  | Sep 26, 2024 | Feb 11, 2025      |
+| `v2.1`  | Dec 7, 2024  | April 14, 2025                                |
 | `v2.2`  | Feb 11, 2025 | May 22, 2025 |
-| `v2.3`  | May 7, 2025  | July 22, 2025 or upon the release of `v2.5`, whichever is later|
+| `v2.3`  | April 14, 2025  | Upon the release of `v2.5`|
+| `v2.4`  | May 22, 2025 | Upon the release of `v2.6`|
 
 ## Policy details
 
@@ -27,15 +30,15 @@ The following table summarizes support end dates for recent RisingWave releases.
 RisingWave adheres to the [Semantic Versioning (SemVer)](https://semver.org/) standard, using a three-part numbering system: `Major.Minor.Patch`. Understanding this scheme is crucial for interpreting the support policy.
 
 *   **Major version (e.g., `2.0.0`):** Represents significant, milestone releases. These releases often introduce substantial new features, architectural changes, and *may include breaking changes*. Breaking changes might require data migration or adjustments to user workflows.
-*   **Minor version (e.g., `2.1.0`):** Represents regular releases with new features, enhancements, and bug fixes. Minor versions are designed to be *backward compatible* within the same major version. Upgrading between minor versions within the same major release (e.g., `2.1.0` to `2.2.0`) should not break existing functionality unless explicitly communicated.
-*   **Patch version (e.g., `2.1.1`):** Represents releases focused solely on bug fixes and security patches. Patch versions do not introduce new features or breaking changes.
+*   **Minor version (e.g., `2.1.0`):** Represents regular releases with new features, enhancements, and bug fixes. 
+*   **Patch version (e.g., `2.1.1`):** Represents releases focused solely on bug fixes and security patches. Normally the latest patch version is the recommended version within a minor version.
 
 ### 2. Release cadence
 
 RisingWave aims for a predictable release schedule:
 
 *   **Major versions:** Typically released annually.
-*   **Minor versions:** Typically released every 45 days.
+*   **Minor versions:** Typically released every 45-75 days.
 *   **Patch versions:** Released as needed to address critical bugs and security vulnerabilities.
 
 ### 3. Version support and deprecation policy
@@ -46,15 +49,12 @@ This section defines the rules for discontinuing support for older RisingWave ve
 
     *   Support for a major version ends 4 months *after* the release of the subsequent major version.
 
-    *   **Example:** If RisingWave `3.0.0` is released on September 1st, 2025, then support for all `2.x.x` versions (e.g., `2.10.5`, `2.9.1`, `2.0.0`) ends on January 1st, 2026. This provides a 4-month window for users to migrate.
+    *   **Example:** If RisingWave `3.0.0` is released on September 1st, 2025, then support for all `2.x.x` versions (e.g., `2.10.5`) that have not already been deprecated ends on January 1st, 2026. This provides a 4-month window for users to migrate.
 
 *   **3.2 Minor version deprecation:**
 
-    *   Support for a minor version continues for a minimum of 2.5 months, *or* until two newer minor versions have been released, *whichever period is longer*.
-
-    *   **Example 1 (Minimum duration applies):** Version `2.1.0` is released on January 1st. The next two minor versions (`2.2.0`, `2.3.0`) are released quickly, by March 1st (less than 2.5 months later). Because the 2.5-month minimum duration is longer than the time it took to release two newer versions, support for `2.1.0` continues until March 15th (2.5 months after its January 1st release).
-
-    *   **Example 2 (Two newer versions apply):** Version `2.1.0` is released on January 1st, 2025. Versions `2.2.0` and `2.3.0` are released on February 15th and March 30th respectively. Support for `2.1.0` ends on March 30th, 2025 (when `2.3.0` is released), as this is *longer* than the 2.5-month minimum.
+    * Support for a minor version X.Y ends upon the release of minor version X.Y+2. This means that at any given time, the two most recent minor versions are officially supported.
+    * **Example**: When version 2.3.0 is released, support for version 2.1.0 officially ends. At that point, the two supported minor versions are 2.3.0 (the latest) and 2.2.0. Users on 2.1.0 or older versions would need to upgrade to 2.2.0 or 2.3.0 to receive support.
 
 <Note>To address performance issues observed with etcd, we **strongly encourage** all users of RisingWave v2.0 and earlier to upgrade to v2.1. Starting with v2.1, RisingWave supports SQL backends (PostgreSQL, MySQL, and SQLite) for metadata storage. Migrating to a SQL backend provides benefits such as improved stability, performance, and observability.</Note>
 

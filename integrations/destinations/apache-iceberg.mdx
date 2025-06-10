@@ -26,7 +26,7 @@ WITH (
 
 ### Basic parameters
 
-| Parameter Names | Description |
+| Parameter name | Description |
 | :------------- | :---------- |
 | type | Required. Allowed values: `append-only` and `upsert`. |
 | force_append_only | Optional. If true, forces the sink to be append-only, even if it cannot be. |
@@ -39,7 +39,7 @@ WITH (
 | table.name | Required. The name of the target Iceberg table. |
 | catalog.name | Conditional. The name of the Iceberg catalog. It can be omitted for storage catalog but required for other catalogs. |
 | catalog.type | Optional. The catalog type used in this table. Currently, the supported values are storage, rest, hive, jdbc, and glue. If not specified, storage is used. For details, see [Catalogs](#catalogs). |
-| warehouse.path | Conditional. The path of the Iceberg warehouse. Currently, only S3-compatible object storage systems, such as AWS S3 and MinIO, are supported. It's required if the `catalog.type` is not rest. |
+| warehouse.path | Conditional. The path of the Iceberg warehouse. It's required if the `catalog.type` is not rest. |
 | catalog.url | Conditional. The URL of the catalog. It is required when `catalog.type` is not storage. |
 | primary_key | The primary key for an upsert sink. It is only applicable to the upsert mode. |
 | partition_by | Optional. Specify partitioning using column names or transformations. Supported formats include: `column`, `transform(column)`, `transform(n,column)`, and `transform(n, column)`. Transformations can include functions like `bucket` or `truncate`, where `n` is an optional parameter. Ensure that the specified partition fields exist in the schema. |
@@ -51,6 +51,68 @@ WITH (
 | catalog.oauth2_server_uri | Optional. The `oauth2_server_uri` for accessing the Iceberg catalog, serving as the token endpoint URI to fetch a token if the `rest` catalog is not the authorization server. Applicable only in the `rest` catalog. |
 | catalog.scope | Optional. Scope for accessing the Iceberg catalog, providing additional scope for OAuth2. Applicable only in the `rest` catalog. |
 
+### Use GCS as object storage for Iceberg
+
+<Note>
+Added in version 2.3.
+</Note>
+
+RisingWave supports creating Iceberg sinks on GCS with catalog types `storage` or `rest`. To enable it, configure the following specific parameters:
+
+| Parameter name | Description |
+| :------------- | :---------- |
+| warehouse.path             | Specifies the Google Cloud Storage path. |
+| gcs.credential             | Base64-encoded credential key obtained from the GCS service account key JSON file. To get this JSON file, refer to the [guides of GCS documentation](https://cloud.google.com/iam/docs/keys-create-delete#iam-service-account-keys-create-console). <ul><li>To encode it in base64, run the following command: <code>cat ~/Downloads/rwc-byoc-test-464bdd851bce.json &#124; base64 -b 0 &#124; pbcopy</code>, and then paste the output as the value for this parameter.</li><li>If this field is not specified, ADC (application default credentials) will be used.</li></ul>|
+
+```sql Example
+CREATE SINK sink_t FROM t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+    database.name = 'public',
+    table.name = 't',
+    catalog.name = 'demo',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181',
+    warehouse.path = 'gs://bucket/path',
+    gcs.credential = 'xxxxxxxx'
+);
+```
+For more details on sinking data to GCS, see [Sink data to Google Cloud Storage](/integrations/destinations/google-cloud-storage).
+
+### Use Azure Blob as object storage for Iceberg
+
+<Note>
+Added in version 2.4.
+</Note>
+
+RisingWave supports creating Iceberg sinks on Azure Blob with catalog types `storage` or `rest`. To enable it, configure the following specific parameters:
+
+| Parameter name | Description |
+| :------------- | :---------- |
+| warehouse.path             | Specifies the Azure Blob Storage path. |
+| azblob.account_name |	The Azure Storage account name used to authenticate access. |
+| azblob.account_key | The Azure Storage account key associated with the account name, used for authentication. |
+| azblob.endpoint_url |  The full endpoint URL of the Azure Blob service. |
+
+```sql Example
+CREATE SINK sink1 AS select * from mv1 WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    database.name = 'demo_db',
+    table.name = 'test_azblob_iceberg',
+    catalog.name = 'demo',
+    catalog.type = 'storage',
+    warehouse.path = 'azblob://<demo>',
+    azblob.account_name = 'xxx',
+    azblob.account_key = 'xxx',
+    azblob.endpoint_url = 'https://<account_name>.blob.core.windows.net/',
+    ...
+);
+```
+
+For more details on sinking data to Azure Blob, see [Sink data to Azure Blob](/integrations/destinations/azure-blob).
+
 ### Use Amazon S3 Tables with the Iceberg sink
 
 You can configure the RisingWave Iceberg sink connector to use Amazon S3 Tables as its catalog. This setup allows RisingWave to sink data into Iceberg tables managed by the AWS native S3 Tables catalog service.
@@ -59,15 +121,13 @@ To achieve this, specify the `rest` catalog type within your `CREATE SINK` state
 
 **Required REST Catalog Parameters for S3 Tables:**
 
-| Parameter Name                | Description                                                      | Value for S3 Tables |
+| Parameter name                | Description                                                      | Value for S3 Tables |
 | :---------------------------- | :--------------------------------------------------------------- | :------------------ |
 | `catalog.rest.signing_region` | The AWS region for signing REST catalog requests.                | e.g., `us-east-1`   |
 | `catalog.rest.signing_name`   | The service name for signing REST catalog requests.              | `s3tables`          |
 | `catalog.rest.sigv4_enabled`  | Enables SigV4 signing for REST catalog requests. Set to `true`. | `true`              |
 
-**Example `CREATE SINK` Statement:**
-
-```sql
+```sql Example
 CREATE SINK my_s3_tables_sink FROM source_table
 WITH (
     connector = 'iceberg',
@@ -257,6 +317,14 @@ WITH (
 
 Currently, RisingWave only supports Iceberg tables in format v2.
 
+## Exactly-once delivery
+
+RisingWave provides exactly-once delivery semantics for Iceberg sinks. This semantics guarantees that each data event is processed **once and only once**, even in the presence of failures such as retries or restarts. This level of delivery assurance is essential in scenarios where duplicate records can lead to incorrect analytics or data corruption in downstream systems.
+
+Exactly-once delivery is achieved through a two-phase commit protocol involving a pre-commit phase and a commit phase. Iceberg’s commit operations are idempotent, which allows RisingWave to safely retry failed transactions without introducing duplicates.
+
+By default, exactly-once semantics is disabled. To enable it for an Iceberg sink, include `is_exactly_once = 'true'` in the `WITH` clause of the sink definition. Note that enabling this option introduces additional coordination overhead due to metadata pre-commit, which may impact sink performance in high-throughput workloads.
+
 ## Examples
 
 This section includes several examples that you can use if you want to quickly experiment with sinking data to Iceberg.
@@ -389,25 +457,4 @@ WITH (
 );
 ```
 
-### Iceberg sink on GCS
 
-<Note>
-Added in version 2.3.
-</Note>
-
-RisingWave supports creating Iceberg sinks on GCS with catalog types `storage` or `rest`. For more information about `gcs.credential`, see [parameters](/integrations/destinations/google-cloud-storage#parameters).
-
-```sql 
-CREATE SINK sink_t FROM t WITH (
-    connector = 'iceberg',
-    type = 'append-only',
-    force_append_only = 'true',
-    database.name = 'public',
-    table.name = 't',
-    catalog.name = 'demo',
-    catalog.type = 'rest',
-    catalog.uri = 'http://127.0.0.1:8181',
-    warehouse.path = 'gs://bucket/path',
-    gcs.credential = 'xxxxxxxx'
-);
-```
