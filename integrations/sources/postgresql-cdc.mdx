@@ -159,7 +159,7 @@ Unless specified otherwise, the fields listed are required. Note that the value 
 | schema.name               | Optional. Name of the schema. By default, the value is public.                                                                                                                                                                                                                                                                                                                                              |
 | table.name                | Name of the table that you want to ingest data from.                                                                                                                                                                                                                                                                                                                                                        |
 | slot.name                 | Optional. The [replication slot](https://www.postgresql.org/docs/14/logicaldecoding-explanation.html#LOGICALDECODING-REPLICATION-SLOTS) for this PostgreSQL source. By default, a unique slot name will be randomly generated. Each source should have a unique slot name. Valid replication slot names must contain only lowercase letters, numbers, and underscores, and be no longer than 63 characters. |
-|auto.schema.change| Optional. Specify whether you want to enable replicating Postgres table schema change.|
+|auto.schema.change| Optional. Specify whether you want to enable automatic schema changes.|
 |ssl.mode| Optional. The `ssl.mode` parameter determines the level of SSL/TLS encryption for secure communication with Postgres. Accepted values are `disabled`, `preferred`, `required`, `verify-ca`, and `verify-full`. The default value is `disabled`. <ul><li>When set to `required`, it enforces TLS for establishing a connection; </li><li>When set to `verify-ca`, it verifies that the server is trustworthy by checking the certificate chain up to the root certificate stored on the client;</li><li>When set to `verify-full`, it verifies the certificate and also ensures the server hostname matches the name in the certificate.</li></ul> |
 | ssl.root.cert | Optional. Specify the root certificate secret. You must [create secret](/operate/manage-secrets) first and then use it here.|
 | publication.name          | Optional. Name of the publication. By default, the value is `rw_publication`.                                                                                                                                                                                                                                           |
@@ -374,13 +374,6 @@ CREATE TABLE {{ this }} (
 ```
 
 ## Automatically map upstream table schema
-<Tip>
-**PREMIUM EDITION FEATURE**
-
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
-</Tip>
 
 RisingWave supports automatically mapping the upstream table schema when creating a CDC table from a PostgreSQL CDC source. Instead of defining columns individually, you can use `*` when creating a table to ingest all columns from the source table. Note that `*` cannot be used if other columns are specified in the table creation process.
 
@@ -407,6 +400,63 @@ And this it the output of `DESCRIBE supplier;`
  table description | supplier          |           |
 (10 rows)
 
+```
+
+## Automatic schema changes
+
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+</Tip>
+
+RisingWave supports auto schema changes in Postgres CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.
+
+Currently, RisingWave supports the `ALTER TABLE` command with the following operations, and we plan to add support for additional DDL operations in future releases.
+
+* `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table. Only constant value expressions are supported for the default value.
+* `DROP COLUMN`: Allows you to remove an existing column from a table.
+
+To enable this feature, set `auto.schema.change = 'true'` in your PostgreSQL CDC source configuration:
+
+```SQL
+CREATE SOURCE pg_source WITH (
+ connector = 'postgres-cdc',
+ hostname = 'localhost',
+ port = '5432',
+ username = 'your_user',
+ password = 'your_password',
+ database.name = 'your_database',
+ schema.name = 'public',
+ auto.schema.change = 'true'
+);
+```
+
+Create a RisingWave table from the PostgreSQL source:
+
+```SQL
+CREATE TABLE my_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+)
+FROM pg_source TABLE 'public.my_upstream_table';
+```
+
+Add columns to the PostgreSQL table and observe the changes in RisingWave:
+
+```sql
+-- In your PostgreSQL database:
+ALTER TABLE my_upstream_table ADD COLUMN v1 VARCHAR(255);
+ALTER TABLE my_upstream_table ADD COLUMN v2 NUMERIC(5,2);
+```
+
+After the changes in the upstream table, the schema of the table in RisingWave will also be changed. You can verify this by running `DESCRIBE my_table;` in RisingWave.
+
+```sql
+-- In RisingWave:
+DESCRIBE my_table;
 ```
 
 ## Ingest data from a partitioned table
