@@ -60,76 +60,79 @@ RisingWave supports both direct data insertion and streaming data ingestion from
 
 To keep things simple, we'll demonstrate the approach of direct data insertion. Let's create a table and insert some data.
 
-For instance, we can create a table named `exam_scores` to store information about examination scores.
+For instance, we can create a table named `credit_card_transactions` to store information about credit card usage.
 
 ```sql Create the table
-CREATE TABLE exam_scores (
-  score_id int,
-  exam_id int,
-  student_id int,
-  score real,
-  exam_date date
+CREATE TABLE credit_card_transactions (
+  card_id VARCHAR,
+  amount DECIMAL,
+  ts TIMESTAMP
 );
 ```
 
 ```sql Insert five rows of data
-INSERT INTO exam_scores (score_id, exam_id, student_id, score, exam_date)
+INSERT INTO credit_card_transactions (card_id, amount, ts)
 VALUES
-  (1, 101, 1001, 85.5, '2022-01-10'),
-  (2, 101, 1002, 92.0, '2022-01-10'),
-  (3, 101, 1003, 78.5, '2022-01-10'),
-  (4, 102, 1001, 91.2, '2022-02-15'),
-  (5, 102, 1003, 88.9, '2022-02-15');
+  ('card_123', 1200.00, '2022-01-01 10:00:00'),
+  ('card_123', 1800.00, '2022-01-01 10:00:20'),
+  ('card_123', 1900.00, '2022-01-01 10:00:40'),
+  ('card_456', 4000.00, '2022-01-01 10:01:00'),
+  ('card_456', 950.00,  '2022-01-01 10:01:30');
 ```
-
 ## Step 4: Analyze and query data
-As an example, let's create a materialized view to calculate the average score for each examination, and then view the current result of the materialized view.
 
-```sql Create a materialized view
-CREATE MATERIALIZED VIEW average_exam_scores AS
+Next, we will detect potentially fraudulent behavior by identifying any card that spends more than $5000 within a one-minute window.
+
+To do this, we’ll use a **materialized view**. A materialized view in RisingWave is not a static snapshot or a one-time query. Instead, it's a continuously maintained result that automatically stays up to date as new data arrives. You can think of it as a live dashboard behind a SQL query.
+
+```sql Create a materialized view that detects high-spending cards in 1-minute windows
+CREATE MATERIALIZED VIEW fraud_alerts AS
 SELECT
-    exam_id,
-    AVG(score) AS average_score,
-    COUNT(score) AS total_scores
+  card_id,
+  window_start,
+  window_end,
+  SUM(amount) AS total_amount
 FROM
-    exam_scores
+  TUMBLE(
+    credit_card_transactions,  -- the source table
+    ts,                        -- the event timestamp column
+    INTERVAL '1 minute'        -- window size
+  )
 GROUP BY
-    exam_id;
+  card_id, window_start, window_end
+HAVING
+  SUM(amount) > 5000;          -- only alert if total spend exceeds $5000
 ```
+
+When this materialized view (MV) is created, RisingWave starts tracking it **immediately**. You don’t need to refresh or re-run the query manually. Any future insertion into `credit_card_transactions` will automatically update `fraud_alerts`.
 
 ```sql Query the current result
-SELECT * FROM average_exam_scores;
+SELECT * FROM fraud_alerts;
 ------
- exam_id |   average_score   | total_scores
----------+-------------------+--------------
-     102 | 90.05000000000001 |            2
-     101 | 85.33333333333333 |            3
-(2 rows)
+ card_id  |     window_start     |     window_end       | total_amount
+----------+----------------------+----------------------+--------------
+(0 rows)
 ```
 
-As new data is received, the `average_exam_scores` materialized view will be automatically updated. RisingWave performs incremental computations in the background to keep the results up to date.
+At this point, no fraud alert is triggered yet. Let's insert one more transaction to push `card_123` over the \$5000 threshold.
 
-Now, let's insert five additional rows of data into the `exam_scores` table and query the latest result from the `average_exam_scores` materialized view. This will provide us with the updated average score for each examination.
-
-```sql Insert more data
-INSERT INTO exam_scores (score_id, exam_id, student_id, score, exam_date)
-VALUES
-  (11, 101, 1004, 89.5, '2022-05-05'),
-  (12, 101, 1005, 93.2, '2022-05-05'),
-  (13, 102, 1004, 87.1, '2022-06-10'),
-  (14, 102, 1005, 91.7, '2022-06-10'),
-  (15, 102, 1006, 84.3, '2022-06-10');
+```sql Insert additional data to trigger fraud alert
+INSERT INTO credit_card_transactions (card_id, amount, ts)
+VALUES ('card_123', 600.00, '2022-01-01 10:00:50');
 ```
 
-```sql Query the latest result
-SELECT * FROM average_exam_scores;
+```sql Query the updated result
+SELECT * FROM fraud_alerts;
 ------
- exam_id |   average_score   | total_scores
----------+-------------------+--------------
-     101 |             87.74 |            5
-     102 | 88.64000000000001 |            5
-(2 rows)
+ card_id  |     window_start     |     window_end       | total_amount
+----------+----------------------+----------------------+--------------
+ card_123 | 2022-01-01 10:00:00  | 2022-01-01 10:01:00  | 5500.00
+(1 row)
 ```
+
+As you can see, the MV is automatically updated when new data is inserted. You don’t need to manage any refresh logic or manual updates. RisingWave handles the incremental computation for you in the background.
+
+
 
 ## About RisingWave standalone mode
 
@@ -168,7 +171,7 @@ You can view other options with:
 risingwave single --help
 ```
 
-### Monitoring RisingWave standalone mode with Grafana and Prometheus
+### Monitor RisingWave standalone mode with Grafana and Prometheus
 
 To monitor your standalone cluster, you may wish to integrate metrics monitoring with Grafana and Prometheus.
 
