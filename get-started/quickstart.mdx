@@ -81,7 +81,7 @@ VALUES
 ```
 ## Step 4: Analyze and query data
 
-Now we want to detect potentially fraudulent behavior—specifically, any card that spends more than \$5000 within a one-minute window.
+Next, we will detect potentially fraudulent behavior by identifying any card that spends more than $5000 within a one-minute window.
 
 To do this, we’ll use a **materialized view**. A materialized view in RisingWave is not a static snapshot or a one-time query. Instead, it's a continuously maintained result that automatically stays up to date as new data arrives. You can think of it as a live dashboard behind a SQL query.
 
@@ -104,7 +104,7 @@ HAVING
   SUM(amount) > 5000;          -- only alert if total spend exceeds $5000
 ```
 
-When this MV is created, RisingWave starts tracking it **immediately**. You don’t need to refresh or re-run the query manually. Any future insertion into `credit_card_transactions` will automatically update `fraud_alerts`.
+When this materialized view (MV) is created, RisingWave starts tracking it **immediately**. You don’t need to refresh or re-run the query manually. Any future insertion into `credit_card_transactions` will automatically update `fraud_alerts`.
 
 ```sql Query the current result
 SELECT * FROM fraud_alerts;
@@ -171,7 +171,7 @@ You can view other options with:
 risingwave single --help
 ```
 
-### Monitoring RisingWave standalone mode with Grafana and Prometheus
+### Monitor RisingWave standalone mode with Grafana and Prometheus
 
 To monitor your standalone cluster, you may wish to integrate metrics monitoring with Grafana and Prometheus.
 
