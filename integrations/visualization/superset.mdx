@@ -37,23 +37,27 @@ The following UI page should appear.
 
 ### Connect to RisingWave
 
-> Note that, if you're serving Superset in docker-compose, the PostgresSQL connector library [psycopg2](https://www.psycopg.org/docs/) comes out of the box with Superset.
+> Note that, the new version of RisingWave implements a wrapper on top of the original PostgreSQL SQLAlchemy driver. Therefore, we recommend using the connector library [sqlalchemy-risingwave](https://github.com/risingwavelabs/sqlalchemy-risingwave) instead of psycopg2.
 >
-> If not, you need install the `psycopg2` driver for Superset. The [Installing Database Drivers](https://superset.apache.org/docs/databases/installing-database-drivers) guide lists the required driver.
+> You can install the driver by running the following commands if it is not already installed in the docker container:
+> ```shell
+> docker compose exec <your container name> bash
+> pip install sqlalchemy-risingwave
+> exit
+> docker compose restart <your container name>
+> ```
 
 1. In Superset, select **Settings > Database connections**.
 2. Click **\+ Database**.
-3. In the window that pops up, under **Select a database to connect**, select the **PostgresSQL** card.
-4. Fill in the following fields:
-   * HOST: `host.docker.internal`
-   * PORT: `4566`
-   * DATABASE NAME: `dev`
-   * USERNAME: `root`
-   * DISPLAY NAME: `RW` (optional)
+3. In the window that pops up, scroll to the bottom and select **"Connect this database with a SQLAlchemy URI string instead."**
+    <Frame>
+        <img src="/images/connect_database_step1.png"/>
+    </Frame>
+4. Fill in SQLAlchemy URI, e.g., `risingwave://root@host.docker.internal:4566/dev`.
+    <Frame>
+        <img src="/images/connect_database_step2.png"/>
+    </Frame>
 5. Click **Connect**.
-<Frame>
-  <img src="/images/supersetdb.png"/>
-</Frame>
 
 ## Create a dashboard
 
