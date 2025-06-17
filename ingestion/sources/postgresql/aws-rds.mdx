@@ -1,0 +1,53 @@
+---
+title: "Set up AWS RDS & Aurora PostgreSQL"
+sidebarTitle: "AWS RDS & Aurora"
+description: "How to set up AWS RDS or Aurora PostgreSQL as a source for RisingWave."
+---
+
+To connect RisingWave to an AWS RDS or Aurora PostgreSQL database for Change Data Capture (CDC), you need to configure your database to support logical replication.
+
+### 1. Enable logical replication
+
+Create or modify a custom parameter group for your database instance and set the following parameters:
+
+*   **`rds.logical_replication`**: Set to `1`. This enables logical replication on the instance.
+*   **`wal_level`**: This should automatically be set to `logical` when `rds.logical_replication` is enabled. You can verify this setting.
+
+<Note>
+For Aurora PostgreSQL, it is also recommended to set `rds.logical_wal_cache` to `0` to avoid a known data loss issue affecting certain versions (e.g., 14.5, 13.8, 12.12, 11.17).
+
+If you plan to create multiple CDC sources, ensure `max_wal_senders` is greater than or equal to the number of sources.
+</Note>
+
+### 2. Apply the parameter group
+
+Modify your RDS or Aurora instance to use the newly configured parameter group. This change typically requires a **reboot of the database instance** to take effect.
+
+### 3. Grant required privileges
+
+Connect to your database and grant the `rds_replication` role to your user. This role provides the necessary permissions to manage logical replication slots and stream data.
+
+```sql
+GRANT rds_replication TO <user_name>;
+```
+
+You also need to grant standard access privileges to the schemas and tables you want to capture:
+
+```sql
+-- Grant connection access to the database
+GRANT CONNECT ON DATABASE <database_name> TO <user_name>;
+
+-- Grant usage on the schema
+GRANT USAGE ON SCHEMA <schema_name> TO <user_name>;
+
+-- Grant select on all tables in the schema
+GRANT SELECT ON ALL TABLES IN SCHEMA <schema_name> TO <user_name>;
+-- To grant access to future tables in the schema automatically:
+ALTER DEFAULT PRIVILEGES IN SCHEMA <schema_name> GRANT SELECT ON TABLES TO <user_name>;
+```
+
+### Next step
+
+Now that your database is configured, you can proceed to connect RisingWave.
+
+➡️ **[Connect to PostgreSQL CDC](./index)** 
