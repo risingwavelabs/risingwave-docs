@@ -63,6 +63,34 @@ ALTER TABLE employees DROP fax;
 * To drop a column referenced by a generated column, you must first drop the generated column.
 </Note>
 
+### `ALTER COLUMN TYPE`
+
+```sql
+ALTER TABLE table_name
+    ALTER [ COLUMN ] column_name TYPE new_data_type;
+```
+
+| Parameter or clause | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **ALTER \[COLUMN\]**| This clause modifies the data type of an existing column. COLUMN is optional.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| _column\_name_      | Specify the name of the column whose data type you want to change.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **TYPE**            | Keyword to specify that you want to change the column's data type.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| _new\_data\_type_   | The new data type for the column. This operation is primarily designed for composite types (struct types) where you can add or remove fields.                                                                                                                                                                                                                                                                                                                                                                            |
+
+```sql
+-- Change the data type of a struct column to add a new field
+ALTER TABLE employees ALTER COLUMN address TYPE STRUCT<street VARCHAR, city VARCHAR, zipcode VARCHAR>;
+
+-- Change the data type of a nested struct column
+ALTER TABLE orders ALTER COLUMN customer_info TYPE STRUCT<name VARCHAR, contact STRUCT<email VARCHAR, phone VARCHAR, address VARCHAR>>;
+```
+
+<Note>
+* This operation is primarily supported for composite types (struct types). You can add or remove fields from struct types, and struct types can be nested within other composite types.
+* New fields added to a struct type cannot be used by existing materialized views or indexes. You must create new materialized views or indexes to reference the new fields.
+* If you remove fields that are referenced by downstream queries, the new data for those fields will become `NULL` in the results.
+</Note>
+
 ### `OWNER TO`
 
 ```sql
