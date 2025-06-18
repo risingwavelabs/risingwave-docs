@@ -1,24 +1,25 @@
 ---
 title: "Building a RAG system on RisingWave"
-description: "Demonstrate how to use RisingWave, a real-time streaming database, to build a Retrieval-Augmented Generation (RAG) system."
-sidebarTitle: RAG system
+description: "Establish a Retrieval-Augmented Generation (RAG) system with RisingWave that answers questions based on the documentation."
 ---
 
-This is a demo of using RisingWave to build a RAG system to answer questions about RisingWave. The data of RAG is from the [RisingWave docs](https://docs.risingwave.com/). It stores the document contents as well as the embeddings of the documents. 
+## Overview
 
-When a user asks a question, the system will use the question embedding to find the most similar documents from the vector database, and then call LLM model and use the document contents to answer the question.
+In this tutorial, you will learn how to build a RAG system in RisingWave that answers questions about its own features. The system ingests data from the [RisingWave documentation](https://docs.risingwave.com/) and stores both the document contents and their embeddings.
 
-## Setup
+When a user asks a question, the system generates an embedding for the query, retrieves the most similar documents from the vector database, and calls an LLM to generate an answer based on the retrieved content.
 
-You can use this 1-line command to start the RisingWave server.
+## Prerequisites
 
-```bash
-curl -L https://risingwave.com/sh | sh
-```
+- Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart/) guide.
 
-After the server started, create the necessary UDFs and tables.
+- Ensure you have a valid [OpenAI API key](https://platform.openai.com/api-keys) and set it as the `OPENAI_API_KEY` environment variable below.
 
-The following SQL creates a UDF `text_embedding` that uses OpenAI's API to embed a text into a vector. The function relies on the `fetch` API, which is introduced in the latest version of RisingWave.
+## Step 1: Set up the data pipeline
+
+When the server started, create the necessary UDFs and tables.
+
+The following SQL creates a UDF `text_embedding` that uses OpenAI's API to embed a text into a vector. The function relies on the [`fetch` API](/sql/udfs/use-udfs-in-javascript#async-and-batched-javascript-udfs) introduced in RisingWave v2.3.
 
 ```sql
 CREATE FUNCTION text_embedding(t varchar) RETURNS real[] LANGUAGE javascript AS $$
@@ -76,7 +77,7 @@ FROM t
 WHERE embedding IS NOT NULL;
 ```
 
-## Load data
+## Step 2: Load data
 
 For this demo, we use the documents from the RisingWave docs. 
 
@@ -93,7 +94,7 @@ find . -name "*.mdx" | while read -r file; do
 done
 ```
 
-## Query
+## Step 3: Query data
 
 To compare the similarity between the question and the documents, we need to introduce the `cosine_similarity` UDF.
 
@@ -132,3 +133,16 @@ For your convenience, we provide a Python script to answer questions.
 ```bash
 python query.py
 ```
+
+<Frame>
+  <img src="/images/demo-rag-query.png"/>
+</Frame>
+
+## Summary
+
+In this tutorial, you learn:
+
+- How to use RisingWave's materialized views and UDFs to create a data pipeline for storing and querying vector embeddings.
+
+- How to perform a semantic search in SQL to retrieve relevant documents for answering user questions.
+
