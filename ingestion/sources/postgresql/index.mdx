@@ -1,0 +1,104 @@
+---
+title: "Connect to PostgreSQL CDC"
+sidebarTitle: "Overview"
+description: "Ingest real-time changes from any PostgreSQL-compatible database using change data capture (CDC)."
+---
+
+This guide explains how to connect RisingWave to a PostgreSQL database to ingest data changes in real time. RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-compliant database that supports logical replication. It has been tested with PostgreSQL versions 10 through 16.
+
+### 1. Set up your PostgreSQL database
+
+Before connecting to RisingWave, you must enable logical replication on your upstream database. The specific steps depend on your provider.
+
+Select your platform below for detailed setup instructions:
+
+*   ➡️ **[Set up a self-hosted PostgreSQL database](./self-hosted)**
+*   ➡️ **[Set up AWS RDS or Aurora PostgreSQL](./aws-rds)**
+*   ➡️ **[Set up a Neon serverless PostgreSQL database](./neon)**
+*   ➡️ **[Set up a Supabase project](./supabase)**
+
+Once setup is complete, return to this guide to connect RisingWave.
+
+### 2. Connect RisingWave to PostgreSQL
+
+RisingWave uses the `CREATE SOURCE` statement to establish a shared connection to your database and the `CREATE TABLE` statement to ingest data from specific tables.
+
+#### `CREATE SOURCE` (shared source)
+
+Use `CREATE SOURCE` to define the connection parameters for your PostgreSQL database. This creates a reusable source that multiple tables can draw from.
+
+```sql
+CREATE SOURCE pg_source WITH (
+    connector='postgres-cdc',
+    hostname='your_host',
+    port='5432',
+    username='your_user',
+    password='your_password',
+    database.name='your_database',
+    schema.name='public'
+);
+```
+
+#### `CREATE TABLE ... FROM source`
+
+Use `CREATE TABLE` to ingest a specific upstream table. You must define the schema and specify a primary key that matches the upstream table's primary key.
+
+```sql
+CREATE TABLE my_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+)
+FROM pg_source TABLE 'public.my_upstream_table';
+```
+
+### Supported data types
+
+The following table shows the data type mapping from PostgreSQL to RisingWave.
+
+<Note>
+RisingWave does not support directly creating tables from PostgreSQL composite types. To ingest composite type data, you must define a source and then create a materialized view to cast the composite type fields into supported RisingWave types.
+</Note>
+
+| PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| :--------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BOOLEAN                                              | BOOLEAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| BIT(1)                                               | BOOLEAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| BIT( > 1), BIT VARYING                               | Not supported                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| SMALLINT, SMALLSERIAL                                | SMALLINT                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| INTEGER, SERIAL                                      | INTEGER                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| BIGINT, BIGSERIAL, OID                               | BIGINT                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| REAL                                                 | REAL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| DOUBLE PRECISION                                     | DOUBLE PRECISION                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| CHAR, VARCHAR, CHARACTER, CHARACTER VARYING          | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| TIMESTAMPTZ, TIMESTAMP WITH TIME ZONE                | TIMESTAMP WITH TIME ZONE                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| TIMETZ, TIME WITH TIME ZONE                          | TIME WITHOUT TIME ZONE                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| INTERVAL                                             | INTERVAL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| BYTEA                                                | BYTEA                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| JSON, JSONB                                          | JSONB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| UUID, XML, CITEXT, INET, CIDR, MACADDR, MACADDR8     | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| POINT                                                | STRUCT (with form `<x REAL, y REAL>`)                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| DATE                                                 | DATE                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| TIME (with or without precision)                     | TIME WITHOUT TIME ZONE                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| TIMESTAMP (with or without precision)                | TIMESTAMP WITHOUT TIME ZONE                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| NUMERIC, DECIMAL, MONEY                              | NUMERIC. Note that RisingWave's `NUMERIC` type supports a precision of up to 28 digits. Values exceeding this will be treated as `NULL`.                                                                                                                                                                                                                                                                                                                                                       |
+| ENUM, INT4RANGE, INT8RANGE, NUMRANGE, TSRANGE, TSTZRANGE, DATERANGE | CHARACTER VARYING. These types are ingested as strings.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| HSTORE, LTREE                                        | Not supported                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+
+
+### Automatically map upstream table schema
+
+Instead of defining columns individually, you can use `*` to ingest all columns from the source table. The table in RisingWave will be created with the same column names and types as the upstream table, with the upstream primary key automatically inferred.
+
+```sql
+CREATE TABLE my_table (*) FROM pg_source TABLE 'public.my_upstream_table';
+```
+
+### Extract metadata from sources
+
+The `INCLUDE` clause allows you to add metadata fields from the CDC event to your table as new columns. For details, see [Extract metadata from sources](/ingestion/advanced/extract-metadata-from-sources).
+
+### What's next?
+
+*   ➡️ **[Configuration Reference](./config)**: A complete list of all CDC connector parameters.
+*   **[Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options)**
+*   **[Monitor CDC ingestion progress](/ingestion/advanced/monitor-cdc-progress)** 
