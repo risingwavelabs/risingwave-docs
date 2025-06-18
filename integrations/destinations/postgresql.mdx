@@ -88,14 +88,14 @@ WITH (
 );
 ```
 
-### Parameters
+### Parameters (JDBC)
 
 | Parameter or clause | Description                                                                                                                                                                                                      |
 | :------------------ | :-------------- |
 | sink\_name          | Name of the sink to be created.                                                                                                                                                                                  |
 | sink\_from          | A clause that specifies the direct source from which data will be output. `sink_from` can be a materialized view or a table. Either this clause or a SELECT query must be specified.                            |
 | AS select\_query    | A SELECT query that specifies the data to be output to the sink. Either this query or a FROM clause must be specified. See [SELECT](/sql/commands/sql-select) for the syntax and examples of the SELECT command. |
-| connector           | Sink connector can be `jdbc` or `postgres`. To switch from `jdbc` to `postgres`, set `stream_switch_jdbc_pg_to_native = true` under `[streaming.developer]`. |                                                                                                                                                        |
+| connector           | Sink connector should be `jdbc`. To switch from `jdbc` to `postgres`, set `stream_switch_jdbc_pg_to_native = true` under `[streaming.developer]`. |                                                                                                                                                        |
 | jdbc.url            | Required. The JDBC URL of the destination database necessary for the driver to recognize and connect to the database. |
 | user                | The user name for the database connection. |
 | password            | The password for the database connection. |
@@ -105,10 +105,28 @@ WITH (
 | schema.name         | The schema in the destination database you want to sink to. The default value is public.                                                                                                               |
 | type                | Sink data type. Supported types: <ul><li>`append-only`: Sink data as INSERT operations.</li><li>`upsert`: Sink data as UPDATE, INSERT and DELETE operations.</li></ul>                                                                        |
 | primary\_key        | Required if type is upsert. The primary key of the sink, which should match the primary key of the downstream table.                                                                                             |
+### Parameters (Postgres Native)
 
 <Note>
-Sink connector `postgres` is added in version 2.2.
+Sink connector `postgres` is added in version 2.2. Eventually we will deprecate the jdbc sink and move to pg native sink.
 </Note>
+
+
+| Parameter or clause | Description                                                                                                                                                                                                      |
+| :------------------ | :-------------- |
+| sink\_name          | Name of the sink to be created.                                                                                                                                                                                  |
+| sink\_from          | A clause that specifies the direct source from which data will be output. `sink_from` can be a materialized view or a table. Either this clause or a SELECT query must be specified.                            |
+| AS select\_query    | A SELECT query that specifies the data to be output to the sink. Either this query or a FROM clause must be specified. See [SELECT](/sql/commands/sql-select) for the syntax and examples of the SELECT command. |
+| connector           | Sink connector must be `postgres` |                                                                                                                                                        |
+| user                | The user name for the database connection. |
+| password            | The password for the database connection. |
+| database            | Required. The database in the destination database you want to sink to. |
+| table               | Required. The table in the destination database you want to sink to.                                                                                                                                                       |
+| schema              | The schema in the destination database you want to sink to. The default value is public.                                                                                                               |
+| type                | Sink data type. Supported types: <ul><li>`append-only`: Sink data as INSERT operations.</li><li>`upsert`: Sink data as UPDATE, INSERT and DELETE operations.</li></ul>                                                                        |
+| primary\_key        | Required if type is upsert. The primary key of the sink, which should match the primary key of the downstream table.                                                                                             |
+| ssl_mode | The `ssl.mode` parameter determines the level of SSL/TLS encryption for secure communication with Postgres. Accepted values are `disabled`, `preferred`, `required`, `verify-ca`, and `verify-full`. The default value is `disabled`. <ul><li>When set to `required`, it enforces TLS for establishing a connection; </li><li>When set to `verify-ca`, it verifies that the server is trustworthy by checking the certificate chain up to the root certificate stored on the client;</li><li>When set to `verify-full`, it verifies the certificate and also ensures the server hostname matches the name in the certificate.</li></ul> |
+| ssl_root_cert | Specify the root certificate secret. You must [create secret](/operate/manage-secrets) first and then use it here. |
 
 ## Sink data from RisingWave to PostgreSQL
 
