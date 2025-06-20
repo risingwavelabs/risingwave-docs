@@ -33,6 +33,8 @@ SET BACKGROUND_DDL = { true | false };
   />
 </CardGroup>
 
+<Note>For sinks created under `background_ddl` mode, RisingWave treats them as `created` because their downstreams immediately start receiving the backfill data. Therefore, `SHOW JOBS` does not track their backfill progress.</Note>
+
 ## Persistence
 
 For materialized views being created in the background, their table definitions persist while they are being created, even if errors occur during checkpointing. This allows the materialized view jobs to be recovered from where they left off before the failure. Their table definitions and fragments will only be dropped if the job is canceled.
