@@ -175,6 +175,34 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | MACADDR                                              | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR8                                             | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
+### Use dbt to ingest data from PostgreSQL CDC
+
+Here is an example of how to use dbt to ingest data from PostgreSQL CDC. In this dbt example, `source` and `table_with_connector` models will be used. For more details about these two models, please refer to [Use dbt for data transformations](/integrations/other/dbt#define-dbt-models).
+
+First, we create a `source` model `pg_mydb.sql`.
+
+```sql
+{{ config(materialized='source') }}
+CREATE SOURCE {{ this }} WITH (
+    connector = 'postgres-cdc',
+    hostname = '127.0.0.1',
+    port = '8306',
+    username = 'root',
+    password = '123456',
+    database.name = 'mydb',
+    slot.name = 'mydb_slot'
+);
+```
+
+And then we create a `table_with_connector` model `tt3.sql`.
+
+```sql
+{{ config(materialized='table_with_connector') }}
+CREATE TABLE {{ this }} (
+    v1 integer primary key,
+    v2 timestamp with time zone
+) FROM {{ ref('pg_mydb') }} TABLE 'public.tt3';
+```
 
 ### Extract metadata from sources
 
@@ -194,6 +222,102 @@ Instead of defining columns individually, you can use `*` when creating a table 
 ```sql
 CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_name>';
 ```
+## Automatic schema changes
+
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+</Tip>
+
+RisingWave supports auto schema changes in Postgres CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.
+
+Currently, RisingWave supports the `ALTER TABLE` command with the following operations, and we plan to add support for additional DDL operations in future releases.
+
+* `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table. Only constant value expressions are supported for the default value.
+* `DROP COLUMN`: Allows you to remove an existing column from a table.
+
+To enable this feature, set `auto.schema.change = 'true'` in your PostgreSQL CDC source configuration:
+
+```SQL
+CREATE SOURCE pg_source WITH (
+ connector = 'postgres-cdc',
+ hostname = 'localhost',
+ port = '5432',
+ username = 'your_user',
+ password = 'your_password',
+ database.name = 'your_database',
+ schema.name = 'public',
+ auto.schema.change = 'true'
+);
+```
+
+Create a RisingWave table from the PostgreSQL source:
+
+```SQL
+CREATE TABLE my_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+)
+FROM pg_source TABLE 'public.my_upstream_table';
+```
+
+Add columns to the PostgreSQL table and observe the changes in RisingWave:
+
+```sql
+-- In your PostgreSQL database:
+ALTER TABLE my_upstream_table ADD COLUMN v1 VARCHAR(255);
+ALTER TABLE my_upstream_table ADD COLUMN v2 NUMERIC(5,2);
+```
+
+After the changes in the upstream table, the schema of the table in RisingWave will also be changed. You can verify this by running `DESCRIBE my_table;` in RisingWave.
+
+```sql
+-- In RisingWave:
+DESCRIBE my_table;
+```
+
+### Ingest data from a partitioned table
+
+RisingWave supports ingesting data from a partitioned table. To configure a publication for your CDC stream, PostgreSQL, by default, creates publications with `publish_via_partition_root = false`. This setting causes replication slot events to contain separate events for each partition, rather than for the root partitioned table.
+
+If you need to read from the partitioned table, you should explicitly set this property to `TRUE` when creating a publication. Execute the following command in your upstream PostgreSQL database:
+
+```sql
+CREATE PUBLICATION publication_name FOR table_name WITH (publish_via_partition_root = true);
+```
+
+If you let RisingWave create the publication, it will automatically set `publish_via_partition_root = true`.
+
+Please be aware that PostgreSQL does not support adding both a partitioned table and its individual partitions to the same publication; however, it does not generate an error if attempted. If you need to ingest data from both the root table and its partitions, you should create separate publications for each. Otherwise, you will not be able to read from the table partitions. Meanwhile, in RisingWave, you should create separate sources with dedicated publication names for the partitioned table and its partitions.
+
+### Expression as a column
+
+RisingWave allows users to define expressions as table columns. For example, in the SQL statement below, `next_id` is not a column from the source PostgreSQL table. Instead, it is a generated column that RisingWave computes dynamically while ingesting data. The value of `next_id` for each row is always equal to `id + 1`:
+
+```sql
+CREATE TABLE person (
+  id integer PRIMARY KEY,
+  name varchar,
+  next_id int AS id + 1,
+  PRIMARY KEY (id)
+) FROM pg_mydb TABLE 'public.person';
+```
+
+Currently, generated columns must appear at the end of the schema definition. If a column from the upstream source appears after a generated column, RisingWave will return an error. For example, the following statement will fail because `name`, an upstream column, is placed after the generated column `next_id`:
+
+```sql
+CREATE TABLE person (
+  id integer PRIMARY KEY,
+  next_id int AS id + 1,
+  name varchar,
+  PRIMARY KEY (id)
+) FROM pg_mydb TABLE 'public.person';
+```
+
+To avoid errors, ensure that all generated columns are positioned at the end of the schema definition.
 
 ### Time travel
 
