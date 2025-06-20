@@ -1,0 +1,32 @@
+---
+title: "Set up Supabase PostgreSQL"
+sidebarTitle: "Supabase"
+description: "How to set up a Supabase project as a source for RisingWave."
+---
+
+[Supabase](https://supabase.com/) uses PostgreSQL as its underlying database, so you can connect to it using RisingWave's PostgreSQL CDC connector.
+
+For an in-depth guide, see our blog post: [Unleash the true power of Supabase realtime with RisingWave](https://www.risingwave.com/blog/unleash-the-true-power-of-supabase-realtime-with-risingwave/).
+
+### 1. Enable replication in Supabase
+
+In your Supabase project, navigate to **Database > Replication**. Ensure that replication is enabled for the tables you wish to stream to RisingWave. Supabase handles the underlying logical replication configuration for you when you enable this.
+
+### 2. Get your database credentials
+
+Find your project's database connection details in the Supabase dashboard under **Project Settings > Database**. You will need the host, port, user, and password.
+
+### 3. Configure privileges
+
+While Supabase manages the `REPLICATION` role, you still need to ensure your user has `SELECT` privileges on the tables you want to stream. Connect to your Supabase database and run:
+
+```sql
+GRANT SELECT ON <table_name> TO <user_name>;
+```
+You might need to do this for each table.
+
+### Next step
+
+Now that your Supabase project is configured, you can proceed to connect RisingWave.
+
+➡️ **[Connect to PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc)** 
