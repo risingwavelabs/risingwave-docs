@@ -41,6 +41,14 @@ To import the metrics to Prometheus, edit the `scrape_configs` section in the pr
 ```yaml
 scrape_configs:
 - job_name: risingwave-remote
+  relabel_configs:
+  - target_label: namespace
+    regex: {NS_ID}
+  - target_label: risingwave_name
+    regex: risingwave
+  - target_label: risingwave_component
+    source_labels:
+    - component
   static_configs:
   - targets:
     - {CLOUD_HOST}
@@ -92,4 +100,4 @@ In the Telegraf configuration, you need to fill in the Prometheus input section,
 
 ## Step 4: Set up dashboards
 
-To set up dashboards based on key metrics, see [RisingWave open source user-dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py).
+To set up dashboards with **Grafana** and **Prometheus** data sources, please follow the [Grafana dashboards build instructions](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md) to build a set of dashboards with mutliple namespace support.
