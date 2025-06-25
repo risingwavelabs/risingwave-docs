@@ -64,9 +64,11 @@ For versions under 8.x, there was once a parameter `type`. In Elasticsearch 6.x,
 So, if you are using Elasticsearch 7.x, we set it to the official's recommended value, which is `_doc`. If you are using Elasticsearch 8.x, this parameter has been removed by the Elasticsearch official, so no setting is required.
 
 
-## Primary keys and Elasticsearch IDs
+## Notes about primary keys and Elasticsearch IDs
 
 The Elasticsearch sink defaults to the `upsert` sink type. It does not support the `append-only` sink type.
+
+The Elasticsearch sink detects column-level changes during upserts and sends only the modified columns, helping reduce the load on Elasticsearch.
 
 If you want to customize your Elasticsearch ID, please specify it via the `primary_key` parameter. RisingWave will combine multiple primary key values into a single string with the delimiter you set, and use it as the Elasticsearch ID.
 
