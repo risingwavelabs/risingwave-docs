@@ -11,7 +11,7 @@ You can ingest CDC data from PostgreSQL into RisingWave in two ways:
 * Using the built-in PostgreSQL CDC connector
 With this connector, RisingWave can connect to PostgreSQL databases directly to obtain data from the binlog without starting additional services.
 * Using a CDC tool and a message broker
-You can use a CDC tool and then use the Kafka, Pulsar, or Kinesis connector to send the CDC data to RisingWave. For more details, see the [Create source via event streaming systems](/ingestion/change-data-capture-with-risingwave) topic.
+You can use a CDC tool and then use the Kafka, Pulsar, or Kinesis connector to send the CDC data to RisingWave. For more details, see the [Create source via event streaming systems](/ingestion/cdc-with-risingwave) topic.
 
 ## Set up PostgreSQL
 
@@ -461,7 +461,7 @@ DESCRIBE my_table;
 
 ## Ingest data from a partitioned table
 
-RisingWave supports ingesting data from a partitioned table. To configure a publication for your CDC stream, note that PostgreSQL, by default, creates publications with `publish_via_partition_root = false`. This setting causes replication slot events to contain separate events for each partition, rather than for the root partitioned table.
+RisingWave supports ingesting data from a partitioned table. To configure a publication for your CDC stream, PostgreSQL, by default, creates publications with `publish_via_partition_root = false`. This setting causes replication slot events to contain separate events for each partition, rather than for the root partitioned table.
 
 If you need to read from the partitioned table, you should explicitly set this property to `TRUE` when creating a publication. Execute the following command in your upstream PostgreSQL database:
 
