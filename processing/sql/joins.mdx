@@ -349,3 +349,15 @@ it will not recompute the join result for all matching fact side rows.
 ```sql
 select fact.* FROM fact JOIN dimension FOR SYSTEM_TIME AS OF PROCTIME() ON fact.dim_key = dimension.key;
 ```
+
+### Isolating high-amplification joins
+
+High join amplification in streaming queries can cause significant backpressure on downstream operators. To mitigate this, you can enable unaligned joins using:
+
+```sql
+SET streaming_enable_unaligned_join = true;
+```
+
+This optimization automatically places a buffer after the join operator. The join writes its output to this buffer, allowing checkpoint barriers to pass through immediately instead of waiting for a slow downstream operator to process the data.
+
+This approach is most effective when downstream is the majority bottleneck. It introduces a trade-off: improved pipeline stability at the cost of slightly increased end-to-end latency due to the buffering step. Monitoring for potential data lag in the buffer is also recommended.
