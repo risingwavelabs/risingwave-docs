@@ -1,0 +1,60 @@
+---
+title: "Connect to your RisingWave clusters"
+description: "Learn how to connect your existing RisingWave instances to RisingWave Console by adding cluster details, testing connections, and managing these configurations."
+---
+
+Once RisingWave Console is installed and running, the next step is to connect it to your existing RisingWave clusters. This allows RisingWave Console to monitor them and enables you to use features like the SQL Console and operational tools.
+
+## Adding a new RisingWave cluster connection
+
+1.  Navigate to the clusters section: From the main RisingWave Console dashboard, click on the **Clusters** card or the corresponding icon in the sidebar. This will take you to the cluster management page.
+
+2.  On the **Clusters** page, click **Import**. The **Import New Cluster** window will open.
+
+3.  Fill in the cluster details:
+
+    *   **Name**: Provide a unique, user-friendly name for this RisingWave instance as it will appear within RisingWave Console (for example, `Production RW-East`, `Staging Cluster`, `My Local Dev RW`).
+    *   **Host**: Enter the hostname or IP address where your RisingWave cluster's meta node can be reached (for example, `risingwave.mycompany.internal`, `10.0.1.50`, or `rwc-g1hrnst114eik9vd9tkled8ght-heng-test.canary-useas` for cloud endpoints).
+    *   **SQL Port**: Specify the port number your RisingWave cluster uses for SQL client connections. The default is typically `4566`.
+    *   **Meta Node Port**: Enter the port number for RisingWave's meta node service. The default is usually `5690`. RisingWave Console uses this to gather cluster metadata and status.
+    *   **HTTP Port**: Input the port number for RisingWave's meta node HTTP service, which often serves Prometheus metrics and other API endpoints. The default is typically `5691`.
+    *   **Metrics Store**: Select how RisingWave Console should handle metrics for this cluster.
+        *   **None**: If selected, RisingWave Console will perform basic status checks but may not display detailed performance metrics charts. (Future options might include integration with Prometheus, etc.)
+    *   **Version**: Choose the version of your RisingWave cluster from the dropdown list (for example, `v2.1.0`). This helps RisingWave Console tailor its interactions.
+
+4.  Test the connection: Click the **Test Connection** button. RisingWave Console will attempt to connect to your RisingWave cluster using the details provided.
+    *   If successful, you should see a confirmation message.
+    *   If it fails, double-check all entered details, ensure your RisingWave cluster is running and accessible from the RisingWave Console server over the network (including any firewalls), and verify the ports are correct.
+
+5.  Save the cluster connection: If the connection test is successful, click **Create Cluster**.
+
+Your RisingWave cluster will now appear in the list on the **Clusters** page. You can see its name and connection status.
+
+<Frame>
+<img src="/images/risingwave-console/risingwave-console-cluster-page.png" />
+</Frame>
+
+## Editing an existing cluster connection
+
+If you need to update the details for a previously added cluster (for example, if the host or port changes):
+
+1.  Navigate to the **Clusters** page.
+2.  Locate the cluster you wish to edit in the list.
+3.  Click the **Edit** button associated with that cluster.
+4.  The **Edit Cluster** window will appear, pre-filled with the current settings.
+5.  Modify the necessary details.
+6.  It's recommended to use the **Test Connection** button again after making changes.
+7.  Click **Save Changes** to apply your updates.
+
+## Deleting a cluster connection from RisingWave Console
+
+To remove a RisingWave cluster connection from RisingWave Console:
+
+1.  Navigate to the **Clusters** page.
+2.  Locate the cluster you wish to remove.
+3.  Click the **Delete** icon associated with that cluster.
+4.  Confirm the deletion when prompted.
+
+<Info>Deleting a cluster connection from RisingWave Console *only removes its configuration from RisingWave Console*. It does not affect, stop, or delete your actual RisingWave cluster.</Info>
+
+With your clusters connected, you can now [Manage and monitor clusters](/risingwave-console/manage-monitor-clusters) or start [Using the SQL Console](/risingwave-console/use-sql-console).

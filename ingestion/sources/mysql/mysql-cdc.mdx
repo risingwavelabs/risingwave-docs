@@ -13,88 +13,16 @@ With this connector, RisingWave can connect to MySQL databases directly to obtai
 * Using a CDC tool and a message broker
 You can use a CDC tool and then use the Kafka, Pulsar, or Kinesis connector to send the CDC data to RisingWave.
 
-This topic describes how to ingest MySQL CDC data into RisingWave using the native MySQL CDC connector. Using an external CDC tool and a message broker is introduced in [Create source via event streaming systems](/ingestion/change-data-capture-with-risingwave).
+This topic describes how to ingest MySQL CDC data into RisingWave using the native MySQL CDC connector.
 
-## Set up MySQL
+## Prerequisites
 
-Before using the native MySQL CDC connector in RisingWave, you need to complete several configurations on MySQL.
-<Tabs>
-  <Tab title="Self-hosted">
-To use the MySQL CDC features, we need to create a MySQL user account with appropriate privileges on all databases for which RisingWave will read from.
+Before using the native MySQL CDC connector in RisingWave, you need to configure your MySQL database properly.
 
-### Create a user and grant privileges
+- [Self-hosted MySQL](/ingestion/sources/mysql/self-hosted)
+- [AWS RDS MySQL or Aurora](/ingestion/sources/mysql/aws-rds)
 
-1. Create a MySQL user with the following query.
-
-```sql
-CREATE USER 'user'@'%' IDENTIFIED BY 'password';
-```
-
-2. Grant the appropriate privileges to the user.
-
-```sql
-GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'user'@'%';
-```
-
-3. Finalize the privileges.
-
-```sql
-FLUSH PRIVILEGES;
-```
-
-### Enable the binlog
-
-The binlog must be enabled for MySQL replication. The binary logs record transaction updates for replication tools to propagate changes.
-
-1. Check if the `log-bin` is already on.
-
-```sql
-SHOW VARIABLES LIKE 'log_bin';
-+---------------+-------+
-| Variable_name | Value |
-+---------------+-------+
-| log_bin       | OFF   |
-+---------------+-------+
-```
-
-2. If it is `OFF`, configure your MySQL server configuration file, my.cnf, with the following properties described below. Restart your MySQL server to let the configurations take effect.
-
-```sql
-server-id         = 223344
-log_bin           = mysql-bin
-binlog_format     = ROW
-binlog_row_image  = FULL
-expire_logs_days  = 10
-```
-
-3. Confirm your changes by checking the `log-bin` again.
-
-```sql
-SHOW VARIABLES LIKE 'log_bin';
-+---------------+-------+
-| Variable_name | Value |
-+---------------+-------+
-| log_bin       | ON    |
-+---------------+-------+
-```
-
-See [Setting up MySQL](https://debezium.io/documentation/reference/stable/connectors/mysql.html#setting-up-mysql) for more details.
-  </Tab>
-  <Tab title="AWS RDS MySQL and Aurora (MySQL-Compatible)">
-The configuration process is different for AWS RDS MySQL or Aurora (MySQL-Compatible) compared to the self-hosted version. We will use a standard class AWS RDS MySQL instance without Multi-AZ deployment for illustration, but the process will be similar for Aurora.
-
-1. Turn on binary logging and choose a non-zero value for the **Retention period**.![Set retention period to a nonzero value](/images/ret-period.png)
-2. Create a parameter group for MySQL instances. We created a parameter group named MySQL-CDC for the instance that runs MySQL 5.7.x.![Create a parameter group](/images/parameter-group.png)
-3. Click the MySQL-CDC parameter group to edit the values of **binlog\_format** to **ROW** and **binlog\_row\_image** to **full**.![Set binlog_format to row](/images/binlog-format.png) ![Set binlog_row_image to full](/images/binlog-row.png)
-4. Modify your RDS instance and apply the modified parameter group to your database.![Select modify](/images/modify-RDS.png) ![Apply changes to database](/images/apply-to-database.png)
-5. Click **Continue** and choose **Apply immediately**. Finally, click **Modify DB instance** to save the changes. Remember to reboot your MySQL instance.![Save changes made to MySQL RDS instance](/images/save-changes.png)
-6. Ensure your MySQL users can access the tables and replications.
-
-  </Tab>
-</Tabs>
-
-
-## Notes about running RisingWave from binaries
+**Notes about running RisingWave from binaries**
 
 If you are running RisingWave locally from binaries and intend to use the native CDC source connectors or the JDBC sink connector, make sure that you have [JDK 11](https://openjdk.org/projects/jdk/11/) or later versions installed in your environment.
 
@@ -102,7 +30,7 @@ If you are running RisingWave locally from binaries and intend to use the native
 
 To ensure all data changes are captured, you must create a table and specify primary keys. See the [CREATE TABLE](/sql/commands/sql-create-table) command for more details.
 
-### Syntax
+## Syntax
 
 Syntax for creating a CDC source.
 
@@ -127,7 +55,7 @@ WITH (
 FROM source TABLE table_name;
 ```
 
-### Connector parameters
+## Connector parameters
 
 All the fields listed below are required. Note that the value of these parameters should be enclosed in single quotation marks.
 
@@ -172,7 +100,7 @@ SELECT * FROM t2 ORDER BY v1;
 
 You can see the [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause) for more details.
 
-### Debezium parameters
+## Debezium parameters
 
 [Debezium v2.6 connector configuration properties](https://debezium.io/documentation/reference/2.6/connectors/mysql.html#mysql-advanced-connector-configuration-properties) can also be specified under the `WITH` clause when creating a table or shared source. Add the prefix `debezium.` to the connector property you want to include.
 
@@ -191,7 +119,7 @@ CREATE SOURCE mysql_mydb WITH (
 );
 ```
 
-### Data format
+## Data format
 
 Data is in Debezium JSON format. [Debezium](https://debezium.io) is a log-based CDC tool that can capture row changes from various database management systems such as PostgreSQL, MySQL, and SQL Server and generate events with consistent structures in real time. The MySQL CDC connector in RisingWave supports JSON as the serialization format for Debezium data. The data format does not need to be specified when creating a table with `mysql-cdc` as the source.
 
@@ -357,14 +285,6 @@ CREATE TABLE {{ this }}  (
 
 ## Automatically map upstream table schema
 
-<Tip>
-**PREMIUM EDITION FEATURE**
-
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
-</Tip>
-
 RisingWave supports automatically mapping the upstream table schema when creating a CDC table from a MySQL CDC source. Instead of defining columns individually, you can use `*` when creating a table to ingest all columns from the source table. Note that `*` cannot be used if other columns are specified in the table creation process.
 
 Below is an example to create a table that ingests all columns from the upstream table from the MySQL database:
@@ -392,7 +312,7 @@ And this it the output of `DESCRIBE supplier;`
 
 ```
 
-## Automatically change schema
+## Automatic schema changes
 
 <Tip>
 **PREMIUM EDITION FEATURE**
@@ -401,12 +321,7 @@ This is a Premium Edition feature. All Premium Edition features are available ou
 
 For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
 </Tip>
-<Note>
-**PUBLIC PREVIEW**
 
-This feature is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
-
-</Note>
 RisingWave supports auto schema changes in MySQL CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.
 
 Currently, RisingWave supports the `ALTER TABLE` command with the following operations, and we plan to add support for additional DDL operations in future releases.

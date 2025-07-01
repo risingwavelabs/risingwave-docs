@@ -41,10 +41,18 @@ To import the metrics to Prometheus, edit the `scrape_configs` section in the pr
 ```yaml
 scrape_configs:
 - job_name: risingwave-remote
+  relabel_configs:
+  - target_label: namespace
+    regex: {NS_ID}
+  - target_label: risingwave_name
+    regex: risingwave
+  - target_label: risingwave_component
+    source_labels:
+    - component
   static_configs:
   - targets:
     - {CLOUD_HOST}
-  metrics_path: /api/v1/tenant/{CLUSTER_ID}/metrics
+  metrics_path: /api/v2/tenants/{NS_ID}/metrics
   basic_auth:
     username: {API_KEY}
     password: {API_SECRET}
@@ -56,7 +64,7 @@ scrape_configs:
 #### Notes
 
 * Update the `Cloud_HOST` according to the region and Cloud provider of your RisingWave cluster.
-* Update the `CLUSTER_ID` with the specific cluster ID in your RisingWave environment. For example, if your cluster URL is `risingwave-cloud.com/cluster/168/us-central1/overview/`, replace `CLUSTER_ID` with the value `168`.
+* Update the `NS_ID` with the specific UUID of your RisingWave project. To find the UUID, hover over the tag next to your project name.
 
 </Tab>
 <Tab title="DataDog">
@@ -66,7 +74,7 @@ Next, edit the `openmetrics.d/conf.yaml` file at the root of your [Agent configu
 
 ```yaml
 instances:
-- openmetrics_endpoint: http://{CLOUD_HOST}/api/v1/tenant/{CLUSTER_ID}/metrics
+- openmetrics_endpoint: http://{CLOUD_HOST}/api/v2/tenants/{NS_ID}/metrics
   namespace: risingwave
   metrics:
   - .*
@@ -78,7 +86,7 @@ instances:
 #### Notes
 
 * Update the `Cloud_HOST` according to the region and Cloud provider of your RisingWave cluster.
-* Update the `CLUSTER_ID` with the specific cluster ID in your RisingWave environment. For example, if your cluster URL is `risingwave-cloud.com/cluster/168/us-central1/overview/`, replace `CLUSTER_ID` with the value `168`.
+* Update the `NS_ID` with the specific UUID of your RisingWave project. To find the UUID, hover over the tag next to your project name.
 * The limit for the agent is **2000 metrics per instance**. To increase the limit, please contact [DataDog support](https://docs.datadoghq.com/help/).
 
 </Tab>
@@ -92,4 +100,6 @@ In the Telegraf configuration, you need to fill in the Prometheus input section,
 
 ## Step 4: Set up dashboards
 
-To set up dashboards based on key metrics, see [RisingWave open source user-dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py).
+To set up dashboards with **Grafana** and **Prometheus**, please follow the [Grafana dashboard build instructions](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md) to build a set of dashboards with multiple namespace support.
+
+For other systems, or to generate them programmatically, please refer to [the script for generating the Grafana user-facing dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py) and build your own.

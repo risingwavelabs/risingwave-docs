@@ -1,0 +1,59 @@
+---
+title: "Set up a self-hosted PostgreSQL database"
+sidebarTitle: "Self-hosted"
+description: "How to set up a self-hosted PostgreSQL database as a source for RisingWave."
+---
+
+To connect RisingWave to a self-hosted PostgreSQL database for Change Data Capture (CDC), you need to configure your database to support logical replication.
+
+### 1. Set `wal_level` to `logical`
+
+In your `postgresql.conf` file or via a SQL client, set the `wal_level` parameter to `logical`.
+
+```sql
+ALTER SYSTEM SET wal_level = logical;
+```
+
+This change requires a **restart of your PostgreSQL server** to take effect.
+
+<Note>
+If you plan to create multiple CDC sources, ensure the `max_wal_senders` parameter in your `postgresql.conf` is greater than or equal to the number of sources you intend to create. The default value is typically 10.
+</Note>
+
+### 2. Create a dedicated replication user
+
+Create a dedicated PostgreSQL user for replication. This user needs the `REPLICATION` and `LOGIN` attributes.
+
+```sql
+-- Create a new user with a secure password
+CREATE USER <user_name> WITH REPLICATION LOGIN PASSWORD '<your_password>';
+
+-- Or, modify an existing user
+ALTER USER <user_name> WITH REPLICATION LOGIN;
+```
+
+### 3. Grant required privileges
+
+Grant the user the necessary privileges on the database and schemas you want to capture changes from.
+
+```sql
+-- Grant connection access to the database
+GRANT CONNECT ON DATABASE <database_name> TO <user_name>;
+
+-- If RisingWave needs to create the publication, grant CREATE privilege
+GRANT CREATE ON DATABASE <database_name> TO <user_name>;
+
+-- Grant usage on the schema
+GRANT USAGE ON SCHEMA <schema_name> TO <user_name>;
+
+-- Grant select on all tables in the schema
+GRANT SELECT ON ALL TABLES IN SCHEMA <schema_name> TO <user_name>;
+-- To grant access to future tables in the schema automatically:
+ALTER DEFAULT PRIVILEGES IN SCHEMA <schema_name> GRANT SELECT ON TABLES TO <user_name>;
+```
+
+### Next step
+
+Now that your database is configured, you can proceed to connect RisingWave.
+
+➡️ **[Connect to PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc)** 

@@ -3,8 +3,59 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v2.4.0" description="2025-05-22">
+
+Support for certain earlier version will end following the release of v2.4, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+
+## SQL features
+
+- SQL commands:
+    - Supports `EXPLAIN ANALYZE` command to analyze the actual runtime performance of a streaming job. [#20715](https://github.com/risingwavelabs/risingwave/pull/20715), [#20966](https://github.com/risingwavelabs/risingwave/pull/20966)
+    - Supports configurable `streaming_parallelism` settings for tables, indexes, materialized views, sinks, and sources. [#21366](https://github.com/risingwavelabs/risingwave/pull/21366)
+    - Supports `DESCRIBE FRAGMENTS` command to check the execution fragments of an existing job. [#21354](https://github.com/risingwavelabs/risingwave/pull/21354)
+    - Supports **NOT NULL** constraints in table schemas for both batch and streaming operations. [#20822](https://github.com/risingwavelabs/risingwave/pull/20822)
+    - Supports `GRANT` and `REVOKE` privileges on connection, function and secret. [#20755](https://github.com/risingwavelabs/risingwave/pull/20755)
+    - `ALTER SYSTEM` now applies session variable changes immediately to the current session. [#21294](https://github.com/risingwavelabs/risingwave/pull/21294)
+    
+- System catalog:
+    - Adds system catalogs `iceberg_tables` and `iceberg_namespace_properties`. [#21400](https://github.com/risingwavelabs/risingwave/pull/21400)
+    - Adds system function `has_function_privilege`. [#20755](https://github.com/risingwavelabs/risingwave/pull/20755)
+
+## Connectors
+
+- **Deprecation notice:** Deprecates the Pulsar Iceberg reader and removed the `icelake` dependency. [#20844](https://github.com/risingwavelabs/risingwave/pull/20844)
+- **Deprecation notice:** The legacy S3 source is now fully deprecated in v2.4.0. [#20658](https://github.com/risingwavelabs/risingwave/pull/20658)
+- Supports creating an append-only table with the Iceberg engine. [#21811](https://github.com/risingwavelabs/risingwave/pull/21811)
+- Adds `commit_retry_num` option to configure the number of commit retries on Iceberg failures. [#20433](https://github.com/risingwavelabs/risingwave/pull/20433)
+- Supports Redis Pub/Sub messaging in sink connectors. [#20991](https://github.com/risingwavelabs/risingwave/pull/20991)
+- Supports Iceberg sink and Iceberg source on Azure Blob. [#21468](https://github.com/risingwavelabs/risingwave/pull/21468)
+- Supports exactly once consistency semantics for Iceberg sink. [#19771](https://github.com/risingwavelabs/risingwave/pull/19771)
+
+## Cluster configuration changes
+
+- Adds system parameter `per_database_isolation`  to enable per-database failure isolation. [#20872](https://github.com/risingwavelabs/risingwave/pull/20872)
+- Adds session variable `streaming_enable_materialized_expressions` to enable materialized expressions. [#21552](https://github.com/risingwavelabs/risingwave/pull/21552)
+- Adds session variable `streaming_force_filter_inside_join` to force filter to be pushed down into inner join. [#21289](https://github.com/risingwavelabs/risingwave/pull/21289)
+
+## Fixes
+
+- Security for logical views has been improved to correctly prevent unauthorized access. [#20941](https://github.com/risingwavelabs/risingwave/pull/20941)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.4.0 standalone`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.4.0/risingwave-v2.4.0-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.4.0.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.4.0.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v2.4.0/risectl-v2.4.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/release-2.3...release-2.4).
+
+</Update>
+
 <Update label="v2.3.0" description="2025-04-14">
-Support for RisingWave v2.1 will end upon the release of v2.3. If you're using v2.1, please plan your upgrade to a newer version (v2.2 or later) soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+Support for certain earlier version will end following the release of v2.3, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
 
 ## SQL features
 
@@ -66,6 +117,8 @@ Support for RisingWave v2.1 will end upon the release of v2.3. If you're using 
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.3.0.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.3.0.tar.gz)
 - [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v2.3.0/risectl-v2.3.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/release-2.2...release-2.3).
 
 
 </Update>
@@ -1238,7 +1291,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 *   Adds a new parameter `match_pattern` to the S3 connector. With the new parameter, users can specify the pattern to filter files that they want to ingest from S3 buckets. For documentation updates, see [Ingest data from S3 buckets](/integrations/sources/s3). [#7565](https://github.com/risingwavelabs/risingwave/pull/7565)
 *   Adds the PostgreSQL CDC connector. Users can use this connector to ingest data and CDC events from PostgreSQL directly. For documentation updates, see [Ingest data from PostgreSQL CDC](/integrations/sources/postgresql-cdc). [#6869](https://github.com/risingwavelabs/risingwave/pull/6869), [#7133](https://github.com/risingwavelabs/risingwave/pull/7133)
-*   Adds the MySQL CDC connector. Users can use this connector to ingest data and CDC events from MySQL directly. For documentation updates, see [Ingest data from MySQL CDC](/integrations/sources/mysql-cdc). [#6689](https://github.com/risingwavelabs/risingwave/pull/6689), [#6345](https://github.com/risingwavelabs/risingwave/pull/6345), [#6481](https://github.com/risingwavelabs/risingwave/pull/6481), [#7133](https://github.com/risingwavelabs/risingwave/pull/7133)
+*   Adds the MySQL CDC connector. Users can use this connector to ingest data and CDC events from MySQL directly. For documentation updates, see [Ingest data from MySQL CDC](/ingestion/sources/mysql/mysql-cdc). [#6689](https://github.com/risingwavelabs/risingwave/pull/6689), [#6345](https://github.com/risingwavelabs/risingwave/pull/6345), [#6481](https://github.com/risingwavelabs/risingwave/pull/6481), [#7133](https://github.com/risingwavelabs/risingwave/pull/7133)
 *   Adds the JDBC sink connector, with which users can sink data to MySQL, PostgreSQL, or other databases that are compliant with JDBC. [#6493](https://github.com/risingwavelabs/risingwave/pull/6493)
 *   Add new parameters to the Kafka sink connector.
     *   `force_append_only` : Specifies whether to force a sink to be append-only. [#7922](https://github.com/risingwavelabs/risingwave/pull/7922)

@@ -9,20 +9,7 @@ Amazon EventBridge is a serverless event bus service that enables you to easily 
 
 This guide will walk through the steps to set up RisingWave as a destination for Amazon EventBridge webhooks.
 
-## 1. Optional: Create a secret in RisingWave
-
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from Amazon EventBridge. This is the recommended way to verify the signature. You could also use a raw string to verify.
-
-```sql
-CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
-```
-
-| Parameter or clause | Description |
-| :--------- | :-----------|
-|`test_secret`| The name of the secret.|
-| `TEST_WEBHOOK`| The secret string used for signing and verifying webhook payloads. Replace this with a secure, random string.|
-
-## 2. Create a table in RisingWave
+## 1. Create a table in RisingWave
 
 Next, create a table configured to accept webhook data from Amazon EventBridge.
 
@@ -40,6 +27,7 @@ create table wbhtable (
 | Parameter or clause | Description |
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
+| `SECRET <secret>` | Use an existing [secret](/operate/manage-secrets) to verify incoming webhookd requests. This is optional. You can also use a raw string to verify.|
 | `headers->>'...'` | Extracts the signature provided by Amazon EventBridge in the `authorization` HTTP header. The header key can be any string value and you can specify it when you create your webhook destination for RisingWave. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
 | `test_secret` | Provides the expected signature. In the example above, we directly compare the secret value of `test_secret` with the signature provided in the headers to verify the requests. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
@@ -58,7 +46,7 @@ CREATE TABLE wbhtable (
 );
 ```
 
-## 3. Set up webhook in Amazon EventBridge
+## 2. Set up webhook in Amazon EventBridge
 
 After configuring RisingWave to accept webhook data, set up Amazon EventBridge to send events to your RisingWave instance.
 
@@ -120,11 +108,11 @@ Finish Other Configurations and Save Your Configuration:
 </Step>
 </Steps>
 
-## 4. Push Data from Amazon EventBridge via Webhook
+## 3. Push Data from Amazon EventBridge via Webhook
 
 With the webhook configured, Amazon EventBridge will automatically send HTTP POST requests to your RisingWave webhook URL whenever there are data generated from your AWS platform. RisingWave will receive these requests, validate the signatures, and insert the payload data into the target table.
 
-## 5. Further event processing
+## 4. Further event processing
 
 The data in the table is already ready for further processing. You can access the fields using `data->'field_name'` in SQL queries.
 

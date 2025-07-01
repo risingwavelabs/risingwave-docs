@@ -10,20 +10,7 @@ HubSpot webhooks are not available on all HubSpot plans. You must have the appro
 
 This guide will walk through the steps to set up RisingWave as a destination for HubSpot webhooks.
 
-## 1. Optional: Create a secret in RisingWave
-
-First, create a secret in RisingWave to securely store a secret string. This secret will be used to validate incoming webhook requests from HubSpot. This is the recommended way to verify the signature. You could also use a raw string to verify.
-
-```sql
-CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
-```
-
-| Parameter or clause | Description |
-| :--------- | :-----------|
-|`test_secret`| The name of the secret.|
-| `TEST_WEBHOOK`| The secret string used for signing and verifying webhook payloads. Replace this with a secure, random string. If you are using signature V2, please fill the client secret of your HubSpot APP, the format of which should be `yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy` |
-
-## 2. Create a table in RisingWave
+## 1. Create a table in RisingWave
 
 Next, create a table configured to accept webhook data from HubSpot.
 
@@ -49,6 +36,7 @@ CREATE TABLE wbhtable (
 | Parameter or clause | Description |
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
+| `SECRET <secret>` | Use an existing [secret](/operate/manage-secrets) to verify incoming webhookd requests. This is optional. You can also use a raw string to verify.|
 | `headers->>'...'` | Extracts the signature provided by HubSpot in the `x-hubspot-signature` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
 | `encode(...)` | Computes the expected signature by concatenating the secret, HTTP method (`POST`), RisingWave Webhook URL (`http://127.0.0.1:4560/webhook/dev/public/` in this example), and the request body converted from UTF-8 `data`. It then takes a `SHA-256` hash of this string and encodes it in hex. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
@@ -78,7 +66,7 @@ CREATE TABLE wbhtable (
 );
 ```
 
-## 3. Set up webhook in HubSpot
+## 2. Set up webhook in HubSpot
 
 After configuring RisingWave to accept webhook data, set up HubSpot to send events to your RisingWave instance.
 
@@ -107,11 +95,11 @@ While the official [HubSpot webhook documentation](https://knowledge.hubspot.com
 
 - **Testing Your Configuration**: Use the **test actions** feature in HubSpot to verify that your webhook and RisingWave setup work as intended. This helps confirm that the configuration is correct before putting it into production.
 
-## 4. Push data from HubSpot via webhook
+## 3. Push data from HubSpot via webhook
 
 With the webhook configured, HubSpot will automatically send HTTP POST requests to your RisingWave webhook URL whenever the specified condition is satisfied. RisingWave will receive these requests, validate the signatures, and insert the payload data into the target table.
 
-## 5. Further event processing
+## 4. Further event processing
 
 The data in the table is already ready for further processing. You can access the fields using `data->'field_name'` in SQL queries.
 
