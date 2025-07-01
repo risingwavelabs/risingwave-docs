@@ -356,6 +356,26 @@ High join amplification in streaming queries can cause significant backpressure 
 
 ```sql
 SET streaming_enable_unaligned_join = true;
+
+-- Streaming jobs in the same session will use unaligned join for all their joins.
+-- For instance given:
+create table t1 (v1 int, v2 int);
+create table t2 (v3 int, v4 int);
+create table t3 (v5 int, v6 int);
+explain create materialized view m1 as select * from t1, t2, t3 where t1.v1 = t2.v3 and t1.v1 = t3.v5;
+
+-- You can see the `explain` output contains `SyncLogStore` after the joins.
+    StreamMaterialize { columns: [v1, v2, v3, v4, v5, v6, t1._row_id(hidden), t2._row_id(hidden), t3._row_id(hidden)], stream_key: [t1._row_id, t2._row_id, v1, t3._row_id], pk_columns: [t1._row_id, t2._row_id, v1, t3._row_id], pk_conflict: NoCheck }
+    └─StreamSyncLogStore
+      └─StreamHashJoin { type: Inner, predicate: t1.v1 = t3.v5, output: [t1.v1, t1.v2, t2.v3, t2.v4, t3.v5, t3.v6, t1._row_id, t2._row_id, t3._row_id] }
+        ├─StreamSyncLogStore
+        │ └─StreamHashJoin { type: Inner, predicate: t1.v1 = t2.v3, output: [t1.v1, t1.v2, t2.v3, t2.v4, t1._row_id, t2._row_id] }
+        │   ├─StreamExchange { dist: HashShard(t1.v1) }
+        │   │ └─StreamTableScan { table: t1, columns: [t1.v1, t1.v2, t1._row_id], stream_scan_type: ArrangementBackfill, stream_key: [t1._row_id], pk: [_row_id], dist: UpstreamHashShard(t1._row_id) }
+        │   └─StreamExchange { dist: HashShard(t2.v3) }
+        │     └─StreamTableScan { table: t2, columns: [t2.v3, t2.v4, t2._row_id], stream_scan_type: ArrangementBackfill, stream_key: [t2._row_id], pk: [_row_id], dist: UpstreamHashShard(t2._row_id) }
+        └─StreamExchange { dist: HashShard(t3.v5) }
+          └─StreamTableScan { table: t3, columns: [t3.v5, t3.v6, t3._row_id], stream_scan_type: ArrangementBackfill, stream_key: [t3._row_id], pk: [_row_id], dist: UpstreamHashShard(t3._row_id) }
 ```
 
 This optimization automatically places a buffer after the join operator. The join writes its output to this buffer, allowing checkpoint barriers to pass through immediately instead of waiting for a slow downstream operator to process the data.
