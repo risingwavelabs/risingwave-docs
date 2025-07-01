@@ -9,7 +9,7 @@ description: "Use the `CREATE DATABASE` command to create a new database."
 CREATE DATABASE [ IF NOT EXISTS ] database_name
     [ WITH ] [ owner [=] user_name ]
     [ resource_group [=] resource_group_name ]
-    [ barrier_interval_ms [=] 'interval' ]
+    [ barrier_interval_ms [=] integer ]
     [ checkpoint_frequency [=] integer ];
 ```
 
@@ -21,7 +21,7 @@ CREATE DATABASE [ IF NOT EXISTS ] database_name
 | **IF NOT EXISTS** clause | Creates a database if the database name has not already been used. Otherwise throws an error. |
 | **owner [=] user_name** clause | Specifies which user owns the database to be created. |
 | **resource_group [=] resource_group_name** clause| Assigns the database to a specific resource group. If not set, the database belongs to the default resource group. |
-| **barrier_interval_ms [=] 'interval'** clause | Sets how frequently the system injects barriers per-database. If not specified, uses the global settings defined in `SystemParams`.|
+| **barrier_interval_ms [=] integer** clause | Sets how frequently the system injects barriers per-database. If not specified, uses the global settings defined in `SystemParams`.|
 | **checkpoint_frequency [=] integer** clause | Sets how many barriers should pass before triggering a checkpoint per-database. If not specified, uses the global settings defined in `SystemParams`.|
 
 
@@ -55,13 +55,13 @@ Set a custom barrier interval and checkpoint frequency for a database:
 CREATE DATABASE IF NOT EXISTS travel
     WITH 
         OWNER = travel_admin
-        BARRIER_INTERVAL_MS = '250ms'
+        BARRIER_INTERVAL_MS = 1500
         CHECKPOINT_FREQUENCY = 5;
 ```
 
 ```sql Alter existing database
-ALTER DATABASE travel SET barrier_interval_ms = '250ms';
-ALTER DATABASE travel SET checkpoint_frequency = 5;
+ALTER DATABASE travel SET barrier_interval_ms = 2000;
+ALTER DATABASE travel SET checkpoint_frequency = 2;
 ```
 
 ```sql Revert to global default
