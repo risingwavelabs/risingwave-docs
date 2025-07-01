@@ -380,4 +380,4 @@ explain create materialized view m1 as select * from t1, t2, t3 where t1.v1 = t2
 
 This optimization automatically places a buffer after the join operator. The join writes its output to this buffer, allowing checkpoint barriers to pass through immediately instead of waiting for a slow downstream operator to process the data.
 
-This approach is most effective when downstream is the majority bottleneck. It introduces a trade-off: improved pipeline stability at the cost of slightly increased end-to-end latency due to the buffering step. Monitoring for potential data lag in the buffer is also recommended.
+This approach is most effective when downstream is the processing bottleneck. It introduces a trade-off: improved pipeline stability at the cost of increased end-to-end latency due to the buffering step. Monitoring for potential data lag in the buffer is recommended.
