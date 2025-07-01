@@ -352,6 +352,10 @@ select fact.* FROM fact JOIN dimension FOR SYSTEM_TIME AS OF PROCTIME() ON fact.
 
 ### Isolating high-amplification joins
 
+<Note>
+Added in v2.5.
+</Note>
+
 High join amplification in streaming queries can cause significant backpressure on downstream operators. To mitigate this, you can enable unaligned joins using:
 
 ```sql
@@ -378,6 +382,9 @@ explain create materialized view m1 as select * from t1, t2, t3 where t1.v1 = t2
           └─StreamTableScan { table: t3, columns: [t3.v5, t3.v6, t3._row_id], stream_scan_type: ArrangementBackfill, stream_key: [t3._row_id], pk: [_row_id], dist: UpstreamHashShard(t3._row_id) }
 ```
 
-This optimization automatically places a buffer after the join operator. The join writes its output to this buffer, allowing checkpoint barriers to pass through immediately instead of waiting for a slow downstream operator to process the data.
+This optimization automatically places a buffer after the join operator. The join writes its output to this buffer, allowing checkpoint barriers to pass through immediately instead of waiting for a slow downstream operator to process the data. This approach is most effective when downstream is the processing bottleneck.
 
-This approach is most effective when downstream is the processing bottleneck. It introduces a trade-off: improved pipeline stability at the cost of increased end-to-end latency due to the buffering step. Monitoring for potential data lag in the buffer is recommended.
+<Note>
+- There is currently no way to disable the log store in-place.
+- This optimization introduces a trade-off: improved pipeline stability at the cost of increased end-to-end latency due to the buffering step. Monitoring for potential data lag in the buffer is recommended.
+</Note>
