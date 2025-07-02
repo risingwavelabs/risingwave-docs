@@ -24,7 +24,7 @@ For a full list of Premium Edition features, see [RisingWave Premium Edition](/g
 * Ensure that Snowflake and S3 are set up in the same manner as described in the [Automating Snowpipe for Amazon S3](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-auto-s3), as RisingWave is only responsible for writing data to S3.
 
 <Note>
-RisingWave will not be responsible for deleting data already imported by S3\. You can manually set the lifecycle configuration of your S3 bucket to clear out unnecessary data. See [Lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/how-to-set-lifecycle-configuration-intro.html) and [Delete staged files](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-manage#deleting-staged-files-after-snowpipe-loads-the-datafor) for more details.
+RisingWave will not be responsible for deleting data already imported by S3. You can manually set the lifecycle configuration of your S3 bucket to clear out unnecessary data. See [Lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/how-to-set-lifecycle-configuration-intro.html) and [Delete staged files](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-manage#deleting-staged-files-after-snowpipe-loads-the-datafor) for more details.
 </Note>
 
 ## Syntax
@@ -39,7 +39,7 @@ WITH (
 );
 ```
 
-## Parameter[](#parameter "Direct link to Parameter")
+## Parameters
 
 All parameters are required unless specified otherwise.
 
@@ -125,7 +125,7 @@ CREATE SINK snowflake_sink FROM ss_mv WITH (
 
 ### Sink data with upsert
 
-Snowflake tables don't support direct updates. To handle this, RisingWave imports incremental logs and modification order for each data piece into Snowflake. You can then merge these as you read, or create dynamic tables to read the upsert results. See [How dynamic tables work](https://docs.snowflake.com/en/user-guide/dynamic-tables-about) for more details.
+Snowpipe and Snowpipe Streaming support insert-only ingestion and don't apply updates or deletes during ingestion. To work around this, RisingWave imports incremental logs and modification order for each data piece into Snowflake. You can then merge these as you read, or create dynamic tables to read the upsert results. See [How dynamic tables work](https://docs.snowflake.com/en/user-guide/dynamic-tables-about) for more details.
 
 Below are some examples for your reference.
 
