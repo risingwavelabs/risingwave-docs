@@ -202,13 +202,13 @@ BEGIN
     WHERE table_name = 'cdc_table'
     LIMIT 1;
 
-    -- 2. query max row id
+    -- 2. Query max row id
     LET max_row_id INT;
     
     SELECT COALESCE(MAX(__row_id), 0) INTO :max_row_id
     FROM cdc_table;
     
-    -- 2. Use MERGE INTO statement for aggregation
+    -- 3. Use MERGE INTO statement to merge the data from cdc_table to target_table
     MERGE INTO target_table AS target
     USING (
         SELECT *
@@ -225,7 +225,7 @@ BEGIN
     WHEN MATCHED AND source.__op IN (1, 3) THEN UPDATE SET target.v1= source.v1, target.v2 = source.v2
     WHEN NOT MATCHED AND source.__op IN (1, 3) THEN INSERT (v1, v2) VALUES (source.v1, source.v2);
     
-    -- 4. update offset_table
+    -- 4. Update offset_table
     MERGE INTO offset_table AS target
     USING (SELECT 'cdc_table' AS table_name, :max_row_id AS offset_row_id) AS source
     ON target.table_name = source.table_name
@@ -234,7 +234,7 @@ BEGIN
     WHEN NOT MATCHED THEN
       INSERT (table_name, offset_row_id) VALUES (source.table_name, source.offset_row_id);
       
-    -- 5. delete old data
+    -- 5. Delete old data from cdc_table
     DELETE FROM cdc_table
     WHERE __row_id <= :max_row_id;
 END;
