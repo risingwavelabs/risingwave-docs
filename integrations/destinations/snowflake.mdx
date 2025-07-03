@@ -130,7 +130,7 @@ Snowpipe only ingests new rows; it does not apply updates or deletes.
 To surface those changes, you need to create a materialized view using `AS CHANGELOG` in RisingWave.  
 This instructs RisingWave to add two metadata columns to each change log row:
 
-* `changelog_op`: the change type (`1` = INSERT, `2` = UPDATE-BEFORE, `3` = UPDATE-AFTER, `4` = DELETE)  
+* `changelog_op`: the change type (`1` = INSERT, `2` = DELETE, `3` = UPDATE-AFTER, `4` = UPDATE-BEFORE)  
 * `_changelog_row_id`: a monotonically increasing identifier that captures the order of the change
 
 You can rename these columns (for example, to `__op` and `__row_id`) in the `SELECT` list so they appear in the Snowflake sink.
@@ -138,7 +138,7 @@ You can rename these columns (for example, to `__op` and `__row_id`) in the `SEL
 RisingWave stops here. It does **not** merge the incremental data for you.  
 You can choose one of the following approaches to obtain an up-to-date view in Snowflake:
 
-1. **Merge on read**: run an explicit `MERGE` (or similar SQL) that keeps the newest `_changelog_row_id` per primary key.  
+1. **Merge into a new table**: run an explicit `MERGE INTO` that keeps the newest `_changelog_row_id` per primary key.  
 2. **Dynamic tables**: create a dynamic table that expresses the same logic and lets Snowflake materialize it continuously.
 
 The examples below demonstrate both approaches.
@@ -179,14 +179,14 @@ CREATE SINK snowflake_sink FROM ss_mv WITH (
 CREATE WAREHOUSE test_warehouse;
 ```
 
-4. Approach A: Use `MERGE INTO` on reads
+4. Approach A: Use `MERGE INTO` on reads. With this approach, we need an intermediate table (cdc_table), a task(multi_statement_task), an offset storage table (offset_table) and a table to store the results (target_table).
 
 ```sql
 -- 1. Create a table to store the results
-CREATE TABLE your_table_name(xxx, xxx);
+CREATE TABLE target_table(xxx, xxx);
 
 -- 2. Create a table to store the offset.
-CREATE TABLE offset_table (table_name string, offset int); 
+CREATE TABLE offset_table (table_name string, offset_row_id int); 
 
 -- 3. Create a task to perform incremental updates on a regular basis.
 CREATE OR REPLACE TASK multi_statement_task
@@ -194,51 +194,62 @@ WAREHOUSE = COMPUTE_WH
 SCHEDULE = '1 HOUR'
 AS
 BEGIN
-
-    -- 1. Define a constant
+    -- 1. Query the offset from the table
     LET my_offset INT;
-
-    -- 2. Query the offset from the table
-    SELECT offset INTO :my_offset 
-    FROM t3 
-    WHERE table_name = 't3'
+    
+    SELECT COALESCE(MAX(offset_row_id), 0) INTO :my_offset
+    FROM offset_table
+    WHERE table_name = 'cdc_table'
     LIMIT 1;
 
-    -- 3. Use MERGE INTO statement for aggregation
-    MERGE INTO user_behaviors AS target
+    -- 2. query max row id
+    LET max_row_id INT;
+    
+    SELECT COALESCE(MAX(__row_id), 0) INTO :max_row_id
+    FROM cdc_table;
+    
+    -- 2. Use MERGE INTO statement for aggregation
+    MERGE INTO target_table AS target
     USING (
         SELECT *
         FROM (
-            SELECT *, 
-                   ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY __row_id DESC) AS dedupe_id
-            FROM t3
-            WHERE __row_id > :my_offset
+            SELECT *,
+                   ROW_NUMBER() OVER (PARTITION BY v1 ORDER BY __row_id DESC) AS dedupe_id
+            FROM cdc_table
+            WHERE __row_id > :my_offset and __row_id <= :max_row_id 
         ) AS subquery
         WHERE dedupe_id = 1
     ) AS source
-    ON target.user_id = source.user_id
+    ON target.v1= source.v1
     WHEN MATCHED AND source.__op IN (2, 4) THEN DELETE
-    WHEN MATCHED AND source.__op IN (1, 3) THEN UPDATE SET
-    target.col1 = source.col1,
-    target.col2 = source.col2
-    WHEN NOT MATCHED AND source.__op IN (1, 3) THEN INSERT (col1, col2, col3) VALUES (source.col1, source.col2, source.col3);
-
-    -- 4. Update offset table
-    UPDATE t3
-    SET offset = (
-        SELECT MAX(__row_id) 
-        FROM t3
-    )
-    WHERE table_name = 't3';
-
+    WHEN MATCHED AND source.__op IN (1, 3) THEN UPDATE SET target.v1= source.v1, target.v2 = source.v2
+    WHEN NOT MATCHED AND source.__op IN (1, 3) THEN INSERT (v1, v2) VALUES (source.v1, source.v2);
+    
+    -- 4. update offset_table
+    MERGE INTO offset_table AS target
+    USING (SELECT 'cdc_table' AS table_name, :max_row_id AS offset_row_id) AS source
+    ON target.table_name = source.table_name
+    WHEN MATCHED THEN
+      UPDATE SET offset_row_id = source.offset_row_id
+    WHEN NOT MATCHED THEN
+      INSERT (table_name, offset_row_id) VALUES (source.table_name, source.offset_row_id);
+      
+    -- 5. delete old data
+    DELETE FROM cdc_table
+    WHERE __row_id <= :max_row_id;
 END;
+
+-- 4. Start the task
+ALTER TASK multi_statement_task RESUME;
+-- if you want execute the task once, you can
+EXECUTE TASK multi_statement_task;
 ```
 
-4. Approach B: Create a dynamic table that materializes the upsert view in Snowflake.
+4. Approach B: Create a dynamic table that materializes the upsert view in Snowflake. We need an intermediate table (cdc_table) and a dynamic table to store the results (target_table).
 
 ```sql
-CREATE OR REPLACE DYNAMIC TABLE user_behaviors
-TARGET_LAG = '1 minute'
+CREATE OR REPLACE DYNAMIC TABLE target_table
+TARGET_LAG = '1 hour'
 WAREHOUSE  = test_warehouse
 AS
 SELECT *
@@ -246,7 +257,7 @@ FROM (
     SELECT
         *,
         ROW_NUMBER() OVER (PARTITION BY {primary_key} ORDER BY __row_id DESC) AS dedupe_id
-    FROM t3              -- t3 is the table populated by the sink
+    FROM cdc_table              -- cdc_table is the table populated by the sink
 ) AS sub
 WHERE dedupe_id = 1
   AND (__op = 1 OR __op = 3);
