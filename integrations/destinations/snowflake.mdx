@@ -179,7 +179,12 @@ CREATE SINK snowflake_sink FROM ss_mv WITH (
 CREATE WAREHOUSE test_warehouse;
 ```
 
-4. Approach A: Use `MERGE INTO` on reads. With this approach, we need an intermediate table (cdc_table), a task(multi_statement_task), an offset storage table (offset_table) and a table to store the results (target_table).
+4. Approach A: Use `MERGE INTO` on reads. 
+With this approach, we need three tables in Snowflake. Their purposes are as follows:
+
+- **target table:** stores the final data.
+- **CDC table:** holds intermediate data during processing.
+- **offset table:** keeps track of the offsets for each cdc table. If you have multiple cdc tables, they can share the same offset table.
 
 ```sql
 -- 1. Create a table to store the results
