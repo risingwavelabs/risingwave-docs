@@ -274,5 +274,7 @@ Since the data is stored in the standard Iceberg format, external systems (like 
 
 The namespace and table name in the external catalog will typically match the schema and table name in RisingWave. For example, the table `public.users_iceberg` in RisingWave would be accessed as table `users_iceberg` within the public namespace/database in the configured Iceberg catalog by an external tool.
 
+## Limitations
 
+RisingWave does not currently have a built-in automatic compaction service for tables created with the Iceberg engine. Streaming ingestion, especially with frequent commits (low `commit_checkpoint_interval`), can lead to many small files. You may need to run compaction procedures manually using external tools that operate on Iceberg tables to optimize read performance. We are actively working on integrating compaction features.
 
