@@ -1,25 +1,55 @@
 ---
-title: "Use Agents to analyze data ingested into RisingWave"
+title: "Use agents to analyze data ingested into RisingWave"
+sidebarTitle: "RisingWave agent demo"
+description: "Build an AI agent that connects RisingWave with Anthropic's LLM to query streaming data using natural language."
 ---
 
 ## Overview
 
-This agent is a client application that connects RisingWave’s MCP (Managed Control Plane) with Anthropic’s LLM to process natural language queries, call data tools, and return clean, readable results to users. It features components for handling table extraction from SQL-like queries, dynamically fetching table schemas, invoking MCP tools, parsing and formatting results (like tables), and managing a chat loop that coordinates between RisingWave tool calls and Anthropic-generated responses — iterating until the user's query is fully handled.
+This demo shows you how to build an AI agent that connects RisingWave with Anthropic's LLM. The agent processes natural language queries and returns clean, readable results to users.
 
-In this tutorial, you will learn how to implement a custom Anthropic Agent, integrate it with RisingWave MCP, to do simple stream processing with RisingWave.
+The agent includes several key components:
+- Table extraction from SQL-like queries
+- Dynamic table schema fetching  
+- MCP tool invocation
+- Result parsing and formatting
+- Chat loop management between RisingWave and Anthropic
 
-If you want a reference to the full project you can clone [this](https://github.com/risingwavelabs/awesome-stream-processing/) repository.
+In this tutorial, you'll learn how to:
+- Implement a custom Anthropic agent
+- Integrate it with RisingWave MCP
+- Perform simple stream processing with RisingWave
+
+For a complete project reference, clone the [awesome-stream-processing repository](https://github.com/risingwavelabs/awesome-stream-processing/).
 
 ## Prerequisites
 
-* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](https://docs.risingwave.com/get-started/quickstart) guide.
-* Ensure you have an [Anthropic](https://console.anthropic.com/settings/keys) API key.
-* Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
-* Ensure that you have cloned the [RisingWave MCP](https://github.com/risingwavelabs/risingwave-mcp.git).
+Before you begin, you need:
 
-## Step 1: Create the Agent
+- **RisingWave**: Install and run RisingWave. See the [Quick start guide](https://docs.risingwave.com/get-started/quickstart).
+- **Anthropic API key**: Get your key from the [Anthropic console](https://console.anthropic.com/settings/keys).  
+- **PostgreSQL client**: Install `psql`. See [Download PostgreSQL](https://www.postgresql.org/download/).
+- **RisingWave MCP**: Clone the [RisingWave MCP repository](https://github.com/risingwavelabs/risingwave-mcp.git).
 
-Here are the basic imports necessary for the file
+## Step 1: Set up your environment
+
+Create a `.env` file with your RisingWave connection configuration:
+
+```env
+RISINGWAVE_HOST=0.0.0.0
+RISINGWAVE_USER=root
+RISINGWAVE_PASSWORD=root
+RISINGWAVE_PORT=4566
+RISINGWAVE_DATABASE=dev
+RISINGWAVE_SSLMODE=disable
+RISINGWAVE_TIMEOUT=30
+```
+
+## Step 2: Create the agent
+
+### Import the required dependencies
+
+Import these modules for your agent:
 
 ```python
 """Client for interacting with RisingWave via MCP and Anthropic."""
@@ -34,7 +64,9 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 ```
 
-This function is a helper function to help the agent understand the table name.
+### Create helper functions
+
+Add this helper function to extract table names from queries:
 
 ```python
 def extract_table_names(query):
@@ -43,7 +75,9 @@ def extract_table_names(query):
     return re.findall(r"(?:from|in|of|table|view|into)\s+([a-zA-Z0-9_]+)", cleaned, re.IGNORECASE)
 ```
 
-The RisingWaveMCPAgent class initializes the agent with environment variables configured for a local RisingWave instance, which should be adjusted if connecting elsewhere. It includes functions to list and cache available tools for quick access and uses async context manager methods to manage a single, persistent connection to the MCP server.
+### Build the main agent class
+
+The `RisingWaveMCPAgent` class manages connections and caches. Adjust the environment variables if you're connecting to a remote RisingWave instance.
 
 ```python
 class RisingWaveMCPAgent:
@@ -133,9 +167,10 @@ class RisingWaveMCPAgent:
     async def __aexit__(self, exc_type, exc, tb):
         """Async context manager exit."""
         await self.client.__aexit__(exc_type, exc, tb)
-```
 
-We declare a few more functions to handle tool usage and providing the necessary context around a table.
+### Add core functionality
+
+Add these functions to handle tool usage and provide table context:
 
 ```python
     async def call_tool(self, tool_name, args):
@@ -175,7 +210,7 @@ We declare a few more functions to handle tool usage and providing the necessary
             self.conversation.append({"role": "assistant", "content": response.content[0].text})
 ```
 
-These final agent functions handle processing user queries and managing the chat loop. The agent decides whether to use a tool based on extracted keywords, either invoking tools as needed or calling the Anthropic model for a direct response, looping as necessary until the final message is returned to the user. 
+Add these final methods to handle query processing and manage the chat loop: 
 
 ```python 
     async def process_query(self, query: str) -> str:
@@ -246,7 +281,9 @@ These final agent functions handle processing user queries and managing the chat
 
 ```
 
-This main function allows the user to start the program
+### Add the main function
+
+Add the entry point to start the program:
 
 ```python
 async def main():
@@ -265,18 +302,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Step 2: Setup the workload and configure the Agent
-RISINGWAVE_HOST = 0.0.0.0
-RISINGWAVE_USER = root
-RISINGWAVE_PASSWORD = root
-RISINGWAVE_PORT = 4566
-RISINGWAVE_DATABASE = dev
-RISINGWAVE_SSLMODE = disable
-RISINGWAVE_TIMEOUT = 30
-```
+## Step 3: Create test data
 
-
-Follow the [tutorial](https://docs.risingwave.com/ingestion/advanced/generate-test-data) to create a load generator or use the following script:
+Create test data using the [load generator tutorial](https://docs.risingwave.com/ingestion/advanced/generate-test-data) or run this script:
 
 ```psql
 CREATE TABLE users (
@@ -313,22 +341,30 @@ WITH (
 FORMAT PLAIN ENCODE JSON;
 ```
 
-To connect to the Agent and start the server as a subprocess use:
+## Step 4: Run and test the agent
+
+### Start the agent
+
+Run this command to start the agent:
 
 ```shell
 python client.py risingwave-mcp/src/main.py
 ```
 
-Use the following basic commands to test out the agent's tools:
+### Test the agent
 
-1. Give me the database version
+Try these example commands:
+
+**Get database information:**
+- Give me the database version
 ```bash
 I'll help you get the RisingWave database version information using the `get_database_version` function.
 [Calling tool get_database_version with args {}]
 The database is running PostgreSQL 13.14.0 with RisingWave version 2.2.0 (Homebrew build).
 ```
 
-2. Show me the users table structure
+**Explore table schemas:**
+- Show me the users table structure
 ```bash
 Columns:
 1. id (integer)
@@ -344,14 +380,15 @@ Additional Information:
 - Table Name: users
 ```
 
-3. Track the highest risk scores
+**Create and query materialized views:**
+- Track the highest risk scores
 ```bash
 I'll help you create a materialized view to track the highest risk scores from the users table. I'll create a view that orders by risk score in descending order.
 [Calling tool create_materialized_view with args {'name': 'high_risk_users', 'sql_statement': 'SELECT id, risk, cost, time \nFROM users \nWHERE risk >= 7 \nORDER BY risk DESC'}]
 Great! The materialized view 'high_risk_users' has been created. Let me show you the results from this view to see the users with the highest risk scores.
 ```
 
-4. Sort that mv by highest spending and display
+- Sort that mv by highest spending and display
 ```bash
 I'll query the materialized view 'high_risk_users' and sort it by cost in descending order (highest spending) using the run_select_query function.
 [Calling tool run_select_query with args {'query': 'SELECT * FROM high_risk_users ORDER BY cost DESC;'}]
@@ -371,7 +408,12 @@ Key observations:
 - The view includes users with risk scores 7 and above
 ```
 
+Experiment with your own prompts and data! You can also use any of the [demos](https://docs.risingwave.com/demos/overview) to test the agent.
 
-Feel free to experiment with more prompts and try out with your own data! Similarly, you can use any of the [demos](https://docs.risingwave.com/demos/overview) and test the agent with that data.
+## Clean up
 
-When you are done you can have the agent drop the users table or just use 'quit' to stop the program.
+When you finish testing:
+
+1. **Stop the agent**: Type `quit` in the agent interface.
+2. **Clean up test data** (optional): Ask the agent to "Drop the users table".
+3. **Stop RisingWave**: Stop the RisingWave service if you started it for this demo.
