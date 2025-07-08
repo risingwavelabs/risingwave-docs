@@ -64,17 +64,6 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 ```
 
-### Create helper functions
-
-Add this helper function to extract table names from queries:
-
-```python
-def extract_table_names(query):
-    """Extract table names from a SQL query string."""
-    cleaned = re.sub(r"\b(the|a|an)\b", "", query, flags=re.IGNORECASE)
-    return re.findall(r"(?:from|in|of|table|view|into)\s+([a-zA-Z0-9_]+)", cleaned, re.IGNORECASE)
-```
-
 ### Build the main agent class
 
 The `RisingWaveMCPAgent` class manages connections and caches. Adjust the environment variables if you're connecting to a remote RisingWave instance.
@@ -167,6 +156,7 @@ class RisingWaveMCPAgent:
     async def __aexit__(self, exc_type, exc, tb):
         """Async context manager exit."""
         await self.client.__aexit__(exc_type, exc, tb)
+```
 
 ### Add core functionality
 
