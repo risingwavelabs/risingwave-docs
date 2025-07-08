@@ -1,80 +1,23 @@
 ---
 title: "Connect to PostgreSQL CDC"
-sidebarTitle: Connect to PostgreSQL CDC
+sidebarTitle: Connect to PostgreSQL
 description: "Ingest real-time changes from your PostgreSQL database using change data capture (CDC)."
 ---
 
-This guide explains how to connect RisingWave to a PostgreSQL database to ingest data changes in real time using change data capture (CDC). RisingWave supports PostgreSQL versions 10, 11, 12, 13, 14, 15, 16, and 17.
+This guide explains how to connect RisingWave to a PostgreSQL database to ingest data changes in real time using the native PostgreSQL CDC source connector.
+
+RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-compliant database that supports logical replication, and supports **PostgreSQL versions 10 through 17**.
 
 ## Prerequisites
 
-*   A running PostgreSQL database (self-hosted or AWS RDS/Aurora).
-*   PostgreSQL `wal_level` set to `logical`.
-*   A PostgreSQL user with the necessary privileges (`REPLICATION`, `LOGIN`, `CREATEDB`).
-*   Network connectivity between RisingWave and your PostgreSQL database.
+Before connecting to RisingWave, you must enable logical replication on your upstream database. The specific steps depend on your provider. Select your platform below for detailed setup instructions:
 
-## Connection methods
+*   **[Set up a self-hosted PostgreSQL database](/ingestion/sources/postgresql/self-hosted)**
+*   **[Set up AWS RDS or Aurora PostgreSQL](/ingestion/sources/postgresql/aws-rds)**
+*   **[Set up a Neon serverless PostgreSQL database](/ingestion/sources/postgresql/neon)**
+*   **[Set up a Supabase project](/ingestion/sources/postgresql/supabase)**
 
-RisingWave supports two ways to ingest CDC data from PostgreSQL:
-
-*   Using the built-in PostgreSQL CDC connector.
-*   Using a CDC tool (like Debezium) and message broker (like Kafka).
-
-This guide focuses on using built-in PostgreSQL CDC connector.
-
-## Set up PostgreSQL
-
-Before connecting RisingWave, you need to configure your PostgreSQL database for CDC. The steps vary slightly depending on whether you're using a self-hosted PostgreSQL instance or AWS RDS/Aurora.
-
-<Tabs>
-<Tab title="Self-hosted PostgreSQL">
-
-1.  **Set `wal_level` to `logical`:**
-
-    ```bash
-    ALTER SYSTEM SET wal_level = logical;
-    ```
-    This requires a restart of your PostgreSQL instance.
-    <Note>
-    If you are creating multiple CDC tables without a shared source, ensure `max_wal_senders` is greater than or equal to the number of synced tables. The default is 10.
-    </Note>
-
-2.  **Grant privileges:**
-
-    ```sql
-    -- For an existing user:
-    ALTER USER <username> REPLICATION LOGIN CREATEDB;
-
-    -- Or, for a new user:
-    CREATE USER <username> REPLICATION LOGIN CREATEDB;
-    ```
-    ```sql
-    GRANT CONNECT ON DATABASE <database_name> TO <username>;
-    GRANT USAGE ON SCHEMA <schema_name> TO <username>;
-    GRANT SELECT ON ALL TABLES IN SCHEMA <schema_name> TO <username>;
-    GRANT CREATE ON DATABASE <database_name> TO <username>;
-    ```
-
-</Tab>
-<Tab title="AWS RDS/Aurora PostgreSQL">
-
-1.  **Set `rds.logical_replication` to `1`:** Create or modify a parameter group for your PostgreSQL instance and set `rds.logical_replication` to `1`.
-
-    <Note>
-    For Aurora PostgreSQL, also set `rds.logical_wal_cache` to `0` to avoid a known data loss issue. This affects Aurora PostgreSQL versions 14.5, 13.8, 12.12, and 11.17.
-    If creating multiple CDC tables without a shared source, set `max_wal_senders` to be greater than or equal to the number of synced tables. By default, `max_wal_senders` is 20 for versions 13 and later.
-    </Note>
-
-2.  **Apply the parameter group:** Modify your RDS instance to use the new/modified parameter group. This usually requires a reboot.
-
-3.  **Grant `rds_replication` privilege:**
-
-    ```sql
-    GRANT rds_replication TO <username>;
-    ```
-
-</Tab>
-</Tabs>
+Once setup is complete, return to this guide to connect RisingWave.
 
 ## Connect to PostgreSQL
 
@@ -129,11 +72,56 @@ CREATE TABLE my_table (
 FROM pg_source TABLE 'public.my_upstream_table';
 ```
 
-## Data format
+## Configuration Parameters
+
+This section contains a complete reference for all parameters used when creating a PostgreSQL CDC source.
+
+### Connector parameters
+
+These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
+
+| Parameter             | Description                                                                                                                                                                                                                  | Required |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------- |
+| `connector`           | Must be set to `'postgres-cdc'`.                                                                                                                                                                                 | Yes      |
+| `hostname`            | The hostname or IP address of your PostgreSQL database server.                                                                                                                                                             | Yes      |
+| `port`                | The port number of your PostgreSQL database server. The default is 5432.                                                                                                                                      | Yes      |
+| `username`            | The username for connecting to your PostgreSQL database.                                                                                                                | Yes      |
+| `password`            | The password for the PostgreSQL user.                                                                                                                                                                                     | Yes      |
+| `database.name`       | The name of the PostgreSQL database to connect to.                                                                                                                                                                        | Yes      |
+| `schema.name`         | The name of the PostgreSQL schema to capture changes from. Defaults to `'public'`.                                                                                                                                       | No       |
+| `slot.name`           | The name of the PostgreSQL replication slot to use. If not specified, a unique name is generated. Each source needs a unique slot. Valid characters: lowercase letters, numbers, underscore. Max length: 63.                 | No       |
+| `publication.name`    | The name of the PostgreSQL publication to use. Defaults to `'rw_publication'`.                                                                                                                                                  | No       |
+| `publication.create.enable` | Whether to automatically create the publication if it doesn't exist. Defaults to `true`.                                                                                                                              | No       |
+| `auto.schema.change`  | Set to `true` to enable automatic replication of DDL changes from Postgres. Defaults to `false`.                                                                                                                            | No       |
+| `ssl.mode`            | SSL/TLS encryption mode. Accepted values: `disabled`, `preferred`, `required`, `verify-ca`, `verify-full`. Defaults to `disabled`.                                                                       | No       |
+| `ssl.root.cert`       | The PEM-encoded root certificate for `verify-ca` or `verify-full` mode. Use a [secret](/operate/manage-secrets).                                                                                                          | No       |
+| `transactional`       | Ensures that changes from a single upstream transaction are processed atomically. Defaults to `true` for shared sources.                                                   | No       |
+
+### Per-table parameters
+
+These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
+
+| Parameter        | Description                                                                                                                   | Required | Default |
+| :--------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------- | :------ |
+| `snapshot`       | If `false`, disables the initial snapshot (backfill) of the table. Only new changes will be ingested.                          | No       | `true`  |
+
+### Debezium parameters
+
+You can also specify any valid [Debezium PostgreSQL connector configuration property](https://debezium.io/documentation/reference/2.6/connectors/postgresql.html#postgresql-advanced-configuration-properties) in the `WITH` clause. Prefix the Debezium parameter name with `debezium.`.
+
+For example, to skip unknown DDL statements, use:
+
+```sql
+debezium.schema.history.internal.skip.unparseable.ddl = 'true'
+```
+
+## Features and reference
+
+### Data format
 
 The PostgreSQL CDC connector uses the Debezium JSON format for data.
 
-## Supported data types
+### Supported data types
 
 The following table shows the data type mapping from PostgreSQL to RisingWave.
 
@@ -142,7 +130,7 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 </Note>
 
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| :--------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :--------------------------------------------------- | :------------------------- |
 | BOOLEAN                                              | BOOLEAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | BIT(1)                                               | BOOLEAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | BIT( > 1)                                            | No support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -187,8 +175,36 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | MACADDR                                              | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR8                                             | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
+### Use dbt to ingest data from PostgreSQL CDC
 
-## Extracting metadata from sources
+Here is an example of how to use dbt to ingest data from PostgreSQL CDC. In this dbt example, `source` and `table_with_connector` models will be used. For more details about these two models, please refer to [Use dbt for data transformations](/integrations/other/dbt#define-dbt-models).
+
+First, we create a `source` model `pg_mydb.sql`.
+
+```sql
+{{ config(materialized='source') }}
+CREATE SOURCE {{ this }} WITH (
+    connector = 'postgres-cdc',
+    hostname = '127.0.0.1',
+    port = '8306',
+    username = 'root',
+    password = '123456',
+    database.name = 'mydb',
+    slot.name = 'mydb_slot'
+);
+```
+
+And then we create a `table_with_connector` model `tt3.sql`.
+
+```sql
+{{ config(materialized='table_with_connector') }}
+CREATE TABLE {{ this }} (
+    v1 integer primary key,
+    v2 timestamp with time zone
+) FROM {{ ref('pg_mydb') }} TABLE 'public.tt3';
+```
+
+### Extract metadata from sources
 
 The `INCLUDE` clause allows you to ingest fields *not* included in the main Debezium payload (such as metadata). See [Extracting metadata from sources](/ingestion/advanced/extract-metadata-from-sources) for details. The available fields are:
 
@@ -198,21 +214,116 @@ The `INCLUDE` clause allows you to ingest fields *not* included in the main Debe
 *   `database_name`
 *   `collection_name`
 
-## Automatically map upstream table schema
+### Automatically map upstream table schema
+
 RisingWave supports automatically mapping the upstream table schema when creating a CDC table from a PostgreSQL CDC source. 
 Instead of defining columns individually, you can use `*` when creating a table to ingest all columns from the source table. Note that `*` cannot be used if other columns are specified in the table creation process.
 
 ```sql
 CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_name>';
 ```
+### Automatic schema changes
 
-## Time travel
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+</Tip>
+
+RisingWave supports auto schema changes in Postgres CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.
+
+Currently, RisingWave supports the `ALTER TABLE` command with the following operations, and we plan to add support for additional DDL operations in future releases.
+
+* `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table. Only constant value expressions are supported for the default value.
+* `DROP COLUMN`: Allows you to remove an existing column from a table.
+
+To enable this feature, set `auto.schema.change = 'true'` in your PostgreSQL CDC source configuration:
+
+```SQL
+CREATE SOURCE pg_source WITH (
+ connector = 'postgres-cdc',
+ hostname = 'localhost',
+ port = '5432',
+ username = 'your_user',
+ password = 'your_password',
+ database.name = 'your_database',
+ schema.name = 'public',
+ auto.schema.change = 'true'
+);
+```
+
+Create a RisingWave table from the PostgreSQL source:
+
+```SQL
+CREATE TABLE my_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+)
+FROM pg_source TABLE 'public.my_upstream_table';
+```
+
+Add columns to the PostgreSQL table and observe the changes in RisingWave:
+
+```sql
+-- In your PostgreSQL database:
+ALTER TABLE my_upstream_table ADD COLUMN v1 VARCHAR(255);
+ALTER TABLE my_upstream_table ADD COLUMN v2 NUMERIC(5,2);
+```
+
+After the changes in the upstream table, the schema of the table in RisingWave will also be changed. You can verify this by running `DESCRIBE my_table;` in RisingWave.
+
+```sql
+-- In RisingWave:
+DESCRIBE my_table;
+```
+
+### Ingest data from a partitioned table
+
+RisingWave supports ingesting data from a partitioned table. To configure a publication for your CDC stream, PostgreSQL, by default, creates publications with `publish_via_partition_root = false`. This setting causes replication slot events to contain separate events for each partition, rather than for the root partitioned table.
+
+If you need to read from the partitioned table, you should explicitly set this property to `TRUE` when creating a publication. Execute the following command in your upstream PostgreSQL database:
+
+```sql
+CREATE PUBLICATION publication_name FOR table_name WITH (publish_via_partition_root = true);
+```
+
+If you let RisingWave create the publication, it will automatically set `publish_via_partition_root = true`.
+
+Please be aware that PostgreSQL does not support adding both a partitioned table and its individual partitions to the same publication; however, it does not generate an error if attempted. If you need to ingest data from both the root table and its partitions, you should create separate publications for each. Otherwise, you will not be able to read from the table partitions. Meanwhile, in RisingWave, you should create separate sources with dedicated publication names for the partitioned table and its partitions.
+
+### Expression as a column
+
+RisingWave allows users to define expressions as table columns. For example, in the SQL statement below, `next_id` is not a column from the source PostgreSQL table. Instead, it is a generated column that RisingWave computes dynamically while ingesting data. The value of `next_id` for each row is always equal to `id + 1`:
+
+```sql
+CREATE TABLE person (
+  id integer PRIMARY KEY,
+  name varchar,
+  next_id int AS id + 1,
+  PRIMARY KEY (id)
+) FROM pg_mydb TABLE 'public.person';
+```
+
+Currently, generated columns must appear at the end of the schema definition. If a column from the upstream source appears after a generated column, RisingWave will return an error. For example, the following statement will fail because `name`, an upstream column, is placed after the generated column `next_id`:
+
+```sql
+CREATE TABLE person (
+  id integer PRIMARY KEY,
+  next_id int AS id + 1,
+  name varchar,
+  PRIMARY KEY (id)
+) FROM pg_mydb TABLE 'public.person';
+```
+
+To avoid errors, ensure that all generated columns are positioned at the end of the schema definition.
+
+### Time travel
 
 RisingWave does not support time travel for the native PostgreSQL CDC connector.
 
 ## What's next?
 
-*   **All configuration options:** [PostgreSQL CDC configuration options](/ingestion/sources/pg-cdc-config)
 *   **Supported data formats:** [Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options)
-*   [Ingest data with dbt](/integrations/other/dbt)
 *   [Monitor CDC ingestion progress](/ingestion/advanced/monitor-cdc-progress)

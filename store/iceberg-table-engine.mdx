@@ -71,6 +71,21 @@ The following examples show how to create an Iceberg connection using different 
         );
     ```
     </Tab>
+
+    <Tab title="Hosted catalog">
+    ```sql Hosted catalog
+    CREATE CONNECTION public.conn WITH (
+        type = 'iceberg',
+        warehouse.path = 's3://my-iceberg-bucket/hosted-warehouse',
+        s3.region = 'us-east-1',
+        s3.access.key = <access_key_id>,
+        s3.secret.key = <secret_key>,
+        hosted_catalog = true
+    );
+    ```
+    
+    The hosted catalog is a built-in catalog service that eliminates the need to set up and manage an external catalog. For detailed information, see [Hosted Iceberg Catalog](/store/hosted-iceberg-catalog).
+    </Tab>
 </Tabs>
 
 ### 2. Configure the engine to use the connection
@@ -227,7 +242,7 @@ RisingWave will now manage `my_iceberg_table` using the Iceberg format, with met
 ### Append-only tables
 
 <Note>
-Added in v2.4.
+Added in v2.4.0.
 </Note>
 
 You can create an [append-only table](/sql/commands/sql-create-table#append-only) with the Iceberg engine.
@@ -262,6 +277,4 @@ The namespace and table name in the external catalog will typically match the sc
 ## Limitations
 
 RisingWave does not currently have a built-in automatic compaction service for tables created with the Iceberg engine. Streaming ingestion, especially with frequent commits (low `commit_checkpoint_interval`), can lead to many small files. You may need to run compaction procedures manually using external tools that operate on Iceberg tables to optimize read performance. We are actively working on integrating compaction features.
-
-
 

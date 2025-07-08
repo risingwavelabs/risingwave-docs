@@ -1,10 +1,10 @@
 ---
 title: "Connect to Apache Iceberg"
 sidebarTitle: Connect to Iceberg
-description: "Connect RisingWave to your Apache Iceberg tables for batch ingestion."
+description: "Connect RisingWave to your Apache Iceberg tables."
 ---
 
-This guide explains how to connect RisingWave to your Apache Iceberg tables for *batch* data ingestion.  RisingWave supports reading data from Iceberg tables stored on S3-compatible storage (including AWS S3 and MinIO) and Google Cloud Storage (GCS).
+This guide explains how to connect RisingWave to your Apache Iceberg tables for *batch* data ingestion. RisingWave supports reading data from Iceberg tables stored on S3-compatible storage (including AWS S3 and MinIO) and Google Cloud Storage (GCS).
 
 ## Prerequisites
 
@@ -13,10 +13,11 @@ This guide explains how to connect RisingWave to your Apache Iceberg tables for 
 *   Network connectivity between RisingWave and your storage system.
 *   Know your Iceberg catalog type.
 
-## Connection methods
+## Connect to Iceberg
 
 RisingWave supports connecting to Iceberg using `CREATE SOURCE`.
-Currently, RisingWave does not support creating a table backed by an Iceberg table using `CREATE TABLE ... WITH (connector=...)`. If you create a table to store data, and ingest from the Iceberg source, the table is not an Iceberg table.
+Currently, RisingWave does not support creating a table backed by an Iceberg table using `CREATE TABLE ... WITH (connector=...)`.
+If you create a table to store data, and ingest from the Iceberg source, the table is not an Iceberg table.
 
 ## Basic connection example (S3)
 
@@ -51,7 +52,7 @@ SELECT * FROM iceberg_source;
 ## Create streaming jobs
 
 <Note>
-Support for creating streaming jobs directly from Iceberg sources was added in v2.3. If your Iceberg source was created **before** this version, you must recreate it to enable streaming job creation.
+Support for creating streaming jobs directly from Iceberg sources was added in v2.3.0. If your Iceberg source was created **before** this version, you must recreate it to enable streaming job creation.
 </Note>
 
 You can create a materialized view or a sink from an Iceberg source to incrementally process and transform its data, similar to how you would with other supported sources.
