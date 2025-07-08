@@ -11,18 +11,14 @@ RisingWave can serve as a webhook destination, directly accepting HTTP requests 
 
 This direct integration eliminates the need for an intermediary message broker like Kafka. Instead of setting up and maintaining an extra Kafka cluster, you can directly send data to RisingWave to process it in real-time, which enables efficient data ingestion and stream processing without extra infrastructure.
 
-<Note>
-**PUBLIC PREVIEW**
-
-This feature is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
-</Note>
-
 ## Creating a webhook table in RisingWave
 
 To utilize webhook sources in RisingWave, you need to create a table configured to accept webhook requests. Below is a basic example of how to set up such a table:
 
 ```sql
-CREATE SECRET test_secret WITH (backend = 'meta') AS 'secret_value';
+-- Create a secret to store the webhook validation key. Note that this is optional but recommended. 
+-- Alternatively you can use a raw string (without specifying `SECRET <secret>`).
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'secret_value'; 
 
 CREATE TABLE wbhtable (
   data JSONB

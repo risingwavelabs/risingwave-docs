@@ -18,11 +18,6 @@ PREMIUM EDITION FEATURE
 For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro).
 </Tip>
 
-<Note>
-PUBLIC PREVIEW
-
-**Database isolation**, **resource groups**, and **cross-database queries** are currently in public preview. While nearing the final product, it may still evolve. Please refer to our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage) for the latest status or reach out via our [Slack channel](https://www.risingwave.com/slack) with feedback or issues.
-</Note>
 
 This topic explains these capabilities and how they work together.
 
@@ -49,6 +44,20 @@ Resource groups offer a powerful mechanism for fine-grained control over compute
 ### Concept
 
 A *resource group* is a named logical pool consisting of specific compute nodes (CNs) within your RisingWave cluster. Administrators typically define these groups and their associated CNs during cluster setup or configuration.
+
+### Defining a resource group
+
+You define a resource group by assigning compute nodes to it when starting these compute nodes. Each compute node can be independently assigned to a named group. All compute nodes launched with the same resource group name collectively form that logical group, allowing them to be managed and targeted as a single unit.
+
+This assignment is done when launching a compute node by using the `--resource-group` command-line flag or by setting the `RW_RESOURCE_GROUP` environment variable.
+
+```
+risingwave compute-node --resource-group test
+```
+
+<Note>
+If neither the flag nor the environment variable is specified, the compute node will be assigned to the "default" resource group.
+</Note>
 
 ### How resource groups provide isolation and control
 

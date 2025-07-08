@@ -15,7 +15,7 @@ If you choose not to persist the data from the source in RisingWave, use [CREATE
 
 ```js
 CREATE TABLE [ IF NOT EXISTS ] table_name (
-    col_name data_type [ PRIMARY KEY ] [ DEFAULT default_expr ] [ AS generation_expression ],
+    col_name data_type [ NOT NULL ] [ PRIMARY KEY ] [ DEFAULT default_expr ] [ AS generation_expression ],
     ...
     [ PRIMARY KEY (col_name, ... ) ]
     [ watermark_clause ]
@@ -34,6 +34,8 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 ```
 
 ## Notes
+
+- RisingWave supports **NOT NULL** constraints in table schemas. For batch inserts and updates, RisingWave throws an error if any row contains NULL in a NOT NULL column; for streaming ingestion, rows with NULL in NOT NULL columns are silently ignored.
 
 - For tables with primary key constraints, if you insert a new data record with an existing key, the new record will overwrite the existing record.
 
@@ -91,7 +93,7 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 | ON CONFLICT                       | Specify the alternative action when the newly inserted record brings a violation of PRIMARY KEY constraint on the table. See [PK conflict behavior](#pk-conflict-behavior) below for more information.                                                                                                                                                                                                  |
 | **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause).                                                                                                                                                                                                                                                     |
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See the [Data ingestion](/ingestion/overview) page for the full list of supported source as well as links to specific connector pages detailing the syntax for each source.                                                                                                                                       |
-| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats](/ingestion/supported-sources-and-formats#supported-formats).                                                                                                                                                                                                                  |
+| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options).                                                                                                                                                                                                                  |
 | **ENGINE** | Specify the Iceberg table engine to store data natively in the Iceberg format. For more information, see [Create a table with the Iceberg engine](/store/iceberg-table-engine#3-create-a-table-with-the-iceberg-engine).                                                                                                                                                                                                                  |
 
 <Note>
@@ -127,22 +129,37 @@ CREATE TABLE t (
 
 ## PK conflict behavior
 
-The record with insert operation could introduce duplicate records with the same primary key in the table. In that case, an alternative action specified by the `ON CONFLICT` clause will be adopted. The record can come from Insert DML statement, external connectors of the table, or sinks into the table [CREATE SINK INTO](/sql/commands/sql-create-sink-into).
+Records with insert operations could introduce duplicate records with the same primary key in the table. In that case, an alternative action specified by the `ON CONFLICT conflict_action` clause will be adopted. The record can come from an `INSERT` statement, external connectors of the table, or [sinks into the table](/sql/commands/sql-create-sink-into).
 
-The action could one of the following. A column not in the primary key can be specified as the version column for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When version column is specified, the insert operation will take effect only when the newly inserted value is greater or equal than the exist data record in the table's specified column.
+The `conflict_action` could be one of the following. A [version column](#version-column) can be specified together for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When a version column is specified, the insert operation will take effect only when the newly inserted row's version column is greater than or equal to the existing row's version column, and is not NULL.
 
 * `IGNORE`: Ignore the newly inserted record.
-* `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Replace the existing row in the table. When version column is specified, the existing row will be replaced only when the newly inserted value is greater or equal than the existing data record in the table's specified column.
-* `DO UPDATE IF NOT NULL [WITH VERSION COLUMN(col_name)]`: Only replace those fields which is not NULL in the inserted row. If version column is specified but the inserted row's version field is NULL, the version column will not take effect.
+* `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Full update: replace the existing row in the table with the new row.
+* `DO UPDATE IF NOT NULL [WITH VERSION COLUMN(col_name)]`: Partial update: only replace those fields with non-NULL values in the inserted row. NULL values in the inserted row means unchanged in this case.
 
 <Note>
-The delete and update operation on the table cannot break the primary key constraint on the table, so the option will not take effect for those cases.
+Delete and update operations on the table cannot break the primary key constraint on the table, so the option will not take effect for those cases.
 </Note>
 
 <Note>
 When `DO UPDATE IF NOT NULL` behavior is applied, `DEFAULT` clause is not allowed on the table's columns.
-
 </Note>
+
+### Version column
+
+A version column is a non-primary-key column that can be used with `OVERWRITE` and `DO UPDATE IF NOT NULL` to tune the conflict handling behaviors.
+
+Common use cases include:
+1. Use an event time column as the version column to ensure temporal ordering and ignore late-arriving data.
+2. Use an integer as a logical version number. You can use an Upsert-then-Delete pattern with a logical version column to implement "zero-downtime incremental version upgrade" for data in the table: you insert a new version of data with a higher version number while keeping old data, and then after finishing the upgrade, you clean up old data with a `DELETE` statement.
+
+    This can be used to implement [in-place streaming job modification](/operate/alter-streaming#modifying-a-streaming-job-in-place), or re-sync external batch data into RisingWave (reverse ETL).
+
+<Note>
+When a row is updated only with a new version number and other columns remain unchanged, downstream streaming jobs that don’t use the version column won’t be affected. RisingWave will
+    automatically compact "no-op" updates to prevent massive updates for downstream jobs. You can create a logical view with `SELECT * EXCEPT(version_col)` to avoid depending on the version column by mistake.
+</Note>
+
 ## Example
 
 The statement below creates a table that has three columns.

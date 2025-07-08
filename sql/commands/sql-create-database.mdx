@@ -8,7 +8,9 @@ description: "Use the `CREATE DATABASE` command to create a new database."
 ```sql
 CREATE DATABASE [ IF NOT EXISTS ] database_name
     [ WITH ] [ owner [=] user_name ]
-    [ resource_group [=] resource_group_name ];
+    [ resource_group [=] resource_group_name ]
+    [ barrier_interval_ms [=] integer ]
+    [ checkpoint_frequency [=] integer ];
 ```
 
 ## Parameters
@@ -19,7 +21,12 @@ CREATE DATABASE [ IF NOT EXISTS ] database_name
 | **IF NOT EXISTS** clause | Creates a database if the database name has not already been used. Otherwise throws an error. |
 | **owner [=] user_name** clause | Specifies which user owns the database to be created. |
 | **resource_group [=] resource_group_name** clause| Assigns the database to a specific resource group. If not set, the database belongs to the default resource group. |
+| **barrier_interval_ms [=] integer** clause | Sets how frequently the system injects barriers per-database. If not specified, uses the global settings defined in `SystemParams`.|
+| **checkpoint_frequency [=] integer** clause | Sets how many barriers should pass before triggering a checkpoint per-database. If not specified, uses the global settings defined in `SystemParams`.|
 
+<Note>
+Added in v2.5.0: `barrier_interval_ms` and `checkpoint_frequency`.
+</Note>
 
 <Tip>
 **PREMIUM EDITION FEATURE**
@@ -30,13 +37,13 @@ For a full list of Premium Edition features, see [RisingWave Premium Edition](/g
 </Tip>
 
 <Note>
-**PUBLIC PREVIEW**
-
-Resource groups is currently in public preview, meaning it is nearing the final product but may not yet be fully stable. If you encounter any issues or have feedback, please reach out to us via our [Slack channel](https://www.risingwave.com/slack). Your input is valuable in helping us improve this feature. For more details, see our [Public Preview Feature List](/changelog/product-lifecycle#features-in-the-public-preview-stage).
+Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/sql/identifiers).
 </Note>
 
 
 ## Example
+
+Set resource group:
 
 ```sql
 CREATE DATABASE IF NOT EXISTS travel
@@ -44,7 +51,16 @@ CREATE DATABASE IF NOT EXISTS travel
     RESOURCE_GROUP = high_priority;
 ```
 
-<Note>
-Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/sql/identifiers).
+Set a custom barrier interval and checkpoint frequency for a database:
 
-</Note>
+```sql Create database
+CREATE DATABASE IF NOT EXISTS travel
+    WITH 
+        OWNER = travel_admin
+        BARRIER_INTERVAL_MS = 1500
+        CHECKPOINT_FREQUENCY = 5;
+```
+
+## Related topic
+To change the owner, barrier interval, or checkpoint frequency of an existing database, see the [ALTER DATABASE](/sql/commands/sql-alter-database) command.
+

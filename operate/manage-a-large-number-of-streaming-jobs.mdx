@@ -23,7 +23,7 @@ default_parallelism=8
 
 The adaptive parallelism feature in version 1.7.0 ensures that every streaming job can fully utilize all available CPUs. Therefore, we need to disable it. The `default_parallelism` setting determines the parallelism for newly created streaming jobs. Change the `streaming_parallelism` before creating streaming jobs can achieve the same effect. For guidance on how to set this value, refer to [How to adjust the resources allocated to each streaming query?](/performance/faq#how-do-i-adjust-the-resources-allocated-to-each-streaming-query).
 
-### Limit the concurrency of creating stream jobs
+### Limit the concurrency of creating streaming jobs
 
 If you want to create multiple streaming jobs at once using scripts or tools such as DBT, the [system parameter](/operate/view-configure-system-parameters) `max_concurrent_creating_streaming_jobs` is helpful. It controls the maximum number of streaming jobs created concurrently. However, please do not set it too high, as it may introduce excessive pressure on the cluster.
 
@@ -36,6 +36,64 @@ select count(*) from rw_actors;
 ```
 
 If the number exceeds 50000, please pay close attention and check the following items.
+
+### Limit parallelism for less intensive streaming jobs
+
+If you want to limit the parallelism for tables, indexes, materialized views, sinks, or sources, you can set the corresponding session parameters to define specific limits for each type.
+
+```sql
+/* set the global parallelism*/
+dev=> set streaming_parallelism = 1;
+SET_VARIABLE
+dev=> create table t_normal(v int);
+CREATE_TABLE
+/* specify the parallelism for the table type*/
+dev=> set streaming_parallelism_for_table = 2;
+SET_VARIABLE
+dev=> create table t(v int);
+CREATE_TABLE
+/* specify the parallelism for the index type*/
+dev=> set streaming_parallelism_for_index = 3;
+SET_VARIABLE
+dev=> create index i on t(v);
+CREATE_INDEX
+dev=> select * from rw_streaming_parallelism;
+ id |   name   | relation_type | parallelism | max_parallelism
+----+----------+---------------+-------------+-----------------
+  7 | t        | table         | FIXED(2)    |             256
+  6 | t_normal | table         | FIXED(1)    |             256
+  8 | i        | index         | FIXED(3)    |             256
+(3 rows)
+```
+
+By setting the parallelism strategy for a specific job type, you can control the exact parallelism used when the job is created.
+
+If you want to reset to the default strategy, simply set it to `default`. The parallelism will then fall back to the global `streaming_parallelism` setting.
+
+```sql
+dev=> set streaming_parallelism = adaptive;
+SET_VARIABLE
+dev=> set streaming_parallelism_for_table = 1;
+SET_VARIABLE
+dev=> create table t(v int);
+CREATE_TABLE
+dev=> set streaming_parallelism_for_table = default;
+SET_VARIABLE
+dev=> create table t_default(v int);
+CREATE_TABLE
+dev=> select * from rw_streaming_parallelism;
+ id |   name    | relation_type | parallelism | max_parallelism
+----+-----------+---------------+-------------+-----------------
+  9 | t_default | table         | ADAPTIVE    |             256
+  8 | t         | table         | FIXED(1)    |             256
+(2 rows)
+```
+
+You can also apply the configuration globally using the following syntax:
+
+```sql
+ALTER SYSTEM SET streaming_parallelism_for_table TO 4;
+```
 
 ### Decrease the parallelism
 

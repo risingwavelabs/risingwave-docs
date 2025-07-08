@@ -38,13 +38,14 @@ These parameters configure the connection to the underlying S3-compatible storag
 
 
 | Parameter             | Description                                                                                                | Required (Conditional)    |
-| :-------------------- | :--------------------------------------------------------------------------------------------------------- | :-------------------------- |
+| :-------------------- | :---------------------------------------------------------- | :-------------------------- |
 | `warehouse.path`        | The base path to your Iceberg warehouse in the S3-compatible storage.  Example:  `'s3://my-bucket/iceberg-warehouse'`                  | Conditional                 |
 | `s3.endpoint`       | The endpoint URL for your S3-compatible storage service. <ul><li> *Example (MinIO):* `'http://minio-host:9000'` </li><li> *Example (AWS S3):* See [AWS S3 documentation](https://docs.aws.amazon.com/general/latest/gr/s3.html) for your region's endpoint.</li></ul>     | Conditional                 |
 | `s3.region`         | The AWS region where your S3 bucket is located (e.g., `'us-east-1'`, `'eu-west-2'`).  *Required if using AWS S3 and `s3.endpoint` is not specified.*       | Conditional                 |
 | `s3.access.key`     | Your S3 access key ID.    | Conditional                     |
 | `s3.secret.key`     | Your S3 secret access key.    | Conditional                    |
 | `s3.path.style.access` | Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). | No                          |
+| `enable_config_load` | Controls whether configuration is loaded from environment variables. Set to `true` will load warehouse credentials from environment variables. Only supported in self-hosted environments. | No                          |
 
 ### Use Amazon S3 Tables with the Iceberg source
 
@@ -108,6 +109,21 @@ These parameters configure the connection to the underlying GCS storage system w
 | `warehouse.path`        | The base path to your Iceberg warehouse in GCS. Example:  `'gs://bucket/path'` | Conditional            |
 | `gcs.credential`      | The credential to access GCS.               | Conditional        |
 
+## Storage configuration (Azure Blob)
+
+These parameters configure the connection to Azure Blob storage where the Iceberg data files are stored.
+
+<Note>
+Added in v2.4.0.
+</Note>
+
+| Parameter name | Description | Required (Conditional) |
+| :------------- | :---------- | :---------- |
+| `warehouse.path`        | Specifies the Azure Blob Storage path. | Conditional        |
+| `azblob.account_name` |	The Azure Storage account name used to authenticate access. | Conditional        |
+| `azblob.account_key` | The Azure Storage account key associated with the account name, used for authentication. | Conditional        |
+| `azblob.endpoint_url` |  The full endpoint URL of the Azure Blob service. | Conditional        |
+
 ## Catalog configuration
 
 These parameters configure the Iceberg catalog. The catalog is responsible for managing table metadata (schema, partitioning, location). RisingWave supports several catalog types.
@@ -117,7 +133,7 @@ These parameters configure the Iceberg catalog. The catalog is responsible for m
 | `catalog.name`     | The name of the Iceberg catalog. This is a user-defined identifier.  *Optional* for the `storage` catalog, but *required* for all other catalog types.                                     | Conditional                 |
 | `catalog.type`     | The type of Iceberg catalog to use. Supported values: <ul><li>`'storage'`: Uses the underlying file system (e.g., S3) directly for metadata.</li><li>`'rest'`: Uses the Iceberg REST catalog.</li><li>`'hive'`: Uses a Hive Metastore.</li> <li>`'jdbc'`: Uses a JDBC catalog.</li><li> `'glue'`: Uses AWS Glue Data Catalog</li></ul> If not specified, defaults to `'storage'`. | No (defaults to `storage`) |
 | `catalog.uri`      | The URI of the catalog. The required format depends on the `catalog.type`:   <ul><li>`rest`:  The base URL of the REST catalog server (e.g., `'http://rest-catalog:8181'`).</li><li>`hive`:  The Hive Metastore URI (e.g., `'thrift://hive-metastore:9083'`).</li><li> `jdbc`: The JDBC connection string (e.g., `'jdbc:postgresql://postgres:5432/iceberg'`).</li></ul>   | Conditional                 |
-|`warehouse.path`|    The path of the Iceberg warehouse. Currently, only S3-compatible object storage systems and GCS, are supported. It is required if the `catalog.type` is not `rest`. | Conditional|
+|`warehouse.path`|    The path of the Iceberg warehouse. It is required if the `catalog.type` is not `rest`. | Conditional|
 | `catalog.credential` | Credential for accessing the Iceberg catalog, used to exchange for a token in the OAuth2 client credentials flow. Applicable only in the `rest` catalog.                                             | No                          |
 | `catalog.token`        | A Bearer token for accessing the Iceberg catalog, used for interaction with the server. Applicable only in the `rest` catalog.                                                         | No                          |
 | `catalog.oauth2_server_uri`   | The `oauth2_server_uri` for accessing the Iceberg catalog, serving as the token endpoint URI to fetch a token if the `rest` catalog is not the authorization server. Applicable only in the `rest` catalog.  | No                          |
