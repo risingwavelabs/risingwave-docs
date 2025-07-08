@@ -78,12 +78,13 @@ If you observe high CPU utilization or high cache miss rates during backfilling 
 
 During the backfilling process of the "MV on MV" or "MV on SINK INTO TABLE", the data from the upstream MV may not have good locality. To optimize this, we recommend modifying the SQL query so that the order key of the upstream table aligns with the group key of the downstream MV. This alignment improves the performance of the backfilling process and ensures better efficiency.
 
-### MV on MV
+#### MV on MV
+
 Suppose we create a table `t` using `create table t(v1 int, v2 varchar, v3 timestamp);`. This table contains a large amount of historical data. When creating a new MV on top of this table, it requires backfilling all the historical data, which can be a time-consuming process. Then we create an MV called `m` using `create materialized view m as select v1, sum(v2) from t group by v1;`. The challenge during backfilling is that when reading data from table `t` to build the MV `m`, the order of the `v1` values may be random. This randomness can lead to poor cache locality and trigger remote I/O, ultimately decreasing performance.
 
 However, if we use `create table t(v1 int primary key, v2 varchar);` instead to create a table, or define an intermediate mv like `create materialized view tmp as select * from t order by v1;`. The storage of RisingWave will order rows by `v1`, which means that rows with same `v1` will be read consecutively. This adjustment enhances cache locality and thereby improves performance.
 
-### MV on SINK INTO TABLE
+#### MV on SINK INTO TABLE
 
 When building the MV on a table populated via SINK (SINK INTO TABLE), backfilling performance can be improved by ensuring the sink writes data in an order that matches the MV’s partitioning or ordering keys.
 
