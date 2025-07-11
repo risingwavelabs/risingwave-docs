@@ -25,26 +25,24 @@ To use the hosted catalog, you create an Iceberg connection and set the `hosted_
 CREATE CONNECTION connection_name
 WITH (
     type = 'iceberg',
-    warehouse.path = 's3://<your_bucket_name>/<path_to_warehouse>',
-    s3.region = '<your_s3_region>',
-    s3.access.key = '<your_iam_access_key>',
-    s3.secret.key = '<your_iam_secret_key>',
-    s3.endpoint = '<your_s3_endpoint>', -- Optional
+    warehouse.path = '<storage_path>',
+    <object_storage_parameters>,
     hosted_catalog = true
 );
 ```
 
+Where `<storage_path>` and `<object_storage_parameters>` depend on your chosen storage backend (S3, GCS, or Azure Blob). See the [object storage configuration](/iceberg/configuration/object-storage) for specific parameter details.
+
 ### Parameters
 
+For object storage configuration parameters, see:
+- [Object storage configuration](/iceberg/configuration/object-storage)
+
+#### Hosted catalog-specific parameters
 
 | Field | Description |
 |-------|-------------|
 | `hosted_catalog` | Required. Set to true to enable the Hosted Iceberg Catalog for this connection. This instructs RisingWave to manage the catalog metadata internally. |
-| `warehouse.path` | Required. The S3 path to your Iceberg warehouse, where table data and metadata will be stored. |
-| `s3.region` | Required. The AWS region of your S3 bucket. |
-| `s3.access.key` | Required. The Access Key ID for your IAM user. For enhanced security, you can use secrets. |
-| `s3.secret.key` | Required. The Secret Access Key for your IAM user. For enhanced security, you can use secrets. |
-| `s3.endpoint` | Optional. The S3-compatible object storage endpoint. |
 
 ## Example: Creating and using a table
 
@@ -53,6 +51,10 @@ Here is a complete walkthrough of creating a connection, setting it as the defau
 ### Step 1: Create the connection
 
 Create an Iceberg connection with the hosted catalog enabled.
+
+<Note>
+This example uses S3 for object storage. You can also use Google Cloud Storage (GCS) or Azure Blob Storage by replacing the S3 parameters with the appropriate parameters for your chosen storage backend. See the [object storage configuration](/iceberg/configuration/object-storage) for details.
+</Note>
 
 ```sql
 CREATE CONNECTION my_hosted_catalog_conn
