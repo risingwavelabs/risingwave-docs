@@ -22,18 +22,19 @@ The Iceberg connection contains information about catalog and object storage. Fo
 
 The following examples show how to create an Iceberg connection using different catalog types.
 
-<Note>For enhanced security, you can store credentials like S3 access keys as secrets instead of providing them directly. If you wish to use this feature, see [Manage secrets](/operate/manage-secrets).</Note>
+<Note>
+These examples use S3 for object storage. You can also use Google Cloud Storage (GCS) or Azure Blob Storage by replacing the S3 parameters with the appropriate parameters for your chosen storage backend. See the [object storage configuration](/iceberg/configuration/object-storage) for details.
+</Note>
+
+<Note>For enhanced security, you can store credentials like access keys as secrets instead of providing them directly. If you wish to use this feature, see [Manage secrets](/operate/manage-secrets).</Note>
 
 <Tabs>
     <Tab title="JDBC catalog">
     ```sql JDBC catalog
     CREATE CONNECTION public.conn WITH (
         type = 'iceberg',
-        warehouse.path = 's3://hummock001/iceberg-data',
-        s3.access.key = <access_key_id>,
-        s3.secret.key = <secret_key>,
-        s3.endpoint = 'http://127.0.0.1:9301',
-        s3.region = 'ap-southeast-2',
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
         catalog.type = 'jdbc',
         catalog.uri = 'jdbc:postgresql://127.0.0.1:8432/metadata',
         catalog.jdbc.user = 'postgres',
@@ -48,26 +49,20 @@ The following examples show how to create an Iceberg connection using different 
     CREATE CONNECTION public.conn WITH (
         type = 'iceberg',
         catalog.type = 'glue',
-        warehouse.path = 's3://my-iceberg-bucket/test',
-        s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-        s3.region = 'ap-southeast-2',
-        s3.access.key = <access_key_id>,
-        s3.secret.key = <secret_key>,
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
     );
     ```
     </Tab>
 
-    <Tab title="Rest catalog">
+    <Tab title="REST catalog">
     ```sql Rest catalog
     CREATE CONNECTION public.conn WITH (
         type = 'iceberg',
         catalog.type='rest',
         catalog.uri= 'http://localhost:8181/catalog',
-        warehouse.path = 'test',
-        s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-        s3.region = 'ap-southeast-2'
-        s3.access.key = <access_key_id>,
-        s3.secret.key = <secret_key>,
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
         );
     ```
     </Tab>
@@ -76,10 +71,8 @@ The following examples show how to create an Iceberg connection using different 
     ```sql Hosted catalog
     CREATE CONNECTION public.conn WITH (
         type = 'iceberg',
-        warehouse.path = 's3://my-iceberg-bucket/hosted-warehouse',
-        s3.region = 'us-east-1',
-        s3.access.key = <access_key_id>,
-        s3.secret.key = <secret_key>,
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
         hosted_catalog = true
     );
     ```
