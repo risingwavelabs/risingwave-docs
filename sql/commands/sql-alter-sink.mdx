@@ -4,8 +4,6 @@ description: The `ALTER SINK` command modifies the metadata of a sink.
 ---
 
 <Note>
-INFO
-
 To modify the SQL definition of a sink, please refer to [Alter a streaming job](/operate/alter-streaming).
 </Note>
 
@@ -122,3 +120,29 @@ SWAP WITH target_name;
 ALTER SINK log_sink
 SWAP WITH error_sink;
 ```
+
+### `CONNECTOR WITH`
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+```sql
+ALTER SINK sink_name CONNECTOR WITH (
+  'property_name' = 'value',
+  ...
+);
+```
+
+| Parameter         | Description |
+| :---------------- | :---------- |
+| **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing sink without recreating it. |
+| property_name | The properties vary by connector type: <ul><li>For **ClickHouse**, **Iceberg**, **DeltaLake**, and **StarRocks**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Kafka**, the supported parameters include: `properties.allow.auto.create.topics`, `properties.batch.num.messages`, `properties.batch.size`, `properties.enable.idempotence`, `properties.max.in.flight.requests.per.connection`, `properties.message.max.bytes`, `properties.message.send.max.retries`, `properties.message.timeout.ms`, `properties.queue.buffering.max.kbytes`, `properties.queue.buffering.max.messages`, `properties.queue.buffering.max.ms`, `properties.request.required.acks`, `properties.retry.backoff.ms`, `properties.receive.message.max.bytes`. </li></ul> |
+
+```sql
+-- Enable idempotence for the sink
+ALTER SINK my_kafka_sink CONNECTOR WITH (
+  'properties.enable.idempotence' = 'true',
+);
+```
+
