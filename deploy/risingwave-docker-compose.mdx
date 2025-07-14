@@ -62,6 +62,20 @@ The default command-line syntax in Compose V2 starts with `docker compose`. See 
 If you're using Compose V1, use `docker-compose` instead.
 </Tip>
 
+<Warning>
+**Memory is crucial for RisingWave.**
+
+Inappropriate memory configuration may lead to OOM (out-of-memory) errors or poor performance. Before deploying Docker Compose, ensure that the correct memory settings are configured in the `docker-compose.yaml` file. Here are examples of some typical settings.
+
+| Memory for RisingWave container (`resource.limits.memory`) | 8 GiB | 14 GiB | 28 GiB | 58 GiB |
+|:---------------------------------------------------|:--|:--|:--|:--|
+| `compute-opts.total-memory-bytes`                  | 6 GiB | 10 GiB | 20 GiB | 46 GiB |
+| `frontend-opts.frontend-total-memory-bytes`        | 1 GiB | 2 GiB | 4 GiB | 6 GiB |
+| `compactor-opts.compactor-total-memory-bytes`      | 1 GiB | 2 GiB | 4 GiB | 6 GiB |
+| `compute-opts.memory-manager-target-bytes`         | 5.6 GiB | 9.8 GiB | 20.8 GiB | 44.8 GiB |
+
+</Warning>
+
 <Accordion title="I'd like to start RisingWave components separately in a multi-node cluster.">
 You can also start a multi-node cluster where all components of RisingWave, including the compute node, meta node, and compactor node, are started as separate processes.
 
