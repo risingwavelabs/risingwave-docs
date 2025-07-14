@@ -1,6 +1,6 @@
 ---
 title: "Object storage configuration for Apache Iceberg"
-sidebarTitle: Object storage config
+sidebarTitle: Object storage
 description: "Configuration parameters for connecting RisingWave to object storage systems used by Apache Iceberg."
 ---
 
@@ -170,3 +170,45 @@ WITH (
 Once created, this sink will write data from `source_table` into the specified Iceberg table (`<your-table-name>`) within the `<your-database-name>` database, using Amazon S3 Tables to manage the table's metadata.
 
 Once created, RisingWave will use this source to read data from the specified Iceberg table, leveraging Amazon S3 Tables for metadata discovery. 
+
+## Use with RisingWave Managed Iceberg
+
+While these object storage configurations are primarily used with the **Bring Your Own Iceberg** approach, they are also required when using **RisingWave Managed Iceberg** since the Iceberg table engine stores data on external object storage:
+
+```sql
+-- Hosted catalog with S3 storage
+CREATE CONNECTION managed_s3_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 's3://my-bucket/managed-warehouse/',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    hosted_catalog = true
+);
+
+-- External catalog with GCS storage  
+CREATE CONNECTION managed_gcs_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 'gs://my-bucket/managed-warehouse/',
+    gcs.credential = 'base64-encoded-service-account-key',
+    catalog.type = 'rest',
+    catalog.uri = 'http://catalog-service:8181',
+    catalog.name = 'production'
+);
+```
+
+## Best practices
+
+1. **Choose the right storage**: Consider data locality, costs, and existing infrastructure
+2. **Secure credentials**: Use environment variables or secret management for sensitive information
+3. **Plan for scale**: Consider data transfer costs and latency for large datasets
+4. **Backup strategy**: Ensure your object storage has appropriate backup and disaster recovery
+5. **Monitor costs**: Track storage and data transfer costs, especially for cross-region access
+6. **Network connectivity**: Ensure RisingWave can reliably access your object storage
+
+## Next steps
+
+- **Configure catalogs**: Set up your catalog system with [Catalog configuration](/iceberg/byoi/catalogs).
+- **Read from Iceberg**: Create sources with [Read from Iceberg](/iceberg/byoi/read-from-iceberg).
+- **Write to Iceberg**: Create sinks with [Write to Iceberg](/iceberg/byoi/write-to-iceberg).
+- **Managed alternative**: Consider [RisingWave Managed Iceberg](/iceberg/managed/overview) for simpler setups. 
