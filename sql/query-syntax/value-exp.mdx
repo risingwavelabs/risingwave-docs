@@ -49,6 +49,13 @@ window_function_name ( [expression [, expression ... ]] ) OVER
 [frame_clause])
 ```
 
+Alternatively, to reuse a window definition across multiple functions, you can define a named window using the [`WINDOW` clause](/sql/functions/window-functions#named-window):
+
+```sql
+SELECT window_function_name ( ... ) OVER window_name FROM ...
+WINDOW window_name AS ( [ PARTITION BY ... ] [ ORDER BY ... ] [ frame_clause ] )
+```
+
 <Note>
 Currently, the `PARTITION BY` clause is required. If you do not want to partition the rows into smaller sets, you can work around by specifying `PARTITION BY 1::int`.
 </Note>
@@ -120,7 +127,7 @@ A row constructor is an expression that builds a row value using values from its
 ROW([expression][,...])
 ```
 
-#### Example
+### Example
 
 The following two statements create a table and add values to the table.
 
