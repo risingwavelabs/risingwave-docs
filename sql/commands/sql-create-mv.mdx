@@ -33,7 +33,7 @@ The `ORDER BY` clause in the `CREATE MATERIALIZED VIEW` statement is allowed but
 
 2. To perform the operations in the background, you can execute `SET BACKGROUND_DDL=true;` before running the `CREATE MATERIALIZED VIEW` statement. See details in [SET BACKGROUND\_DDL](/sql/commands/sql-set-background-ddl).
 
-3. To avoid join amplification during backfill, you can optionally specify `backfill_order` in the `WITH` clause to control the order. Use the `->` operator to define dependencies between tables, and the left table will be fully backfilled before the right begins.
+3. You can specify `backfill_order` in the `WITH` clause to control the backfill order for different upstream relations. Use the `->` operator to define dependencies between tables. The left relation will be fully backfilled before the right relation begins.
 
     ```sql
     CREATE MATERIALIZED VIEW m1
@@ -70,7 +70,7 @@ The `ORDER BY` clause in the `CREATE MATERIALIZED VIEW` statement is allowed but
     <Note>
     - The `backfill_order` feature is currently in **technical preview** stage.
     - It is supported only for `MATERIALIZED VIEW`.
-    - Backfill order recovery is not supported. If a backfilling job restarts, the specified order will be lost, and all tables will backfill concurrently.
+    - Backfill order recovery is not supported for background ddl. If a backfilling job restarts, the specified order will be lost, and all tables will backfill concurrently.
     - Cross-database scans inside the `backfill_order` clause are not supported.
     </Note>
 
