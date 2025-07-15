@@ -22,18 +22,19 @@ The Iceberg connection contains information about catalog and object storage. Fo
 
 The following examples show how to create an Iceberg connection using different catalog types.
 
-<Note>For enhanced security, you can store credentials like S3 access keys as secrets instead of providing them directly. If you wish to use this feature, see [Manage secrets](/operate/manage-secrets).</Note>
+<Note>
+These examples use S3 for object storage. You can also use Google Cloud Storage (GCS) or Azure Blob Storage by replacing the S3 parameters with the appropriate parameters for your chosen storage backend. See the [object storage configuration](/iceberg/configuration/object-storage) for details.
+</Note>
+
+<Note>For enhanced security, you can store credentials like access keys as secrets instead of providing them directly. If you wish to use this feature, see [Manage secrets](/operate/manage-secrets).</Note>
 
 <Tabs>
     <Tab title="JDBC catalog">
     ```sql JDBC catalog
     CREATE CONNECTION public.conn WITH (
         type = 'iceberg',
-        warehouse.path = 's3://hummock001/iceberg-data',
-        s3.access.key = <access_key_id>,
-        s3.secret.key = <secret_key>,
-        s3.endpoint = 'http://127.0.0.1:9301',
-        s3.region = 'ap-southeast-2',
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
         catalog.type = 'jdbc',
         catalog.uri = 'jdbc:postgresql://127.0.0.1:8432/metadata',
         catalog.jdbc.user = 'postgres',
@@ -48,28 +49,35 @@ The following examples show how to create an Iceberg connection using different 
     CREATE CONNECTION public.conn WITH (
         type = 'iceberg',
         catalog.type = 'glue',
-        warehouse.path = 's3://my-iceberg-bucket/test',
-        s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-        s3.region = 'ap-southeast-2',
-        s3.access.key = <access_key_id>,
-        s3.secret.key = <secret_key>,
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
     );
     ```
     </Tab>
 
-    <Tab title="Rest catalog">
+    <Tab title="REST catalog">
     ```sql Rest catalog
     CREATE CONNECTION public.conn WITH (
         type = 'iceberg',
         catalog.type='rest',
         catalog.uri= 'http://localhost:8181/catalog',
-        warehouse.path = 'test',
-        s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-        s3.region = 'ap-southeast-2'
-        s3.access.key = <access_key_id>,
-        s3.secret.key = <secret_key>,
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
         );
     ```
+    </Tab>
+
+    <Tab title="Hosted catalog">
+    ```sql Hosted catalog
+    CREATE CONNECTION public.conn WITH (
+        type = 'iceberg',
+        warehouse.path = '<storage_path>',
+        <object_storage_parameters>,
+        hosted_catalog = true
+    );
+    ```
+    
+    The hosted catalog is a built-in catalog service that eliminates the need to set up and manage an external catalog. For detailed information, see [Hosted Iceberg Catalog](/store/hosted-iceberg-catalog).
     </Tab>
 </Tabs>
 
@@ -227,7 +235,7 @@ RisingWave will now manage `my_iceberg_table` using the Iceberg format, with met
 ### Append-only tables
 
 <Note>
-Added in v2.4.
+Added in v2.4.0.
 </Note>
 
 You can create an [append-only table](/sql/commands/sql-create-table#append-only) with the Iceberg engine.
@@ -262,6 +270,4 @@ The namespace and table name in the external catalog will typically match the sc
 ## Limitations
 
 RisingWave does not currently have a built-in automatic compaction service for tables created with the Iceberg engine. Streaming ingestion, especially with frequent commits (low `commit_checkpoint_interval`), can lead to many small files. You may need to run compaction procedures manually using external tools that operate on Iceberg tables to optimize read performance. We are actively working on integrating compaction features.
-
-
 

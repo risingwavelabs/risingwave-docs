@@ -74,13 +74,21 @@ Note that this resource competition doesn't simply mean each of the 10 queries g
 
 If you observe high CPU utilization or high cache miss rates during backfilling of a large, complex query, we suggest decomposing it into several independent queries and creating each materialized view one by one. This approach could significantly improve performance. See [Troubleshooting - High latency](/performance/troubleshoot-high-latency).
 
-### Optimize backfilling of MV on MV
+### How to optimize backfilling
 
-During the backfilling process of the MV on MV, the data from the upstream MV may not have good locality. To optimize this, we recommend modifying the SQL query so that the order key of the upstream table aligns with the group key of the downstream MV. This alignment improves the performance of the backfilling process and ensures better efficiency.
+During the backfilling process of the "MV on MV" or "MV on SINK INTO TABLE", the data from the upstream MV may not have good locality. To optimize this, we recommend modifying the SQL query so that the order key of the upstream table aligns with the group key of the downstream MV. This alignment improves the performance of the backfilling process and ensures better efficiency.
+
+#### MV on MV
 
 Suppose we create a table `t` using `create table t(v1 int, v2 varchar, v3 timestamp);`. This table contains a large amount of historical data. When creating a new MV on top of this table, it requires backfilling all the historical data, which can be a time-consuming process. Then we create an MV called `m` using `create materialized view m as select v1, sum(v2) from t group by v1;`. The challenge during backfilling is that when reading data from table `t` to build the MV `m`, the order of the `v1` values may be random. This randomness can lead to poor cache locality and trigger remote I/O, ultimately decreasing performance.
 
 However, if we use `create table t(v1 int primary key, v2 varchar);` instead to create a table, or define an intermediate mv like `create materialized view tmp as select * from t order by v1;`. The storage of RisingWave will order rows by `v1`, which means that rows with same `v1` will be read consecutively. This adjustment enhances cache locality and thereby improves performance.
+
+#### MV on SINK INTO TABLE
+
+When building the MV on a table populated via SINK (SINK INTO TABLE), backfilling performance can be improved by ensuring the sink writes data in an order that matches the MV’s partitioning or ordering keys.
+
+For example, if the MV uses `ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY updated_at DESC)`, writing sink data ordered by `order_id`, `updated_at` helps store related rows consecutively. This improves data locality and allows the MV to backfill more efficiently by reducing random I/O and increasing cache hit rates.
 
 ## Using materialized views
 
@@ -101,4 +109,4 @@ Efficient data ingestion is crucial for maintaining low latency and high through
 
 ### How to monitor the progress of direct CDC
 
-To effectively monitor the progress of direct Change Data Capture (CDC), you can employ two key methods tailored to historical and real-time data for PostgreSQL and MySQL databases. For more details, see [Use Direct CDC for PostgreSQL](/integrations/sources/postgresql-cdc#monitor-the-progress-of-direct-cdc) and [Use Direct CDC for MySQL](/integrations/sources/mysql-cdc#monitor-the-progress-of-direct-cdc). See [Monitoring and Metrics - Data Ingestion](/performance/metrics#data-ingestion).
+To effectively monitor the progress of direct Change Data Capture (CDC), you can employ two key methods tailored to historical and real-time data for PostgreSQL and MySQL databases. For more details, see [Use Direct CDC for PostgreSQL](/integrations/sources/postgresql-cdc#monitor-the-progress-of-direct-cdc) and [Use Direct CDC for MySQL](/ingestion/sources/mysql/mysql-cdc#monitor-the-progress-of-direct-cdc). See [Monitoring and Metrics - Data Ingestion](/performance/metrics#data-ingestion).

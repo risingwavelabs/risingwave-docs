@@ -16,9 +16,20 @@ Before you begin, be aware of these key environment variables that RisingWave Co
 *   `RCONSOLE_ROOT_PASSWORD`: (Optional) Sets the initial password for the `root` user in the RisingWave Console UI. If not set, it defaults to `root`. It's recommended to set this for any persistent deployment.
 *   `RCONSOLE_RISECTLDIR`: (Optional) May be used by RisingWave Console if it needs to locate `risectl` resources for executing commands against your RisingWave cluster. The default behavior usually suffices.
 
+## System requirements
+
+*   **Memory**: Minimum 512MB RAM (1GB recommended)
+*   **Storage**: At least 1GB free disk space
+*   **Architecture**: x86_64 and ARM64 are supported
+*   **Network**: Port 8020 (or your custom port) must be accessible
+
 ## Option 1: Quick setup with docker (bundled PostgreSQL)
 
-This is the fastest way to try RisingWave Console. The `risingwavelabs/risingwave-console:vX.Y.Z-pgbundle` image includes a PostgreSQL server. Replace `vX.Y.Z` with the desired RisingWave Console version (for example, `v0.4.0`).
+This is the fastest way to try RisingWave Console. The `risingwavelabs/risingwave-console:vX.Y.Z-pgbundle` image includes a PostgreSQL server and is hosted on Docker Hub. Replace `vX.Y.Z` with the desired RisingWave Console version (for example, `v0.4.0`).
+
+<Note>
+**Security Note**: For production deployments, always set a strong `RCONSOLE_ROOT_PASSWORD` and ensure the console is not exposed to public networks without proper authentication.
+</Note>
 
 - Ephemeral storage (for testing only)
   
@@ -111,6 +122,19 @@ This method uses Docker Compose to run RisingWave Console and allows you to easi
 After starting RisingWave Console, check its logs to ensure it started without errors:
 *   If using Docker/Docker Compose: `docker logs risingwave-console` (or your service name).
 *   If using binary: Observe the terminal output.
+
+## Finding the latest version
+
+To find the latest available version of RisingWave Console:
+*   **Docker Hub**: Visit [risingwavelabs/risingwave-console](https://hub.docker.com/r/risingwavelabs/risingwave-console) on Docker Hub
+*   **GitHub Releases**: Check the [RisingWave Console releases page](https://github.com/risingwavelabs/risingwave-console/releases)
+
+## Troubleshooting common issues
+
+*   **Port already in use**: If port 8020 is occupied, change `RCONSOLE_PORT` to an available port (e.g., `8021`)
+*   **Connection refused**: Ensure your PostgreSQL database is running and accessible
+*   **Permission denied**: Check that the user has appropriate permissions to access the PostgreSQL database
+*   **Container fails to start**: Verify that the Docker image name and version are correct
 
 ## Initial login and dashboard overview
 

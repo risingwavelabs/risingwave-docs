@@ -45,6 +45,20 @@ Resource groups offer a powerful mechanism for fine-grained control over compute
 
 A *resource group* is a named logical pool consisting of specific compute nodes (CNs) within your RisingWave cluster. Administrators typically define these groups and their associated CNs during cluster setup or configuration.
 
+### Defining a resource group
+
+You define a resource group by assigning compute nodes to it when starting these compute nodes. Each compute node can be independently assigned to a named group. All compute nodes launched with the same resource group name collectively form that logical group, allowing them to be managed and targeted as a single unit.
+
+This assignment is done when launching a compute node by using the `--resource-group` command-line flag or by setting the `RW_RESOURCE_GROUP` environment variable.
+
+```
+risingwave compute-node --resource-group test
+```
+
+<Note>
+If neither the flag nor the environment variable is specified, the compute node will be assigned to the "default" resource group.
+</Note>
+
 ### How resource groups provide isolation and control
 
 When you assign a database to a resource group, all streaming jobs belonging to that database are constrained to run *only* on the compute nodes within that designated group. This provides two primary advantages:
