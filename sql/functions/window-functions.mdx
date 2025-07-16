@@ -13,9 +13,7 @@ The `row_number()` function assigns a unique sequential integer to each row with
 
 `row_number()` can be used to turn non-unique rows into unique rows. This could be used to eliminate duplicate rows.
 
-The syntax of `row_number()` is:
-
-```sql
+```sql Syntax
 row_number() → integer
 ```
 
@@ -46,9 +44,7 @@ We recommend using `row_number()` only for top-N pattern queries. For details ab
 
 `rank()` returns the rank of the current row, with gaps; that is, the `row_number` of the first row in its peer group.
 
-The syntax of `rank()` is:
-
-```sql
+```sql Syntax
 rank() → integer
 ```
 
@@ -75,9 +71,7 @@ FROM t ORDER BY col1, col2;
 
 `dense_rank()` returns the rank of the current row, without gaps; that is, if some rows share the same rank, the row next to them is assigned the next consecutive rank.
 
-The syntax of `dense_rank()` is:
-
-```sql
+```sql Syntax
 dense_rank() → integer
 ```
 
@@ -104,9 +98,7 @@ FROM t ORDER BY col1, col2;
 
 `lag()` allows you to access the value of a previous row in the result set. You can specify the number of rows to look back.
 
-The syntax of `lag()` is:
-
-```sql
+```sql Syntax
 lag ( value anycompatible [, offset const integer] ) → anycompatible
 ```
 
@@ -131,9 +123,7 @@ FROM t ORDER BY col1, col2;
 
 `lead()` is similar to `lag()`, but it allows you to access the value of a subsequent row in the result set.
 
-The syntax of `lead()` is:
-
-```sql
+```sql Syntax
 lead ( value anycompatible [, offset const integer] ) → anycompatible
 ```
 
@@ -158,11 +148,13 @@ FROM t ORDER BY col1, col2;
 
 ### `first_value()` and `last_value()`
 
+<Note>
+Added in v2.3.0: Support `IGNORE NULLS`.
+</Note>
+
 The `first_value()` function returns the value of the first row in the current window frame. If `IGNORE NULLS` is present, `first_value()` returns the first non-null value.
 
-The syntax of `first_value()` is:
-
-```sql
+```sql Syntax
 first_value ( value anyelement [ IGNORE NULLS ] ) → anyelement
 ```
 
@@ -187,9 +179,7 @@ FROM t ORDER BY col1, col2;
 
 `last_value()` returns the value of the last row in the current window frame. If `IGNORE NULLS` is present, `last_value()` returns the last non-null value.
 
-The syntax of `last_value()` is:
-
-```sql
+```sql Syntax
 last_value ( value anyelement [ IGNORE NULLS ] ) → anyelement
 ```
 
@@ -233,9 +223,32 @@ FROM t ORDER BY col1, col2;
     b |  109 |  109
 ```
 
+### Named window
+
 <Note>
-Added in v2.3.0: Support `IGNORE NULLS`.
+Added in v2.5.0.
 </Note>
+
+When multiple window functions share the same partitioning and ordering logic, repeating the same `OVER` clause can be error-prone. To avoid redundancy, you can define a **named window** in the `WINDOW` clause of a query and reference it by name in [window function calls](/sql/query-syntax/value-exp#window-function-calls).
+
+```sql Syntax
+WINDOW window_name AS ...
+```
+
+```sql Example
+-- Without named window
+SELECT
+  sum(salary) OVER (PARTITION BY depname ORDER BY salary DESC),
+  avg(salary) OVER (PARTITION BY depname ORDER BY salary DESC)
+FROM empsalary;
+
+-- With named window
+SELECT sum(salary) OVER w, avg(salary) OVER w
+  FROM empsalary
+  WINDOW w AS (PARTITION BY depname ORDER BY salary DESC);
+```
+
+The `WINDOW` keyword is now a reserved keyword and cannot be directly used as table alias.
 
 ## Aggregate window functions
 
