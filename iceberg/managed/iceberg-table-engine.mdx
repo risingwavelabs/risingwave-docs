@@ -194,6 +194,85 @@ FROM iceberg.your_database.user_events
 GROUP BY user_id;
 ```
 
+## Partition strategy
+
+RisingWave’s Iceberg table engine supports table partitioning using the `partition_by` option when creating tables. Partitioning helps organize data for efficient storage and query performance.
+
+The supported `partition_by` formats and examples are as follows:
+
+- `'column'` — single column
+
+- `'column1,column2'` — multiple columns
+
+- `'bucket(n, column), column2'` — bucket partitioning
+
+- `'column1, truncate(n, column2)'` — truncate partitioning
+
+<Tabs>
+  <Tab title="Single column">
+    ```sql Example
+    CREATE TABLE t_partition1 (
+    id INT PRIMARY KEY,
+    name VARCHAR
+    )
+    WITH (
+    commit_checkpoint_interval = 1,
+    partition_by = 'id'
+    )
+    ENGINE = ICEBERG;
+    ```
+  </Tab>
+  <Tab title="Multiple columns">
+    ```sql Example
+    CREATE TABLE t_partition2 (
+    c1 INT,
+    c2 INT,
+    c3 INT,
+    PRIMARY KEY (c1, c2, c3)
+    )
+    WITH (
+    commit_checkpoint_interval = 1,
+    partition_by = 'c1,c2'
+    )
+    ENGINE = ICEBERG;
+    ```
+  </Tab>
+  <Tab title="Bucket">
+    ```sql Example
+    CREATE TABLE t_partition3 (
+    c1 INT,
+    c2 INT,
+    c3 INT,
+    PRIMARY KEY (c1, c2, c3)
+    )
+    WITH (
+    commit_checkpoint_interval = 1,
+    partition_by = 'bucket(4, c1),c2'
+    )
+    ENGINE = ICEBERG;
+    ```
+  </Tab>
+  <Tab title="Truncate">
+    ```sql Example
+    CREATE TABLE t_partition4 (
+    c1 INT,
+    c2 INT,
+    c3 INT,
+    PRIMARY KEY (c1, c2, c3)
+    )
+    WITH (
+    commit_checkpoint_interval = 1,
+    partition_by = 'c1,truncate(8, c2)'
+    )
+    ENGINE = ICEBERG;
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The partition key must be a prefix of the primary key. `partition_by` = `'c2,c3'` with `PRIMARY KEY(c1, c2, c3)` will fail.
+</Note>
+
 ## Use Amazon S3 Tables with the Iceberg table engine
 
 Amazon S3 Tables provides an AWS-native Iceberg catalog service. When using S3 Tables as the catalog for Iceberg tables, you get automatic compaction benefits.
@@ -267,7 +346,7 @@ Current limitations of the Iceberg table engine:
 1. **Use hosted catalog for simple setups**: Start with `hosted_catalog = true` for quick development.
 2. **Configure appropriate commit intervals**: Balance between latency and file size.
 3. **Consider S3 Tables for production**: Automatic compaction and AWS-native management.
-4. **Design proper partitioning**: Plan your partition strategy for query performance.
+4. **Design proper partitioning**: Plan your [partition strategy](#partition-strategy) for query performance.
 5. **Monitor file sizes**: Be aware of small file accumulation and plan compaction strategy.
 
 ## Next steps
