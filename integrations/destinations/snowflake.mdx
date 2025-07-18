@@ -24,7 +24,7 @@ For a full list of Premium Edition features, see [RisingWave Premium Edition](/g
 * Ensure that Snowflake and S3 are set up in the same manner as described in the [Automating Snowpipe for Amazon S3](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-auto-s3), as RisingWave is only responsible for writing data to S3.
 
 <Note>
-RisingWave will not be responsible for deleting data already imported by S3\. You can manually set the lifecycle configuration of your S3 bucket to clear out unnecessary data. See [Lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/how-to-set-lifecycle-configuration-intro.html) and [Delete staged files](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-manage#deleting-staged-files-after-snowpipe-loads-the-datafor) for more details.
+RisingWave will not be responsible for deleting data already imported by S3. You can manually set the lifecycle configuration of your S3 bucket to clear out unnecessary data. See [Lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/how-to-set-lifecycle-configuration-intro.html) and [Delete staged files](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-manage#deleting-staged-files-after-snowpipe-loads-the-datafor) for more details.
 </Note>
 
 ## Syntax
@@ -39,7 +39,7 @@ WITH (
 );
 ```
 
-## Parameter[](#parameter "Direct link to Parameter")
+## Parameters
 
 All parameters are required unless specified otherwise.
 
@@ -125,62 +125,150 @@ CREATE SINK snowflake_sink FROM ss_mv WITH (
 
 ### Sink data with upsert
 
-Snowflake tables don't support direct updates. To handle this, RisingWave imports incremental logs and modification order for each data piece into Snowflake. You can then merge these as you read, or create dynamic tables to read the upsert results. See [How dynamic tables work](https://docs.snowflake.com/en/user-guide/dynamic-tables-about) for more details.
+Snowpipe only ingests new rows; it does **not** apply updates or deletes.
 
-Below are some examples for your reference.
+To surface those changes, you need to create a materialized view using `AS CHANGELOG` in RisingWave.  
+This instructs RisingWave to add two metadata columns to each change log row:
 
-```sql Create source in RisingWave
-CREATE SOURCE s1_source (id int,name varchar)
-WITH (
-    connector ='datagen',
-    fields.id.kind ='sequence',
-    fields.id.start ='1',
-    fields.id.end ='10000',
-    fields.name.kind ='random',
-    fields.name.length ='10',
-    datagen.rows.per.second ='200'
- ) FORMAT PLAIN ENCODE JSON;
-```
+* `changelog_op`: the change type (`1` = INSERT, `2` = DELETE, `3` = UPDATE-AFTER, `4` = UPDATE-BEFORE)  
+* `_changelog_row_id`: a monotonically increasing identifier that captures the order of the change
 
-```sql Create materialized view in RisingWave
+You can rename these columns (for example, to `__op` and `__row_id`) in the `SELECT` list so they appear in the Snowflake sink.
+
+RisingWave stops here. It does **not** merge the incremental data for you.  
+You can choose one of the following approaches to obtain an up-to-date view in Snowflake:
+
+1. **Merge into a new table**: run an explicit `MERGE INTO` that keeps the newest `_changelog_row_id` per primary key.  
+2. **Dynamic tables**: create a dynamic table that expresses the same logic and lets Snowflake materialize it continuously.
+
+The examples below demonstrate both approaches.
+
+### Example workflow
+
+1. Create a materialized view in RisingWave that emits change logs.
+
+```sql
 CREATE MATERIALIZED VIEW ss_mv AS
-WITH sub AS changelog FROM user_behaviors
+WITH sub AS CHANGELOG FROM user_behaviors
 SELECT
     user_id,
     target_id,
-    event_timestamp AT TIME ZONE 'America/Indiana/Indianapolis' as event_timestamp,
+    event_timestamp AT TIME ZONE 'America/Indiana/Indianapolis' AS event_timestamp,
     changelog_op AS __op,
-    _changelog_row_id::bigint AS __row_id
-FROM
-    sub;
+    _changelog_row_id::BIGINT AS __row_id
+FROM sub;
 ```
 
-Note that RisingWave uses `changelog` to transform streaming data into incremental logs. In the example above, `changelog_op` represents the type of modification (Insert/Update/Delete), while `_changelog_row_id` indicates the order of the modification. For more information, see [AS CHANGELOG](/sql/commands/sql-as-changelog).
+2. Create the Snowflake sink in RisingWave.
 
-```sql Create sink in RisingWave
+```sql
 CREATE SINK snowflake_sink FROM ss_mv WITH (
-   connector = 'snowflake',
-   type = 'append-only',
-   s3.bucket_name = 'EXAMPLE_S3_BUCKET',
-   s3.credentials.access = 'EXAMPLE_AWS_ACCESS',
-   s3.credentials.secret = 'EXAMPLE_AWS_SECRET',
-   s3.region_name = 'EXAMPLE_REGION',
-   s3.path = 'EXAMPLE_S3_PATH',
+    connector            = 'snowflake',
+    type                 = 'append-only',
+    s3.bucket_name       = 'EXAMPLE_S3_BUCKET',
+    s3.credentials.access= 'EXAMPLE_AWS_ACCESS',
+    s3.credentials.secret= 'EXAMPLE_AWS_SECRET',
+    s3.region_name       = 'EXAMPLE_REGION',
+    s3.path              = 'EXAMPLE_S3_PATH'
 );
 ```
+3. Create a warehouse in Snowflake.
 
-```sql Create warehouse
+```sql
 CREATE WAREHOUSE test_warehouse;
 ```
 
-```sql Create dynamic table in Snowflake
-CREATE OR REPLACE DYNAMIC TABLE user_behaviors
-TARGET_LAG = '1 minute'
-WAREHOUSE = test_warehouse
-AS SELECT *
-   FROM (
-       SELECT *, ROW_NUMBER() OVER (PARTITION BY {primary_key} ORDER BY __row_id DESC) AS dedupe_id
-       FROM t3
-   ) AS subquery
-WHERE dedupe_id = 1 AND (__op = 1 or __op = 3);
+4. **Approach A: Merge on read**
+
+In this approach you periodically run a `MERGE INTO` statement to fold the change-log records into the target table. The workflow relies on three Snowflake tables:
+
+* `target_table`: Stores the consolidated, up-to-date data.  
+* `cdc_table`: Holds the incremental change-log records produced by the sink.  
+* `offset_table`: Records the last processed `_row_id` for each CDC table. If you maintain multiple CDC tables, they can all share the same offset table.
+
+```sql
+-- 1. Create a table to store the results
+CREATE TABLE target_table(xxx, xxx);
+
+-- 2. Create a table to store the offset.
+CREATE TABLE offset_table (table_name string, offset_row_id int); 
+
+-- 3. Create a task to perform incremental updates on a regular basis.
+CREATE OR REPLACE TASK multi_statement_task
+WAREHOUSE = COMPUTE_WH
+SCHEDULE = '1 HOUR'
+AS
+BEGIN
+    -- 1. Query the offset from the table
+    LET my_offset INT;
+    
+    SELECT COALESCE(MAX(offset_row_id), 0) INTO :my_offset
+    FROM offset_table
+    WHERE table_name = 'cdc_table'
+    LIMIT 1;
+
+    -- 2. Query max row id
+    LET max_row_id INT;
+    
+    SELECT COALESCE(MAX(__row_id), 0) INTO :max_row_id
+    FROM cdc_table;
+    
+    -- 3. Use MERGE INTO statement to merge the data from cdc_table to target_table
+    MERGE INTO target_table AS target
+    USING (
+        SELECT *
+        FROM (
+            SELECT *,
+                   ROW_NUMBER() OVER (PARTITION BY v1 ORDER BY __row_id DESC) AS dedupe_id
+            FROM cdc_table
+            WHERE __row_id > :my_offset and __row_id <= :max_row_id 
+        ) AS subquery
+        WHERE dedupe_id = 1
+    ) AS source
+    ON target.v1= source.v1
+    WHEN MATCHED AND source.__op IN (2, 4) THEN DELETE
+    WHEN MATCHED AND source.__op IN (1, 3) THEN UPDATE SET target.v1= source.v1, target.v2 = source.v2
+    WHEN NOT MATCHED AND source.__op IN (1, 3) THEN INSERT (v1, v2) VALUES (source.v1, source.v2);
+    
+    -- 4. Update offset_table
+    MERGE INTO offset_table AS target
+    USING (SELECT 'cdc_table' AS table_name, :max_row_id AS offset_row_id) AS source
+    ON target.table_name = source.table_name
+    WHEN MATCHED THEN
+      UPDATE SET offset_row_id = source.offset_row_id
+    WHEN NOT MATCHED THEN
+      INSERT (table_name, offset_row_id) VALUES (source.table_name, source.offset_row_id);
+      
+    -- 5. Delete old data from cdc_table
+    DELETE FROM cdc_table
+    WHERE __row_id <= :max_row_id;
+END;
+
+-- 4. Start the task
+ALTER TASK multi_statement_task RESUME;
+-- if you want execute the task once, you can
+EXECUTE TASK multi_statement_task;
+```
+
+4. **Approach B: Dynamic tables**
+
+In this approach you let Snowflake maintain the up-to-date view by defining a dynamic table that refreshes automatically from the CDC table. Two Snowflake tables are involved:
+
+* `cdc_table`: Holds the incremental change-log records written by the sink.  
+* `target_table`: A dynamic table that materializes the consolidated, current state.
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE target_table
+TARGET_LAG = '1 hour'
+WAREHOUSE  = test_warehouse
+AS
+SELECT *
+FROM (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (PARTITION BY {primary_key} ORDER BY __row_id DESC) AS dedupe_id
+    FROM cdc_table              -- cdc_table is the table populated by the sink
+) AS sub
+WHERE dedupe_id = 1
+  AND (__op = 1 OR __op = 3);
 ```

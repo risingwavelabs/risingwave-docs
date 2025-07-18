@@ -6,6 +6,10 @@ description: "Understand and monitor key performance indicators (KPIs) in Rising
 
 Performance metrics provide crucial insights into the health and efficiency of your RisingWave deployment. Monitoring these metrics allows you to identify bottlenecks, optimize resource allocation, and ensure smooth operation. This section describes key metrics available on RisingWave's Grafana dashboard and explains how to interpret them.
 
+**Alternative: RisingWave Console**
+
+You can also monitor your RisingWave cluster using the [RisingWave Console](/risingwave-console/manage-monitor-clusters), which provides built-in monitoring capabilities and diagnostic collection for comprehensive cluster observability.
+
 The details of the dashboard can be found [here](https://github.com/risingwavelabs/risingwave/tree/main/grafana). In particular, there are two files:
 
 1. Implement a [dev-facing dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.dashboard.py). It includes finer-grained metrics. Many of them may only make sense to the developers of a specific component.
@@ -24,13 +28,13 @@ Among all of the components, we primarily focus on the CPU usage of compute node
 **Takeaway**
 
 1. When the CPU usage of the compute node is close to the total number of CPUs this compute node has (i.e., 800% in this case), we can likely improve the performance, e.g., throughput, by adding more CPUs to the compute node.
-2. We can apply the same reasoning to compactor nodes. We will revisit this when we introduce the metrics “LSM Compact Pending Bytes”, which suggests the ideal number of CPUs to reserve for compaction workload.
+2. We can apply the same reasoning to compactor nodes. We will revisit this when we introduce the metrics "LSM Compact Pending Bytes", which suggests the ideal number of CPUs to reserve for compaction workload.
 
 ### Memory usage
 
 ![Memory Usage](/images/memory_usage.png)
 
-A simplified description of RisingWave’s memory control mechanism:
+A simplified description of RisingWave's memory control mechanism:
 
 1. RisingWave calculates and monitors the memory usage of each component.
 2. RisingWave reserves 30% of the total memory, i.e., reserved memory, as a buffer. In case of a sudden spike in input data, RisingWave has enough time to adjust its memory usage.
@@ -95,7 +99,7 @@ As described in the CPU usage section, we can estimate the ideal CPU resources a
 
 ![LSM Tree Compaction Pending Byte](/images/LSM.png)
 
-This metric illustrates the amount of pending workload from the compactor’s perspective. Due to the bursty nature of the compactor’s workload, we recognize the urgency to make a change only if the pending bytes have remained above a certain threshold for more than 10 minutes.
+This metric illustrates the amount of pending workload from the compactor's perspective. Due to the bursty nature of the compactor's workload, we recognize the urgency to make a change only if the pending bytes have remained above a certain threshold for more than 10 minutes.
 
 **Takeaway**
 
@@ -116,7 +120,7 @@ RisingWave by default generates a barrier every second and ingests it into the s
 In a perfect world, the barrier latency should stay at 1 second. But in reality, we may observe two phenomena in general:
 
 1. The barrier latency keeps climbing and never enters a stabilized phase. At the same time, the number of barriers also keeps increasing. This implies that the system is in serious congestion, i.e., the current resource falls short of handling the workload. We likely need to increase CPU or memory resources by checking the other metrics mentioned above. See [Troubleshooting - High Latency](/performance/troubleshoot-high-latency). Also, see [Workload Analysis](/performance/workload-analysis) for a deeper understanding of how backpressure impacts barrier latency.
-2. The barrier latency and the barrier number fluctuate but still stabilize around a certain level. This is not abnormal. Due to the dynamic nature of streaming data and RisingWave’s dynamic back-pressure mechanism, it is fine to experience such phenomena as RisingWave keeps adjusting at any given second.
+2. The barrier latency and the barrier number fluctuate but still stabilize around a certain level. This is not abnormal. Due to the dynamic nature of streaming data and RisingWave's dynamic back-pressure mechanism, it is fine to experience such phenomena as RisingWave keeps adjusting at any given second.
 
 **Takeaway**
 
@@ -130,12 +134,12 @@ Monitoring data ingestion metrics helps you understand the rate at which RisingW
 
 ![Source Throughput](/images/source_throughput.png)
 
-Particularly among stateless queries (e.g., simple ETL queries that transform data but do not involve stateful computation), we often find that RisingWave can be bottlenecked by the limitation of RisingWave’s upstream system.
+Particularly among stateless queries (e.g., simple ETL queries that transform data but do not involve stateful computation), we often find that RisingWave can be bottlenecked by the limitation of RisingWave's upstream system.
 
-For example, RisingWave may ingest data from an upstream message queue. Either the disk bandwidth of the message queue or the network bandwidth between RisingWave and the message queue is too low, the source throughput may not fully leverage RisingWave’s resources.
+For example, RisingWave may ingest data from an upstream message queue. Either the disk bandwidth of the message queue or the network bandwidth between RisingWave and the message queue is too low, the source throughput may not fully leverage RisingWave's resources.
 
 **Takeaway**
 
-We suggest users also monitor the CPU utilization, disk I/O, and network I/O of RisingWave’s upstream systems, e.g., message queues or databases, to determine the end-to-end bottleneck. If source throughput is significantly lower than expected, investigate the upstream system for potential issues.
+We suggest users also monitor the CPU utilization, disk I/O, and network I/O of RisingWave's upstream systems, e.g., message queues or databases, to determine the end-to-end bottleneck. If source throughput is significantly lower than expected, investigate the upstream system for potential issues.
 
 For any other questions or tips regarding performance tuning, feel free to join our [Slack community](https://www.risingwave.com/slack) and become part of our growing network of users. Engage in discussions, seek assistance, and share your experiences with fellow users and our engineers who are eager to provide insights and solutions.

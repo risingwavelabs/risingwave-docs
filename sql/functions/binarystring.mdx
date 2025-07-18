@@ -2,9 +2,9 @@
 title: "Binary string functions and operators"
 ---
 
-### `bit_length`[](#bit%5Flength "Direct link to bit_length")
+### `bit_length`
 
-Returns number of bits in the binary string, which is 8 times the [`octet_length`](#octet%5Flength-length).
+Returns number of bits in the binary string, which is 8 times the [`octet_length`](#octet-length-length).
 
 ```sql
 bit_length ( bytea ) -> integer
@@ -42,6 +42,63 @@ length ( bytea ) -> integer
 
 ```sql
 SELECT octet_length('😇'::bytea);
+------RESULT
+4
+```
+
+### `overlay`
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+Replaces a substring from a binary string with another bytea value starting at position `start_int` (>0) for `count_int` bytes.
+
+```sql
+overlay (bytea_value PLACING new_value FROM start_int [FOR count_int]) -> bytea
+```
+
+```sql Example A
+SELECT overlay('\x616263646566'::bytea placing '\x313233'::bytea from 2 for 4);
+------RESULT
+\x6131323366
+```
+
+```sql Example B
+-- If `count_int` is 0, insert without removing any bytes.
+SELECT overlay('\x616263646566'::bytea placing '\x313233'::bytea from 4 for 0);
+------RESULT
+\x616263313233646566
+```
+
+```sql Example C
+-- If `count_int` < 0, insert and append trailing content starting from `start_int` + `count_int`.
+SELECT overlay('\x616263646566'::bytea placing '\x313233'::bytea from 4 for -2);
+------RESULT
+\x6162633132336263646566
+```
+
+```sql Example D
+-- If `count_int` is omitted, the length of new_value is used.
+SELECT overlay('\x616263646566'::bytea placing '\x9999'::bytea from 3);
+------RESULT
+\x616299996566
+```
+
+### `position`
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+Returns the index of the first occurrence of a bytea substring, or zero if not found.
+
+```sql
+position ( substring bytea IN string bytea ) -> integer
+```
+
+```sql
+SELECT position('\x6c6f'::bytea in '\x68656c6c6f2c20776f726c64'::bytea);
 ------RESULT
 4
 ```
@@ -121,7 +178,7 @@ SELECT sha512('risingwave'::bytea);
 Extracts a substring from a binary string (bytea) starting at position `start_int` for `count_int` bytes. If `count_int` is omitted, the substring extends to the end of the bytea value.
 
 ```sql
-substr ( bytea_value, start_int, [, count_int] ) -> bytea
+substr ( bytea_value, start_int[, count_int] ) -> bytea
 ```
 
 ```sql
@@ -135,3 +192,22 @@ SELECT substr('abcde'::bytea, -2, 5);
 ------RESULT
 \x6162
 ```
+
+### `||`
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+Concatenates two binary strings.
+
+```sql
+bytea || bytea -> bytea
+```
+
+```sql
+SELECT '\x123456'::bytea || '\x789a00bcde'::bytea;
+------RESULT
+\x123456789a00bcde
+```
+

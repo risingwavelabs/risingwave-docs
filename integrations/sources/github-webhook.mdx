@@ -16,7 +16,8 @@ Next, create a table configured to accept webhook data from GitHub.
 CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
-  connector = 'webhook'
+  connector = 'webhook',
+  [ is_batched = true ]
 ) VALIDATE SECRET test_secret AS secure_compare(
   headers->>'x-hub-signature-256', ## Example value: `sha256=f37a93a68fef1505d75e920a15d0543199557be72d2182e5cf8c15d7f9a6260f`
   'sha256=' || encode(hmac(test_secret, data, 'sha256'), 'hex')
@@ -27,7 +28,8 @@ CREATE TABLE wbhtable (
 | Parameter or clause | Description |
 | :--------- | :-----------|
 | `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
-| `SECRET <secret>` | Use an existing [secret](/operate/manage-secrets) to verify incoming webhookd requests. This is optional. You can also use a raw string to verify.|
+| `is_batched` | Optional, set to `true` to enable batch ingestion of multiple JSON lines in a single request. |
+| `SECRET <secret>` | Use an existing [secret](/operate/manage-secrets) to verify incoming webhook requests. This is optional. You can also use a raw string to verify.|
 | `headers->>'...'` | Extracts the signature provided by GitHub in the `x-hub-signature-256` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
 |`'sha256=' \|\| encode(...)` | Computes the expected signature. In the example above, it generates an `HMAC SHA-256` hash of the payload (`data`) using the secret (`test_secret`), encodes it in hexadecimal, and prefixes it with `sha256=`.|
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |

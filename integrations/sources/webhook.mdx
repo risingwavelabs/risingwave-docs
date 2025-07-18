@@ -23,7 +23,8 @@ CREATE SECRET test_secret WITH (backend = 'meta') AS 'secret_value';
 CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
-  connector = 'webhook'
+  connector = 'webhook',
+  [ is_batched = true ]
 ) VALIDATE SECRET test_secret AS secure_compare(
   headers->>'{header of signature}',
   {signature generation expressions}
@@ -34,12 +35,16 @@ CREATE TABLE wbhtable (
 | :---------- | :------------ |
 | `CREATE SECRET` | Securely stores a secret value in RisingWave for request validation. |
 | `CREATE TABLE` | Defines a table with a JSONB column to store webhook payload data. |
-| `connector` | Configures the table to accept incoming HTTP webhook requests |
+| `connector` | Configures the table to accept incoming HTTP webhook requests. |
+| `is_batched` | Optional, set to `true` to enable batch ingestion of multiple JSON lines in a single request. |
 | `VALIDATE SECRET...AS...` | Authenticates requests using the stored secret and signature comparison. |
 | `secure_compare()` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. Note `secure_compare(...)` is the only supported validation function for webhook tables. |
 | `header_of_signature` | Specifies which HTTP header contains the incoming signature. |
 | `signature_generation_expressions` | Expression to compute the expected signature using the secret and payload. |
 
+<Note>
+Added in v2.5.0: `is_batched`.
+</Note>
 
 Currently, secret management is a premium edition feature. You can also use raw string for verification. The following example use raw string `'secret_value'` to compute signature.
 
