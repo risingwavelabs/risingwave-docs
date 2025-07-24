@@ -77,7 +77,7 @@ This step is especially important because the meta backup and recovery process d
 2. Create a new meta store, i.e. a new SQL database instance.
 Note that this new SQL database instance must have the same table structure as the original, but all tables must be empty. To achieve this, you can 
    * either use database specific tools, e.g. pgdump for postgres, to duplicate table schemas.
-   * or use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool.
+   * or use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool. The version of migration tool should match the version of the meta snapshot. i.e. if the meta snapshot is created by RisingWave 2.4.3, the migration tool should also be from RisingWave 2.4.3.
 3. Restore the meta snapshot to the new meta store.
 ```
 risectl \
