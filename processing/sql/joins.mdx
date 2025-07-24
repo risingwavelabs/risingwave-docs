@@ -349,3 +349,43 @@ it will not recompute the join result for all matching fact side rows.
 ```sql
 select fact.* FROM fact JOIN dimension FOR SYSTEM_TIME AS OF PROCTIME() ON fact.dim_key = dimension.key;
 ```
+
+### Isolating high-amplification joins
+
+<Note>
+Added in v2.5.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
+</Note>
+
+High join amplification in streaming queries can cause significant backpressure on downstream operators. To mitigate this, you can enable unaligned joins using:
+
+```sql
+SET streaming_enable_unaligned_join = true;
+
+-- Streaming jobs in the same session will use unaligned join for all their joins.
+-- For instance given:
+create table t1 (v1 int, v2 int);
+create table t2 (v3 int, v4 int);
+create table t3 (v5 int, v6 int);
+explain create materialized view m1 as select * from t1, t2, t3 where t1.v1 = t2.v3 and t1.v1 = t3.v5;
+
+-- You can see the `explain` output contains `SyncLogStore` after the joins.
+    StreamMaterialize { columns: [v1, v2, v3, v4, v5, v6, t1._row_id(hidden), t2._row_id(hidden), t3._row_id(hidden)], stream_key: [t1._row_id, t2._row_id, v1, t3._row_id], pk_columns: [t1._row_id, t2._row_id, v1, t3._row_id], pk_conflict: NoCheck }
+    └─StreamSyncLogStore
+      └─StreamHashJoin { type: Inner, predicate: t1.v1 = t3.v5, output: [t1.v1, t1.v2, t2.v3, t2.v4, t3.v5, t3.v6, t1._row_id, t2._row_id, t3._row_id] }
+        ├─StreamSyncLogStore
+        │ └─StreamHashJoin { type: Inner, predicate: t1.v1 = t2.v3, output: [t1.v1, t1.v2, t2.v3, t2.v4, t1._row_id, t2._row_id] }
+        │   ├─StreamExchange { dist: HashShard(t1.v1) }
+        │   │ └─StreamTableScan { table: t1, columns: [t1.v1, t1.v2, t1._row_id], stream_scan_type: ArrangementBackfill, stream_key: [t1._row_id], pk: [_row_id], dist: UpstreamHashShard(t1._row_id) }
+        │   └─StreamExchange { dist: HashShard(t2.v3) }
+        │     └─StreamTableScan { table: t2, columns: [t2.v3, t2.v4, t2._row_id], stream_scan_type: ArrangementBackfill, stream_key: [t2._row_id], pk: [_row_id], dist: UpstreamHashShard(t2._row_id) }
+        └─StreamExchange { dist: HashShard(t3.v5) }
+          └─StreamTableScan { table: t3, columns: [t3.v5, t3.v6, t3._row_id], stream_scan_type: ArrangementBackfill, stream_key: [t3._row_id], pk: [_row_id], dist: UpstreamHashShard(t3._row_id) }
+```
+
+This optimization automatically places a buffer after the join operator. The join writes its output to this buffer, allowing checkpoint barriers to pass through immediately instead of waiting for a slow downstream operator to process the data. This approach is most effective when downstream is the processing bottleneck.
+
+<Note>
+- There is currently no way to disable the log store in-place.
+- This optimization introduces a trade-off: improved pipeline stability at the cost of increased end-to-end latency due to the buffering step. Monitoring for potential data lag in the buffer is recommended.
+- High join amplification means a large number of rows are produced from the join. While this approach mitigates barrier latency, we still need to scale the cluster to provide more resources for processing the large amount of rows.
+</Note>

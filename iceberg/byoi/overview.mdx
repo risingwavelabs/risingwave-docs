@@ -1,0 +1,111 @@
+---
+title: "Bring Your Own Iceberg"
+sidebarTitle: "Overview"
+description: "Learn how to connect RisingWave to existing Iceberg tables managed by external systems, enabling you to read from and write to your existing data lake."
+---
+
+Bring Your Own Iceberg (BYOI) refers to scenarios where **external systems manage the Iceberg tables** and RisingWave connects to them as a client. In this approach, you have existing Iceberg tables (typically created by Spark, Flink, batch ETL jobs, or other systems) and you want RisingWave to read from or write to these tables.
+
+## When to use Bring Your Own Iceberg
+
+Choose this approach when:
+
+- **Existing data lake**: You already have Iceberg tables managed by other systems (Spark, Flink, dbt, etc.).
+- **Multi-system architecture**: Multiple applications/engines need to read/write the same Iceberg tables.
+- **Integration requirements**: You need to integrate RisingWave into existing data workflows and pipelines.
+- **External catalog infrastructure**: You have existing catalog services (AWS Glue, JDBC databases, REST catalogs) managing your Iceberg metadata.
+- **Data lake ingestion**: You want to stream processed data from RisingWave into your existing data lake.
+- **Batch+Stream hybrid**: Combining batch processing (other systems) with stream processing (RisingWave) on the same tables.
+
+## Key capabilities
+
+### Read from Iceberg tables (Iceberg Source)
+
+Ingest data from existing Iceberg tables into RisingWave for stream processing:
+
+```sql
+CREATE SOURCE my_iceberg_source
+WITH (
+    connector = 'iceberg',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'my_db',
+    table.name = 'user_events',
+    catalog.type = 'glue',  -- Use AWS Glue as catalog
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2'
+);
+```
+
+- **Streaming ingestion**: Continuously read new data as it's added to the Iceberg table
+- **Time travel**: Read historical snapshots of the data
+- **Schema evolution**: Automatically handle schema changes in the source table
+
+### Write to Iceberg tables (Iceberg Sink)
+
+Stream processed results from RisingWave into existing Iceberg tables:
+
+```sql
+CREATE SINK my_iceberg_sink FROM processed_data
+WITH (
+    connector = 'iceberg',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'analytics',
+    table.name = 'aggregated_metrics',
+    catalog.type = 'rest',
+    catalog.uri = 'http://my-catalog:8181',
+    type = 'upsert',  -- Support both append-only and upsert modes
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key'
+);
+```
+
+- **Multiple sink modes**: Append-only or upsert depending on your use case
+- **Exactly-once delivery**: Ensure data consistency with configurable delivery semantics
+- **External accessibility**: Data written by RisingWave is immediately available to other systems
+
+## Supported catalog types
+
+BYOI works with various external catalog systems:
+
+- **AWS Glue**: Managed metadata service on AWS
+- **JDBC catalogs**: PostgreSQL, MySQL, or other JDBC-compatible databases storing metadata
+- **REST catalogs**: RESTful catalog services including AWS S3 Tables
+- **Storage catalogs**: Direct filesystem-based metadata (S3/HDFS)
+- **Hive Metastore**: Traditional Hadoop ecosystem catalog
+- **Snowflake**: Snowflake-managed Iceberg catalogs
+
+## Architecture patterns
+
+### Lambda/Kappa architecture
+- **Batch layer**: Spark/Flink writes to Iceberg tables.
+- **Speed layer**: RisingWave reads from Iceberg (batch results) and streams real-time updates.
+- **Serving layer**: Analytics tools query the combined results.
+
+### Multi-engine data lake
+- **Multiple writers**: Different systems write to the same Iceberg tables.
+- **Multiple readers**: Various engines read from shared tables.
+- **RisingWave role**: Provides real-time streaming capabilities to the data lake.
+
+### ETL/ELT pipelines
+- **Extract**: RisingWave reads from various sources.
+- **Transform**: Stream processing in RisingWave.
+- **Load**: Write results to existing data lake via Iceberg sink.
+
+## What's included in this section
+
+- **[Read from Iceberg](/iceberg/byoi/read-from-iceberg)**: Complete guide to creating Iceberg sources for data ingestion.
+- **[Write to Iceberg](/iceberg/byoi/write-to-iceberg)**: Complete guide to creating Iceberg sinks for data export.
+- **[Catalog Configuration](/iceberg/byoi/catalogs)**: Setup and configuration for external catalog systems.
+- **[Object Storage Configuration](/iceberg/byoi/object-storage)**: Configuration for S3, GCS, and Azure Blob storage.
+
+## Next steps
+
+1. **Identify your catalog**: Determine what catalog system manages your existing Iceberg tables.
+2. **Start with reading**: Create an [Iceberg source](/iceberg/byoi/read-from-iceberg) to ingest existing data.
+3. **Add streaming outputs**: Set up [Iceberg sinks](/iceberg/byoi/write-to-iceberg) to export processed results.
+4. **Configure catalogs**: Review [catalog configuration](/iceberg/byoi/catalogs) for your specific setup.
+
+---
+
+**Comparing approaches**: If you want RisingWave to create and manage Iceberg tables directly, see [RisingWave Managed Iceberg](/iceberg/managed/overview) instead. 

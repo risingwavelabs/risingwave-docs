@@ -1,0 +1,48 @@
+---
+title: "Manage backups"
+description: "Backup management allows you to create, view, restore, and delete metadata snapshots to support recovery and rollback in RisingWave projects."
+---
+
+## Overview
+
+A backup refers to the meta snapshot that captures the metadata service’s state at a specific point in time. It allows you to:
+
+- Restore lost data to your RisingWave cluster.
+- Restore an instance to a previous state by using the backup to overwrite it.
+
+## Backup cost
+
+A meta snapshot pins data at a specific point in time in data storage, preventing it from being recycled by compaction. As a result, they may increase overall storage usage. Backups are billed at the standard storage rate.
+
+## Backup types
+
+RisingWave supports the following types of backups:
+
+- **On-demand backups**: You can create a snapshot at any time, such as before performing a risky operation on your database. On-demand backups persist until you delete them, or until their associated project is deleted. Since they are not automatically deleted, on-demand backups can have a long-term effect on your billing charges.
+
+- **Automated backups**: Automated backups are created at regular intervals for all tenants. By default, a new backup is created every 30 minutes, but only the three most recent backups are retained. Older backups are automatically deleted on a first-in, first-out (FIFO) basis.
+
+## Create and manage backups
+
+To create an on-demand backup:
+    1. Navigate to [**Projects**](https://cloud.risingwave.com/project/home/) page and select a project.
+    2. In the sidebar, click **Backup**.
+    3. In the top left, click **Add one-time backup** to create an on-demand backup.
+
+Automated backups are created every 30 minutes and do not require any manual action.
+
+<Frame>
+    <img src="/images/backup-overview.png"/>
+</Frame>
+
+From the backup interface, you can create and view snapshots.
+
+To manage existing snapshots, hover over its entry to reveal the **Restore** and **Delete** options on the right.
+
+## Restoration
+
+Restoring a tenant from a snapshot creates a new, independent tenant that replicates the state of the original at the time of the snapshot. This includes all sources, sinks, materialized views, and related configurations.
+
+Upon successful restoration, the original tenant is automatically quiesced (i.e., transitioned into a frozen state) to prevent data consistency issues, such as concurrent writes from multiple tenants to the same downstream sink.
+
+Administrators can choose to either delete the original tenant or resume its operation. However, running both the original and restored tenants concurrently is **NOT** encouraged unless proper isolation is ensured, as this may lead to undefined or conflicting behavior.

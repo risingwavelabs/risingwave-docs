@@ -46,3 +46,28 @@ ALTER DATABASE database_name
 -- Change the name of the database named "database" to "database1"
 ALTER DATABASE database RENAME TO database1;
 ```
+
+### `SET`
+
+```sql
+ALTER DATABASE database_name SET parameter_name = <value>;
+```
+
+<Note>
+Added in v2.5.0: `barrier_interval_ms` and `checkpoint_frequency`
+</Note>
+
+| Parameter or clause | Description                                                                                                                                                                                                                                                               |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **barrier_interval_ms [=] integer** clause | Changes how frequently the system injects barriers per-database.|
+| **checkpoint_frequency [=] integer** clause | Changes how many barriers should pass before triggering a checkpoint per-database.|
+
+```sql Alter existing database
+ALTER DATABASE travel SET barrier_interval_ms = 2000;
+ALTER DATABASE travel SET checkpoint_frequency = 2;
+```
+
+```sql Revert to global default
+ALTER DATABASE travel SET barrier_interval_ms = DEFAULT;
+ALTER DATABASE travel SET checkpoint_frequency = DEFAULT;
+```

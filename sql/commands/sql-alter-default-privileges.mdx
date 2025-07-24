@@ -1,0 +1,114 @@
+---
+title: "ALTER DEFAULT PRIVILEGES"
+description: "Use `ALTER DEFAULT PRIVILEGES` to set privileges on objects created in the future, such as tables, views, sources, sinks, functions, schemas, and more. This removes the need to run `GRANT` or `REVOKE` manually each time a new object is created."
+---
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+## Syntax
+
+```sql
+ALTER DEFAULT PRIVILEGES
+    [ FOR USER  target_user [, ...] ]
+    [ IN SCHEMA schema_name [, ...] ]
+    abbreviated_grant_or_revoke
+```
+
+Where `abbreviated_grant_or_revoke` is one of:
+
+```sql
+GRANT { { SELECT | INSERT | UPDATE | DELETE }
+    [, ...] | ALL [ PRIVILEGES ] }
+    ON { TABLES | VIEWS }
+    TO user_name [, ...] [ WITH GRANT OPTION ]
+
+GRANT { SELECT | ALL [ PRIVILEGES ] }
+    ON { SOURCES | MATERIALIZED VIEWS | SINKS | SUBSCRIPTIONS }
+    TO user_name [, ...] [ WITH GRANT OPTION ]
+
+GRANT { EXECUTE | ALL [ PRIVILEGES ] }
+    ON FUNCTIONS
+    TO user_name [, ...] [ WITH GRANT OPTION ]
+
+GRANT { { USAGE | CREATE }
+    [, ...] | ALL [ PRIVILEGES ] }
+    ON SCHEMAS
+    TO user_name [, ...] [ WITH GRANT OPTION ]
+
+GRANT { USAGE | ALL [ PRIVILEGES ] }
+    ON { CONNECTIONS | SECRETS }
+    TO user_name [, ...] [ WITH GRANT OPTION ]
+
+REVOKE [ GRANT OPTION FOR ]
+    { { SELECT | INSERT | UPDATE | DELETE }
+    [, ...] | ALL [ PRIVILEGES ] }
+    ON { TABLES | VIEWS }
+    FROM user_name [, ...]
+    [ CASCADE | RESTRICT ]
+
+REVOKE [ GRANT OPTION FOR ]
+    { SELECT | ALL [ PRIVILEGES ] }
+    ON { SOURCES | MATERIALIZED VIEWS | SINKS | SUBSCRIPTIONS }
+    FROM user_name [, ...]
+    [ CASCADE | RESTRICT ]
+
+REVOKE [ GRANT OPTION FOR ]
+    { EXECUTE | ALL [ PRIVILEGES ] }
+    ON FUNCTIONS
+    FROM user_name [, ...]
+    [ CASCADE | RESTRICT ]
+
+REVOKE [ GRANT OPTION FOR ]
+    { { USAGE | CREATE }
+    [, ...] | ALL [ PRIVILEGES ] }
+    ON SCHEMAS
+    FROM user_name [, ...]
+    [ CASCADE | RESTRICT ]
+
+REVOKE [ GRANT OPTION FOR ]
+    { USAGE | ALL [ PRIVILEGES ] }
+    ON { CONNECTIONS | SECRETS }
+    FROM user_name [, ...]
+    [ CASCADE | RESTRICT ]
+```
+
+## Parameters
+
+| Parameter     | Description |
+|---------------|-------------|
+| `target_user` | Change default privileges for objects created by `target_user`. If omitted, the current user is used. |
+| `schema_name` | The name of an existing schema. If specified, default privileges apply only to objects created in that schema; if omitted, privileges will be granted or revoked on all schemas in the current database. Note that `IN SCHEMA` is not allowed when setting default privileges on schemas, as schemas cannot be nested. |
+| `user_name`   | The name of the existing user to grant or revoke privileges for. |
+
+
+## Example
+
+```sql Grant privileges on schemas
+CREATE USER john;
+
+ALTER DEFAULT PRIVILEGES GRANT ALL PRIVILEGES ON SCHEMAS TO john WITH GRANT OPTION;
+
+CREATE SCHEMA test_schema;
+
+SELECT has_schema_privilege('john', 'test_schema', 'CREATE');
+-- Returns: t
+```
+
+```sql Revoke privileges on views
+ALTER DEFAULT PRIVILEGES REVOKE ALL PRIVILEGES ON VIEWS FROM john;
+
+CREATE VIEW test_schema.foo_view2 AS SELECT * FROM test_schema.foo;
+
+SELECT has_table_privilege('john', 'test_schema.foo_view2', 'SELECT');
+-- Returns: f
+```
+
+## Related topics
+
+<CardGroup>
+  <Card title="GRANT" icon="key" href="/sql/commands/sql-grant"
+  iconType="solid" horizontal/>
+  <Card title="REVOKE" icon="ban" href="/sql/commands/sql-revoke" iconType="solid"horizontal/>
+</CardGroup>
