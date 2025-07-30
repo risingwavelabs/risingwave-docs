@@ -3,6 +3,62 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v2.5.0" description="2025-07-29">
+
+Support for certain earlier version will end following the release of v2.5, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+
+## SQL features
+
+- SQL commands:
+    - **Technical preview**: Adds option `backfill_order` to define the ingestion order of streams during backfill in case of join amplification. [#20967](https://github.com/risingwavelabs/risingwave/pull/20967)
+    - Supports `ALTER DEFAULT PRIVILEGES` command to set privileges for objects created in the future. [#22191](https://github.com/risingwavelabs/risingwave/pull/22191)
+    - The `public` schema is now managed by `GRANT` / `REVOKE` command. New non-super users should first be granted privileges before creating objects. [#20201](https://github.com/risingwavelabs/risingwave/pull/20201) 
+    - Supports `ALTER COLUMN TYPE` syntax in `ALTER TABLE` to change the data type of struct columns. Changing between primitive types (e.g., `int` → `bigint`) is not supported. [#20940](https://github.com/risingwavelabs/risingwave/pull/20940)
+    - `SHOW PROCESSLIST` now displays queries from all serving nodes, making it easier to troubleshoot distributed queries. [#21952](https://github.com/risingwavelabs/risingwave/pull/21952)
+    - Supports `CONNECTOR WITH` clause for `ALTER SINK` command. [#20691](https://github.com/risingwavelabs/risingwave/pull/20691)
+    - Supports per-database configuration for `barrier_interval_ms` and `checkpoint_frequency`. [#22178](https://github.com/risingwavelabs/risingwave/pull/22178)
+
+- SQL functions & operators:
+    - **Technical preview**: Supports `approx_count_distinct` to estimate the number of distinct values. [#21516](https://github.com/risingwavelabs/risingwave/pull/21516), [#21545](https://github.com/risingwavelabs/risingwave/pull/21545)
+    - **Technical preview**: Supports `map_filter` function to filter map data. [#22077](https://github.com/risingwavelabs/risingwave/pull/22077)
+    - Supports `array_flatten` to flatten an array of arrays. [#21640](https://github.com/risingwavelabs/risingwave/pull/21640)
+    - Supports `openai_embedding` function to generate embeddings. [#22242](https://github.com/risingwavelabs/risingwave/pull/22242)
+    - Supports `WINDOW` clause and window function over named window. [#22024](https://github.com/risingwavelabs/risingwave/pull/22024)
+    - Supports the concatenation operator (`||`), position, and overlay functions for `bytea` data type. [#22076](https://github.com/risingwavelabs/risingwave/pull/22076)
+
+- System catalog:
+    - Adds system catalog rw_fragment_backfill_progress to track the progress of each backfill partition. [#22124](https://github.com/risingwavelabs/risingwave/pull/22124)
+
+## Connectors
+
+- **Technical preview**: Webhook source supports receiving batches of updates at once. [#22075](https://github.com/risingwavelabs/risingwave/pull/22075)
+- **Technical preview**: Supports `sink_decouple` for creating sink into table. [#21784](https://github.com/risingwavelabs/risingwave/pull/21784)
+- **Breaking change**: Adds escape syntax and usage instructions for the TEMPLATE encoding format. [#21431](https://github.com/risingwavelabs/risingwave/pull/21431)
+- Supports Iceberg compaction for Iceberg table engine. [#22043](https://github.com/risingwavelabs/risingwave/pull/22043)
+- Supports `hosted_catalog=true` to enable RisingWave-managed SQL catalog in Iceberg table engine. [#21351](https://github.com/risingwavelabs/risingwave/pull/21351)
+- Supports `enable_config_load` for Iceberg sink, source, connection, and Iceberg table engine. [#21938](https://github.com/risingwavelabs/risingwave/pull/21938)
+- Supports `partition_by` for Iceberg table engine as the Iceberg sink. [#21594](https://github.com/risingwavelabs/risingwave/pull/21594)
+- Supports using `ALTER SINK ... CONNECTOR WITH` to update connector-specific properties without recreating the sink. [#20691](https://github.com/risingwavelabs/risingwave/pull/20691)
+
+
+## Cluster configuration changes
+
+- **Technical preview**: Adds session variable `streaming_enable_unaligned_join` to control whether the streaming joins should be unaligned. [#20386](https://github.com/risingwavelabs/risingwave/pull/20386)
+- Adds session variable `streaming_separate_consecutive_join` to separate consecutive stream joins to improve performance. [#22259](https://github.com/risingwavelabs/risingwave/pull/22259)
+    
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.5.0 standalone`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.5.0/risingwave-v2.5.0-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.5.0.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.5.0.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v2.5.0/risectl-v2.5.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/release-2.4...release-2.5).
+
+</Update>
+
 <Update label="v2.4.0" description="2025-05-22">
 
 Support for certain earlier version will end following the release of v2.4, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
