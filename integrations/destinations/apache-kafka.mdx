@@ -38,7 +38,7 @@ All `WITH` options are required unless explicitly mentioned as optional.
 | connector                   | Sink connector type must be `kafka` for Kafka sink.              |
 | properties.bootstrap.server | Address of the Kafka broker. Format: `ip:port`. If there are multiple brokers, separate them with commas.     |
 | topic                       | Address of the Kafka topic. One sink can only correspond to one topic.           |
-| primary\_key                | Conditional. The primary keys of the sink. Use `,` to delimit the primary key columns. This field is optional if creating a `PLAIN` sink, but required if creating a `DEBEZIUM` or `UPSERT` sink.                       |
+| primary\_key                | **Conditional**. The primary keys of the sink. Use `,` to delimit the primary key columns. This field is optional if creating a `PLAIN` sink, but required if creating a `DEBEZIUM` or `UPSERT` sink.                       |
 
 ## Additional Kafka parameters
 
@@ -86,7 +86,7 @@ These options should be set in `FORMAT data_format ENCODE data_encode (key = 'va
 | force\_append\_only       | If true, forces the sink to be `PLAIN` (also known as append-only), even if it cannot be.                                                                                                                                                                                                                                                                                                                                                                    |
 | timestamptz.handling.mode | Controls the timestamptz output format. This parameter specifically applies to append-only or upsert sinks using JSON encoding. <ul><li>If omitted, the output format of timestamptz is `2023-11-11T18:30:09.453000Z` which includes the UTC suffix `Z`.</li><li>When `utc_without_suffix` is specified, the format is changed to `2023-11-11 18:30:09.453000`.</li></ul>  |
 | schemas.enable            | Only configurable for upsert JSON sinks. By default, this value is false for upsert JSON sinks and true for debezium JSON sinks. If true, RisingWave will sink the data with the schema to the Kafka sink. This is not referring to a schema registry containing a JSON schema, but rather schema formats defined using [Kafka Connect](https://www.confluent.io/blog/kafka-connect-deep-dive-converters-serialization-explained/#json-schemas). |
-| key\_encode               | Optional. When specified, the key encode can only be TEXT or BYTES. If set to TEXT, the primary key should be one and only one of the following types: `varchar`, `bool`, `smallint`, `int`, and `bigint`; If set to BYTES, the primary key should be one and only one of type `bytea`; When absent, both key and value will use the same setting of `ENCODE data_encode ( ... )`.           |
+| key\_encode               | **Optional**. When specified, the key encode can only be TEXT or BYTES. If set to TEXT, the primary key should be one and only one of the following types: `varchar`, `bool`, `smallint`, `int`, and `bigint`; If set to BYTES, the primary key should be one and only one of type `bytea`; When absent, both key and value will use the same setting of `ENCODE data_encode ( ... )`.           |
 
 ### Avro specific parameters
 
@@ -94,10 +94,10 @@ When creating an Avro sink, the following options can be used following `FORMAT 
 
 | Field                         | Notes                                                                                                                          |
 | :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
-| schema.registry               | Required. The address of the schema registry.                                                                                  |
-| schema.registry.username      | Optional. The user name used to access the schema registry.                                                                    |
-| schema.registry.password      | Optional. The password associated with the user name.                                                                          |
-| schema.registry.name.strategy | Optional. Accepted options include topic\_name\_strategy (default), record\_name\_strategy, and topic\_record\_name\_strategy. |
+| schema.registry               | **Required**. The address of the schema registry.                                                                                  |
+| schema.registry.username      | **Optional**. The user name used to access the schema registry.                                                                    |
+| schema.registry.password      | **Optional**. The password associated with the user name.                                                                          |
+| schema.registry.name.strategy | **Optional**. Accepted options include topic\_name\_strategy (default), record\_name\_strategy, and topic\_record\_name\_strategy. |
 | key.message                   | Required if schema.registry.name.strategy is set to record\_name\_strategy or topic\_record\_name\_strategy.                   |
 | message                       | Required if schema.registry.name.strategy is set to record\_name\_strategy or topic\_record\_name\_strategy.                   |
 
@@ -164,12 +164,12 @@ When creating an append-only Protobuf sink, the following options can be used fo
 
 | Field                         | Notes                             |
 | :---------------------------- | :----------------------- |
-| message                       | Required. Package qualified message name of the main Message in the schema definition.                                                                                                     |
+| message                       | **Required**. Package qualified message name of the main Message in the schema definition.                                                                                                     |
 | schema.location               | Required if schema.registry is not specified. Only one of schema.location or schema.registry can be defined. The schema location. This can be in either `file://`, `http://`, `https://` format. |
 | schema.registry               | Required if schema.location is not specified. Only one of schema.location or schema.registry can be defined. The address of the schema registry.                                           |
-| schema.registry.username      | Optional. The user name used to access the schema registry.                                                                                                                                |
-| schema.registry.password      | Optional. The password associated with the user name.                                                                                                                                      |
-| schema.registry.name.strategy | Optional. Accepted options include topic\_name\_strategy (default), record\_name\_strategy, and topic\_record\_name\_strategy.                                                             |
+| schema.registry.username      | **Optional**. The user name used to access the schema registry.                                                                                                                                |
+| schema.registry.password      | **Optional**. The password associated with the user name.                                                                                                                                      |
+| schema.registry.name.strategy | **Optional**. Accepted options include topic\_name\_strategy (default), record\_name\_strategy, and topic\_record\_name\_strategy.                                                             |
 
 <Note>
 The `file://` format is not recommended for production use. If it is used, it needs to be available for both meta and compute nodes.
