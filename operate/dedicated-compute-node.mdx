@@ -18,6 +18,72 @@ You need to restart the node to update the role. A role can be one of:
 In a production environment, it's advisable to use separate nodes for batch and streaming operations. The `both` mode, which allows a node to handle both batch and streaming queries, is more suited for testing scenarios. While it's possible to execute batch and streaming queries concurrently, it's recommended to avoid running resource-intensive batch and streaming queries at the same time.
 </Note>
 
+## Enable decoupling with Kubernetes operator/Helm
+
+<Tabs>
+<Tab title="Kubernetes operator">
+
+To enable decoupling of streaming and serving nodes, set `spec.enableEmbeddedServingMode` to `true` in your RisingWave custom resource definition:
+
+```yaml
+spec:
+  enableEmbeddedServingMode: true
+```
+
+<Note>
+The `enableEmbeddedServingMode` field is only available in the `v0.7.1` or later version of the RisingWave operator.
+</Note>
+
+Apply the changes to your Kubernetes cluster:
+
+```bash
+kubectl apply -f your-risingwave-custom-resource.yaml
+```
+
+After enabling the embedded serving mode, the frontend component will be transformed into a combination of frontend and serving compute node, while the compute component will be dedicated to streaming operations only. This means:
+
+- The frontend pods will now handle both frontend tasks and serving (batch) queries.
+- The compute pods will exclusively handle streaming tasks.
+- You can scale the frontend and compute components independently based on your serving and streaming workload requirements.
+
+This architecture provides better isolation between streaming and serving workloads while maintaining efficient resource utilization.
+
+</Tab>
+
+<Tab title="Helm">
+
+To enable decoupling of streaming and serving nodes, set `frontendComponent.embeddedServing` to `true` in your RisingWave Helm chart values:
+
+```yaml
+frontendComponent:
+  embeddedServing: true
+```
+
+<Note>
+The `frontendComponent.embeddedServing` field is only available in the `0.1.58` or later version of the RisingWave Helm chart.
+</Note>
+
+
+Apply the changes to your Kubernetes cluster:
+
+```bash
+helm upgrade your-risingwave-release-name risingwavelabs/risingwave \
+  --namespace your-namespace \
+  --values your-values.yaml \
+  --reuse-values
+```
+
+After enabling the embedded serving mode, the frontend component will be transformed into a combination of frontend and serving compute node, while the compute component will be dedicated to streaming operations only. This means:
+
+- The frontend pods will now handle both frontend tasks and serving (batch) queries.
+- The compute pods will exclusively handle streaming tasks.
+- You can scale the frontend and compute components independently based on your serving and streaming workload requirements.
+
+This architecture provides better isolation between streaming and serving workloads while maintaining efficient resource utilization.
+
+</Tab>
+</Tabs>
+
 ## Configure a `serving` compute node for batch queries
 
 You can use a TOML configuration file to configure a `serving` compute node. For detailed instructions, see [Node-specific configurations](/deploy/node-specific-configurations).
