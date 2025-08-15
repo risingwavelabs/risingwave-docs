@@ -77,6 +77,12 @@ When creating an `upsert` sink, note whether or not you need to specify the prim
 * If the downstream system supports primary keys but the table in the downstream system has no primary key, then RisingWave does not allow users to create an upsert sink. A primary key must be defined in the table in the downstream system.
 * If the downstream system does not support primary keys, then users must define the primary key when creating an upsert sink.
 
+## Sink buffering behavior
+
+A sink will buffer incoming data within each barrier interval if the stream's internal primary key (stream key) differs from the user-defined sink primary key and the sink is not `append-only`. This mismatch can cause update events for the same sink key to be split across multiple upstream fragments in a distributed execution, leading to out-of-order operations if sent directly. Buffering allows the sink to compact and reorder updates so that delete events are emitted before insert events, ensuring correct semantics. 
+
+If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or `force_append_only`, no buffering is performed and the sink emits changes immediately as they arrive.
+
 ## Sink data in parquet or json format
 
 RisingWave supports sinking data in Parquet or JSON formats to cloud storage services, including [S3](/integrations/destinations/aws-s3), [Google Cloud Storage (GCS)](/integrations/destinations/google-cloud-storage), [Azure Blob Storage](/integrations/destinations/azure-blob), and [WebHDFS](/integrations/destinations/webhdfs). This eliminates the need for complex data lake setups. Once the data is saved, the files can be queried using RisingWave's batch processing engine through the `file_scan` API. You can also leverage third-party OLAP query engines to enhance data processing capabilities.
