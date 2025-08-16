@@ -175,6 +175,86 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | MACADDR                                              | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR8                                             | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
+### Support for PostgreSQL TOAST
+
+RisingWave supports [TOASTed (The Oversized-Attribute Storage Technique) data](https://www.postgresql.org/docs/current/storage-toast.html) from PostgreSQL when using the CDC connector. This ensures that even columns with very large values, such as long text or large JSON objects, are ingested completely and accurately during both the initial backfill and incremental changes.
+
+RisingWave can process changes to rows with TOASTed data even if the upstream table's `REPLICA IDENTITY` is set to `default`. RisingWave achieves this by leveraging its own materialized state of the source data. When an `UPDATE` or `DELETE` event occurs, RisingWave uses the record stored within its materialized view to construct the full change event, rather than relying on the `before` field in the CDC message.
+
+The example below demonstrates how RisingWave ingests large data that triggers PostgreSQL's TOAST mechanism.
+
+1. Create a table in PostgreSQL with large JSONB and TEXT columns and insert initial data.
+
+    ```sql
+    CREATE TABLE toast_test_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    large_jsonb JSONB,
+    large_text TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    INSERT INTO toast_test_table (name, large_jsonb, large_text)
+    SELECT
+    'toast_record_' || s,
+    jsonb_build_object(
+        'id', s,
+        'large_string', repeat('This is a very long string that will trigger TOAST. ', 80),
+        'nested_object', jsonb_build_object('deep_content', repeat('Deep nested content. ', 40)),
+        'metadata', jsonb_build_object('description', repeat('Extra metadata. ', 30))
+    ),
+    repeat('Large text field that also triggers TOAST. ', 60)
+    FROM generate_series(1, 4) s;
+    ```
+
+2. Create a RisingWave source using PostgreSQL CDC.
+
+    ```sql
+    CREATE SOURCE toast_test_source WITH (
+    connector = 'postgres-cdc',
+    hostname = '${PGHOST:localhost}',
+    port = '${PGPORT:8432}',
+    username = '${PGUSER:$USER}',
+    password = '${PGPASSWORD:123456}',
+    database.name = '${PGDATABASE:mydb}',
+    schema.name = 'public',
+    slot.name = 'toast_test_slot'
+    );
+    ```
+
+3. Create a RisingWave table from the source.
+
+    ```sql
+    CREATE TABLE toast_test_table (
+    id INT PRIMARY KEY,
+    name VARCHAR,
+    large_jsonb JSONB,
+    large_text TEXT,
+    created_at TIMESTAMP
+    ) FROM toast_test_source TABLE 'public.toast_test_table';
+    ```
+
+4. Verify the data in RisingWave.
+
+    After a short wait for synchronization, you can query the table in RisingWave. The `octet_length` function confirms that the full, un-truncated data has been successfully ingested.
+
+    ```sql
+    SELECT
+        id,
+        name,
+        octet_length(large_jsonb::text) + octet_length(large_text) as total_size_bytes,
+        large_jsonb ? 'large_string' as has_large_string,
+        large_jsonb ? 'nested_object' as has_nested_object
+    FROM toast_test_table
+    ORDER BY id;
+
+    ----RESULT
+    1 toast_record_1 17261 t t
+    2 toast_record_2 17261 t t
+    3 toast_record_3 17261 t t
+    4 toast_record_4 17261 t t
+    ```
+
 ### Use dbt to ingest data from PostgreSQL CDC
 
 Here is an example of how to use dbt to ingest data from PostgreSQL CDC. In this dbt example, `source` and `table_with_connector` models will be used. For more details about these two models, please refer to [Use dbt for data transformations](/integrations/other/dbt#define-dbt-models).
