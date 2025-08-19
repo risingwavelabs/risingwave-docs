@@ -3,50 +3,46 @@ title: "Alerts playbooks"
 description: A collection of step-by-step guides for resolving system alerts.
 ---
 
-RisingWave Cloud provides detailed alert playbooks to help you quickly diagnose and address issues. Each playbook entry includes the alert's name, description, common triggers, diagnostic steps, and immediate remediation actions.
+RisingWave Cloud provides detailed alert playbooks to help you quickly diagnose and address issues. Each playbook entry includes the alert's name, description, common triggers, diagnostic steps, and immediate remediation actions. These alerts are organized by their [function categories](/cloud/monitor-messages-and-alerts#dashboard).
 
-This guide is regularly updated with new alerts and response steps to address emerging scenarios.
+This guide is regularly updated to address emerging scenarios.
 
-## Critical
-
-Critical alerts require urgent attention and immediate remediation to prevent downtime or data loss.
+## Streaming
 
 ### Barrier pending for too long
 
-No new data checkpoint (barrier) has been committed for over 15 minutes, pausing data freshness.
+No barrier has been committed in this project for more than 15 minutes.
 
-**Common triggers**
-    - A bottleneck in the streaming graph (e.g., join amplification, insufficient resources, complex window query).
-    - A write stall during compaction.
+**Triggers**
+    - Streaming graph bottlenecks. Typical causes include: join amplification, insufficient resources, and suboptimal streaming query (e.g., OverWindow, Joins).
+    - Compaction write stalls result in longer barrier sync duration.
 
 **Diagnosis**
-    1. Check CPU and memory utilization across all nodes.  
-    2. Verify if any data backfilling jobs are running by using the `SHOW JOBS` command.
+    - Check CPU and Memory utilization for all nodes. If those are maxed out, it suggests there’s insufficient resource.
+    - Check if there are any creating jobs, which are being backfilled via `SHOW JOBS`. Backfilling can induce higher pressure on the cluster.
 
-**Fix**
+**Resolution**
 
-If resources are exhausted or a backfill is in progress, scale up or scale out the cluster to add computational resources and reduce pressure.
-
-## Warning
-
-Warning alerts indicate potential issues that could impact performance or stability if left unresolved, but they do not immediately stop cluster operations.
+If either resources are maxed out, or backfilling is happening, scale out the cluster to alleviate the pressure.
 
 ### Sink lag too large
 Data for a particular sink has been pending in RisingWave's internal log store for more than 30 minutes.
 
-**Common triggers**
-- Slow external sink processing  
-- Insufficient sink parallelism
+**Triggers**
+- Slow external sink processing.
+- Insufficient sink parallelism.
 
 **Diagnosis**
 
 Check the downstream of the sink to see if there’s any abnormality.
 
+## Compaction
+
 ### Compaction back pressure
 
 Back pressure from compaction detected in your cluster.
 
-**Common triggers**
+**Triggers**
 
 Insufficient compaction resource.
 
@@ -54,7 +50,7 @@ Insufficient compaction resource.
 - Check compaction CPU usage.
 - Check the CPU ratio of compute nodes and compactor nodes.
 
-**Fix**
+**Resolution**
 
 Scale the compactor out.
 
