@@ -15,28 +15,48 @@ Critical alerts require urgent attention and immediate remediation to prevent do
 
 No new data checkpoint (barrier) has been committed for over 15 minutes, pausing data freshness.
 
-**Common triggers**  
-    - A bottleneck in the streaming graph (e.g., join amplification, insufficient resources, complex window query)  
-    - A write stall during compaction
+**Common triggers**
+    - A bottleneck in the streaming graph (e.g., join amplification, insufficient resources, complex window query).
+    - A write stall during compaction.
 
-**Diagnosis**  
+**Diagnosis**
     1. Check CPU and memory utilization across all nodes.  
     2. Verify if any data backfilling jobs are running by using the `SHOW JOBS` command.
 
-**Fix**: If resources are exhausted or a backfill is in progress, scale up or scale out the cluster to add computational resources and reduce pressure.
+**Fix**
+
+If resources are exhausted or a backfill is in progress, scale up or scale out the cluster to add computational resources and reduce pressure.
 
 ## Warning
 
 Warning alerts indicate potential issues that could impact performance or stability if left unresolved, but they do not immediately stop cluster operations.
 
 ### Sink lag too large
-
 Data for a particular sink has been pending in RisingWave's internal log store for more than 30 minutes.
 
-**Common Triggers:**  
-    - Slow external sink processing  
-    - Insufficient sink parallelism
+**Common triggers**
+- Slow external sink processing  
+- Insufficient sink parallelism
 
-**Diagnosis:**  
+**Diagnosis**
+
 Check the downstream of the sink to see if there’s any abnormality.
+
+### Compaction back pressure
+
+Back pressure from compaction detected in your cluster.
+
+**Common triggers**
+
+Insufficient compaction resource.
+
+**Diagnosis**
+- Check compaction CPU usage.
+- Check the CPU ratio of compute nodes and compactor nodes.
+
+**Fix**
+
+Scale the compactor out.
+
+
 
