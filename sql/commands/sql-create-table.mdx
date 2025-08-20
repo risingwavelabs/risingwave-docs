@@ -133,9 +133,9 @@ Records with insert operations could introduce duplicate records with the same p
 
 The `conflict_action` could be one of the following. A [version column](#version-column) can be specified together for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When a version column is specified, the insert operation will take effect only when the newly inserted row's version column is greater than or equal to the existing row's version column, and is not NULL.
 
-* `IGNORE`: Ignore the newly inserted record.
-* `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Full update: replace the existing row in the table with the new row.
-* `DO UPDATE IF NOT NULL [WITH VERSION COLUMN(col_name)]`: Partial update: only replace those fields with non-NULL values in the inserted row. NULL values in the inserted row means unchanged in this case.
+* `DO NOTHING`: Ignore the newly inserted record.
+* `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Full update — replace the existing row in the table with the new row. This is the default behavior.
+* `DO UPDATE IF NOT NULL [WITH VERSION COLUMN(col_name)]`: Partial update — only replace those fields with non-NULL values in the inserted row. NULL values in the inserted row means unchanged in this case.
 
 <Note>
 Delete and update operations on the table cannot break the primary key constraint on the table, so the option will not take effect for those cases.
