@@ -1,0 +1,55 @@
+---
+title: "Alerts playbooks"
+description: A collection of step-by-step guides for resolving system alerts.
+---
+
+RisingWave Cloud provides detailed alert playbooks to help you quickly diagnose and address issues. Each playbook entry includes the alert's name, description, common triggers, diagnostic steps, and immediate remediation actions. These alerts are organized by their [function categories](/cloud/monitor-messages-and-alerts#dashboard).
+
+This guide is regularly updated to address emerging scenarios.
+
+## Streaming
+
+### Barrier pending for too long
+
+No barrier has been committed in this project for more than 15 minutes.
+
+**Triggers**
+    - Streaming graph bottlenecks. Typical causes include: join amplification, insufficient resources, and suboptimal streaming query (e.g., OverWindow, Joins).
+    - Compaction write stalls result in longer barrier sync duration.
+
+**Diagnosis**
+    - Check CPU and Memory utilization for all nodes. If those are maxed out, it suggests there’s insufficient resource.
+    - Check if there are any creating jobs, which are being backfilled via `SHOW JOBS`. Backfilling can induce higher pressure on the cluster.
+
+**Resolution**
+
+If either resources are maxed out, or backfilling is happening, scale out the cluster to alleviate the pressure.
+
+### Sink lag too large
+Data for a particular sink has been pending in RisingWave's internal log store for more than 30 minutes.
+
+**Triggers**
+- Slow external sink processing.
+- Insufficient sink parallelism.
+
+**Diagnosis**
+
+Check the downstream of the sink to see if there’s any abnormality.
+
+## Compaction
+
+### Compaction back pressure
+
+Back pressure from compaction detected in your cluster.
+
+**Triggers**
+
+Insufficient compaction resource.
+
+**Diagnosis**
+- Check compaction CPU usage.
+- Check the CPU ratio of compute nodes and compactor nodes.
+
+**Resolution**
+
+Scale the compactor out. For more information, see [Scale a project manually](/cloud/scale-a-project-manually).
