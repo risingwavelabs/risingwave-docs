@@ -71,42 +71,42 @@ Below are two separate methods to restore from a meta snapshot using SQL databas
 If the cluster has been using a SQL database as meta store backend, follow these steps to restore from a meta snapshot.
 
 1. Shut down the meta service.
-<Note>
-This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
-</Note>
-2. Create a new meta store, i.e. a new SQL database.
-Note that this new SQL database must have the same table structure as the original, but all tables must be empty. To achieve this, you can 
-   * either use database specific tools, e.g. pgdump for postgres, to duplicate table schemas.
-   * or use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool. The version of migration tool should match the version of the meta snapshot. i.e. if the meta snapshot is created by RisingWave 2.4.3, the migration tool should also be from RisingWave 2.4.3.
+   <Note>
+   This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
+   </Note>
+2. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. To achieve this, you can either: 
+   * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas, or
+   * Use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool. The version of the migration tool must match the version of the meta snapshot. For example, if the meta snapshot was created with RisingWave v2.4.3, the migration tool should also be from RisingWave v2.4.3.
+
 3. Restore the meta snapshot to the new meta store.
-```
-risectl \
-meta \
-restore-meta \
---meta-store-type sql \
---meta-snapshot-id [snapshot_id] \
---sql-endpoint [sql_endpoint] \
---backup-storage-url [backup_storage_url, e.g. s3://bucket_read_from] \
---backup-storage-directory [backup_storage_directory, e.g. dir_read_from] \
---hummock-storage-url [hummock_storage_url, e.g. s3://bucket_write_to] \
---hummock-storage-directory [hummock_storage_directory, e.g. dir_write_to]
-```
-`restore-meta` reads snapshot data from backup storage and writes them to meta store and hummock storage.
-For example, given the cluster settings below:
-```
-psql=> show parameters;
-              Name                     |                Value                 | Mutable
----------------------------------------+--------------------------------------+---------
-state_store                            | hummock+s3://state_bucket            | f
-data_directory                         | state_data                           | f
-backup_storage_url                     | s3://backup_bucket                   | t
-backup_storage_directory               | backup_data                          | t
-```
-Parameters to `risectl meta restore-meta` should be:
-   * `--backup-storage-url s3://backup_bucket`.
-   * `--backup-storage-directory backup_data`.
-   * `--hummock-storage-url s3://state_bucket`. Note that the `hummock+` prefix is stripped.
-   * `--hummock-storage-directory state_data`.
+   ```
+   risectl \
+   meta \
+   restore-meta \
+   --meta-store-type sql \
+   --meta-snapshot-id [snapshot_id] \
+   --sql-endpoint [sql_endpoint] \
+   --backup-storage-url [backup_storage_url, e.g. s3://bucket_read_from] \
+   --backup-storage-directory [backup_storage_directory, e.g. dir_read_from] \
+   --hummock-storage-url [hummock_storage_url, e.g. s3://bucket_write_to] \
+   --hummock-storage-directory [hummock_storage_directory, e.g. dir_write_to]
+   ```
+   `restore-meta` reads snapshot data from backup storage and writes them to meta store and hummock storage.
+   For example, given the cluster settings below:
+   ```
+   psql=> show parameters;
+               Name                     |                Value                 | Mutable
+   ---------------------------------------+--------------------------------------+---------
+   state_store                            | hummock+s3://state_bucket            | f
+   data_directory                         | state_data                           | f
+   backup_storage_url                     | s3://backup_bucket                   | t
+   backup_storage_directory               | backup_data                          | t
+   ```
+   Parameters to `risectl meta restore-meta` should be:
+      * `--backup-storage-url s3://backup_bucket`.
+      * `--backup-storage-directory backup_data`.
+      * `--hummock-storage-url s3://state_bucket`. Note that the `hummock+` prefix is stripped.
+      * `--hummock-storage-directory state_data`.
 4. Configure meta service to use the new meta store.
 
 ### etcd as meta store backends
@@ -114,44 +114,44 @@ Parameters to `risectl meta restore-meta` should be:
 If the cluster has been using etcd as meta store backend, follow these steps to restore from a meta snapshot.
 
 1. Shut down the meta service.
-<Note>
-This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
-</Note>
+   <Note>
+   This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
+   </Note>
 2. Create a new meta store, i.e. a new and empty etcd instance.
 3. Restore the meta snapshot to the new meta store.
 
-```bash
-risectl \
-meta \
-restore-meta \
---meta-store-type etcd \
---meta-snapshot-id [snapshot_id] \
---etcd-endpoints [etcd_endpoints, e.g. 127.0.0.1:2388] \
---backup-storage-url [backup_storage_url, e.g. s3://bucket_read_from] \
---backup-storage-directory [backup_storage_directory, e.g. dir_read_from] \
---hummock-storage-url [hummock_storage_url, e.g. s3://bucket_write_to] \
---hummock-storage-directory [hummock_storage_directory, e.g. dir_write_to]
-```
-If etcd enables authentication, also specify the following:
-```bash
---etcd-auth \
---etcd-username [etcd_username] \
---etcd-password [etcd_password] \
-```
-`restore-meta` reads snapshot data from backup storage and writes them to meta store and hummock storage.
-For example, given the cluster settings below:
-```bash
-psql=> show parameters;
-              Name                     |                Value                 | Mutable
----------------------------------------+--------------------------------------+---------
-state_store                            | hummock+s3://state_bucket            | f
-data_directory                         | state_data                           | f
-backup_storage_url                     | s3://backup_bucket                   | t
-backup_storage_directory               | backup_data                          | t
-```
-Parameters to `risectl meta restore-meta` should be:
-   * `--backup-storage-url s3://backup_bucket`.
-   * `--backup-storage-directory backup_data`.
-   * `--hummock-storage-url s3://state_bucket`. Note that the `hummock+` prefix is stripped.
-   * `--hummock-storage-directory state_data`.
+   ```bash
+   risectl \
+   meta \
+   restore-meta \
+   --meta-store-type etcd \
+   --meta-snapshot-id [snapshot_id] \
+   --etcd-endpoints [etcd_endpoints, e.g. 127.0.0.1:2388] \
+   --backup-storage-url [backup_storage_url, e.g. s3://bucket_read_from] \
+   --backup-storage-directory [backup_storage_directory, e.g. dir_read_from] \
+   --hummock-storage-url [hummock_storage_url, e.g. s3://bucket_write_to] \
+   --hummock-storage-directory [hummock_storage_directory, e.g. dir_write_to]
+   ```
+   If etcd enables authentication, also specify the following:
+   ```bash
+   --etcd-auth \
+   --etcd-username [etcd_username] \
+   --etcd-password [etcd_password] \
+   ```
+   `restore-meta` reads snapshot data from backup storage and writes them to meta store and hummock storage.
+   For example, given the cluster settings below:
+   ```bash
+   psql=> show parameters;
+               Name                     |                Value                 | Mutable
+   ---------------------------------------+--------------------------------------+---------
+   state_store                            | hummock+s3://state_bucket            | f
+   data_directory                         | state_data                           | f
+   backup_storage_url                     | s3://backup_bucket                   | t
+   backup_storage_directory               | backup_data                          | t
+   ```
+   Parameters to `risectl meta restore-meta` should be:
+      * `--backup-storage-url s3://backup_bucket`.
+      * `--backup-storage-directory backup_data`.
+      * `--hummock-storage-url s3://state_bucket`. Note that the `hummock+` prefix is stripped.
+      * `--hummock-storage-directory state_data`.
 4. Configure meta service to use the new meta store.
