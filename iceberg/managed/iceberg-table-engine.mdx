@@ -273,6 +273,47 @@ The supported `partition_by` formats and examples are as follows:
 The partition key must be a prefix of the primary key. `partition_by` = `'c2,c3'` with `PRIMARY KEY(c1, c2, c3)` will fail.
 </Note>
 
+## Compaction for Iceberg table engine
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+</Tip>
+
+When using RisingWave’s Iceberg table engine, data ingestion can generate many small data files and delete files, slowing down query performance over time. RisingWave natively supports Iceberg compaction for tables created with the Iceberg engine. This feature periodically merge these files and remove outdated snapshots.
+
+To configure Iceberg compaction for Iceberg table, specify the following parameters in the `WITH` clause:
+
+| Parameter                   | Description                                                                 |
+|:----------------------------|:----------------------------------------------------------------------------|
+| `enable_compaction`         | Whether to enable Iceberg compaction (`true`/`false`).                      |
+| `compaction_interval_sec`   | Interval (in seconds) between two compaction runs. Defaults to 3600 seconds.                           |
+| `enable_snapshot_expiration`| Whether to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
+
+```sql Example
+CREATE TABLE t (
+    id INT PRIMARY KEY, 
+    name VARCHAR
+) WITH (
+    enable_compaction = true, 
+    compaction_interval_sec = 3600, 
+    enable_snapshot_expiration = true
+) ENGINE = iceberg;
+```
+
+<Warning>
+**Iceberg compaction also requires a dedicated Iceberg compactor**.
+
+Currently, please contact us via [RisingWave Slack workspace](https://www.risingwave.com/slack) to allocate the necessary resources. We are working on a self-service feature that will let you allocate Iceberg compactors directly from the cloud portal.
+</Warning>
+
 ## Use Amazon S3 Tables with the Iceberg table engine
 
 Amazon S3 Tables provides an AWS-native Iceberg catalog service. When using S3 Tables as the catalog for Iceberg tables, you get automatic compaction benefits.
@@ -337,7 +378,6 @@ Where `barrier_interval_ms` and `checkpoint_frequency` are system parameters tha
 
 Current limitations of the Iceberg table engine:
 
-- **No automatic compaction**: Tables don't automatically compact small files (though S3 Tables provides this)
 - **Limited DDL operations**: Some schema changes may require recreating the table
 - **Single writer**: Only RisingWave should write to tables created with this engine
 
@@ -347,7 +387,7 @@ Current limitations of the Iceberg table engine:
 2. **Configure appropriate commit intervals**: Balance between latency and file size.
 3. **Consider S3 Tables for production**: Automatic compaction and AWS-native management.
 4. **Design proper partitioning**: Plan your [partition strategy](#partition-strategy) for query performance.
-5. **Monitor file sizes**: Be aware of small file accumulation and plan compaction strategy.
+5. **Monitor file sizes**: Be aware of small file accumulation and plan [compaction](#compaction-for-iceberg-table-engine) strategy.
 
 ## Next steps
 

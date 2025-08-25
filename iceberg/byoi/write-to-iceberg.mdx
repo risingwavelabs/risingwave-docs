@@ -216,6 +216,59 @@ The approximate time to commit is calculated as:
 time = barrier_interval_ms × checkpoint_frequency × commit_checkpoint_interval
 ```
 
+### Compaction for Iceberg sink
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+<Tip>
+**PREMIUM EDITION FEATURE**
+
+This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
+
+For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+</Tip>
+
+When sinking data to Iceberg, small data files and delete files can accumulate over time, degrading read performance. RisingWave supports Iceberg compaction to merge these files and expire old snapshots.
+
+To configure Iceberg compaction when creating a sink, specify the following parameters in the `WITH` clause:
+
+| Parameter                  | Description                                                                 |
+|:---------------------------|:----------------------------------------------------------------------------|
+| `enable_compaction`        | Whether to enable Iceberg compaction (`true`/`false`).                       |
+| `compaction_interval_sec`  | Interval (in seconds) between two compaction runs. Defaults to `3600` seconds. |
+| `enable_snapshot_expiration` | Whether to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
+
+```sql Example
+CREATE SINK sink_demo_rest FROM t
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = true,
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.path.style.access = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'http://localhost:8181/api/catalog',
+    warehouse.path = 'warehouse',
+    database.name = 'ns',
+    table.name = 't1',
+    -- the following configurations are about iceberg compaction
+    enable_compaction=true, 
+    compaction_interval_sec=3600, 
+    enable_snapshot_expiration=true
+);
+```
+
+<Warning>
+**Iceberg compaction also requires a dedicated Iceberg compactor**.
+
+Currently, please contact us via [RisingWave Slack workspace](https://www.risingwave.com/slack) to allocate the necessary resources. We are working on a self-service feature that will let you allocate Iceberg compactors directly from the cloud portal.
+</Warning>
+
 ## Use with different storage backends
 
 ### Amazon S3
@@ -445,7 +498,6 @@ DESCRIBE SINK my_iceberg_sink;
 
 - **Schema evolution**: Limited support for automatic schema changes.
 - **Concurrent writers**: Coordinate with other systems writing to the same tables.
-- **File size optimization**: Consider external compaction for optimal file sizes.
 
 ## Next steps
 
