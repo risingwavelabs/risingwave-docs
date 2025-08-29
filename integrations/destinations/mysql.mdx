@@ -138,6 +138,9 @@ To sink to MySQL, make sure that RisingWave table and the MySQL table share the 
 
 The `jdbc.url` must be accurate. The format varies slightly depending on if you are using AWS RDS MySQL or a self-hosted version of MySQL. If your MySQL is self-hosted, the `jdbc.url` would have the following format: `jdbc:mysql://127.0.0.1:3306/testdb?user=<username>&password=<password>`.
 
+To treat a null catalog as the current database and prevent access to system schemas, append `nullCatalogMeansCurrent` to `jdbc.url`. The `jdbc.url` would have the following format: 
+`jdbc:mysql://<aws_rds_endpoint>:<port>/test_db?nullCatalogMeansCurrent=true`.
+
 ```sql
 CREATE TABLE personnel (
  id integer,
