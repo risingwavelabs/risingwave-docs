@@ -126,7 +126,6 @@ WITH (
 | password            | The password for the database connection. |
 | jdbc.query.timeout  | Specifies the timeout for the operations to downstream. If not set, the default is 60s.                                                                                                                   |
 | jdbc.auto.commit | Controls whether to automatically commit transactions for JDBC sink. If not set, the default is false. |
-| nullCatalogMeansCurrent | Specifies how to interpret a null catalog. Set to `true` to confine operations to the current database specified in the JDBC URL, preventing access to system schemas. |
 | table.name          | **Required**. The table in the destination database you want to sink to.                                                                                                                                                       |
 | type                | Data format. Allowed formats: <ul><li>`append-only`: Output data with insert operations.</li><li>`upsert`: Output data as a changelog stream.</li></ul>           |
 | primary\_key        | Required if type is upsert. The primary key of the downstream table.                                                                                                                                             |
@@ -138,6 +137,9 @@ WITH (
 To sink to MySQL, make sure that RisingWave table and the MySQL table share the same table schema. Use the following queries in RisingWave to create a table and sink.
 
 The `jdbc.url` must be accurate. The format varies slightly depending on if you are using AWS RDS MySQL or a self-hosted version of MySQL. If your MySQL is self-hosted, the `jdbc.url` would have the following format: `jdbc:mysql://127.0.0.1:3306/testdb?user=<username>&password=<password>`.
+
+To treat a null catalog as the current database and prevent access to system schemas, append `nullCatalogMeansCurrent` to `jdbc.url`. The `jdbc.url` would have the following format: 
+`jdbc:mysql://<aws_rds_endpoint>:<port>/test_db?nullCatalogMeansCurrent=true`.
 
 ```sql
 CREATE TABLE personnel (
