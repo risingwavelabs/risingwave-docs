@@ -9,8 +9,8 @@ This guide provides instructions for installing and setting up RisingWave Consol
 
 Before you begin, be aware of these key environment variables that RisingWave Console uses:
 
-*   `RCONSOLE_PORT`: (Optional) Specifies the port on which the RisingWave Console server will listen. Defaults to `8020`.
-*   `RCONSOLE_PG_DSN`: (Required for binary and Docker Compose with external PG) The PostgreSQL connection string for RisingWave Console's metadata database.
+*   `RCONSOLE_SERVER_PORT`: (Optional) Specifies the port on which the RisingWave Console server will listen. Defaults to `8020`.
+*   `RCONSOLE_SERVER_PG_DSN`: (Required for binary and Docker Compose with external PG) The PostgreSQL connection string for RisingWave Console's metadata database.
     *   Format: `postgres://<user>:<password>@<host>:<port>/<database_name>`
     *   It's important to note that this database is used by RisingWave Console to store its own operational data and does *not* store your RisingWave cluster's user data.
 *   `RCONSOLE_ROOT_PASSWORD`: (Optional) Sets the initial password for the `root` user in the RisingWave Console UI. If not set, it defaults to `root`. It's recommended to set this for any persistent deployment.
@@ -62,14 +62,14 @@ This method uses a standalone RisingWave Console binary and requires you to have
     ```shell
     curl https://risingwave-console-release.s3.ap-southeast-1.amazonaws.com/download.sh | sh
     ```
-2.  Ensure your PostgreSQL database is accessible and set the `RCONSOLE_PG_DSN` environment variable. Then, run RisingWave Console:
+2.  Ensure your PostgreSQL database is accessible and set the `RCONSOLE_SERVER_PG_DSN` environment variable. Then, run RisingWave Console:
     ```shell
-    RCONSOLE_PG_DSN="postgres://your_user:your_pass@your_pg_host:5432/dbname" \
+    RCONSOLE_SERVER_PG_DSN="postgres://your_user:your_pass@your_pg_host:5432/dbname" \
     RCONSOLE_ROOT_PASSWORD="your_secure_password" \
     ./risingwave-console
 
     ```
-    (Adjust `RCONSOLE_PG_DSN` and `RCONSOLE_ROOT_PASSWORD` accordingly.)
+    (Adjust `RCONSOLE_SERVER_PG_DSN` and `RCONSOLE_ROOT_PASSWORD` accordingly.)
 
 ## Option 3: Recommended setup (docker compose with external PostgreSQL)
 
@@ -83,10 +83,10 @@ This method uses Docker Compose to run RisingWave Console and allows you to easi
       risingwave-console:
         image: risingwavelabs/risingwave-console:vX.Y.Z # Use the image without -pgbundle
         ports:
-          - "8020:8020" # Or your RCONSOLE_PORT
+          - "8020:8020" # Or your RCONSOLE_SERVER_PORT
         environment:
-          RCONSOLE_PORT: 8020 # Optional, if different from default
-          RCONSOLE_PG_DSN: postgres://postgres_user:postgres_password@db_host:5432/risingwave_console_metadata_db # IMPORTANT: Point to your PG
+          RCONSOLE_SERVER_PORT: 8020 # Optional, if different from default
+          RCONSOLE_SERVER_PG_DSN: postgres://postgres_user:postgres_password@db_host:5432/risingwave_console_metadata_db # IMPORTANT: Point to your PG
           RCONSOLE_ROOT_PASSWORD: your_secure_password
           # RCONSOLE_RISECTLDIR: /path/if/needed
         depends_on:
@@ -109,7 +109,7 @@ This method uses Docker Compose to run RisingWave Console and allows you to easi
     ```
     Note:
     *   Replace `vX.Y.Z` with the specific RisingWave Console version (for example, `v0.4.0`).
-    *   Adjust `RCONSOLE_PG_DSN` to point to your PostgreSQL instance. If `db` is a service in the same Docker Compose, you can use `db_host: db`.
+    *   Adjust `RCONSOLE_SERVER_PG_DSN` to point to your PostgreSQL instance. If `db` is a service in the same Docker Compose, you can use `db_host: db`.
     *   Update PostgreSQL credentials and database name.
 
 2.  Start RisingWave Console:
@@ -131,7 +131,7 @@ To find the latest available version of RisingWave Console:
 
 ## Troubleshooting common issues
 
-*   **Port already in use**: If port 8020 is occupied, change `RCONSOLE_PORT` to an available port (e.g., `8021`)
+*   **Port already in use**: If port 8020 is occupied, change `RCONSOLE_SERVER_PORT` to an available port (e.g., `8021`)
 *   **Connection refused**: Ensure your PostgreSQL database is running and accessible
 *   **Permission denied**: Check that the user has appropriate permissions to access the PostgreSQL database
 *   **Container fails to start**: Verify that the Docker image name and version are correct
