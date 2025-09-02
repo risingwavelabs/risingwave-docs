@@ -19,14 +19,26 @@ These configuration parameters are used when creating Iceberg sources, sinks, or
 | `catalog.scope`        |  Scope for accessing the Iceberg catalog, providing additional scope for OAuth2. Applicable only in the `rest` catalog.    | No                    |
 | `catalog.jdbc.user`        |  Username for JDBC catalog.                        | No                    |
 | `catalog.jdbc.password`        |   Password for JDBC catalog.                       | No                    |
+| `hosted_catalog` | **Conditional**. Set to `true` when creating an Iceberg connection to use RisingWave's built-in hosted catalog. This is only applicable when creating tables with the [Iceberg table engine](/iceberg/create-manage-native-iceberg-tables). |
 
-## Catalog types
 
-Iceberg supports these types of catalogs:
+## Hosted Iceberg catalog
+
+For scenarios where you create and manage Iceberg tables natively within RisingWave using the [Iceberg table engine](/iceberg/create-manage-native-iceberg-tables), you have the option to use the Hosted Iceberg Catalog.
+
+This is a built-in catalog service that simplifies setup by eliminating the need to configure and manage an external catalog service.
+
+For a complete guide on how it works, its benefits, and how to use it, see [Hosted Iceberg catalog](/iceberg/hosted-iceberg-catalog).
+
+## External catalogs
+
+External catalogs are required when you read from or write to existing Iceberg tables that are managed outside of RisingWave. They can also be used with the Iceberg table engine if you need to integrate with an existing catalog infrastructure.
+
+RisingWave supports the following external catalog types:
 
 ### Storage catalog
 
-The Storage catalog stores all metadata in the underlying file system, such as Hadoop or S3\. Currently, we only support S3 as the underlying file system.
+The `storage` catalog stores all metadata in the underlying file system, such as Hadoop or S3. Currently, we only support S3 as the underlying file system.
 
 ```sql Example
 CREATE SINK sink_demo_storage FROM t
@@ -50,12 +62,13 @@ WITH (
 CREATE SOURCE source_demo_storage
 WITH (
     connector = 'iceberg',
-    catalog.type = 'storage',
-    warehouse.path = 's3://icebergdata/demo',
     s3.endpoint = 'http://minio-0:9301',
     s3.access.key = 'xxxxxxxxxx',
     s3.secret.key = 'xxxxxxxxxx',
     s3.region = 'ap-southeast-1',
+    catalog.type = 'storage',
+    catalog.name = 'demo',
+    warehouse.path = 's3://icebergdata/demo',
     database.name = 's1',
     table.name = 't1'
 );
@@ -63,7 +76,7 @@ WITH (
 
 ### REST catalog
 
-RisingWave supports the [REST catalog](https://iceberg.apache.org/concepts/catalog/#decoupling-using-the-rest-catalog), which acts as a proxy to other catalogs like Hive, JDBC, and Nessie catalog. This is the recommended approach to use RisingWave with Iceberg tables.
+The REST catalog uses a RESTful interface to manage table metadata.
 
 ```sql Example
 CREATE SINK sink_demo_rest FROM t
@@ -84,74 +97,12 @@ WITH (
     catalog.credential='123456:123456',
     catalog.scope='PRINCIPAL_ROLE:ALL',
     catalog.oauth2_server_uri='xxx'
-    catalog.scope='xxx',
-);
-```
-
-```sql Example
-CREATE SOURCE source_demo_rest
-WITH (
-    connector = 'iceberg',
-    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-    s3.region = 'ap-southeast-2',
-    s3.access.key = 'xxxx',
-    s3.secret.key = 'xxxx',
-    s3.path.style.access = 'true',
-    catalog.type = 'rest',
-    catalog.uri = 'http://localhost:8181/api/catalog',
-    warehouse.path = 'quickstart_catalog',
-    database.name = 'ns',
-    table.name = 't1',
-    catalog.credential='123456:123456',
-    catalog.scope='PRINCIPAL_ROLE:ALL',
-    catalog.oauth2_server_uri='xxx'
-    catalog.scope='xxx',
-);
-```
-
-### Hive catalog
-
-RisingWave supports the [Hive catalog](https://iceberg.apache.org/docs/latest/hive/). You need to set `catalog.type` to `hive` to use it.
-
-```sql Example
-CREATE SINK sink_demo_hive FROM t
-WITH (
-    connector = 'iceberg',
-    type = 'append-only',
-    force_append_only = true,
-    catalog.type = 'hive',
-    catalog.uri = 'thrift://metastore:9083',
-    warehouse.path = 's3://icebergdata/demo',
-    s3.endpoint = 'http://minio-0:9301',
-    s3.access.key = 'xxxxxxxxxx',
-    s3.secret.key = 'xxxxxxxxxx',
-    s3.region = 'ap-southeast-1',
-    catalog.name = 'demo',
-    database.name = 's1',
-    table.name = 't1'
-);
-```
-
-```sql Example
-CREATE SOURCE source_demo_hive
-WITH (
-    connector = 'iceberg',
-    catalog.type = 'hive',
-    catalog.uri = 'thrift://metastore:9083',
-    warehouse.path = 's3://icebergdata/demo',
-    s3.endpoint = 'http://minio-0:9301',
-    s3.access.key = 'xxxxxxxxxx',
-    s3.secret.key = 'xxxxxxxxxx',
-    s3.region = 'ap-southeast-1',
-    catalog.name = 'demo',
-    database.name = 's1',
-    table.name = 't1'
 );
 ```
 
 ### JDBC catalog
 
-RisingWave supports the [JDBC catalog](https://iceberg.apache.org/docs/latest/jdbc/#configurations).
+The JDBC catalog stores metadata in a relational database like PostgreSQL.
 
 ```sql Example
 CREATE SINK sink_demo_jdbc FROM t
@@ -159,35 +110,16 @@ WITH (
     connector = 'iceberg',
     type = 'append-only',
     force_append_only = true,
-    warehouse.path = 's3://icebergdata/demo',
     s3.endpoint = 'http://minio-0:9301',
     s3.access.key = 'xxxxxxxxxx',
     s3.secret.key = 'xxxxxxxxxx',
     s3.region = 'ap-southeast-1',
-    catalog.name = 'demo',
     catalog.type = 'jdbc',
-    catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg',
-    catalog.jdbc.user = 'admin',
-    catalog.jdbc.password = '123456',
-    database.name = 's1',
-    table.name = 't1'
-);
-```
-
-```sql Example
-CREATE SOURCE source_demo_jdbc
-WITH (
-    connector = 'iceberg',
+    catalog.uri = 'jdbc:postgresql://127.0.0.1:8432/metadata',
+    catalog.jdbc.user = 'postgres',
+    catalog.jdbc.password = '123',
+    catalog.name = 'dev',
     warehouse.path = 's3://icebergdata/demo',
-    s3.endpoint = 'http://minio-0:9301',
-    s3.access.key = 'xxxxxxxxxx',
-    s3.secret.key = 'xxxxxxxxxx',
-    s3.region = 'ap-southeast-1',
-    catalog.name = 'demo',
-    catalog.type = 'jdbc',
-    catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg',
-    catalog.jdbc.user = 'admin',
-    catalog.jdbc.password = '123456',
     database.name = 's1',
     table.name = 't1'
 );
@@ -195,63 +127,80 @@ WITH (
 
 ### Glue catalog
 
-<Tip>
-**PREMIUM FEATURE**
-
-This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
-</Tip>
-
-RisingWave supports the Glue catalog. You should use AWS S3 if you use the Glue catalog. Below are example codes for using this catalog:
+AWS Glue Data Catalog provides a centralized metadata store for table definitions.
 
 ```sql Example
-CREATE SINK sink_test FROM t
-WITH (
-      type='upsert',
-      primary_key='col',
-      connector = 'iceberg',
-      catalog.type = 'glue',
-      catalog.name = 'test',
-      warehouse.path = 's3://my-iceberg-bucket/test',
-      s3.access.key = 'xxxxxxxxxx',
-      s3.secret.key = 'xxxxxxxxxx',
-      s3.region = 'ap-southeast-2',
-      database.name='test_db',
-      table.name='test_table'
-  );
-```
-
-```sql Example
-CREATE SOURCE source_test
+CREATE SINK sink_demo_glue FROM t
 WITH (
     connector = 'iceberg',
-    catalog.type = 'glue',
-    warehouse.path = 's3://my-iceberg-bucket/test',
-    s3.access.key = 'xxxxxxxxxx',
-    s3.secret.key = 'xxxxxxxxxx',
+    type = 'append-only',
+    force_append_only = true,
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
     s3.region = 'ap-southeast-2',
-    database.name='test_db',
-    table.name='test_table'
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    catalog.type = 'glue',
+    catalog.name = 'demo',
+    warehouse.path = 's3://icebergdata/demo',
+    database.name = 's1',
+    table.name = 't1'
 );
 ```
 
 ### Snowflake catalog
 
-RisingWave supports the [Snowflake catalog](https://docs.snowflake.com/en/user-guide/tables-iceberg#catalog) for Iceberg sources.
+The Snowflake catalog uses Snowflake's built-in Iceberg catalog functionality.
 
 ```sql Example
-CREATE SOURCE iceberg_t1_source
+CREATE SINK sink_demo_snowflake FROM t
 WITH (
     connector = 'iceberg',
-    s3.region = 'ap-northeast-2',
-    s3.access.key = 'xxx',
-    s3.secret.key = 'xxx',
-    catalog.name = 'demo1',
+    type = 'append-only',
+    force_append_only = true,
     catalog.type = 'snowflake',
+    catalog.name = 'SNOWFLAKE',
     catalog.uri = 'jdbc:snowflake://<account_identifier>.snowflakecomputing.com/',
-    catalog.jdbc.user = 'xxx',
-    catalog.jdbc.password = 'xxx',
-    warehouse.path = 's3://xxx',
-    database.name = 'xxx',
-    table.name = 'xxx'
-    );
-``` 
+    catalog.jdbc.user = '<your_username>',
+    catalog.jdbc.password = '<your_password>',
+    warehouse.path = '<warehouse_path>',
+    database.name = '<your_database>',
+    table.name = '<your_table>'
+);
+```
+
+### Hive Metastore catalog
+
+The Hive Metastore catalog stores metadata using a Hive Metastore backend.
+
+```sql Example
+CREATE SINK sink_demo_hive FROM t
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = true,
+    s3.endpoint = 'http://minio-0:9301',
+    s3.access.key = 'xxxxxxxxxx',
+    s3.secret.key = 'xxxxxxxxxx',
+    s3.region = 'ap-southeast-1',
+    catalog.type = 'hive',
+    catalog.uri = 'thrift://hive-metastore:9083',
+    warehouse.path = 's3://icebergdata/demo',
+    database.name = 's1',
+    table.name = 't1'
+);
+```
+
+## Choosing the right catalog
+
+- For reading from or writing to existing Iceberg tables, you must use an **external catalog** that matches the one used by the external system.
+- When creating new Iceberg tables with RisingWave's table engine:
+    - The **hosted catalog** is recommended for new projects, rapid prototyping, and simpler setups.
+    - An **external catalog** is suitable when you need to integrate with existing enterprise catalog infrastructure (like AWS Glue) or share the catalog with other systems.
+
+## Next steps
+
+- **Configure object storage**: See [Object storage configuration](/iceberg/object-storage).
+- **Use the hosted catalog**: See the [Hosted Iceberg catalog](/iceberg/hosted-iceberg-catalog) guide.
+- **Read from external tables**: See [Read data from Iceberg sources](/iceberg/read-from-iceberg).
+- **Write to external tables**: See [Write data to Iceberg sinks](/iceberg/write-to-iceberg).
+- **Create native tables**: See the [Create and manage native Iceberg tables](/iceberg/create-manage-native-iceberg-tables) guide.

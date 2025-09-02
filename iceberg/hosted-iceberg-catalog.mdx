@@ -1,7 +1,7 @@
 ---
-title: Hosted Iceberg Catalog
-sidebarTitle: "Hosted Iceberg Catalog"
-description: "Learn how to use the Hosted Iceberg Catalog in RisingWave. This guide shows you how to create and manage Iceberg tables without the need to configure or maintain an external catalog service like AWS Glue or a JDBC database."
+title: Hosted Iceberg catalog
+sidebarTitle: "Hosted Iceberg catalog"
+description: "Learn how to use the hosted Iceberg catalog in RisingWave. This guide shows you how to create and manage Iceberg tables without the need to configure or maintain an external catalog service like AWS Glue or a JDBC database."
 ---
 The Hosted Iceberg Catalog is a built-in catalog service for the Iceberg table engine. It simplifies the process of creating Iceberg tables by eliminating the need to set up, configure, and manage an external catalog service like AWS Glue, a separate JDBC database, or a REST service.
 For users new to Iceberg, or for those who want to reduce operational overhead, the hosted catalog provides the quickest way to get started with the Iceberg table engine in RisingWave.
@@ -31,12 +31,11 @@ WITH (
 );
 ```
 
-Where `<storage_path>` and `<object_storage_parameters>` depend on your chosen storage backend (S3, GCS, or Azure Blob). See the [object storage configuration](/iceberg/configuration/object-storage) for specific parameter details.
+Where `<storage_path>` and `<object_storage_parameters>` depend on your chosen storage backend (S3, GCS, or Azure Blob). See the [object storage configuration](/iceberg/byoi/object-storage) for specific parameter details.
 
 ### Parameters
 
-For object storage configuration parameters, see:
-- [Object storage configuration](/iceberg/configuration/object-storage)
+For object storage configuration parameters, see [Object storage configuration](/iceberg/object-storage).
 
 #### Hosted catalog-specific parameters
 
@@ -44,106 +43,101 @@ For object storage configuration parameters, see:
 |-------|-------------|
 | `hosted_catalog` | **Required**. Set to true to enable the Hosted Iceberg Catalog for this connection. This instructs RisingWave to manage the catalog metadata internally. |
 
-## Example: Creating and using a table
+## Create your first table
 
-Here is a complete walkthrough of creating a connection, setting it as the default for the Iceberg engine, and creating a table.
+Now that you understand how to configure a connection with the hosted catalog, the next step is to create a table and start streaming data. For a complete, step-by-step guide, please follow our quickstart tutorial.
 
-### Step 1: Create the connection
+<Card
+  title="Quickstart: Create a streaming Iceberg table"
+  href="/iceberg/quickstart-create-table"
+>
+  This tutorial walks you through creating your first native Iceberg table from scratch using the hosted catalog.
+</Card>
 
-Create an Iceberg connection with the hosted catalog enabled.
+## Benefits of the hosted catalog
 
-<Note>
-This example uses S3 for object storage. You can also use Google Cloud Storage (GCS) or Azure Blob Storage by replacing the S3 parameters with the appropriate parameters for your chosen storage backend. See the [object storage configuration](/iceberg/configuration/object-storage) for details.
-</Note>
+- **Zero external dependencies**: No need to set up AWS Glue, PostgreSQL, or other catalog services
+- **Rapid prototyping**: Get started with Iceberg immediately without infrastructure setup
+- **Standard compliance**: Uses the standard Iceberg JDBC catalog protocol for compatibility
+- **External accessibility**: Tables can be accessed by external Iceberg-compatible tools
+- **Reduced complexity**: Fewer moving parts in your data architecture
+
+## External access to hosted catalog tables
+
+Since the hosted catalog implements the standard Iceberg JDBC catalog protocol, external tools can access your tables by connecting to RisingWave's metastore.
+
+### Spark example
+
+```scala
+import org.apache.spark.sql.SparkSession
+
+val spark = SparkSession.builder()
+  .appName("AccessRisingWaveIcebergTables")
+  .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+  .config("spark.sql.catalog.risingwave_catalog", "org.apache.iceberg.spark.SparkCatalog")
+  .config("spark.sql.catalog.risingwave_catalog.type", "jdbc")
+  .config("spark.sql.catalog.risingwave_catalog.uri", "jdbc:postgresql://risingwave-host:4566/dev")
+  .config("spark.sql.catalog.risingwave_catalog.jdbc.user", "root")  
+  .config("spark.sql.catalog.risingwave_catalog.jdbc.password", "your_password")
+  .config("spark.sql.catalog.risingwave_catalog.warehouse", "s3://my-iceberg-bucket/warehouse/")
+  .getOrCreate()
+
+// Query the table created in RisingWave
+spark.sql("SELECT * FROM risingwave_catalog.public.user_behaviors").show()
+```
+
+### Trino example
+
+Add this to your Trino catalog configuration:
+
+```properties
+# risingwave.properties
+connector.name=iceberg
+iceberg.catalog.type=jdbc
+iceberg.jdbc.url=jdbc:postgresql://risingwave-host:4566/dev
+iceberg.jdbc.user=root
+iceberg.jdbc.password=your_password
+```
+
+Then query from Trino:
+```sql
+SELECT behavior_type, COUNT(*) as count
+FROM risingwave.public.user_behaviors  
+GROUP BY behavior_type;
+```
+
+## When to use external catalogs instead
+
+While the hosted catalog is great for getting started, you might want to use external catalogs when:
+
+- **Multi-system environments**: Multiple systems need to share the same catalog metadata
+- **Enterprise requirements**: You need integration with existing catalog infrastructure (AWS Glue, etc.)
+- **Governance**: You have strict data governance requirements that mandate specific catalog systems
+- **Scale**: You're managing hundreds or thousands of Iceberg tables across multiple systems
+
+For external catalog configurations, see [Catalog configuration](/iceberg/byoi/catalogs).
+
+## System tables
+
+When using the hosted catalog, you can inspect the catalog metadata through RisingWave's system tables:
 
 ```sql
-CREATE CONNECTION my_hosted_catalog_conn
-WITH (
-    type = 'iceberg',
-    warehouse.path = 's3://my-iceberg-bucket/hosted-warehouse',
-    s3.region = 'us-east-1',
-    s3.access.key = 'xxxxx',
-    s3.secret.key = 'yyyyy',
-    hosted_catalog = true
-);
+-- View all Iceberg tables managed by the hosted catalog
+SELECT * FROM iceberg_tables;
+
+-- View namespace properties
+SELECT * FROM iceberg_namespace_properties;
 ```
 
-### Step 2: Set the active connection
+## Best practices
 
-Configure the Iceberg table engine to use the connection you just created.
+1. **For simplified management**: Use for development, testing, or production scenarios where RisingWave is the primary system managing the Iceberg tables and a shared external catalog is not needed.
+2. **Backup your metadata**: Since metadata is stored in RisingWave's metastore, ensure you have proper backup procedures for it.
+3. **Monitor storage growth**: Keep an eye on metastore storage as you create more tables.
+4. **Plan for scale**: Consider external catalogs if you anticipate managing many tables or integrating with multiple systems.
 
-```sql
-SET iceberg_engine_connection = 'public.my_hosted_catalog_conn';
-```
+## Next steps
 
-### Step 3: Create and populate the table
-
-Now you can create a table using `ENGINE = iceberg`. RisingWave will use the hosted catalog to manage its metadata.
-
-```sql
-CREATE TABLE t_hosted_catalog (
-    id INT PRIMARY KEY, 
-    name VARCHAR
-) ENGINE = iceberg;
-
-INSERT INTO t_hosted_catalog VALUES (1, 'RisingWave');
-```
-
-## Accessing the hosted catalog from external tools
-
-Since the hosted catalog is a standard JDBC catalog, you can connect external query engines to read the tables managed by RisingWave.
-
-### Authentication and authorization
-
-External tools can connect to the hosted catalog using a RisingWave database user account and password. The SELECT privileges of the user account determine which Iceberg tables can be accessed.
-
-### Schema mapping
-
-When accessing the tables from an external tool, use the following mapping between Iceberg and RisingWave naming conventions:
-
-|Iceberg |RisingWave|
-|--------|----------|
-|catalog name|database name|
-|namespace|schema|
-|table| table |
-
-## Example: Connecting with Spark
-
-You can configure a Spark session to read the `t_hosted_catalog` table created in the example above. In this Spark SQL command, assume the table was created in the RisingWave database named `dev` and schema `public`.
-
-```bash
-# Launch Spark SQL with necessary packages and configurations
-spark-sql --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,org.postgresql:postgresql:42.7.4 \
-    --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
-    --conf spark.sql.catalog.dev=org.apache.iceberg.spark.SparkCatalog \
-    --conf spark.sql.catalog.dev.catalog-impl=org.apache.iceberg.jdbc.JdbcCatalog \
-    --conf spark.sql.catalog.dev.io-impl=org.apache.iceberg.aws.s3.S3FileIO \
-    --conf spark.sql.catalog.dev.warehouse='s3://my-iceberg-bucket/hosted-warehouse' \
-    --conf spark.sql.catalog.dev.uri="jdbc:postgresql://<risingwave-hostname>:<port>/dev" \
-    --conf spark.sql.catalog.dev.jdbc.user="<your_rw_user>" \
-    --conf spark.sql.catalog.dev.jdbc.password="<your_rw_password>"
-```
-
-Once connected, you can query the table using its three-part name (`catalog.namespace.table`):
-
-```sql
-spark-sql> SELECT * FROM dev.public.t_hosted_catalog;
-+---+------------+
-| id|        name|
-+---+------------+
-|  1|  RisingWave|
-+---+------------+
-```
-
-## Inspecting the catalog within RisingWave
-
-You can query the system views `iceberg_tables` and `iceberg_namespace_properties` directly in RisingWave to see the catalog's metadata. The catalog exposed by RisingWave is read-only.
-
-```sql
-select * from iceberg_tables;
------------
- catalog_name | table_namespace |    table_name    |                                                      metadata_location                                                       | previous_metadata_location | iceberg_type
---------------+-----------------+------------------+------------------------------------------------------------------------------------------------------------------------------+----------------------------+--------------
- dev          | public          | t_hosted_catalog | s3://hummock001/iceberg_connection/public/t_hosted_catalog/metadata/00000-e267a2ad-daf1-4d05-b7bd-75ff30e17629.metadata.json |                            |
-(1 row)
-```
+- **Create your first table**: Follow the [Create and manage native Iceberg tables](/iceberg/create-manage-native-iceberg-tables) guide for detailed table creation and usage.
+- **Configure object storage**: Review [Object storage configuration](/iceberg/byoi/object-storage) for your storage backend.
+- **Explore external access**: Test connecting external tools like Spark or Trino to your hosted catalog tables.

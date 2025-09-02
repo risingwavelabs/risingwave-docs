@@ -1,29 +1,30 @@
 ---
-title: "Iceberg table engine"
-description: "Learn how to use the Iceberg table engine in RisingWave to store data natively in the Iceberg format."
+title: "Create and manage native Iceberg tables"
+sidebarTitle: "Create & manage tables"
+description: "Learn how to create, manage, and query native Iceberg tables in RisingWave using the Iceberg table engine."
 ---
 
-In RisingWave, the Iceberg table engine allows you to create and manage tables directly within the system, while storing their underlying data in the Apache Iceberg format on external object storage. This offers an alternative way to persist data compared to RisingWave's default row-based internal storage format (which also typically uses object storage).
+You can create and manage native Apache Iceberg tables directly in RisingWave. When you create a native Iceberg table, RisingWave handles its lifecycle (creation, schema, writes), while the underlying data is stored in the open Apache Iceberg format in an object store you configure. This approach allows you to persist data in an open format that is directly queryable by other tools, offering an alternative to RisingWave's internal storage format.
 
-Using the Iceberg table engine provides several benefits:
+Creating native Iceberg tables provides several benefits:
 
-- Native management: RisingWave manages the table's lifecycle (creation, schema, writes). You interact with it like any other RisingWave table (querying, inserting, using in materialized views).
-- Iceberg format storage: Data is physically stored according to the Iceberg specification, using a configured Iceberg catalog and object storage path. This ensures compatibility with the Iceberg ecosystem.
-- Simplified pipelines: You don't need a separate CREATE SINK step to export data out of RisingWave into Iceberg format if Iceberg is your desired end format managed by RisingWave. Data ingested or computed can land directly in these Iceberg tables.
-- Interoperability: Tables created with the Iceberg engine are standard Iceberg tables and can be read by external Iceberg-compatible query engines (like Spark, Trino, Flink, Dremio) using the same catalog and storage configuration.
+- **Native management**: RisingWave manages the table's lifecycle. You can interact with it like any other RisingWave table (querying, inserting, and using it in materialized views).
+- **Open storage format**: Data is physically stored according to the Iceberg specification, ensuring compatibility with the broader Iceberg ecosystem.
+- **Simplified pipelines**: You don't need a separate `CREATE SINK` step to export data into Iceberg format. Data ingested or computed can land directly in these Iceberg tables.
+- **Interoperability**: Tables you create are standard Iceberg tables and can be read by external Iceberg-compatible query engines (like Spark, Trino, Flink, and Dremio) using the same catalog and storage configuration.
 
-This guide details how to set up and use the Iceberg table engine.
+This guide details how to create and use native Iceberg tables in RisingWave.
 
 ## Setup and usage
 
 ### 1. Create an Iceberg connection
 
-The Iceberg connection contains information about catalog and object storage. For syntax and properties, see [`CREATE CONNECTION`](/sql/commands/sql-create-connection#syntax).
+The Iceberg connection contains information about the catalog and object storage. For syntax and properties, see [`CREATE CONNECTION`](/sql/commands/sql-create-connection#syntax).
 
 The following examples show how to create an Iceberg connection using different catalog types.
 
 <Note>
-These examples use S3 for object storage. You can also use Google Cloud Storage (GCS) or Azure Blob Storage by replacing the S3 parameters with the appropriate parameters for your chosen storage backend. See the [object storage configuration](/iceberg/byoi/object-storage) for details.
+These examples use S3 for object storage. You can also use Google Cloud Storage (GCS) or Azure Blob Storage by replacing the S3 parameters with the appropriate parameters for your chosen storage backend. See the [Object storage](/iceberg/object-storage) guide for details.
 </Note>
 
 <Note>For enhanced security, you can store credentials like access keys as secrets instead of providing them directly. If you wish to use this feature, see [Manage secrets](/operate/manage-secrets).</Note>
@@ -81,21 +82,19 @@ These examples use S3 for object storage. You can also use Google Cloud Storage 
     );
     ```
 
-    For complete details on the hosted catalog, see [Hosted Iceberg Catalog](/iceberg/managed/hosted-iceberg-catalog).
+    For complete details on the hosted catalog, see [Hosted Iceberg Catalog](/iceberg/hosted-iceberg-catalog).
     </Tab>
 </Tabs>
 
-For details on catalog configuration parameters, see [Catalog configuration](/iceberg/byoi/catalogs).
+For details on catalog configuration parameters, see [Catalog configuration](/iceberg/catalogs).
 
 ### 2. Set connection as default (optional)
 
-To simplify table creation, you can set a default connection for the Iceberg engine:
+To simplify table creation, you can set a default connection for your session. This allows you to create Iceberg tables without specifying the connection each time.
 
 ```sql
-SET rw_iceberg_connection = 'public.conn';
+SET iceberg_engine_connection = 'public.conn';
 ```
-
-When a default connection is set, you can create Iceberg tables without specifying a connection.
 
 ### 3. Create an Iceberg table
 
@@ -273,7 +272,7 @@ The supported `partition_by` formats and examples are as follows:
 The partition key must be a prefix of the primary key. `partition_by` = `'c2,c3'` with `PRIMARY KEY(c1, c2, c3)` will fail.
 </Note>
 
-## Compaction for Iceberg table engine
+## Compaction for native Iceberg tables
 
 <Note>
 Added in v2.5.0.
@@ -285,9 +284,9 @@ Added in v2.5.0.
 This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
-When using RisingWave’s Iceberg table engine, data ingestion can generate many small data files and delete files, slowing down query performance over time. RisingWave natively supports Iceberg compaction for tables created with the Iceberg engine. This feature periodically merge these files and remove outdated snapshots.
+When you stream data into native Iceberg tables, the process can generate many small data files and delete files over time, which can slow down query performance. To address this, RisingWave provides a native Iceberg compaction feature for these tables. This feature periodically merges small files and removes outdated snapshots.
 
-To configure Iceberg compaction for Iceberg table, specify the following parameters in the `WITH` clause:
+To configure Iceberg compaction for a native Iceberg table, specify the following parameters in the `WITH` clause:
 
 | Parameter                   | Description                                                                 |
 |:----------------------------|:----------------------------------------------------------------------------|
@@ -312,12 +311,11 @@ CREATE TABLE t (
 Currently, please contact us via [RisingWave Slack workspace](https://www.risingwave.com/slack) to allocate the necessary resources. We are working on a self-service feature that will let you allocate Iceberg compactors directly from the cloud portal.
 </Warning>
 
-RisingWave also supports compaction for Iceberg sink. For details, see [
-Compaction for Iceberg sink](/iceberg/byoi/write-to-iceberg#compaction-for-iceberg-sink).
+RisingWave also supports compaction for Iceberg sinks. For details, see [Compaction for Iceberg sink](/iceberg/write-to-iceberg#compaction-for-iceberg-sink).
 
-## Use Amazon S3 Tables with the Iceberg table engine
+## Use Amazon S3 Tables with native Iceberg tables
 
-Amazon S3 Tables provides an AWS-native Iceberg catalog service. When using S3 Tables as the catalog for Iceberg tables, you get automatic compaction benefits.
+Amazon S3 Tables provides an AWS-native Iceberg catalog service. When using S3 Tables as the catalog for your native Iceberg tables, you get the benefit of automatic compaction.
 
 ### Create S3 Tables connection
 
@@ -337,7 +335,7 @@ CREATE CONNECTION s3_tables_conn WITH (
 ### Create Iceberg table with S3 Tables
 
 ```sql
-SET rw_iceberg_connection = 's3_tables_conn';
+SET iceberg_engine_connection = 's3_tables_conn';
 
 CREATE TABLE my_iceberg_table (
     id INT,
@@ -348,7 +346,7 @@ CREATE TABLE my_iceberg_table (
 ) ENGINE = iceberg;
 ```
 
-For more details on S3 Tables configuration, see [Object storage configuration](/iceberg/byoi/object-storage#amazon-s3-tables).
+For more details on S3 Tables configuration, see [Object storage configuration](/iceberg/object-storage#amazon-s3-tables).
 
 ## Configuration options
 
@@ -377,10 +375,10 @@ Where `barrier_interval_ms` and `checkpoint_frequency` are system parameters tha
 
 ## Limitations
 
-Current limitations of the Iceberg table engine:
+Current limitations of creating native Iceberg tables:
 
-- **Limited DDL operations**: Some schema changes may require recreating the table
-- **Single writer**: Only RisingWave should write to tables created with this engine
+- **Limited DDL operations**: Some schema changes may require recreating the table.
+- **Single writer**: Only RisingWave should write to tables created with this engine to ensure data consistency.
 
 ## Best practices
 
@@ -388,10 +386,11 @@ Current limitations of the Iceberg table engine:
 2. **Configure appropriate commit intervals**: Balance between latency and file size.
 3. **Consider S3 Tables for production**: Automatic compaction and AWS-native management.
 4. **Design proper partitioning**: Plan your [partition strategy](#partition-strategy) for query performance.
-5. **Monitor file sizes**: Be aware of small file accumulation and plan [compaction](#compaction-for-iceberg-table-engine) strategy.
+5. **Monitor file sizes**: Be aware of small file accumulation and plan a [compaction strategy](#compaction-for-native-iceberg-tables).
 
 ## Next steps
 
-- **Learn about hosted catalog**: See [Hosted Iceberg Catalog](/iceberg/managed/hosted-iceberg-catalog) for the simplest setup.
-- **External catalog setup**: Review [Catalog configuration](/iceberg/byoi/catalogs) for production deployments.
-- **Storage configuration**: Configure your object storage in [Object storage configuration](/iceberg/byoi/object-storage).
+- **Learn about the hosted catalog**: See [Hosted Iceberg Catalog](/iceberg/hosted-iceberg-catalog) for the simplest setup.
+- **Set up an external catalog**: Review [Catalog configuration](/iceberg/catalogs) for production deployments.
+- **Configure storage**: See [Object storage](/iceberg/object-storage) for details on configuring your object store.
+
