@@ -1,0 +1,178 @@
+---
+title: "Source, Table, MV, and Sink"
+sidebarTitle: "Source, Table, MV, and Sink"
+description: "This topic explains the four core objects in RisingWave: Source, Table, Materialized View (MV), and Sink. Learn their distinct roles in data storage, ingress, real-time computation, and egress."
+---
+
+To build real-time data applications in RisingWave, you must understand four core objects: **Table**, **Source**, **Materialized View (MV)**, and **Sink**. They represent storage, data ingress, real-time computation, and data egress. Common beginner questions include: Both Table and Source can connect to external systems—what’s the difference? Why are Tables required for CDC? Must a Sink consume from an MV? Can Iceberg or Kafka Sources be queried directly? This guide clarifies these concepts with comparison tables, examples, and diagrams.
+
+## Conceptual comparison: Table, Source, MV, and Sink
+
+To quickly grasp the differences, the following table illustrates how these four objects vary in terms of storage, queryability, updates, and typical use cases.
+
+| Object | Stores Data | Directly Queryable | Continuously Updated | Typical Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **Table** | ✅ Stored within RisingWave | ✅ Directly queryable | Supports updates (from inserts or external sources) | Persisting data, querying, serving as input for MVs or Sinks |
+| **Source** | ❌ Does not store; only connects to external systems | Depends on the connector (Kafka/S3/Iceberg are queryable, CDC is not) | Reads from upstream in real-time | Data ingress, ad-hoc exploration, building Tables or MVs |
+| **Materialized View (MV)** | ✅ Stores query results | ✅ Directly queryable | Refreshes automatically | Real-time aggregation, cleaning, analysis; recommended as Sink input |
+| **Sink** | ❌ Does not store; writes results to external systems | ❌ Not directly queryable | Outputs automatically | Writing results back to Kafka, databases, or object storage |
+
+From this table, we can see that both Tables and MVs store data within RisingWave. The key difference is that a **Table** holds the current state of the data (which can be populated internally or from an external source), whereas an **MV** is the persisted result of a computation. A **Source** acts as a data entry point and does not store data, making it suitable for exploration and validation. A **Sink** does not retain data inside RisingWave but continuously outputs results.
+
+![RisingWave Objects Relationship](/images/getting-started/rw-objects.png)
+
+## Connector support matrix
+
+A common question from users is, "Can this Source be queried directly? Does a specific CDC connector require creating a table?" The matrix below summarizes the support for mainstream connectors.
+
+| Connector Type | Direct Source Query | Direct Table Creation | Primary Key Required | Can Create MV | Can Be Sink Input |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Kafka / Pulsar / Kinesis / NATS / MQTT / PubSub | ✅ | ✅ | ❌ | ✅ | ✅ |
+| S3 / GCS / Azure Blob | ✅ | ✅ | ❌ | ✅ | ✅ |
+| PostgreSQL CDC | ❌ (Requires Table) | ✅ | ✅ | ✅ | ✅ |
+| MySQL CDC | ❌ (Requires Table) | ✅ | ✅ | ✅ | ✅ |
+| SQL Server CDC | ❌ | ❌ (Must create Source then Table) | ✅ | ✅ | ✅ |
+| MongoDB CDC | ❌ | ❌ (Must create Source then Table) | ✅ | ✅ | ✅ |
+| Iceberg | ✅ | ✅ | ❌ (Unless declared for writes) | ✅ | ✅ |
+
+This table makes the differences clear at a glance: Sources like Kafka, S3, and Iceberg can be queried directly, while CDC Sources must be materialized into a Table. CDC Tables must have a primary key defined, whereas Kafka/S3 Tables do not.
+
+## Table: the foundation of storage in RisingWave
+
+A **Table** in RisingWave is a persistent data object that stores a collection of rows, behaving much like a traditional database table. It can store, query, and update data. There are two ways to use a Table:
+
+First, as an internal table where users manually insert data.
+```sql
+CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR);
+INSERT INTO users VALUES (1, 'Alice');
+```
+
+Second, as a connector-backed table that is bound to an external data source via a specified connector (e.g., Kafka, Postgres CDC, Iceberg).
+
+```sql
+CREATE TABLE events (
+  user_id INT,
+  action VARCHAR,
+  ts TIMESTAMP
+) WITH (
+  connector = 'kafka',
+  topic = 'user_events',
+  properties.bootstrap.server = 'broker:9092'
+);
+```
+
+Regardless of the method, a Table stores data internally within RisingWave and maintains offsets/checkpoints to ensure fault tolerance and data consistency. Therefore, for any pipeline involving CDC or long-running jobs, a Table is indispensable.
+
+---
+
+## Source: a lightweight ingress definition
+
+Unlike a Table, a Source only defines how to connect to an external system and does not store any data within RisingWave.
+For Sources like Kafka, S3, and Iceberg, you can execute SELECT queries directly:
+
+```sql
+CREATE SOURCE kafka_src (
+  user_id INT,
+  action VARCHAR,
+  ts TIMESTAMP
+) WITH (
+  connector = 'kafka',
+  topic = 'user_events',
+  properties.bootstrap.server = 'broker:9092'
+);
+
+SELECT * FROM kafka_src LIMIT 10;
+```
+
+However, CDC Sources (e.g., Postgres/MySQL CDC) cannot be queried directly. This is because CDC streams contain update and delete operations, which must first be materialized into a Table to correctly apply these changes.
+The advantage of a Source lies in its lightweight and flexible nature, making it ideal for ad-hoc exploration or as an input for an MV. It's important to note, however, that a Sink's upstream cannot be a Source directly.
+
+
+## CDC scenarios: why a table is mandatory
+
+What makes a CDC (Change Data Capture) stream special is that it includes updates and deletes. RisingWave must rely on a Table to process these events correctly.
+If a user executes `UPDATE users SET name='Bob' WHERE id=1` in PostgreSQL, RisingWave needs to know which row to update. Only a Table, which stores the data's state and has a primary key, can support this semantic. Furthermore, a CDC stream is a continuous log of changes. If it were just a Source, consistency could not be restored after a task interruption. A Table, on the other hand, can resume from the last checkpoint thanks to its persistence and offset tracking. Finally, a single database transaction might update multiple tables. RisingWave relies on Tables to correctly apply transactional boundaries.
+Therefore, for CDC, you must create a table. You can either create a CDC table directly or create a Source first and then derive a Table from it.
+
+## Shared Sources and consistency
+
+For CDC scenarios, RisingWave provides a shared source mechanism. A user can create a single CDC Source and then derive multiple Tables from it:
+
+```sql
+CREATE SOURCE pg_src WITH (
+  connector = 'postgres-cdc',
+  hostname = '127.0.0.1',
+  port = '5432',
+  username = 'user',
+  password = 'pwd',
+  database.name = 'mydb'
+);
+
+CREATE TABLE users (...) FROM pg_src TABLE 'public.users';
+CREATE TABLE orders (...) FROM pg_src TABLE 'public.orders';
+```
+
+![CDC Handling in RisingWave](/images/getting-started/rw-cdc-logic.png)
+
+The benefits of this approach are reduced configuration duplication and guaranteed cross-table transactional consistency, as all tables consume the same change log stream. If each table established a separate connection, the atomicity of cross-table transactions could be lost.
+Since v2.1, Kafka Sources also support the shared source feature. Unlike CDC's shared source, which is used for transactional consistency, Kafka's shared source primarily aims to avoid redundant data consumption by allowing multiple downstream consumers to share a single SourceExecutor, thereby improving efficiency.
+
+## Iceberg: queries, MVs, and time travel
+
+Iceberg is a key table format supported by RisingWave. An Iceberg Source can be queried directly or used to build an MV. For example:
+
+```sql
+CREATE SOURCE iceberg_src
+WITH (
+  connector = 'iceberg',
+  warehouse.path = 's3://warehouse',
+  database.name = 'analytics',
+  table.name = 'user_events',
+  catalog.type = 'glue'
+);
+
+SELECT * FROM iceberg_src LIMIT 10;
+
+CREATE MATERIALIZED VIEW daily_events AS
+SELECT date_trunc('day', ts) d, COUNT(*) cnt
+FROM iceberg_src
+GROUP BY d;
+```
+
+In addition to direct queries and MV creation, Iceberg also supports time travel, allowing you to query historical data by version or timestamp. It also provides system tables (e.g., $snapshots, $files) for metadata inspection and operational management. Note that stream ingestion is only applicable to append-only Iceberg tables.
+
+## S3 and object storage
+
+RisingWave supports reading data from object storage services like S3, GCS, and Azure Blob. Similar to Kafka or Iceberg, you can create a Source for direct querying or create a Table to persistently import the data.
+However, S3 Sources have a specific constraint: they do not guarantee the order of reads, nor do they guarantee resuming from the same position upon recovery. The system only ensures that every file will eventually be read completely. Therefore, if your application relies on strict ordering, you will need to handle it either in the upstream writing process or downstream consumption logic.
+
+## Materialized View: the result table of real-time computation
+
+The Materialized View (MV) is the core of real-time computation in RisingWave. It is defined by a SQL query, and the system automatically maintains the result table, refreshing it in real-time as the underlying data updates.
+
+```sql
+CREATE MATERIALIZED VIEW daily_sales AS
+SELECT date_trunc('day', ts) d, SUM(amount) total
+FROM sales
+GROUP BY d;
+```
+
+MVs provide low-latency queries and allow for the reuse of computation results, making them especially suitable for real-time aggregation, data cleaning, and analysis. In most cases, the upstream of a Sink will be an MV.
+
+## Sink: multiple ways to output data
+
+A sink is the egress point of RisingWave, used to write data to external systems.
+
+The input for a sink can be:
+
+- An existing object such as a source, table, or materialized view, which is defined by the FROM clause in a `CREATE SINK` statement.
+- A query, which is defined by `CREATE SINK AS SELECT <select_query>` syntax.
+
+If you want to write results back into an internal RisingWave table, you can use the `CREATE SINK INTO` command. A common use case for this is to union multiple sources and write them into a single table.
+
+## Summary
+
+A Table is the storage layer; it is mandatory for CDC. A Source is a lightweight ingress; non-CDC Sources can be queried directly, while CDC Sources must be materialized into a Table. An MV is the result table of real-time computation and is the recommended upstream for a Sink. A Sink is the output layer, with three creation syntaxes: FROM, AS SELECT, and INTO. A shared source ensures cross-table consistency in CDC scenarios and avoids redundant consumption in Kafka scenarios. Iceberg supports Time Travel and system tables, while S3 guarantees completeness but not order.
+In one sentence:
+Source defines a data entry point → Table stores the state of the data → MV maintains the results of real-time computations → Sink delivers the results to downstream systems.
+Remember to use a Table for CDC scenarios and consider a shared source when you need multi-table consistency or want to reduce redundant data consumption.
