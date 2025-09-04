@@ -1,0 +1,106 @@
+---
+title: "CREATE SOURCE vs. CREATE TABLE"
+sidebarTitle: "CREATE SOURCE vs. CREATE TABLE"
+description: "Learn the differences between using CREATE SOURCE and CREATE TABLE with a connector to ingest data in RisingWave."
+---
+
+When connecting to an external data source in RisingWave, you have two primary commands at your disposal: `CREATE SOURCE` and `CREATE TABLE ... WITH (connector=...)`. While their syntax is similar, they serve fundamentally different purposes related to data storage and availability.
+
+For a high-level comparison of all core RisingWave objects, see the [Source, Table, MV, and Sink](/get-started/source-table-mv-sink) guide.
+
+## `CREATE SOURCE`: A connection without storage
+
+The `CREATE SOURCE` command establishes a direct, non-persistent connection to an external data source.
+
+*   **Data Storage:** It does **not** store the ingested data within RisingWave's internal storage. It simply defines how to access the data from the external system.
+*   **Use Cases:**
+    *   **Quick data exploration:** Inspecting data from a source without the overhead of storing it.
+    *   **Pure streaming pipelines:** Building real-time materialized views or sinks where you only need to process data as it arrives, without needing to retain the raw data.
+    *   **Ad-hoc queries:** Running one-off queries directly against a source like Kafka or S3.
+
+<Note>
+Data ingested via `CREATE SOURCE` is not stored in RisingWave. The persistence of the data depends entirely on the external source's retention policies.
+</Note>
+
+### Syntax
+
+```sql
+CREATE SOURCE [IF NOT EXISTS] source_name (
+    column_name data_type,
+    ...
+)
+WITH (
+    connector='connector_name',
+    ...
+)
+FORMAT format_type ENCODE encode_type;
+```
+
+### Example (Kafka)
+
+This example creates a direct connection to a Kafka topic. You can query it, but the data is not stored in RisingWave.
+
+```sql
+CREATE SOURCE my_kafka_source (
+    user_id INT,
+    product_id VARCHAR,
+    timestamp TIMESTAMP
+) WITH (
+    connector='kafka',
+    topic='user_activity',
+    properties.bootstrap.server='broker1:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## `CREATE TABLE`: A connection with persistent storage
+
+The `CREATE TABLE` command, when used with a `WITH` clause specifying a connector, connects to an external source *and* continuously ingests its data into RisingWave's internal storage.
+
+*   **Data Storage:** It **stores** the data within RisingWave, making it durable and persistently available.
+*   **Use Cases:**
+    *   **Change Data Capture (CDC):** This is mandatory for CDC sources (e.g., Postgres, MySQL) to correctly apply updates and deletes.
+    *   **Data Retention:** When you need to keep a durable copy of the source data for historical analysis, regardless of the source's retention policy.
+    *   **Improved Query Performance:** Querying a local table is generally faster as it avoids network latency to the external system.
+    *   **Indexes and Primary Keys:** You can create indexes on tables to speed up queries and define primary keys to enforce uniqueness.
+
+### Syntax
+
+```sql
+CREATE TABLE [IF NOT EXISTS] table_name (
+    column_name data_type,
+    ...
+    [, PRIMARY KEY (column_name, ...)]
+)
+WITH (
+    connector='connector_name',
+    ...
+)
+FORMAT format_type ENCODE encode_type;
+```
+
+### Example (Kafka)
+
+This creates a table that is continuously populated from a Kafka topic. The data is stored in RisingWave and a primary key is defined.
+
+```sql
+CREATE TABLE my_kafka_table (
+    user_id INT PRIMARY KEY,
+    product_id VARCHAR,
+    timestamp TIMESTAMP
+) WITH (
+    connector='kafka',
+    topic='user_activity',
+    properties.bootstrap.server='broker1:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Side-by-side comparison
+
+| Feature                 | `CREATE SOURCE`                                      | `CREATE TABLE ... WITH (connector=...)`                   |
+| ----------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
+| **Data Storage**        | ❌ No (Data remains in the external source)          | ✅ Yes (Data is durably stored in RisingWave)             |
+| **Primary Use Case**    | Ad-hoc queries, pure streaming pipelines             | CDC, data retention, performance-sensitive queries        |
+| **Required for CDC?**   | ❌ No (Cannot handle updates/deletes)                | ✅ Yes (Mandatory for CDC sources)                        |
+| **Query Performance**   | Dependent on the external source and network         | Generally faster due to local data access               |
+| **Indexes**             | ❌ Not supported                                     | ✅ Supported                                              |
+| **Primary Keys**        | Semantic meaning only, no enforcement                | ✅ Supported and enforced                                 |
