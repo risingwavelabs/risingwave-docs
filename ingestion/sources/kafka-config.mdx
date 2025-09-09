@@ -143,10 +143,10 @@ If your Kafka cluster is in a different VPC and you're using AWS PrivateLink for
 
 The following examples show how to align `properties.bootstrap.server`, `privatelink.endpoint`, and `privatelink.targets`:
 
-- Different Availability Zones (multiple endpoints): `privatelink.endpoint` is a JSON array and must align 1:1 by order with the addresses in `properties.bootstrap.server`. The `privatelink.targets` port list must also align by order.
+- Multiple endpoints (1:1 mapping): `privatelink.endpoint` is a JSON array and must align 1:1 by order with the addresses in `properties.bootstrap.server`. The `privatelink.targets` port list must also align by order.
 
 ```sql
--- Different AZs
+-- Multiple endpoints
 WITH (
   connector = 'kafka',
   topic = 'your_topic',
@@ -158,10 +158,11 @@ WITH (
 
 The JSON arrays map 1:1 to the broker addresses in `properties.bootstrap.server` by position.
 
-- Same Availability Zone (single endpoint): `privatelink.endpoint` can be a single string. RisingWave automatically applies this endpoint to all addresses in `properties.bootstrap.server`. The `privatelink.targets` port list must still align by order.
+- Single endpoint: You can specify a single value for `privatelink.endpoint`. RisingWave automatically applies this endpoint to all broker addresses in `properties.bootstrap.server`. The `privatelink.targets` port list must still align by order.
+  - This works whether brokers are in the same AZ or in different AZs, as long as the endpoint supports cross-AZ routing without restrictions.
 
 ```sql
--- Same AZ
+-- Single endpoint
 WITH (
   connector = 'kafka',
   topic = 'your_topic',
