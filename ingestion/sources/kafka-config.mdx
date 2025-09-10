@@ -25,7 +25,7 @@ These parameters control how RisingWave consumes data from the Kafka topic.
 | `scan.startup.mode`              | The starting offset. Options: <ul><li> `'earliest'`: Start consuming from the earliest available offset (oldest data).</li><li> `'latest'`: Start consuming from the latest offset (new data only).</li></ul>    | No       | `earliest` |
 | `scan.startup.timestamp.millis` | Start consuming from a specific UNIX timestamp (in milliseconds).  If this parameter is set, it *overrides* `scan.startup.mode`. Example: `1678886400000` (for March 15, 2023, 00:00:00 GMT)           | No       |            |
 
-`scan.startup.mode` only applies to streaming jobs, such as when building a table or creating a materialized view on a Kafka source. When directly querying a source, RisingWave will always read from the earliest available messages. For more information about querying sources, see [Querying a source](/ingestion/getting-started/connect-with-create-source#querying-a-source).
+`scan.startup.mode` only applies to streaming jobs, such as when building a table or creating a materialized view on a Kafka source. When directly querying a source, RisingWave will always read from the earliest available messages. For more information about querying sources, see [Querying a source](/ingestion/create-source-vs-create-table).
 
 ## General Kafka properties
 
@@ -73,7 +73,7 @@ The following table summarizes the parameters used for configuring security:
 
 ## Format and encoding options
 
-These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave should interpret the data in your Kafka messages. See [Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options) for details on available formats and encodings.
+These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave should interpret the data in your Kafka messages. See [Data formats and encoding options](/ingestion/formats-and-encoding-options) for details on available formats and encodings.
 
 | Parameter             | Notes                                                                                                                                                                                                                                                                              |
 | :-------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,11 +94,9 @@ These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave s
 ## Use AWS Glue Schema Registry
 
 <Tip>
-**PREMIUM EDITION FEATURE**
+**PREMIUM FEATURE**
 
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 AWS Glue Schema Registry is a serverless feature of AWS Glue that allows you to centrally manage and enforce schemas for data streams, enabling data validation and compatibility checks. It helps in improving the quality of data streams by providing a central repository for managing and enforcing schemas across various AWS services and custom applications.

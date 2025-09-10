@@ -98,7 +98,6 @@
     {"source": "/integrations/sources/kafka", "destination": "/ingestion/sources/kafka"},
     {"source": "/integrations/sources/apache-iceberg", "destination": "/iceberg/byoi/read-from-iceberg"},
     {"source": "/integrations/sources/postgresql-cdc", "destination": "/ingestion/sources/postgresql/pg-cdc"},
-    {"source": "/ingestion/overview", "destination": "/ingestion/getting-started/overview"},
     {"source": "/troubleshoot/troubleshoot-high-latency", "destination": "/performance/troubleshoot-high-latency"},
     {"source": "/integrations/sources/mysql-cdc", "destination": "/ingestion/sources/mysql/mysql-cdc"},
     {"source": "/integrations/sources/sql-server-cdc", "destination": "/ingestion/sources/sql-server-cdc"},
@@ -106,9 +105,8 @@
     {"source": "/ingestion/change-data-capture-with-risingwave", "destination": "/ingestion/cdc-with-risingwave"},
     {"source": "/store/hosted-iceberg-catalog", "destination": "/iceberg/hosted-iceberg-catalog"},
     {"source": "/store/iceberg-table-engine", "destination": "/iceberg/iceberg-table-engine"},
-    {"source": "/ingestion/sources/iceberg-config", "destination": "/iceberg/byoi/read-from-iceberg"},
-    {"source": "/iceberg/read-from-iceberg", "destination": "/iceberg/byoi/read-from-iceberg"},
-    {"source": "/iceberg/write-to-iceberg", "destination": "/iceberg/byoi/write-to-iceberg"}
+    {"source": "/ingestion/sources/iceberg-config", "destination": "/iceberg/create-manage-native-iceberg-tables"},
+    {"source": "/get-started/rw-premium-edition-intro", "destination": "/get-started/premium-features"}
   ],
   "navigation": [
     {
@@ -116,9 +114,10 @@
       "pages": [
         "get-started/intro",
         "get-started/quickstart",
+        "get-started/source-table-mv-sink",
         "get-started/rw-console",
         "get-started/use-cases",
-        "get-started/rw-premium-edition-intro",
+        "get-started/premium-features",
         "get-started/disk-cache",
         {
           "group": "Learn by examples",
@@ -171,7 +170,8 @@
             "get-started/rw-benchmarks-stream-processing",
             "get-started/rw-benchmarks-query"
           ]
-        }
+        },
+        "get-started/connectors"
       ]
     },
     {
@@ -204,159 +204,161 @@
     },
     {
       "group": "Iceberg",
-      "pages": [
-        "iceberg/overview",
+      "pages": ["iceberg/overview",
         {
-          "group": "Bring Your Own Iceberg (BYOI)",
+          "group": "Use Iceberg as sources and sinks",
           "pages": [
-            "iceberg/byoi/overview",
-            "iceberg/byoi/read-from-iceberg",
-            "iceberg/byoi/write-to-iceberg",
-            "iceberg/byoi/object-storage",
-            "iceberg/byoi/catalogs"
+            "iceberg/quickstart-use-existing-tables",
+            "iceberg/ingest-from-iceberg",
+            "iceberg/deliver-to-iceberg"
           ]
         },
         {
-          "group": "RisingWave Managed Iceberg",
+          "group": "Create and manage Iceberg tables natively",
           "pages": [
-            "iceberg/managed/overview",
-            "iceberg/managed/hosted-iceberg-catalog",
-            "iceberg/managed/iceberg-table-engine"
+            "iceberg/quickstart-create-table",
+            "iceberg/create-manage-native-iceberg-tables",
+            "iceberg/hosted-iceberg-catalog"
+          ]
+        },
+        {
+          "group": "Configurations",
+          "pages": [
+            "iceberg/catalogs",
+            "iceberg/object-storage"
           ]
         }
       ]
     },
     {
-      "group": "Working with data",
+      "group": "Work with data",
       "pages": [
         {
           "group": "Ingest data",
           "pages": [
-           {
-            "group": "Getting started",
-            "pages": [
-              "ingestion/getting-started/overview",
-              "ingestion/getting-started/sources",
-              "ingestion/getting-started/formats-and-encoding-options",
-              "ingestion/getting-started/connect-with-create-source",
-              "ingestion/getting-started/connect-with-create-table"
-            ]
-           },
-           {
-            "group": "Change Data Capture",
-            "pages": [
-              "ingestion/cdc-with-risingwave",
-              {
-                "group": "PostgreSQL CDC",
-                "pages": [
-                  "ingestion/sources/postgresql/pg-cdc",
-                  {
-                    "group": "Platform-specific setup",
-                    "pages": [
-                      "ingestion/sources/postgresql/self-hosted",
-                      "ingestion/sources/postgresql/aws-rds",
-                      "ingestion/sources/postgresql/neon",
-                      "ingestion/sources/postgresql/supabase"
-                    ]
-                  }
-                ]
-               },
-               {
-                "group": "MySQL CDC",
-                "pages": [
-                  "ingestion/sources/mysql/mysql-cdc",
-                  {
-                    "group": "Platform-specific setup",
-                    "pages": [
-                      "ingestion/sources/mysql/self-hosted",
-                      "ingestion/sources/mysql/aws-rds"
-                    ]
-                  }
-                ]
-               },
-               "ingestion/sources/mongodb-cdc",
-               "ingestion/sources/sql-server-cdc"
-            ]
-           },
-           {
-            "group": "Apache Kafka",
-            "pages": [
-              "ingestion/sources/kafka",
-              "ingestion/sources/kafka-config"
-            ]
-           },
-           "ingestion/sources/iceberg",
-           {
-            "group": "Connectors",
-            "pages": [
-           {
-            "group": "Webhooks",
-            "pages": [
-              "integrations/sources/webhook",
-              "integrations/sources/github-webhook",
-              "integrations/sources/segment-webhook",
-              "integrations/sources/hubspot-webhook",
-              "integrations/sources/eventbridge-webhook",
-              "integrations/sources/rudderstack-webhook"
-            ]
-          },
-          {
-            "group": "Databases",
-            "pages": [
-              "integrations/sources/postgresql-table",
-              "integrations/sources/mysql-table"
-            ]
-          },
-          {
-            "group": "Object storage",
-            "pages": [
-              "integrations/sources/azure-blob",
-              "integrations/sources/google-cloud-storage",
-              "integrations/sources/s3"
-            ]
-          },
-          {
-            "group": "Messaging platforms",
-            "pages": [
-              "integrations/sources/google-pub-sub",
-              {
-                "group": "Kafka",
-                "pages": [
-                  "integrations/sources/amazon-msk",
-                  "integrations/sources/automq-kafka",
-                  "integrations/sources/confluent-cloud",
-                  "integrations/sources/instaclustr-kafka",
-                  "integrations/sources/redhat-amq-streams",
-                  "integrations/sources/warpstream"
-                ]
-              },
-              "integrations/sources/kinesis",
-              {
-                "group": "MQTT",
-                "pages": [
-                  "integrations/sources/mqtt",
-                  "integrations/sources/coreflux-broker",
-                  "integrations/sources/emqx",
-                  "integrations/sources/hivemq"
-                ]
-              },
-              "integrations/sources/nats-jetstream",
-              "integrations/sources/pulsar",
-              "integrations/sources/redpanda",
-              "integrations/sources/solace"
+            {
+              "group": "Fundamentals",
+              "pages": [
+                "ingestion/overview",
+                "ingestion/create-source-vs-create-table",
+                "ingestion/formats-and-encoding-options",
+                {
+                  "group": "Manage schemas",
+                  "pages": [
+                    "ingestion/modify-source-or-table-schemas",
+                    "ingestion/extract-metadata-from-sources"
+                  ]
+                }
+              ]
+            },
+            {
+              "group": "Change Data Capture",
+              "pages": [
+                "ingestion/cdc-with-risingwave",
+                "ingestion/monitor-cdc-progress",
+                {
+                  "group": "PostgreSQL CDC",
+                  "pages": [
+                    "ingestion/sources/postgresql/pg-cdc",
+                    {
+                      "group": "Platform-specific setup",
+                      "pages": [
+                        "ingestion/sources/postgresql/self-hosted",
+                        "ingestion/sources/postgresql/aws-rds",
+                        "ingestion/sources/postgresql/neon",
+                        "ingestion/sources/postgresql/supabase"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "group": "MySQL CDC",
+                  "pages": [
+                    "ingestion/sources/mysql/mysql-cdc",
+                    {
+                      "group": "Platform-specific setup",
+                      "pages": [
+                        "ingestion/sources/mysql/self-hosted",
+                        "ingestion/sources/mysql/aws-rds"
+                      ]
+                    }
+                  ]
+                },
+                "ingestion/sources/mongodb-cdc",
+                "ingestion/sources/sql-server-cdc"
+              ]
+            },
+            {
+              "group": "Apache Kafka",
+              "pages": [
+                "ingestion/sources/kafka",
+                "ingestion/sources/kafka-config"
+              ]
+            },
+            "ingestion/sources/iceberg",
+            {
+              "group": "All other connectors",
+              "pages": [
+                "ingestion/sources",
+                {
+                  "group": "Webhooks",
+                  "pages": [
+                    "integrations/sources/webhook",
+                    "integrations/sources/github-webhook",
+                    "integrations/sources/segment-webhook",
+                    "integrations/sources/hubspot-webhook",
+                    "integrations/sources/eventbridge-webhook",
+                    "integrations/sources/rudderstack-webhook"
+                  ]
+                },
+                {
+                  "group": "Databases",
+                  "pages": [
+                    "integrations/sources/postgresql-table",
+                    "integrations/sources/mysql-table"
+                  ]
+                },
+                {
+                  "group": "Object storage",
+                  "pages": [
+                    "integrations/sources/azure-blob",
+                    "integrations/sources/google-cloud-storage",
+                    "integrations/sources/s3"
+                  ]
+                },
+                {
+                  "group": "Messaging platforms",
+                  "pages": [
+                    "integrations/sources/google-pub-sub",
+                    {
+                      "group": "Kafka",
+                      "pages": [
+                        "integrations/sources/amazon-msk",
+                        "integrations/sources/automq-kafka",
+                        "integrations/sources/confluent-cloud",
+                        "integrations/sources/instaclustr-kafka",
+                        "integrations/sources/redhat-amq-streams",
+                        "integrations/sources/warpstream"
+                      ]
+                    },
+                    "integrations/sources/kinesis",
+                    {
+                      "group": "MQTT",
+                      "pages": [
+                        "integrations/sources/mqtt",
+                        "integrations/sources/coreflux-broker",
+                        "integrations/sources/emqx",
+                        "integrations/sources/hivemq"
+                      ]
+                    },
+                    "integrations/sources/nats-jetstream",
+                    "integrations/sources/pulsar",
+                    "integrations/sources/redpanda",
+                    "integrations/sources/solace"
+                  ]
+                }
               ]
             }
-            ]
-          },
-           {
-            "group": "Advanced topics",
-            "pages": [
-              "ingestion/advanced/generate-test-data",
-              "ingestion/advanced/modify-source-or-table-schemas",
-              "ingestion/advanced/extract-metadata-from-sources",
-              "ingestion/advanced/monitor-cdc-progress"
-            ]
-           }
           ]
         },
         {
@@ -805,34 +807,26 @@
           ]
         },
         {
-          "group": "Project & database",
+          "group": "Projects",
           "pages": [
-            {
-              "group": "Manage projects",
-              "pages": [
-                "cloud/manage-projects",
-                "cloud/choose-a-project-plan",
-                "cloud/connect-to-a-project",
-                "cloud/connection-errors",
-                "cloud/project-byoc",
-                "cloud/check-status-and-metrics",
-                "cloud/scale-a-project-manually",
-                "cloud/update-database-version",
-                "cloud/stop-and-delete-projects"
-              ]
-            },
-            {
-              "group": "Manage database users",
-              "pages": [
-                "cloud/manage-database-users",
-                "cloud/create-a-database-user",
-                "cloud/change-database-user-password",
-                "cloud/delete-a-database-user"
-              ]
-            },
-            "cloud/monitor-materialized-views",
+            "cloud/manage-projects",
+            "cloud/choose-a-project-plan",
+            "cloud/connect-to-a-project",
+            "cloud/connection-errors",
+            "cloud/project-byoc",
+            "cloud/check-status-and-metrics",
+            "cloud/scale-a-project-manually",
+            "cloud/update-database-version",
+            "cloud/stop-and-delete-projects"
+          ]
+        },
+        {
+          "group": "Management",
+          "pages": [
             "cloud/export-metrics",
-            "cloud/manage-backups"
+            "cloud/manage-database-users",
+            "cloud/manage-backups",
+            "cloud/manage-resources"
           ]
         },
 
@@ -842,6 +836,7 @@
         "cloud/develop-overview",
         "cloud/manage-sources",
         "cloud/manage-sinks",
+        "cloud/monitor-materialized-views",
         {
           "group": "PrivateLink connection",
           "pages": [
@@ -871,6 +866,13 @@
           "cloud/check-spending-details",
           "cloud/review-and-pay-invoices",
           "cloud/manage-payment-methods"
+        ]
+      },
+      {
+        "group": "Messages and alerts",
+        "pages": [
+          "cloud/monitor-messages-and-alerts",
+          "cloud/alert-playbooks"
         ]
       },
       {
