@@ -23,7 +23,7 @@ Below are some key considerations to help you get started with optimizing E2E la
 
 It's important to distinguish between E2E latency in terms of sinks versus materialized views. Updates to materialized views are not immediately available for batch queries because RisingWave enforces strong consistency for materialized views. As a result, updates must wait for the nearest barrier to be globally committed, with the commit interval controlled by the [`barrier_interval_ms`](/operate/view-configure-system-parameters#what-are-system-parameters) system parameter.
 
-In contrast, sink outputs are eagerly written to the downstream system without waiting for barriers to commit.
+In contrast, sink outputs are eagerly written to the downstream system without waiting for barriers to commit. For cases where buffering is required, see [Sink buffering behavior](/delivery/overview#sink-buffering-behavior).
 
 If your application requires latency ≤ 500ms, we recommend using a sink to trigger event-driven business logic downstream, rather than relying on a built-in materialized view with periodic polling. This ensures faster data availability.
 

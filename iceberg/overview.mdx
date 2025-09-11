@@ -1,54 +1,41 @@
 ---
-title: Interact with Iceberg
-description: "Learn about different ways to use Iceberg with RisingWave"
+title: "Integrate Apache Iceberg with RisingWave: An overview"
+sidebarTitle: "Integration overview"
+description: "Learn how to integrate Apache Iceberg with RisingWave, exploring both the pipeline and database approaches to leverage Iceberg's capabilities for large-scale data analytics and streaming pipelines."
 ---
 
-Apache Iceberg is an open table format for huge analytic tables stored typically on object storage. RisingWave offers comprehensive support for working with Iceberg tables, enabling you to leverage Iceberg's capabilities within your streaming pipelines.
+Apache Iceberg is an open table format for large analytic tables typically stored on object storage. RisingWave offers comprehensive support for working with Iceberg tables, enabling you to leverage Iceberg's capabilities within your streaming pipelines.
 
 RisingWave provides two distinct approaches for working with Iceberg, each designed for different use cases and architectural patterns.
 
-## Choose your approach
+## The pipeline way: use Iceberg as sources/sinks
 
-### Bring Your Own Iceberg (BYOI)
+This approach is ideal when you have existing Iceberg tables created by systems like Spark, Flink, or batch jobs, and you want RisingWave to read from or write to them as part of a larger data ecosystem.
 
-**Connect to existing Iceberg tables managed by external systems**
+- **Use cases**:
+  - Existing data lakes with Iceberg tables managed by other systems.
+  - Multi-system architectures where multiple applications need to read/write the same Iceberg tables.
+  - Integration into existing data workflows and pipelines.
 
-Choose this when you have existing Iceberg tables (created by Spark, Flink, batch jobs, etc.) and want RisingWave to read from or write to them as part of a larger data ecosystem.
-
-**Key benefits:**
-- **Integration**: Work with existing data lakes and multi-system architectures
-- **Flexibility**: Support for various external catalog systems (AWS Glue, JDBC, REST, etc.)
-- **Hybrid processing**: Combine batch and stream processing on the same tables
-- **Data lake patterns**: Implement lambda/kappa architectures with existing infrastructure
-
-**Use cases:**
-- Existing Iceberg data lakes that need streaming capabilities.
-- Multi-engine environments where different systems share Iceberg tables.
-- Integration into existing ETL/ELT pipelines.
-- Adding real-time processing to batch-oriented data workflows.
-
-➡️ **[Get started with Bring Your Own Iceberg →](/iceberg/byoi/overview)**
+- **Key capabilities**:
+  - **Read from Iceberg**: Ingest data from existing Iceberg tables into RisingWave for stream processing.
+  - **Write to Iceberg**: Stream processed results from RisingWave into existing Iceberg tables.
 
 ---
 
-### RisingWave Managed Iceberg
+## The database way: create and manage Iceberg tables natively
 
-**RisingWave creates and manages Iceberg tables natively**
+Choose this approach when you want RisingWave to be the primary owner of your Iceberg tables. RisingWave handles table creation, schema management, and the complete lifecycle while storing data in the standard Iceberg format.
 
-Choose this when you want RisingWave to be the primary owner of your Iceberg tables. RisingWave handles table creation, schema management, and the complete lifecycle while storing data in the standard Iceberg format.
+- **Key benefits**:
+  - **Simplified architecture**: No external catalog setup required with the hosted catalog option.
+  - **Streaming-first**: Direct path from streaming sources to Iceberg format.
+  - **Native management**: Tables work like any other RisingWave table for queries and operations.
+  - **Ecosystem compatibility**: Standard Iceberg tables readable by Spark, Trino, Flink, etc.
 
-**Key benefits:**
-- **Simplified architecture**: No external catalog setup required with hosted catalog option
-- **Streaming-first**: Direct path from streaming sources to Iceberg format
-- **Native management**: Tables work like any other RisingWave table for queries and operations
-- **Ecosystem compatibility**: Standard Iceberg tables readable by Spark, Trino, Flink, etc
-
-**Use cases:**
-- New streaming applications where RisingWave is the primary data platform.
-- Quick start with Iceberg without external infrastructure.
-- Streaming data directly into analytical storage format.
-
-➡️ **[Get started with RisingWave Managed Iceberg →](/iceberg/managed/overview)**
+- **Key capabilities**:
+  - **Iceberg table engine**: Create tables using `ENGINE = iceberg` to store data natively in the Iceberg format.
+  - **Hosted Iceberg catalog**: Use RisingWave's built-in catalog service to eliminate external catalog setup.
 
 ---
 
@@ -60,44 +47,13 @@ It's important to understand that RisingWave's own internal storage system (Humm
 
 When working with Iceberg, you are storing or accessing data in the **columnar Iceberg format** on object storage, which is designed for analytical workloads and ecosystem interoperability.
 
-### Interaction methods
-
-RisingWave provides three core methods for interacting with Iceberg:
-
-1. **Iceberg Source**: Read data from existing Iceberg tables managed externally
-2. **Iceberg Sink**: Write data to existing Iceberg tables managed externally  
-3. **Iceberg Table Engine**: Create and manage tables natively in RisingWave using Iceberg format
-
-The first two methods are part of the **Bring Your Own Iceberg** approach, while the third is part of **RisingWave Managed Iceberg**.
-
-## Quick decision guide
-
-**Choose RisingWave Managed Iceberg if:**
-- You're building new applications with RisingWave as the primary platform.
-- You want the simplest setup possible.
-- You don't have existing Iceberg infrastructure.
-- You want streaming data to flow directly into analytical storage.
-
-**Choose Bring Your Own Iceberg if:**
-- You have existing Iceberg tables from other systems.
-- Multiple applications need to share the same Iceberg tables.
-- You have existing catalog infrastructure (AWS Glue, etc.).
-- You're adding streaming capabilities to existing batch workflows.
-
-## Advanced features
+### Advanced features
 
 Both approaches support advanced Iceberg features:
 
-- **Time travel**: Query historical snapshots of your data
-- **Schema evolution**: Handle changing table schemas over time
-- **Partitioning**: Optimize query performance with table partitioning
-- **Multiple storage backends**: S3, Google Cloud Storage, Azure Blob Storage
-- **Various catalog types**: Hosted, JDBC, AWS Glue, REST, Storage, Hive, Snowflake
+- **Time travel**: Query historical snapshots of your data.
+- **Schema evolution**: Handle changing table schemas over time.
+- **Partitioning**: Optimize query performance with table partitioning.
+- **Multiple storage backends**: S3, Google Cloud Storage, Azure Blob Storage.
+- **Various catalog types**: Hosted, JDBC, AWS Glue, REST, Storage, Hive, Snowflake.
 
-## Next steps
-
-1. **Identify your use case**: Review the descriptions above to choose your approach.
-2. **Follow the appropriate guide**:
-   - [RisingWave Managed Iceberg](/iceberg/managed/overview) for native table management
-   - [Bring Your Own Iceberg](/iceberg/byoi/overview) for external table integration
-3. **Explore advanced configurations**: Both approaches share common configuration patterns for storage and catalogs.

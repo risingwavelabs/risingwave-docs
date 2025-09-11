@@ -68,17 +68,17 @@ All the fields listed below are required. Note that the value of these parameter
 | database.name | Name of the database. Note that RisingWave cannot read data from a built-in MySQL database, such as mysql, sys, etc.                                                                                                                                                                                                                                                                 |
 | table.name    | Name of the table that you want to ingest data from.                                                                                                                                                                                                                                                                                                                                 |
 | server.id     | Required if creating a shared source. A numeric ID of the database client. It must be unique across all database processes that are running in the MySQL cluster. If not specified, RisingWave will generate a random ID.                                                                                                                                                            |
-|auto.schema.change| Optional. Specify whether you want to enable replicating MySQL table schema change. Set `auto.schema.change = 'true'` to enable it.|
-| ssl.mode      | Optional. The ssl.mode parameter determines the level of SSL/TLS encryption for secure communication with MySQL. Accepted values are disabled, preferred, and required. The default value is disabled. When set to required, it enforces TLS for establishing a connection.                                                                                                     |
-| transactional | Optional. Specify whether you want to enable transactions for the CDC table that you are about to create. By default, the value is 'true' for shared sources, and 'false' otherwise. This feature is also supported for shared CDC sources for multi-table transactions. For performance considerations, transactions involving changes to more than 4096 rows cannot be guaranteed. |
+|auto.schema.change| **Optional**. Specify whether you want to enable replicating MySQL table schema change. Set `auto.schema.change = 'true'` to enable it.|
+| ssl.mode      | **Optional**. The ssl.mode parameter determines the level of SSL/TLS encryption for secure communication with MySQL. Accepted values are disabled, preferred, and required. The default value is disabled. When set to required, it enforces TLS for establishing a connection.                                                                                                     |
+| transactional | **Optional**. Specify whether you want to enable transactions for the CDC table that you are about to create. By default, the value is 'true' for shared sources, and 'false' otherwise. This feature is also supported for shared CDC sources for multi-table transactions. For performance considerations, transactions involving changes to more than 4096 rows cannot be guaranteed. |
 
 The following fields are used when creating a CDC table.
 
 | Field         | Notes  |
 | :------------ | :------------ |
-| snapshot             | Optional. If false, CDC backfill will be disabled and only upstream events that have occurred after the creation of the table will be consumed. This option can only be applied for tables created from a shared source. |
-| snapshot.interval    | Optional. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
-| snapshot.batch\_size | Optional. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
+| snapshot             | **Optional**. If false, CDC backfill will be disabled and only upstream events that have occurred after the creation of the table will be consumed. This option can only be applied for tables created from a shared source. |
+| snapshot.interval    | **Optional**. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
+| snapshot.batch\_size | **Optional**. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
 
 Regarding the `INCLUDE timestamp AS column_name` clause, it allows you to ingest the upstream commit timestamp. For historical data, the commit timestamp will be set to `1970-01-01 00:00:00+00:00`. Here is an example:
 
@@ -98,7 +98,7 @@ SELECT * FROM t2 ORDER BY v1;
   4 | dd | 2024-05-20 09:01:08+00:00
 ```
 
-You can see the [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause) for more details.
+You can see the [INCLUDE clause](/ingestion/extract-metadata-from-sources) for more details.
 
 ## Debezium parameters
 
@@ -209,7 +209,7 @@ RisingWave data types marked with an asterisk indicate that while there is no co
 | :---- | :------------------------- |
 | BOOLEAN, BOOL                                                                                                | BOOLEAN                    |
 | BIT(1)                                                                                                       | BOOLEAN\*                  |
-| BIT(>1)                                                                                                      | No support                 |
+| BIT(>1)                                                                                                      | BYTEA                      |
 | TINYINT                                                                                                      | SMALLINT                   |
 | SMALLINT\[(M)\]                                                                                              | SMALLINT                   |
 | MEDIUMINT\[(M)\]                                                                                             | INTEGER                    |
@@ -217,7 +217,6 @@ RisingWave data types marked with an asterisk indicate that while there is no co
 | BIGINT\[(M)\]                                                                                                | BIGINT                     |
 | REAL\[(M,D)\]                                                                                                | REAL                       |
 | FLOAT\[(P)\]                                                                                                 | REAL                       |
-| FLOAT(M,D)                                                                                                   | DOUBLE PRECISION           |
 | DOUBLE\[(M,D)\]                                                                                              | DOUBLE PRECISION           |
 | CHAR\[(M)\]                                                                                                  | CHARACTER VARYING          |
 | VARCHAR\[(M)\]                                                                                               | CHARACTER VARYING          |
@@ -315,11 +314,9 @@ And this it the output of `DESCRIBE supplier;`
 ## Automatic schema changes
 
 <Tip>
-**PREMIUM EDITION FEATURE**
+**PREMIUM FEATURE**
 
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 RisingWave supports auto schema changes in MySQL CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.

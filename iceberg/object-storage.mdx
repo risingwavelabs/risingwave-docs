@@ -1,10 +1,10 @@
 ---
-title: "Object storage configuration for Apache Iceberg"
-sidebarTitle: Object storage
-description: "Configuration parameters for connecting RisingWave to object storage systems used by Apache Iceberg."
+title: "Object storage"
+sidebarTitle: "Object storage"
+description: "This guide provides configuration details for connecting RisingWave to different object storage backends for your Iceberg data, including Amazon S3, Google Cloud Storage (GCS), and Azure Blob Storage."
 ---
 
-These configuration parameters are used when creating Iceberg sources, sinks, or connections to specify how RisingWave connects to object storage systems where Apache Iceberg data files are stored. These parameters are used in the `WITH` clause of `CREATE SOURCE`, `CREATE SINK`, and `CREATE CONNECTION` statements.
+This guide provides configuration details for connecting RisingWave to different object storage backends for your Iceberg data, including Amazon S3, Google Cloud Storage (GCS), and Azure Blob Storage. You will need to provide these parameters when creating an Iceberg connection, source, or sink.
 
 ## S3-compatible storage
 
@@ -12,15 +12,15 @@ To integrate RisingWave with Iceberg tables stored in S3-compatible object stora
 
 These parameters configure the connection to the underlying S3-compatible storage system where the Iceberg data files are stored. This includes AWS S3, MinIO, and other compatible services.
 
-| Parameter             | Description                                                                                                | Required (Conditional)    |
-| :-------------------- | :---------------------------------------------------------- | :-------------------------- |
-| `warehouse.path`        | The base path to your Iceberg warehouse in the S3-compatible storage.  Example:  `'s3://my-bucket/iceberg-warehouse'`                  | Conditional                 |
-| `s3.endpoint`       | Optional. Endpoint of the S3. <ul><li>For MinIO object store backend, it should be `http://${MINIO_HOST}:${MINIO_PORT}`. </li><li>For AWS S3, refer to [S3](https://docs.aws.amazon.com/general/latest/gr/s3.html) for your region's endpoint.</li></ul>     | Conditional                 |
-| `s3.region`         | Optional. The region where the S3 bucket is hosted. Either s3.endpoint or s3.region must be specified.       | Conditional                 |
-| `s3.access.key`     | Required. Access key of the S3 compatible object store.    | Conditional                     |
-| `s3.secret.key`     | Required. Secret key of the S3 compatible object store.    | Conditional                    |
-| `s3.path.style.access` | Optional. Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). | No                          |
-| `enable_config_load` | Optional. Controls whether configuration is loaded from environment variables. Set to `true` will load warehouse credentials from environment variables. Only supported in self-hosted environments. | No                          |
+| Parameter             | Description                                                                                                |
+| :-------------------- | :---------------------------------------------------------- |
+| `warehouse.path`        | The base path to your Iceberg warehouse in the S3-compatible storage.  Example:  `'s3://my-bucket/iceberg-warehouse'`                  |
+| `s3.endpoint`       | **Optional**. Endpoint of the S3. <ul><li>For MinIO object store backend, it should be `http://${MINIO_HOST}:${MINIO_PORT}`. </li><li>For AWS S3, refer to [S3](https://docs.aws.amazon.com/general/latest/gr/s3.html) for your region's endpoint.</li></ul>     |
+| `s3.region`         | **Optional**. The region where the S3 bucket is hosted. Either s3.endpoint or s3.region must be specified.       |
+| `s3.access.key`     | **Required**. Access key of the S3 compatible object store.    |
+| `s3.secret.key`     | **Required**. Secret key of the S3 compatible object store.    |
+| `s3.path.style.access` | **Optional**. Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). |
+| `enable_config_load` | **Optional**. Controls whether configuration is loaded from environment variables. Set to `true` will load warehouse credentials from environment variables. Only supported in self-hosted environments. |
 
 ## Google Cloud Storage (GCS)
 
@@ -197,18 +197,9 @@ CREATE CONNECTION managed_gcs_conn WITH (
 );
 ```
 
-## Best practices
-
-1. **Choose the right storage**: Consider data locality, costs, and existing infrastructure
-2. **Secure credentials**: Use environment variables or secret management for sensitive information
-3. **Plan for scale**: Consider data transfer costs and latency for large datasets
-4. **Backup strategy**: Ensure your object storage has appropriate backup and disaster recovery
-5. **Monitor costs**: Track storage and data transfer costs, especially for cross-region access
-6. **Network connectivity**: Ensure RisingWave can reliably access your object storage
 
 ## Next steps
 
-- **Configure catalogs**: Set up your catalog system with [Catalog configuration](/iceberg/byoi/catalogs).
-- **Read from Iceberg**: Create sources with [Read from Iceberg](/iceberg/byoi/read-from-iceberg).
-- **Write to Iceberg**: Create sinks with [Write to Iceberg](/iceberg/byoi/write-to-iceberg).
-- **Managed alternative**: Consider [RisingWave Managed Iceberg](/iceberg/managed/overview) for simpler setups. 
+- **Configure catalogs**: Set up your catalog system with [Catalog configuration](/iceberg/catalogs).
+- **Ingest from Iceberg**: Create sources with [Ingest from Iceberg](/iceberg/ingest-from-iceberg).
+- **Deliver to Iceberg**: Create sinks with [Deliver to Iceberg](/iceberg/deliver-to-iceberg).
