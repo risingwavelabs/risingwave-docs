@@ -25,7 +25,7 @@ These parameters control how RisingWave consumes data from the Kafka topic.
 | `scan.startup.mode`              | The starting offset. Options: <ul><li> `'earliest'`: Start consuming from the earliest available offset (oldest data).</li><li> `'latest'`: Start consuming from the latest offset (new data only).</li></ul>    | No       | `earliest` |
 | `scan.startup.timestamp.millis` | Start consuming from a specific UNIX timestamp (in milliseconds).  If this parameter is set, it *overrides* `scan.startup.mode`. Example: `1678886400000` (for March 15, 2023, 00:00:00 GMT)           | No       |            |
 
-`scan.startup.mode` only applies to streaming jobs, such as when building a table or creating a materialized view on a Kafka source. When directly querying a source, RisingWave will always read from the earliest available messages. For more information about querying sources, see [Querying a source](/ingestion/getting-started/connect-with-create-source#querying-a-source).
+`scan.startup.mode` only applies to streaming jobs, such as when building a table or creating a materialized view on a Kafka source. When directly querying a source, RisingWave will always read from the earliest available messages. For more information about querying sources, see [Querying a source](/ingestion/create-source-vs-create-table).
 
 ## General Kafka properties
 
@@ -73,7 +73,7 @@ The following table summarizes the parameters used for configuring security:
 
 ## Format and encoding options
 
-These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave should interpret the data in your Kafka messages. See [Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options) for details on available formats and encodings.
+These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave should interpret the data in your Kafka messages. See [Data formats and encoding options](/ingestion/formats-and-encoding-options) for details on available formats and encodings.
 
 | Parameter             | Notes                                                                                                                                                                                                                                                                              |
 | :-------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -82,28 +82,26 @@ These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave s
 | *message*             | Message name of the main Message in schema definition. Required for Protobuf.                                                                                                                                                                                                  |
 | *location*            | Web location of the schema file in `http://...`, `https://...`, or `S3://...` format. <ul><li>This option is not supported for Avro data.</li><li>For Protobuf data, you must specify either a schema location or a schema registry but not both.</li></ul>                   |
 | *schema.registry*     | Confluent Schema Registry URL. Example: `http://127.0.0.1:8081`. <ul><li>For Avro data, you must specify a Confluent Schema Registry or an AWS Glue Schema Registry.</li><li>For Protobuf data, you must specify either a schema location or a Confluent Schema Registry but not both.</li></ul> |
-| *schema.registry.username* | Conditional. User name for the schema registry. It must be specified with `schema.registry.password`.                                                                                                                                                                            |
-| *schema.registry.password* | Conditional. Password for the schema registry. It must be specified with `schema.registry.username`.                                                                                                                                                                            |
+| *schema.registry.username* | **Conditional**. User name for the schema registry. It must be specified with `schema.registry.password`.                                                                                                                                                                            |
+| *schema.registry.password* | **Conditional**. Password for the schema registry. It must be specified with `schema.registry.username`.                                                                                                                                                                            |
 | *access_key*          | Required if loading descriptors from S3. The access key ID of AWS.                                                                                                                                                                                                            |
 | *secret_key*          | Required if loading descriptors from S3. The secret access key of AWS.                                                                                                                                                                                                        |
 | *region*              | Required if loading descriptors from S3. The AWS service region.                                                                                                                                                                                                              |
-| *arn*                 | Optional. The Amazon Resource Name (ARN) of the role to assume.                                                                                                                                                                                                                |
-| *external_id*         | Optional. The [external](https://aws.amazon.com/blogs/security/how-to-use-external-id-when-granting-access-to-your-aws-resources/) id used to authorize access to third-party resources.                                                                                       |
+| *arn*                 | **Optional**. The Amazon Resource Name (ARN) of the role to assume.                                                                                                                                                                                                                |
+| *external_id*         | **Optional**. The [external](https://aws.amazon.com/blogs/security/how-to-use-external-id-when-granting-access-to-your-aws-resources/) id used to authorize access to third-party resources.                                                                                       |
 | `map.handling.mode`   | For Avro data. How to ingest Avro map type to RisingWave. Available values: `'map'` (default) and `'jsonb'`.                                                                                                                                                                   |
 
-## Read schemas from AWS Glue Schema Registry
+## Use AWS Glue Schema Registry
 
 <Tip>
-**PREMIUM EDITION FEATURE**
+**PREMIUM FEATURE**
 
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 AWS Glue Schema Registry is a serverless feature of AWS Glue that allows you to centrally manage and enforce schemas for data streams, enabling data validation and compatibility checks. It helps in improving the quality of data streams by providing a central repository for managing and enforcing schemas across various AWS services and custom applications.
 
-You can specify the following configurations in the `ENCODE AVRO (...)` clause to read schemas from Glue.
+You can specify the following configurations in the `FORMAT PLAIN ENCODE AVRO (...)` or `FORMAT UPSERT ENCODE AVRO (...)` clause to read schemas from Glue.
 
 **Auth-related configurations**:
 
@@ -139,6 +137,47 @@ If your Kafka cluster is in a different VPC and you're using AWS PrivateLink for
 | :------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------- |
 | `privatelink.endpoint`| The DNS name of your VPC endpoint. This is provided by AWS PrivateLink when you create the endpoint.                                         | Yes      |
 | `privatelink.targets` | A JSON array specifying the PrivateLink targets (port mappings) corresponding to your Kafka brokers.  The order *must* match the order of brokers in `properties.bootstrap.server`. Example: `'[{"port": 9094}, {"port": 9095}]'` | Yes      |
+
+
+### Examples
+
+The following examples show how to align `properties.bootstrap.server`, `privatelink.endpoint`, and `privatelink.targets`:
+
+**Multiple endpoints (1:1 mapping)**
+
+`privatelink.endpoint` is a JSON array and must align 1:1 by order with the addresses in `properties.bootstrap.server`. The `privatelink.targets` port list must also align by order.
+
+```sql
+-- Multiple endpoints
+WITH (
+  connector = 'kafka',
+  topic = 'your_topic',
+  properties.bootstrap.server = 'b-1.my-prod-kafka.abcd12.c2.kafka.us-east-1.amazonaws.com:9092,b-2.my-prod-kafka.abcd12.c2.kafka.us-east-1.amazonaws.com:9093,b-3.my-prod-kafka.abcd12.c2.kafka.us-east-1.amazonaws.com:9094',
+  privatelink.endpoint = '[{"host": "vpce-0abc111111111111-1111.us-east-1.vpce.amazonaws.com"}, {"host": "vpce-0abc222222222222-2222.us-east-1.vpce.amazonaws.com"}, {"host": "vpce-0abc333333333333-3333.us-east-1.vpce.amazonaws.com"}]',
+  privatelink.targets = '[{"port": 9092}, {"port": 9093}, {"port": 9094}]'
+)
+```
+
+The JSON arrays map 1:1 to the broker addresses in `properties.bootstrap.server` by position.
+
+**Single endpoint**
+
+You can specify a single value for `privatelink.endpoint`. RisingWave automatically applies this endpoint to all broker addresses in `properties.bootstrap.server`. The `privatelink.targets` port list must still align by order.
+  
+This works whether brokers are in the same AZ or in different AZs, as long as the endpoint supports cross-AZ routing without restrictions.
+
+```sql
+-- Single endpoint
+WITH (
+  connector = 'kafka',
+  topic = 'your_topic',
+  properties.bootstrap.server = 'nlb-kafka-use1a-1234567890abcdef.elb.us-east-1.amazonaws.com:9092,nlb-kafka-use1a-1234567890abcdef.elb.us-east-1.amazonaws.com:9093,nlb-kafka-use1a-1234567890abcdef.elb.us-east-1.amazonaws.com:9094',
+  privatelink.endpoint = 'vpce-0abc111111111111-1111.us-east-1.vpce.amazonaws.com',
+  privatelink.targets = '[{"port": 9092}, {"port": 9093}, {"port": 9094}]'
+)
+```
+
+The single `privatelink.endpoint` is automatically applied to all addresses.
 
 ## AWS MSK Configuration
 

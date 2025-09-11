@@ -1,25 +1,18 @@
 ---
-title: "Write data to Iceberg tables"
-description: "Learn how to stream data from RisingWave into existing Iceberg tables using the Iceberg sink connector."
+title: "Deliver to Iceberg tables"
+sidebarTitle: "Deliver to Iceberg tables"
+description: "Learn how to use the Iceberg sink in RisingWave to stream data into your existing Iceberg tables."
 ---
 
-This guide explains how to stream processed data from RisingWave into existing Iceberg tables as part of the **Bring Your Own Iceberg** approach. Use this when you have Iceberg tables managed by external systems and want RisingWave to write processed results into these tables.
+This guide explains how to stream processed data from RisingWave into existing Iceberg tables. Use this when you have Iceberg tables managed by external systems and want RisingWave to deliver processed results into them.
 
-## When to use Iceberg sinks
-
-Choose Iceberg sinks when:
-
-- **Existing data lake**: You have an established data lake with Iceberg tables that need real-time updates.
-- **Multi-system architecture**: Multiple applications write to the same Iceberg tables.
-- **Analytics pipeline**: You want to stream processed results into tables consumed by analytics tools.
-- **ETL/ELT workflows**: RisingWave processes data and loads results into your data warehouse.
 
 ## Prerequisites
 
-* Ensure you have existing Iceberg tables that you can write to, or the ability to create them via external systems.
+* Ensure you have existing Iceberg tables that you can deliver to, or the ability to create them via external systems.
 * Access credentials for the underlying object storage (e.g., S3 access key and secret key).
-* Appropriate permissions to write to the target Iceberg catalog and storage.
-* An upstream source, table, or materialized view in RisingWave to sink data from.
+* Appropriate permissions to deliver to the target Iceberg catalog and storage.
+* An upstream source, table, or materialized view in RisingWave to output data from.
 
 ## Basic connection example
 
@@ -39,9 +32,9 @@ WITH (
 );
 ```
 
-## Sink modes
+## Data update modes
 
-### Append-only sinks
+### Append-only
 
 Use append-only mode when you only want to add new records to the target table:
 
@@ -61,7 +54,7 @@ WITH (
 );
 ```
 
-### Upsert sinks
+### Upsert
 
 Use upsert mode when you need to handle updates and deletes:
 
@@ -216,6 +209,60 @@ The approximate time to commit is calculated as:
 time = barrier_interval_ms × checkpoint_frequency × commit_checkpoint_interval
 ```
 
+### Compaction for Iceberg sink
+
+<Note>
+Added in v2.5.0.
+</Note>
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+When sinking data to Iceberg, small data files and delete files can accumulate over time, degrading read performance. RisingWave supports Iceberg compaction to merge these files and expire old snapshots.
+
+To configure Iceberg compaction when creating a sink, specify the following parameters in the `WITH` clause:
+
+| Parameter                  | Description                                                                 |
+|:---------------------------|:----------------------------------------------------------------------------|
+| `enable_compaction`        | Whether to enable Iceberg compaction (`true`/`false`).                       |
+| `compaction_interval_sec`  | Interval (in seconds) between two compaction runs. Defaults to `3600` seconds. |
+| `enable_snapshot_expiration` | Whether to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
+
+```sql Example
+CREATE SINK sink_demo_rest FROM t
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = true,
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.path.style.access = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'http://localhost:8181/api/catalog',
+    warehouse.path = 'warehouse',
+    database.name = 'ns',
+    table.name = 't1',
+    -- the following configurations are about iceberg compaction
+    enable_compaction=true, 
+    compaction_interval_sec=3600, 
+    enable_snapshot_expiration=true
+);
+```
+
+<Warning>
+**Iceberg compaction also requires a dedicated Iceberg compactor**.
+
+Currently, please contact us via [RisingWave Slack workspace](https://www.risingwave.com/slack) to allocate the necessary resources. We are working on a self-service feature that will let you allocate Iceberg compactors directly from the cloud portal.
+</Warning>
+
+RisingWave also supports compaction for Iceberg table engine. For details, see [
+Compaction for Iceberg table engine](/iceberg/create-manage-native-iceberg-tables#compaction-for-native-iceberg-tables).
+
 ## Use with different storage backends
 
 ### Amazon S3
@@ -340,8 +387,8 @@ RisingWave data types map to Iceberg types as follows:
 | `commit_retry_num` | Number of commit retries | `8` |
 
 For detailed storage and catalog configuration:
-- **Object storage**: [Object storage configuration](/iceberg/byoi/object-storage)
-- **Catalogs**: [Catalog configuration](/iceberg/byoi/catalogs)
+- **Object storage**: [Object storage configuration](/iceberg/object-storage)
+- **Catalogs**: [Catalog configuration](/iceberg/catalogs)
 
 ## Integration patterns
 
@@ -434,22 +481,13 @@ SHOW SINKS;
 DESCRIBE SINK my_iceberg_sink;
 ```
 
-### Common issues
-
-**Permission errors**: Ensure RisingWave has write access to the catalog and storage
-**Schema mismatches**: Verify source and target schemas are compatible
-**Connectivity issues**: Check network access to catalog and storage services
-**Performance issues**: Monitor commit intervals and consider adjusting configuration
-
 ## Limitations
 
 - **Schema evolution**: Limited support for automatic schema changes.
 - **Concurrent writers**: Coordinate with other systems writing to the same tables.
-- **File size optimization**: Consider external compaction for optimal file sizes.
 
 ## Next steps
 
-- **Read from Iceberg**: Set up sources with [Read from Iceberg](/iceberg/byoi/read-from-iceberg).
-- **Configure catalogs**: Review [Catalog configuration](/iceberg/byoi/catalogs) for your setup.
-- **Storage setup**: Configure your object storage in [Object storage configuration](/iceberg/byoi/object-storage).
-- **Explore managed approach**: Consider [RisingWave Managed Iceberg](/iceberg/managed/overview) for simpler table management.
+- **Ingest from Iceberg**: Set up sources with [Ingest from Iceberg](/iceberg/ingest-from-iceberg).
+- **Configure catalogs**: Review [Catalog configuration](/iceberg/catalogs) for your setup.
+- **Storage setup**: Configure your object storage in [Object storage configuration](/iceberg/object-storage).

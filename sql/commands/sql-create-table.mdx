@@ -91,10 +91,10 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 | watermark\_clause                 | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For the watermark clause to be valid, the table must be an append-only table. That is, the APPEND ONLY option must be specified. This restriction only applies to a table. For details about watermarks, See [Watermarks](#watermarks) below for more.           |
 | APPEND ONLY                       | When this option is specified, the table will be created as an append-only table. An append-only table cannot have primary keys. UPDATE and DELETE statements are not valid for append-only tables. See [Watermarks](#append-only) below for more.                                                                            |
 | ON CONFLICT                       | Specify the alternative action when the newly inserted record brings a violation of PRIMARY KEY constraint on the table. See [PK conflict behavior](#pk-conflict-behavior) below for more information.                                                                                                                                                                                                  |
-| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause).                                                                                                                                                                                                                                                     |
+| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/extract-metadata-from-sources).                                                                                                                                                                                                                                                     |
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See the [Data ingestion](/ingestion/overview) page for the full list of supported source as well as links to specific connector pages detailing the syntax for each source.                                                                                                                                       |
-| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options).                                                                                                                                                                                                                  |
-| **ENGINE** | Specify the Iceberg table engine to store data natively in the Iceberg format. For more information, see [Create a table with the Iceberg engine](/iceberg/iceberg-table-engine#3-create-a-table-with-the-iceberg-engine).                                                                                                                                                                                                                  |
+| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats and encoding options](/ingestion/formats-and-encoding-options).                                                                                                                                                                                                                  |
+| **ENGINE** | Specify the Iceberg table engine to store data natively in the Iceberg format. For more information, see [Create and manage native Iceberg tables](/iceberg/create-manage-native-iceberg-tables).                                                                                                                                                                                                                  |
 
 <Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
@@ -110,7 +110,7 @@ The append-only table does not support delete or update operations, nor does it 
 
 ## Use Iceberg table engine
 
-In a `CREATE TABLE` statement, you can specify `ENGINE = iceberg` to store table data in the Apache Iceberg format on external object storage. This provides an alternative to RisingWave’s default internal row-based storage, making it easier to persist data for long-term use and cross-system access. For more information on the syntax and usage, see [Iceberg table engine](/iceberg/iceberg-table-engine).
+In a `CREATE TABLE` statement, you can specify `ENGINE = iceberg` to store table data in the Apache Iceberg format on external object storage. This provides an alternative to RisingWave’s default internal row-based storage, making it easier to persist data for long-term use and cross-system access. For more information on the syntax and usage, see [Create and manage native Iceberg tables](/iceberg/create-manage-native-iceberg-tables).
 
 ## Watermarks
 
@@ -133,9 +133,9 @@ Records with insert operations could introduce duplicate records with the same p
 
 The `conflict_action` could be one of the following. A [version column](#version-column) can be specified together for `DO UPDATE FULL` and `DO UPDATE IF NOT NULL`. When a version column is specified, the insert operation will take effect only when the newly inserted row's version column is greater than or equal to the existing row's version column, and is not NULL.
 
-* `IGNORE`: Ignore the newly inserted record.
-* `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Full update: replace the existing row in the table with the new row.
-* `DO UPDATE IF NOT NULL [WITH VERSION COLUMN(col_name)]`: Partial update: only replace those fields with non-NULL values in the inserted row. NULL values in the inserted row means unchanged in this case.
+* `DO NOTHING`: Ignore the newly inserted record.
+* `OVERWRITE [WITH VERSION COLUMN(col_name)]`: Full update — replace the existing row in the table with the new row. This is the default behavior.
+* `DO UPDATE IF NOT NULL [WITH VERSION COLUMN(col_name)]`: Partial update — only replace those fields with non-NULL values in the inserted row. NULL values in the inserted row means unchanged in this case.
 
 <Note>
 Delete and update operations on the table cannot break the primary key constraint on the table, so the option will not take effect for those cases.
