@@ -210,81 +210,90 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 
 RisingWave supports [TOASTed (The Oversized-Attribute Storage Technique) data](https://www.postgresql.org/docs/current/storage-toast.html) from PostgreSQL when using the CDC connector. This ensures that even columns with very large values, such as long text or large JSON objects, are ingested completely and accurately during both the initial backfill and incremental changes.
 
-RisingWave can process changes to rows with TOASTed data even if the upstream table's `REPLICA IDENTITY` is set to `default`. RisingWave achieves this by leveraging its own materialized state of the source data. When an `UPDATE` or `DELETE` event occurs, RisingWave uses the record stored within its materialized view to construct the full change event, rather than relying on the `before` field in the CDC message.
+Supported TOAST-able data types:
 
-The example below demonstrates how RisingWave ingests large data that triggers PostgreSQL's TOAST mechanism.
+- Scalar types: `varchar`, `text`, `xml`, `jsonb`, `bytea`.
+- Array types: `varchar[]`, `text[]`, `jsonb[]`, `bytea[]`.
 
-1. Create a table in PostgreSQL with large JSONB and TEXT columns and insert initial data.
+The example below demonstrates how RisingWave ingests large data that triggers PostgreSQL's TOAST mechanism and ensures that large fields are not lost even when non-TOAST columns are updated.
 
-    ```sql
-    CREATE TABLE toast_test_table (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    large_jsonb JSONB,
-    large_text TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
-    );
+1. Create a table with TOAST-able columns in PostgreSQL.
 
-    INSERT INTO toast_test_table (name, large_jsonb, large_text)
-    SELECT
-    'toast_record_' || s,
-    jsonb_build_object(
-        'id', s,
-        'large_string', repeat('This is a very long string that will trigger TOAST. ', 80),
-        'nested_object', jsonb_build_object('deep_content', repeat('Deep nested content. ', 40)),
-        'metadata', jsonb_build_object('description', repeat('Extra metadata. ', 30))
-    ),
-    repeat('Large text field that also triggers TOAST. ', 60)
-    FROM generate_series(1, 4) s;
-    ```
+```
+CREATE TABLE test_toast (
+    id int PRIMARY KEY,
+    v_text text,
+    v_json jsonb,
+    v_bytea bytea
+);
+```
 
-2. Create a RisingWave source using PostgreSQL CDC.
+2. Insert large TOAST data in PostgreSQL.
 
-    ```sql
-    CREATE SOURCE toast_test_source WITH (
+```
+INSERT INTO test_toast (id, v_text, v_json, v_bytea)
+VALUES (
+    1,
+    repeat('long_text_', 10000),  -- large text triggers TOAST
+    jsonb_build_object('data', repeat('x', 50000)),  -- large JSON triggers TOAST
+    repeat('a', 2000000)::bytea  -- large bytea triggers TOAST
+);
+```
+
+3. Create a RisingWave source from PostgreSQL CDC.
+
+```
+CREATE SOURCE src_test_toast WITH (
     connector = 'postgres-cdc',
-    hostname = '${PGHOST:localhost}',
-    port = '${PGPORT:8432}',
-    username = '${PGUSER:$USER}',
-    password = '${PGPASSWORD:123456}',
-    database.name = '${PGDATABASE:mydb}',
+    hostname = 'localhost',
+    port = 5432,
+    username = 'pguser',
+    password = 'pgpassword',
+    database.name = 'mydb',
     schema.name = 'public',
-    slot.name = 'toast_test_slot'
-    );
-    ```
+    slot.name = 'rw_slot_toast_example'
+);
+```
 
-3. Create a RisingWave table from the source.
+4. Create a RisingWave table from the source.
 
-    ```sql
-    CREATE TABLE toast_test_table (
-    id INT PRIMARY KEY,
-    name VARCHAR,
-    large_jsonb JSONB,
-    large_text TEXT,
-    created_at TIMESTAMP
-    ) FROM toast_test_source TABLE 'public.toast_test_table';
-    ```
+```
+CREATE TABLE rw_test_toast(*) FROM src_test_toast TABLE 'public.test_toast';
+```
 
-4. Verify the data in RisingWave.
+5. Verify data is ingested in RisingWave with TOAST preserved.
 
-    After a short wait for synchronization, you can query the table in RisingWave. The `octet_length` function confirms that the full, un-truncated data has been successfully ingested.
+```
+SELECT
+    id,
+    CASE WHEN octet_length(v_text) > 15000 THEN 'toast-triggered' ELSE 'small' END AS v_text_check,
+    CASE WHEN octet_length(v_json::text) > 50000 THEN 'toast-triggered' ELSE 'small' END AS v_json_check,
+    CASE WHEN octet_length(v_bytea) > 1500000 THEN 'toast-triggered' ELSE 'small' END AS v_bytea_check
+FROM rw_test_toast
+WHERE id = 1;
+```
 
-    ```sql
-    SELECT
-        id,
-        name,
-        octet_length(large_jsonb::text) + octet_length(large_text) as total_size_bytes,
-        large_jsonb ? 'large_string' as has_large_string,
-        large_jsonb ? 'nested_object' as has_nested_object
-    FROM toast_test_table
-    ORDER BY id;
+6. Update non-TOAST column to test placeholder handling.
 
-    ----RESULT
-    1 toast_record_1 17261 t t
-    2 toast_record_2 17261 t t
-    3 toast_record_3 17261 t t
-    4 toast_record_4 17261 t t
-    ```
+```
+ALTER TABLE test_toast ADD COLUMN v_counter int DEFAULT 0;
+UPDATE test_toast SET v_counter = 1 WHERE id = 1;
+```
+
+Verify TOAST columns remain intact.
+
+```
+SELECT
+    id,
+    octet_length(v_text) AS text_len,
+    octet_length(v_json::text) AS json_len,
+    octet_length(v_bytea) AS bytea_len,
+    v_counter
+FROM rw_test_toast
+WHERE id = 1;
+```
+
+RisingWave can process changes to rows with TOASTed data even if the upstream table's `REPLICA IDENTITY` is set to `default`. It achieves this by leveraging its own materialized state of the source data. When an `UPDATE` or `DELETE` event occurs, RisingWave uses the record stored within its materialized view to construct the full change event, rather than relying on the `before` field in the CDC message.
 
 ### Use dbt to ingest data from PostgreSQL CDC
 
