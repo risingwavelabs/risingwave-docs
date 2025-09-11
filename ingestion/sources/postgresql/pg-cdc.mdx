@@ -19,6 +19,37 @@ Before connecting to RisingWave, you must enable logical replication on your ups
 
 Once setup is complete, return to this guide to connect RisingWave.
 
+## User permissions
+
+Before connecting to PostgreSQL CDC, you need to set up proper user permissions. The PostgreSQL user used for CDC must have specific privileges to perform logical replication.
+
+### Required user permissions
+
+The replication user needs the following permissions:
+
+* `REPLICATION` privilege
+* `CONNECT` privilege on the target database
+* `SELECT` privilege on the tables to be replicated
+* Permission to create publications (if `publication.create.enable` is enabled)
+
+### Publication permissions
+
+If you don't make any special settings, RisingWave will automatically help you create publications. In this case, the user needs:
+
+* **CREATE PUBLICATION permission**: The user must be the database owner, have SUPERUSER privileges, or have CREATE privileges on the database
+* **ALTER PUBLICATION ADD TABLE permission**: The user must be the table owner or have SUPERUSER privileges
+
+If you set `publication.create.enable = 'false'`, the user only needs SELECT privileges on the tables, and you must manually create the publication. This approach reduces permission requirements since you don't need to be the table owner.
+
+### Setting up permissions
+
+For basic user creation and privilege granting, see the setup instructions for your specific PostgreSQL deployment:
+
+* **[Self-hosted PostgreSQL](/ingestion/sources/postgresql/self-hosted)**
+* **[AWS RDS PostgreSQL](/ingestion/sources/postgresql/aws-rds)**
+* **[Neon PostgreSQL](/ingestion/sources/postgresql/neon)**
+* **[Supabase PostgreSQL](/ingestion/sources/postgresql/supabase)**
+
 ## Connect to PostgreSQL
 
 RisingWave uses the `CREATE SOURCE` or `CREATE TABLE ... FROM source` syntax to connect to PostgreSQL CDC. You'll use `CREATE SOURCE` to create a shared source, and then create multiple tables from it, each representing a table in the upstream PostgreSQL database.
