@@ -136,7 +136,7 @@ Input can be of any numeric, string, date/time, or interval type, or an array of
 Added in v2.6.0.
 </Note>
 
-Returns the first argument where the second argument (comparison value) is the largest.
+Returns the first argument where the second argument (comparison value) is the largest. If multiple rows have the same maximum value, use `ORDER BY` to determine which row to return.
 
 ```sql
 arg_max (any, any [ORDER BY ...]) -> any
@@ -145,6 +145,9 @@ arg_max (any, any [ORDER BY ...]) -> any
 ```Example
 select arg_max(name, score) from students;
 -- Returns the name of the student with the highest score
+
+select arg_max(name, score order by age desc) from students;
+-- Returns the name of the oldest student among those with the highest score
 ```
 
 ### `arg_min`
@@ -153,7 +156,7 @@ select arg_max(name, score) from students;
 Added in v2.6.0.
 </Note>
 
-Returns the first argument where the second argument (comparison value) is the smallest.
+Returns the first argument where the second argument (comparison value) is the smallest. If multiple rows have the same minimum value, use `ORDER BY` to determine which row to return.
 
 ```sql
 arg_min (any, any [ORDER BY ...]) -> any
@@ -162,8 +165,10 @@ arg_min (any, any [ORDER BY ...]) -> any
 ```Example
 select arg_min(name, score) from students;
 -- Returns the name of the student with the lowest score
-```
 
+select arg_min(name, score order by age) from students;
+-- Returns the name of the youngest student among those with the lowest score
+```
 
 ### `string_agg`
 
