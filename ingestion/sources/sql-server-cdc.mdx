@@ -99,6 +99,25 @@ Unless specified otherwise, the fields listed are required. Note that the value 
 |database.encrypt| **Optional**. Specify whether to enable SSL encryption. Currently, `trustServerCertificate` is enabled regardless of the value of `database.encrypt`. |
 | sqlserver_table_name | The identifier of SQL Server table in the format of `database_name.schema_name.table_name`. |
 
+### Advanced Parameters
+
+| Parameter | Description | Required | Default |
+| :-------- | :---------- | :------- | :------ |
+| server.id | Unique numeric ID for the database client. Must be unique across all database connections. | No | Auto-generated |
+| snapshot.mode | Debezium snapshot mode for initial data capture. Options: initial, initial_only, never. | No | initial |
+| snapshot.fetch.size | Number of rows to fetch per batch during snapshot. | No | 2000 |
+| snapshot.isolation.mode | Transaction isolation level during snapshot. | No | repeatable_read |
+| snapshot.interval | Interval between snapshots. | No | 1 |
+| snapshot.batch_size | Batch size for snapshot operations. | No | 1000 |
+| auto.schema.change | Enable automatic schema change detection. | No | false |
+| ssl.mode | SSL connection mode: disabled, preferred, or required. | No | disabled |
+| transactional | Enable transactional support for shared CDC source. | No | true |
+| cdc.source.wait.streaming.start.timeout | Timeout for waiting for streaming to start (in milliseconds). | No | 60000 |
+| table.whitelist | Comma-separated list of tables to include. Alternative to specifying single table.name. | No |  |
+| table.blacklist | Comma-separated list of tables to exclude. | No |  |
+| column.whitelist | Comma-separated list of columns to include. | No |  |
+| column.blacklist | Comma-separated list of columns to exclude. | No |  |
+
 <Note>
 As noted earlier, RisingWave will use the available capture instance to create a CDC table. If multiple capture instances exist, RisingWave will randomly choose one. Specifying a particular capture instance is not supported.
 
@@ -195,6 +214,94 @@ CREATE SOURCE mssql_mydb WITH (
 With the source created, you can create multiple CDC tables that ingest data from different tables and schemas in the upstream database without needing to specify the database connection parameters again.
 
 For instance, the following CDC table in RisingWave ingests data from table `tt3` in the schema `dbo`. When specifying the SQL Server table name in the `FROM` clause after the keyword `TABLE`, the schema name must also be specified.
+
+## Data Type Mappings
+
+| SQL Server Type | RisingWave Type | Notes |
+| :-------------- | :-------------- | :---- |
+| bit | BOOLEAN | |
+| tinyint | SMALLINT | |
+| smallint | SMALLINT | |
+| int | INTEGER | |
+| bigint | BIGINT | |
+| decimal/numeric | DECIMAL | |
+| money | DECIMAL(19,4) | |
+| smallmoney | DECIMAL(10,4) | |
+| float | DOUBLE PRECISION | |
+| real | REAL | |
+| date | DATE | |
+| datetime | TIMESTAMP | |
+| datetime2 | TIMESTAMP | |
+| smalldatetime | TIMESTAMP | |
+| char | VARCHAR | |
+| varchar | VARCHAR | |
+| text | VARCHAR | |
+| nchar | VARCHAR | |
+| nvarchar | VARCHAR | |
+| ntext | VARCHAR | |
+| binary | BYTEA | |
+| varbinary | BYTEA | |
+| image | BYTEA | |
+| uniqueidentifier | VARCHAR(36) | |
+
+## Monitoring and Troubleshooting
+
+### Check CDC Status
+```sql
+-- Check if CDC is enabled on database
+SELECT name, is_cdc_enabled FROM sys.databases WHERE name = 'your_database';
+
+-- Check if CDC is enabled on tables  
+SELECT s.name as schema_name, t.name as table_name, t.is_tracked_by_cdc
+FROM sys.tables t
+JOIN sys.schemas s ON t.schema_id = s.schema_id
+WHERE t.is_tracked_by_cdc = 1;
+
+-- Check capture job status
+SELECT * FROM msdb.dbo.cdc_jobs WHERE job_type = 'capture';
+
+-- Check cleanup job status  
+SELECT * FROM msdb.dbo.cdc_jobs WHERE job_type = 'cleanup';
+```
+
+### Monitor Replication Progress
+```sql
+-- Check current LSN (Log Sequence Number)
+SELECT sys.fn_cdc_get_max_lsn() as max_lsn;
+
+-- Check CDC changes for a specific table
+DECLARE @begin_lsn binary(10), @end_lsn binary(10);
+SET @begin_lsn = sys.fn_cdc_get_min_lsn('dbo_your_table');
+SET @end_lsn = sys.fn_cdc_get_max_lsn();
+
+SELECT * FROM cdc.fn_cdc_get_all_changes_dbo_your_table(@begin_lsn, @end_lsn, 'all');
+```
+
+### Common Issues and Solutions
+
+1. **CDC not enabled**: Ensure CDC is enabled at both database and table levels
+2. **SQL Server Agent not running**: CDC requires SQL Server Agent to be running
+3. **Permission errors**: Grant proper SELECT permissions on CDC tables
+4. **LSN gaps**: Monitor for LSN gaps that might indicate data loss
+5. **Cleanup job issues**: Ensure cleanup jobs are running to prevent CDC table bloat
+6. **Network connectivity**: Verify firewall rules and SQL Server port access
+7. **Authentication issues**: Check SQL Server authentication mode and user permissions
+
+### Performance Considerations
+
+- **Change table cleanup**: Ensure cleanup jobs are running regularly
+- **Index maintenance**: Maintain indexes on source tables for better CDC performance
+- **Monitoring**: Monitor CDC table sizes and cleanup job execution
+- **Resource allocation**: Allocate sufficient resources for capture jobs
+
+## Limitations
+
+- **System tables**: CDC cannot be enabled on system tables
+- **Memory-optimized tables**: CDC is not supported on memory-optimized tables
+- **Filestream columns**: Limited support for FILESTREAM columns
+- **Computed columns**: CDC captures computed column values, not the computation logic
+- **Encrypted columns**: Encrypted columns may require additional configuration
+- **Multiple capture instances**: RisingWave randomly selects one if multiple exist
 
 ```sql
 CREATE TABLE tt3 (

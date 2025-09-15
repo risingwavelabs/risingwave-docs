@@ -4,3 +4,669 @@ description: "This guide describes how to sink data from RisingWave to Apache Ic
 sidebarTitle: Apache Iceberg
 url: "/iceberg/deliver-to-iceberg"
 ---
+
+[Apache Iceberg](https://iceberg.apache.org/) is an open table format for huge analytic datasets. Iceberg adds tables to compute engines including Spark, Trino, PrestoDB, Flink, Hive, and Impala using a high-performance table format that works just like a SQL table.
+
+The Iceberg sink connector provides:
+- **Real-time data delivery**: Stream data changes directly to Iceberg tables
+- **Exactly-once semantics**: Ensure data consistency with exactly-once delivery guarantees
+- **Multiple catalog support**: Works with storage, REST, JDBC, Hive, Glue, and Snowflake catalogs
+- **Flexible partitioning**: Support for various partition strategies and transformations
+- **Dual write modes**: Choose between merge-on-read and copy-on-write for optimal performance
+- **Comprehensive storage**: Works with S3, GCS, Azure Blob, and local file systems
+- **Automatic table management**: Auto-create tables and namespaces if they don't exist
+- **Built-in maintenance**: Automatic compaction and snapshot expiration capabilities
+
+## Prerequisites
+
+Before sinking data from RisingWave to Apache Iceberg, please ensure the following:
+
+* The Iceberg catalog and storage system are accessible from RisingWave.
+* Ensure you have an upstream materialized view or source in RisingWave that you can sink data from.
+* The target Iceberg table exists or can be auto-created.
+* Appropriate storage credentials are configured (S3, GCS, Azure, etc.).
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector='iceberg',
+   connector_parameter = 'value', ...
+);
+```
+
+## Parameters
+
+### Basic Parameters
+
+| Parameter Name | Description | Required | Default |
+| :------------- | :---------- | :------- | :------ |
+| connector | **Required**. Must be set to `iceberg`. | Yes | |
+| type | **Required**. Sink type: `append-only` or `upsert`. | Yes | |
+| table.name | **Required**. Full table name including schema (e.g., `schema.table`). | Yes | |
+| database.name | Database name for the Iceberg table. | No | |
+| primary_key | **Required for upsert**. Primary key columns, comma-separated. | No (required for upsert) | |
+
+### Catalog Configuration
+
+| Parameter Name | Description | Required | Default |
+| :------------- | :---------- | :------- | :------ |
+| catalog.type | Catalog type: `storage`, `rest`, `jdbc`, `hive`, `glue`, `snowflake`. | No | storage |
+| catalog.name | Catalog name. | No | risingwave |
+| catalog.uri | URI for REST catalog (required when catalog.type=rest). | No | |
+| warehouse.path | Path to Iceberg warehouse. | No | |
+
+### Write Mode Configuration
+
+| Parameter Name | Description | Required | Default |
+| :------------- | :---------- | :------- | :------ |
+| write_mode | Write mode: `merge-on-read` or `copy-on-write`. | No | merge-on-read |
+| force_append_only | Force append-only mode regardless of sink type. | No | false |
+| partition_by | Partition specification (e.g., `year(date_col), month(date_col)`). | No | |
+
+### Exactly-Once Configuration
+
+| Parameter Name | Description | Required | Default |
+| :------------- | :---------- | :------- | :------ |
+| is_exactly_once | Enable exactly-once delivery semantics. | No | false |
+| commit_retry_num | Number of retry attempts for commits. | No | 8 |
+| commit_checkpoint_interval | Commit every N checkpoints. | No | 10 |
+
+### Storage Configuration
+
+#### S3 Storage
+| Parameter Name | Description | Required |
+| :------------- | :---------- | :------- |
+| s3.region | AWS region. | No |
+| s3.endpoint | S3 endpoint URL. | No |
+| s3.access.key | AWS access key. | No |
+| s3.secret.key | AWS secret key. | No |
+| s3.path.style.access | Use path-style S3 URLs. | No |
+
+#### GCS Storage
+| Parameter Name | Description | Required |
+| :------------- | :---------- | :------- |
+| gcs.credential | GCS credentials JSON. | No |
+
+#### Azure Blob Storage
+| Parameter Name | Description | Required |
+| :------------- | :---------- | :------- |
+| azblob.account_name | Azure account name. | No |
+| azblob.account_key | Azure account key. | No |
+| azblob.endpoint_url | Azure endpoint URL. | No |
+
+### Table Management
+
+| Parameter Name | Description | Required | Default |
+| :------------- | :---------- | :------- | :------ |
+| create_table_if_not_exists | Auto-create table if it doesn't exist. | No | false |
+
+### Compaction & Maintenance
+
+| Parameter Name | Description | Required | Default |
+| :------------- | :---------- | :------- | :------ |
+| enable_compaction | Enable Iceberg compaction. | No | false |
+| compaction_interval_sec | Compaction interval in seconds. | No | 3600 |
+| enable_snapshot_expiration | Enable snapshot expiration. | No | false |
+| snapshot_expiration_max_age_millis | Maximum age for snapshots. | No | |
+| snapshot_expiration_retain_last | Number of snapshots to retain. | No | |
+| snapshot_expiration_clear_expired_files | Clear expired files. | No | true |
+| snapshot_expiration_clear_expired_meta_data | Clear expired metadata. | No | true |
+
+### Advanced Catalog Options
+
+| Parameter Name | Description | Required |
+| :------------- | :---------- | :------- |
+| catalog.credential | OAuth2 credential for REST catalog. | No |
+| catalog.token | Bearer token for REST catalog. | No |
+| catalog.oauth2_server_uri | OAuth2 server URI. | No |
+| catalog.scope | OAuth2 scope. | No |
+| catalog.rest.signing_region | SigV4 signing region. | No |
+| catalog.rest.signing_name | SigV4 signing name. | No |
+| catalog.rest.sigv4_enabled | Enable SigV4 signing. | No |
+| catalog.header | Custom HTTP headers. | No |
+| enable_config_load | Load credentials from environment. | No |
+| hosted_catalog | Enable hosted catalog mode. | No |
+
+## Configuration examples
+
+### Basic append-only sink with S3 storage
+
+```sql
+CREATE SINK iceberg_append_sink
+FROM user_activity_mv
+WITH (
+    connector='iceberg',
+    type = 'append-only',
+    table.name = 'analytics.user_activity',
+    catalog.type = 'storage',
+    warehouse.path = 's3://my-iceberg-warehouse/',
+    s3.region = 'us-east-1',
+    s3.access.key = 'AKIAIOSFODNN7EXAMPLE',
+    s3.secret.key = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+);
+```
+
+### Upsert sink with REST catalog
+
+```sql
+CREATE SINK iceberg_upsert_sink
+FROM user_profiles_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'user_id',
+    table.name = 'users.profiles',
+    catalog.type = 'rest',
+    catalog.uri = 'http://iceberg-rest-catalog:8181',
+    catalog.name = 'production_catalog',
+    warehouse.path = 's3://production-warehouse/'
+);
+```
+
+### Partitioned sink with time-based partitioning
+
+```sql
+CREATE SINK iceberg_partitioned_sink
+FROM events_mv
+WITH (
+    connector='iceberg',
+    type = 'append-only',
+    table.name = 'events.all_events',
+    catalog.type = 'storage',
+    warehouse.path = 's3://events-warehouse/',
+    partition_by = 'year(event_time), month(event_time), day(event_time)',
+    s3.region = 'us-west-2',
+    s3.endpoint = 'https://s3.us-west-2.amazonaws.com'
+);
+```
+
+### High-performance merge-on-read configuration
+
+```sql
+CREATE SINK iceberg_mor_sink
+FROM analytics_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'analytics_id',
+    table.name = 'analytics.metrics',
+    catalog.type = 'storage',
+    warehouse.path = 's3://analytics-warehouse/',
+    write_mode = 'merge-on-read',
+    s3.region = 'eu-west-1',
+    s3.access.key = 'AKIAIOSFODNN7EXAMPLE',
+    s3.secret.key = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+);
+```
+
+### Copy-on-write for read-optimized performance
+
+```sql
+CREATE SINK iceberg_cow_sink
+FROM reporting_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'report_id',
+    table.name = 'reports.daily_reports',
+    catalog.type = 'storage',
+    warehouse.path = 's3://reports-warehouse/',
+    write_mode = 'copy-on-write',
+    s3.region = 'ap-southeast-1'
+);
+```
+
+### Exactly-once semantics with automatic table creation
+
+```sql
+CREATE SINK iceberg_exactly_once_sink
+FROM critical_data_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'data_id',
+    table.name = 'critical.critical_data',
+    catalog.type = 'storage',
+    warehouse.path = 's3://critical-data-warehouse/',
+    is_exactly_once = 'true',
+    create_table_if_not_exists = 'true',
+    commit_retry_num = '10',
+    s3.region = 'us-east-1'
+);
+```
+
+### Azure Blob Storage configuration
+
+```sql
+CREATE SINK iceberg_azure_sink
+FROM cloud_data_mv
+WITH (
+    connector='iceberg',
+    type = 'append-only',
+    table.name = 'cloud.data',
+    catalog.type = 'storage',
+    warehouse.path = 'abfs://container@account.dfs.core.windows.net/warehouse',
+    azblob.account_name = 'mystorageaccount',
+    azblob.account_key = 'myaccountkey',
+    azblob.endpoint_url = 'https://account.blob.core.windows.net'
+);
+```
+
+### GCS storage with service account
+
+```sql
+CREATE SINK iceberg_gcs_sink
+FROM gcp_data_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'record_id',
+    table.name = 'gcp.records',
+    catalog.type = 'storage',
+    warehouse.path = 'gs://my-gcs-bucket/warehouse/',
+    gcs.credential = '{"type":"service_account","project_id":"my-project",...}'
+);
+```
+
+### Advanced configuration with compaction and snapshot management
+
+```sql
+CREATE SINK iceberg_advanced_sink
+FROM enterprise_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'enterprise_id',
+    table.name = 'enterprise.data',
+    catalog.type = 'storage',
+    warehouse.path = 's3://enterprise-warehouse/',
+    enable_compaction = 'true',
+    compaction_interval_sec = '7200',
+    enable_snapshot_expiration = 'true',
+    snapshot_expiration_max_age_millis = '604800000',
+    snapshot_expiration_retain_last = '10',
+    s3.region = 'us-east-1'
+);
+```
+
+### Hive catalog configuration
+
+```sql
+CREATE SINK iceberg_hive_sink
+FROM hive_data_mv
+WITH (
+    connector='iceberg',
+    type = 'append-only',
+    table.name = 'hive_db.hive_table',
+    catalog.type = 'hive',
+    catalog.uri = 'thrift://hive-metastore:9083',
+    warehouse.path = 's3://hive-warehouse/',
+    s3.region = 'us-west-1'
+);
+```
+
+### AWS Glue catalog with IAM role
+
+```sql
+CREATE SINK iceberg_glue_sink
+FROM aws_data_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'aws_id',
+    table.name = 'glue_catalog.aws_table',
+    catalog.type = 'glue',
+    catalog.name = 'my_glue_catalog',
+    warehouse.path = 's3://glue-warehouse/',
+    s3.region = 'eu-central-1'
+);
+```
+
+## Write modes
+
+### Append-only mode
+
+```sql
+CREATE SINK iceberg_append_only_sink
+FROM events_mv
+WITH (
+    connector='iceberg',
+    type = 'append-only',
+    table.name = 'events.raw_events',
+    catalog.type = 'storage',
+    warehouse.path = 's3://events-warehouse/',
+    s3.region = 'us-east-1'
+);
+```
+
+### Upsert mode with primary key
+
+```sql
+CREATE SINK iceberg_upsert_mode_sink
+FROM user_profiles_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'user_id,profile_version',
+    table.name = 'users.profiles',
+    catalog.type = 'storage',
+    warehouse.path = 's3://users-warehouse/',
+    s3.region = 'us-west-2'
+);
+```
+
+## Advanced configurations
+
+### Complex partitioning with multiple transforms
+
+```sql
+CREATE SINK iceberg_complex_partition_sink
+FROM complex_data_mv
+WITH (
+    connector='iceberg',
+    type = 'append-only',
+    table.name = 'analytics.complex_data',
+    catalog.type = 'storage',
+    warehouse.path = 's3://analytics-warehouse/',
+    partition_by = 'bucket(id, 16), truncate(description, 4), year(created_at), month(created_at)',
+    s3.region = 'us-east-1'
+);
+```
+
+### REST catalog with OAuth2 authentication
+
+```sql
+CREATE SINK iceberg_oauth_sink
+FROM secure_data_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'secure_id',
+    table.name = 'secure.data',
+    catalog.type = 'rest',
+    catalog.uri = 'https://secure-iceberg-rest.com',
+    catalog.credential = 'client_id:client_secret',
+    catalog.oauth2_server_uri = 'https://auth-server.com/oauth2/token',
+    catalog.scope = 'read,write',
+    warehouse.path = 's3://secure-warehouse/',
+    s3.region = 'us-east-1'
+);
+```
+
+### Development configuration with local storage
+
+```sql
+CREATE SINK iceberg_local_sink
+FROM development_mv
+WITH (
+    connector='iceberg',
+    type = 'append-only',
+    table.name = 'dev.test_table',
+    catalog.type = 'storage',
+    warehouse.path = 'file:///tmp/iceberg-warehouse/',
+    create_table_if_not_exists = 'true'
+);
+```
+
+## Data type mapping
+
+| Iceberg Type | RisingWave Type | Notes |
+| :------------- | :-------------- | :---- |
+| boolean | BOOLEAN | |
+| int | INTEGER | |
+| long | BIGINT | |
+| float | REAL | |
+| double | DOUBLE | |
+| decimal | DECIMAL | |
+| date | DATE | |
+| time | TIME | |
+| timestamp | TIMESTAMP | |
+| timestamptz | TIMESTAMPTZ | |
+| string | VARCHAR | |
+| fixed | BYTEA | |
+| binary | BYTEA | |
+| struct | STRUCT | |
+| list | ARRAY | |
+| map | MAP | |
+
+## Monitoring and troubleshooting
+
+### Monitor sink performance
+
+```sql
+-- Check sink status
+SELECT * FROM rw_sinks WHERE name = 'iceberg_sink_name';
+
+-- Monitor sink metrics
+SELECT * FROM rw_sink_metrics WHERE sink_id = 'your_sink_id';
+```
+
+### Iceberg table inspection
+
+```bash
+# Check table metadata
+java -jar iceberg-cli.jar table metadata my_table --catalog-type=storage --warehouse=s3://my-warehouse/
+
+# List snapshots
+java -jar iceberg-cli.jar table snapshots my_table --catalog-type=storage --warehouse=s3://my-warehouse/
+
+# Check table statistics
+java -jar iceberg-cli.jar table stats my_table --catalog-type=storage --warehouse=s3://my-warehouse/
+```
+
+### Common issues and solutions
+
+1. **Catalog connection failures**: Verify catalog URI and credentials
+2. **Storage access errors**: Check storage credentials and permissions
+3. **Table not found**: Ensure table exists or enable auto-creation
+4. **Partition conflicts**: Verify partition specification matches table
+5. **Snapshot conflicts**: Check for concurrent writers
+6. **Memory issues**: Monitor heap usage during compaction
+
+### Performance optimization
+
+- **Batch size**: Configure appropriate commit intervals
+- **Partitioning**: Use appropriate partition strategies
+- **Write mode**: Choose merge-on-read for write performance, copy-on-write for read performance
+- **Compaction**: Enable compaction for long-running tables
+- **Snapshot management**: Configure snapshot expiration to manage storage
+
+## Security best practices
+
+### S3 storage with IAM roles
+
+```sql
+CREATE SINK iceberg_secure_s3_sink
+FROM secure_data_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'data_id',
+    table.name = 'secure.data',
+    catalog.type = 'storage',
+    warehouse.path = 's3://secure-warehouse/',
+    s3.region = 'us-east-1',
+    enable_config_load = 'true'
+);
+```
+
+### Encrypted storage
+
+```sql
+CREATE SINK iceberg_encrypted_sink
+FROM sensitive_data_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'sensitive_id',
+    table.name = 'sensitive.records',
+    catalog.type = 'storage',
+    warehouse.path = 's3://encrypted-warehouse/',
+    s3.region = 'us-east-1',
+    s3.access.key = 'encrypted_access_key',
+    s3.secret.key = 'encrypted_secret_key'
+);
+```
+
+### Network security
+
+```sql
+CREATE SINK iceberg_network_secure_sink
+FROM protected_data_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'protected_id',
+    table.name = 'protected.data',
+    catalog.type = 'rest',
+    catalog.uri = 'https://internal-iceberg-rest:8443',
+    catalog.rest.sigv4_enabled = 'true',
+    catalog.rest.signing_region = 'us-east-1',
+    warehouse.path = 's3://internal-warehouse/',
+    s3.region = 'us-east-1'
+);
+```
+
+## Limitations
+
+- **Memory usage**: Large tables may require significant memory for metadata operations
+- **Catalog dependencies**: Requires compatible Iceberg catalog implementation
+- **Storage costs**: Frequent snapshots may increase storage costs
+- **Network latency**: Performance depends on network connectivity to storage
+- **Concurrent writers**: Limited support for high-concurrency scenarios
+- **Schema evolution**: Limited automatic schema migration support
+
+## Integration examples
+
+### Real-time analytics lakehouse
+
+```sql
+-- Create materialized view for real-time analytics
+CREATE MATERIALIZED VIEW user_analytics_mv AS
+SELECT
+    user_id,
+    COUNT(*) as event_count,
+    MAX(event_time) as last_event_time,
+    JSONB_OBJECT_AGG(event_type, COUNT(*)) as event_breakdown
+FROM user_events
+GROUP BY user_id;
+
+-- Sink to Iceberg for lakehouse analytics
+CREATE SINK user_analytics_iceberg_sink
+FROM user_analytics_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'user_id',
+    table.name = 'analytics.user_analytics',
+    catalog.type = 'storage',
+    warehouse.path = 's3://analytics-lakehouse/',
+    partition_by = 'year(last_event_time), month(last_event_time)',
+    enable_compaction = 'true',
+    enable_snapshot_expiration = 'true',
+    s3.region = 'us-east-1'
+);
+```
+
+### IoT data processing with time-based partitioning
+
+```sql
+-- Process IoT sensor data
+CREATE MATERIALIZED VIEW iot_device_metrics_mv AS
+SELECT
+    device_id,
+    AVG(temperature) as avg_temperature,
+    AVG(humidity) as avg_humidity,
+    MAX(reading_time) as last_reading,
+    COUNT(*) as reading_count
+FROM iot_sensor_data
+WHERE reading_time >= NOW() - INTERVAL '1 hour'
+GROUP BY device_id;
+
+-- Sink to Iceberg for IoT analytics
+CREATE SINK iot_metrics_iceberg_sink
+FROM iot_device_metrics_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'device_id',
+    table.name = 'iot.device_metrics',
+    catalog.type = 'storage',
+    warehouse.path = 's3://iot-lakehouse/',
+    partition_by = 'year(last_reading), month(last_reading), day(last_reading), hour(last_reading)',
+    write_mode = 'merge-on-read',
+    s3.region = 'us-west-2'
+);
+```
+
+### Financial data with exactly-once semantics
+
+```sql
+-- Process financial transactions
+CREATE MATERIALIZED VIEW transaction_summary_mv AS
+SELECT
+    transaction_id,
+    account_id,
+    transaction_type,
+    SUM(amount) as total_amount,
+    COUNT(*) as transaction_count,
+    MAX(transaction_date) as last_transaction_date
+FROM financial_transactions
+GROUP BY transaction_id, account_id, transaction_type;
+
+-- Sink to Iceberg with exactly-once semantics
+CREATE SINK financial_iceberg_sink
+FROM transaction_summary_mv
+WITH (
+    connector='iceberg',
+    type = 'upsert',
+    primary_key = 'transaction_id',
+    table.name = 'financial.transactions',
+    catalog.type = 'storage',
+    warehouse.path = 's3://financial-lakehouse/',
+    is_exactly_once = 'true',
+    commit_retry_num = '15',
+    enable_compaction = 'true',
+    compaction_interval_sec = '3600',
+    s3.region = 'eu-central-1'
+);
+```
+
+## What's next?
+
+- [Monitor sink progress](/operate/monitor-statement-progress)
+- [Sink performance tuning](/performance/best-practices)
+- [Iceberg documentation](https://iceberg.apache.org/docs/)
+- [Iceberg catalog configuration](https://iceberg.apache.org/docs/latest/configuration/)
+- [RisingWave sink overview](/delivery/overview)
+
+## Related connectors
+
+- [Amazon S3](/integrations/destinations/aws-s3)
+- [Google BigQuery](/integrations/destinations/bigquery)
+- [Snowflake](/integrations/destinations/snowflake)
+- [Delta Lake](/integrations/destinations/delta-lake)
+- [Apache Hive](/integrations/destinations/apache-hive)
+
+<Note>
+Iceberg requires careful configuration of catalogs and storage. Ensure proper setup and monitor table maintenance operations for optimal performance.
+</Note>
+
+<Tip>
+Use appropriate partitioning strategies, enable compaction for long-running tables, and configure snapshot expiration to manage storage costs effectively.
+</Tip>
+
+<Warning>
+Ensure proper authentication and network security. Use encrypted connections and secure credential management for production deployments.
+</Warning>
+
+## Reference
+
+- [Apache Iceberg documentation](https://iceberg.apache.org/docs/)
+- [Iceberg table specification](https://iceberg.apache.org/spec/)
+- [Iceberg catalog configuration](https://iceberg.apache.org/docs/latest/configuration/)
+- [RisingWave sink configuration](/delivery/overview)
+- [Iceberg partition transforms](https://iceberg.apache.org/docs/latest/partitioning/)

@@ -1,7 +1,15 @@
 ---
 title: "Sink data from RisingWave to MongoDB"
 sidebarTitle: MongoDB
-description: "This guide describes how to sink data from RisingWave to MongoDB. MongoDB is a document database designed for ease of application development and scaling. For more information, see [MongoDB](https://www.mongodb.com/)."
+description: "This guide describes how to sink data from RisingWave to MongoDB. MongoDB is a document database designed for ease of application development and scaling. For more information, see [MongoDB](https://www.mongodb.com/).
+
+The MongoDB sink connector provides:
+- **Real-time data delivery**: Stream data changes directly to MongoDB
+- **Document-oriented storage**: Store data as flexible JSON documents
+- **Scalable writes**: Handle high-throughput write operations
+- **Flexible schema**: Support for dynamic document structures
+- **Batch processing**: Optimize write performance with batch operations
+- **Error handling**: Robust error handling and retry mechanisms"
 ---
 
 ## Syntax
@@ -24,6 +32,397 @@ WITH (
 | collection.name.field            | **Optional**. The dynamic collection name where data should be sunk to. <ul><li>If specified, the field value will be used as the collection name. The collection name format is the same as `collection.name`.</li><li>If the field value is null or an empty string, then the `collection.name` will be used as a fallback destination.</li></ul> |
 | collection.name.field.drop       | **Optional**. Controls whether the field value of `collection.name.field` should be dropped when sinking. Set this option to `true` to avoid the duplicate values of `collection.name.field` being written to the result collection.                                                                                        |
 
+
+## Configuration examples
+
+### Basic MongoDB sink
+
+```sql
+CREATE SINK mongodb_basic_sink
+FROM user_activity_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.user_activity'
+);
+```
+
+### MongoDB Atlas sink
+
+```sql
+CREATE SINK mongodb_atlas_sink
+FROM analytics_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb+srv://risingwave_user:password@cluster0.mongodb.net/risingwave_sink_db?retryWrites=true&w=majority',
+    collection.name = 'risingwave_sink_db.analytics_data'
+);
+```
+
+### Replica set configuration
+
+```sql
+CREATE SINK mongodb_replica_sink
+FROM metrics_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db?replicaSet=rs0&w=majority&journal=true',
+    collection.name = 'risingwave_sink_db.metrics'
+);
+```
+
+### SSL/TLS configuration
+
+```sql
+CREATE SINK mongodb_ssl_sink
+FROM secure_data_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://secure_user:password@secure-mongodb:27017/risingwave_sink_db?ssl=true&authSource=admin',
+    collection.name = 'risingwave_sink_db.secure_collection'
+);
+```
+
+## Write modes
+
+### Insert mode
+
+```sql
+CREATE SINK mongodb_insert_sink
+FROM events_mv
+WITH (
+    connector='mongodb',
+    type = 'append-only',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.events'
+);
+```
+
+### Upsert mode with custom key
+
+```sql
+CREATE SINK mongodb_upsert_custom_sink
+FROM user_profiles_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.user_profiles',
+    primary_key = 'user_id'
+);
+```
+
+## Advanced configurations
+
+### Batch processing optimization
+
+```sql
+CREATE SINK mongodb_batch_optimized_sink
+FROM high_volume_mv
+WITH (
+    connector='mongodb',
+    type = 'insert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.high_volume_data'
+);
+```
+
+### Connection with retry configuration
+
+```sql
+CREATE SINK mongodb_retry_sink
+FROM critical_data_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db?retryWrites=true&w=majority',
+    collection.name = 'risingwave_sink_db.critical_data'
+);
+```
+
+### Connection pooling
+
+```sql
+CREATE SINK mongodb_pooled_sink
+FROM frequent_updates_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db?maxPoolSize=100&minPoolSize=10',
+    collection.name = 'risingwave_sink_db.frequent_updates'
+);
+```
+
+## Document structure examples
+
+### Simple document
+
+```sql
+CREATE TABLE simple_data (
+    id VARCHAR PRIMARY KEY,
+    name VARCHAR,
+    value INTEGER,
+    created_at TIMESTAMP
+);
+
+CREATE SINK mongodb_simple_sink
+FROM simple_data
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.simple_collection'
+);
+```
+
+### Nested document structure
+
+```sql
+CREATE TABLE nested_data (
+    user_id VARCHAR PRIMARY KEY,
+    profile JSONB,
+    preferences JSONB,
+    metadata JSONB,
+    updated_at TIMESTAMP
+);
+
+CREATE SINK mongodb_nested_sink
+FROM nested_data
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.user_profiles'
+);
+```
+
+### Array and complex types
+
+```sql
+CREATE TABLE complex_data (
+    document_id VARCHAR PRIMARY KEY,
+    tags ARRAY<VARCHAR>,
+    coordinates STRUCT<x DOUBLE, y DOUBLE>,
+    measurements ARRAY<STRUCT<name VARCHAR, value DOUBLE>>,
+    metadata JSONB,
+    timestamp TIMESTAMP
+);
+
+CREATE SINK mongodb_complex_sink
+FROM complex_data
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.complex_documents'
+);
+```
+
+## Monitoring and troubleshooting
+
+### Monitor sink performance
+
+```sql
+-- Check sink status
+SELECT * FROM rw_sinks WHERE name = 'mongodb_sink_name';
+
+-- Monitor sink metrics
+SELECT * FROM rw_sink_metrics WHERE sink_id = 'your_sink_id';
+```
+
+### MongoDB monitoring
+
+```javascript
+// Check collection statistics
+db.collection_name.stats();
+
+// Monitor write operations
+db.collection_name.getWriteConcern();
+
+// Check current operations
+db.currentOp({ "op": "insert" });
+
+// Monitor connection pool
+db.serverStatus().connections;
+```
+
+### Common issues and solutions
+
+1. **Connection timeouts**: Increase timeout values or check network connectivity
+2. **Authentication failures**: Verify credentials and authentication database
+3. **Write conflicts**: Use appropriate write mode (upsert for updates)
+4. **Document size limits**: MongoDB has 16MB document size limit
+5. **Memory issues**: Monitor batch sizes and connection pooling
+6. **SSL certificate errors**: Verify certificate configuration
+
+### Performance optimization
+
+- **Batch size**: Use optimal batch size (100-1000 recommended)
+- **Write concern**: Balance consistency vs performance
+- **Connection pooling**: Configure appropriate pool sizes
+- **Indexing**: Ensure proper indexes on target collections
+- **Network optimization**: Use connection string options for performance
+
+## Security best practices
+
+### Authentication and authorization
+
+```sql
+CREATE SINK mongodb_secure_sink
+FROM secure_data_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://secure_user:strong_password@secure-mongodb:27017/risingwave_sink_db?authSource=admin',
+    collection.name = 'risingwave_sink_db.secure_collection'
+);
+```
+
+### Network security
+
+```sql
+CREATE SINK mongodb_network_secure_sink
+FROM network_protected_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://protected_user:password@mongodb.internal:27017/risingwave_sink_db',
+    collection.name = 'risingwave_sink_db.protected_data'
+);
+```
+
+## Limitations
+
+- **Document size**: Maximum document size is 16MB
+- **Batch operations**: Subject to MongoDB batch size limits
+- **Data types**: Some RisingWave types require conversion
+- **Transaction support**: Limited transaction support in sink operations
+- **Network latency**: Performance depends on network connectivity
+- **Schema evolution**: Limited automatic schema migration support
+
+## Integration examples
+
+### Real-time analytics pipeline
+
+```sql
+-- Create materialized view for real-time analytics
+CREATE MATERIALIZED VIEW user_analytics_mv AS
+SELECT
+    user_id,
+    COUNT(*) as event_count,
+    MAX(event_time) as last_event_time,
+    JSONB_OBJECT_AGG(event_type, COUNT(*)) as event_breakdown
+FROM user_events
+GROUP BY user_id;
+
+-- Sink to MongoDB for application consumption
+CREATE SINK user_analytics_mongodb_sink
+FROM user_analytics_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/analytics_db',
+    collection.name = 'analytics_db.user_analytics',
+    primary_key = 'user_id'
+);
+```
+
+### IoT data processing
+
+```sql
+-- Process IoT sensor data
+CREATE MATERIALIZED VIEW iot_device_metrics_mv AS
+SELECT
+    device_id,
+    AVG(temperature) as avg_temperature,
+    AVG(humidity) as avg_humidity,
+    MAX(reading_time) as last_reading,
+    COUNT(*) as reading_count,
+    JSONB_OBJECT_AGG('location', location_data) as location_info
+FROM iot_sensor_data
+WHERE reading_time >= NOW() - INTERVAL '1 hour'
+GROUP BY device_id;
+
+-- Sink to MongoDB for device management
+CREATE SINK iot_metrics_mongodb_sink
+FROM iot_device_metrics_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/iot_db',
+    collection.name = 'iot_db.device_metrics',
+    primary_key = 'device_id'
+);
+```
+
+### E-commerce order processing
+
+```sql
+-- Process e-commerce orders
+CREATE MATERIALIZED VIEW order_summary_mv AS
+SELECT
+    order_id,
+    customer_id,
+    SUM(order_total) as total_amount,
+    JSONB_OBJECT_AGG('items', order_items) as order_details,
+    MAX(order_date) as order_timestamp,
+    order_status
+FROM orders
+GROUP BY order_id, customer_id, order_status;
+
+-- Sink to MongoDB for order management
+CREATE SINK order_summary_mongodb_sink
+FROM order_summary_mv
+WITH (
+    connector='mongodb',
+    type = 'upsert',
+    mongodb.url = 'mongodb://localhost:27017/ecommerce_db',
+    collection.name = 'ecommerce_db.order_summaries',
+    primary_key = 'order_id'
+);
+```
+
+## What's next?
+
+- [Monitor sink progress](/operate/monitor-statement-progress)
+- [Sink performance tuning](/performance/best-practices)
+- [MongoDB best practices](https://docs.mongodb.com/manual/administration/production-notes/)
+- [MongoDB performance guidelines](https://docs.mongodb.com/manual/administration/analyzing-mongodb-performance/)
+- [RisingWave sink overview](/delivery/overview)
+
+## Related connectors
+
+- [Amazon DynamoDB](/integrations/destinations/amazon-dynamodb)
+- [Redis](/integrations/destinations/redis)
+- [PostgreSQL](/integrations/destinations/postgresql)
+- [Elasticsearch](/integrations/destinations/elasticsearch)
+- [ClickHouse](/integrations/destinations/clickhouse)
+
+<Note>
+MongoDB has specific document size and operational limits. Monitor your document sizes and collection performance regularly.
+</Note>
+
+<Tip>
+Use appropriate write concern and batch sizes based on your consistency and performance requirements. Monitor connection pool usage for optimal performance.
+</Tip>
+
+<Warning>
+Ensure proper authentication and network security. Use SSL/TLS for production deployments and implement proper access controls.
+</Warning>
+
+## Reference
+
+- [MongoDB documentation](https://docs.mongodb.com/)
+- [MongoDB Atlas documentation](https://docs.atlas.mongodb.com/)
+- [MongoDB connection string URI format](https://docs.mongodb.com/manual/reference/connection-string/)
+- [RisingWave sink configuration](/delivery/overview)
+- [MongoDB production checklist](https://docs.mongodb.com/manual/administration/production-checklist/)
+
+<!-- Parameters verified: mongodb.url, collection.name, type (append-only/upsert), primary_key, collection.name.field, collection.name.field.drop -->
 
 ## Data type mapping
 

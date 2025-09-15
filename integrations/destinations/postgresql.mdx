@@ -3,7 +3,18 @@ title: "Sink data from RisingWave to PostgreSQL"
 sidebarTitle: PostgreSQL
 ---
 
-This guide will show you how to sink data from RisingWave to PostgreSQL using the JDBC connector. The sink parameters are similar to those for other JDBC-available databases, such as MySQL. However, we will cover the configurations specific to PostgreSQL and how to verify that data is successfully sunk.
+This guide will show you how to sink data from RisingWave to PostgreSQL using either the **JDBC connector** or the **native PostgreSQL connector**. The sink parameters are similar to those for other JDBC-available databases, such as MySQL. However, we will cover the configurations specific to PostgreSQL and how to verify that data is successfully sunk.
+
+## PostgreSQL Sink Options
+
+RisingWave provides two ways to sink data to PostgreSQL:
+
+1. **JDBC Connector** (`connector = 'jdbc'`) - Uses JDBC for database connectivity
+2. **Native PostgreSQL Connector** (`connector = 'postgres'`) - Uses native PostgreSQL protocol
+
+Both approaches support the same data types and provide similar functionality, but the native connector may offer better performance for PostgreSQL-specific features.
+
+## Prerequisites
 
 You can test out this process on your own device by using the `postgres-sink` demo in the [integration\_test directory](https://github.com/risingwavelabs/risingwave/tree/main/integration%5Ftests) of the RisingWave repository.
 
@@ -170,6 +181,30 @@ GROUP BY
 ```
 
 ### Sink from RisingWave
+
+You can use either the JDBC connector or the native PostgreSQL connector to sink data to PostgreSQL.
+
+#### Option 1: Native PostgreSQL Connector (Recommended for PostgreSQL-specific features)
+
+Use the native PostgreSQL connector for better performance and PostgreSQL-specific features:
+
+```sql
+CREATE SINK target_count_postgres_sink FROM target_count WITH (
+    connector = 'postgres',
+    host = 'postgres',
+    port = '5432',
+    user = 'myuser',
+    password = '123456',
+    database = 'mydb',
+    table = 'target_count',
+    type = 'upsert'
+);
+```
+
+#### Option 2: JDBC Connector (Recommended for compatibility)
+
+Use the JDBC connector for broader compatibility with PostgreSQL deployments:
+
 Use the following query to sink data from the materialized view to the target table in PostgreSQL. Ensure that the `jdbc_url` is accurate and reflects the PostgreSQL database that you are connecting to. See [CREATE SINK](/sql/commands/sql-create-sink) for more details.
 
 ```sql
@@ -192,7 +227,182 @@ SELECT * FROM target_count
 LIMIT 10;
 ```
 
-## Data type mapping
+## Advanced configurations
+
+### Native PostgreSQL Connector Parameters
+
+| Parameter | Description | Required | Default |
+| :-------- | :---------- | :------- | :------ |
+| host | PostgreSQL server hostname | Yes | |
+| port | PostgreSQL port number | No | 5432 |
+| user | PostgreSQL username | Yes | |
+| password | PostgreSQL password | Yes | |
+| database | Target database name | Yes | |
+| table | Target table name | Yes | |
+| schema | Target schema name | No | public |
+| type | Sink type: append-only or upsert | Yes | |
+| ssl_mode | SSL mode: disable, require, prefer | No | prefer |
+| ssl.root.cert | SSL root certificate path | No | |
+| max_batch_rows | Maximum rows per batch | No | 1024 |
+
+### JDBC Connector Parameters
+
+| Parameter | Description | Required |
+| :-------- | :---------- | :------- |
+| jdbc.url | JDBC connection URL | Yes |
+| user | Database username | Yes |
+| password | Database password | Yes |
+| table.name | Target table name | Yes |
+| type | Sink type: append-only or upsert | Yes |
+| primary_key | Primary key columns | No |
+
+### Configuration examples
+
+#### Native PostgreSQL with SSL
+
+```sql
+CREATE SINK postgres_native_ssl_sink
+FROM secure_data_mv
+WITH (
+    connector = 'postgres',
+    host = 'secure-postgres.example.com',
+    port = '5432',
+    user = 'risingwave_user',
+    password = 'secure_password',
+    database = 'secure_db',
+    table = 'secure_metrics',
+    type = 'upsert',
+    ssl_mode = 'require',
+    ssl.root.cert = '/path/to/ca-cert.pem'
+);
+```
+
+#### JDBC with connection pooling
+
+```sql
+CREATE SINK postgres_jdbc_pooled_sink
+FROM high_volume_mv
+WITH (
+    connector = 'jdbc',
+    jdbc.url = 'jdbc:postgresql://postgres-cluster:5432/analytics_db?sslmode=require&ApplicationName=RisingWave',
+    user = 'analytics_user',
+    password = 'password',
+    table.name = 'high_volume_metrics',
+    type = 'upsert',
+    primary_key = 'metric_id,timestamp'
+);
+```
+
+#### Batch optimized configuration
+
+```sql
+CREATE SINK postgres_batch_optimized_sink
+FROM performance_metrics_mv
+WITH (
+    connector = 'postgres',
+    host = 'postgres-performance.example.com',
+    port = '5432',
+    user = 'performance_user',
+    password = 'password',
+    database = 'performance_db',
+    table = 'metrics_table',
+    type = 'append-only',
+    max_batch_rows = '2048'
+);
+```
+
+#### Cross-schema sink
+
+```sql
+CREATE SINK postgres_cross_schema_sink
+FROM analytics_data_mv
+WITH (
+    connector = 'postgres',
+    host = 'analytics-postgres.example.com',
+    port = '5432',
+    user = 'analytics_user',
+    password = 'password',
+    database = 'analytics_db',
+    schema = 'analytics',
+    table = 'daily_metrics',
+    type = 'upsert'
+);
+```
+
+### Common issues and solutions
+
+1. **Connection timeouts**: Increase timeout values or check network connectivity
+2. **Authentication failures**: Verify credentials and pg_hba.conf settings
+3. **Table lock conflicts**: Monitor for long-running transactions
+4. **Disk space issues**: Monitor PostgreSQL data directory space
+5. **Memory issues**: Check shared_buffers and work_mem settings
+6. **SSL certificate errors**: Verify certificate configuration for secure connections
+
+### Performance optimization
+
+- **Batch size**: Use optimal batch size (100-1000 recommended)
+- **Indexes**: Ensure proper indexes on target tables
+- **Connection pooling**: Configure appropriate connection pool settings
+- **VACUUM and ANALYZE**: Regular maintenance for optimal performance
+- **WAL configuration**: Optimize write-ahead logging for write-heavy workloads
+
+## Security best practices
+
+### Authentication and authorization
+
+```sql
+CREATE SINK postgres_secure_sink
+FROM secure_data_mv
+WITH (
+    connector = 'postgres',
+    host = 'secure-postgres.example.com',
+    port = '5432',
+    user = 'secure_user',
+    password = 'strong_password',
+    database = 'secure_db',
+    table = 'secure_table',
+    ssl_mode = 'require'
+);
+```
+
+### SSL/TLS encryption
+
+```sql
+CREATE SINK postgres_ssl_sink
+FROM sensitive_data_mv
+WITH (
+    connector = 'postgres',
+    host = 'ssl-postgres.example.com',
+    port = '5432',
+    user = 'ssl_user',
+    password = 'ssl_password',
+    database = 'ssl_db',
+    table = 'ssl_table',
+    ssl_mode = 'require',
+    ssl.root.cert = '/path/to/ca-cert.pem'
+);
+```
+
+## Limitations
+
+- **Transaction size**: Large transactions may impact performance
+- **Connection limits**: Subject to PostgreSQL max_connections limit
+- **Lock contention**: Concurrent writes may cause lock conflicts
+- **Data type constraints**: Some RisingWave types may require conversion
+- **Network latency**: Performance depends on network connectivity
+- **Schema changes**: Limited support for automatic schema migration
+
+<Note>
+PostgreSQL has specific limits and performance characteristics. Monitor your database performance and configure appropriate resources for your workload.
+</Note>
+
+<Tip>
+Use appropriate indexes, batch sizes, and connection pooling for optimal performance. Regular maintenance (VACUUM, ANALYZE) is important for long-running systems.
+</Tip>
+
+<Warning>
+Ensure proper authentication and network security. Use SSL/TLS for production deployments and implement proper access controls and monitoring.
+</Warning>
 
 For the PostgreSQL data type mapping table, see the [Data type mapping table](/integrations/sources/postgresql-cdc#data-type-mapping) under the Ingest data from PostgreSQL CDC topic.
 

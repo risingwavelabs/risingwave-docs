@@ -68,6 +68,23 @@ All the fields listed below are required. Note that the value of these parameter
 | database.name | Name of the database. Note that RisingWave cannot read data from a built-in MySQL database, such as mysql, sys, etc.                                                                                                                                                                                                                                                                 |
 | table.name    | Name of the table that you want to ingest data from.                                                                                                                                                                                                                                                                                                                                 |
 | server.id     | Required if creating a shared source. A numeric ID of the database client. It must be unique across all database processes that are running in the MySQL cluster. If not specified, RisingWave will generate a random ID.                                                                                                                                                            |
+
+## Advanced Parameters
+
+The following parameters are available for advanced CDC configuration:
+
+| Parameter | Description | Required | Default |
+| :-------- | :---------- | :------- | :------ |
+| `snapshot` | Enable or disable initial snapshot. Set to `false` to disable CDC backfill. | No | `true` |
+| `snapshot.mode` | Debezium snapshot mode. See [Debezium documentation](https://debezium.io/documentation/reference/stable/connectors/mysql.html#mysql-connector-properties) for options. | No | `initial` |
+| `snapshot.interval` | Interval between snapshots. <!-- TODO: Add detailed description and units --> | No |  |
+| `snapshot.batch_size` | Batch size for snapshot operations. <!-- TODO: Add detailed description --> | No |  |
+| `backfill.parallelism` | Parallelism for backfill operations. <!-- TODO: Add detailed description and limits --> | No |  |
+| `backfill.num_rows_per_split` | Number of rows per split for backfill. <!-- TODO: Add detailed description --> | No |  |
+| `backfill.as_even_splits` | Whether to create even splits for backfill. <!-- TODO: Add detailed description --> | No |  |
+| `backfill.split_pk_column_index` | Primary key column index for backfill splitting. <!-- TODO: Add detailed description --> | No |  |
+| `transactional` | Enable transactional support for shared CDC source. | No | `true` |
+| `cdc.source.wait.streaming.start.timeout` | Timeout for waiting for streaming to start. <!-- TODO: Add units and detailed description --> | No |  |
 |auto.schema.change| **Optional**. Specify whether you want to enable replicating MySQL table schema change. Set `auto.schema.change = 'true'` to enable it.|
 | ssl.mode      | **Optional**. The ssl.mode parameter determines the level of SSL/TLS encryption for secure communication with MySQL. Accepted values are disabled, preferred, and required. The default value is disabled. When set to required, it enforces TLS for establishing a connection.                                                                                                     |
 | transactional | **Optional**. Specify whether you want to enable transactions for the CDC table that you are about to create. By default, the value is 'true' for shared sources, and 'false' otherwise. This feature is also supported for shared CDC sources for multi-table transactions. For performance considerations, transactions involving changes to more than 4096 rows cannot be guaranteed. |
