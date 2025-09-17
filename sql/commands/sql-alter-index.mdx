@@ -30,3 +30,20 @@ ALTER INDEX index_name
 -- Change the name of the index "idx_1" to "idx_2"
 ALTER INDEX idx_1 RENAME TO idx_2.
 ```
+
+### `SET PARALLELISM`
+
+```sql
+ALTER INDEX index_name
+SET PARALLELISM { TO | = } parallelism_number;
+```
+
+| Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                              |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                  |
+| parallelism_number | Can be ADAPTIVE or a fixed number (e.g., 1, 2, 3). Setting it to ADAPTIVE expands the job's parallelism to all available units, while a fixed number locks it at that value. Setting it to 0 is equivalent to ADAPTIVE. The maximum allowed value is determined by the `max_parallelism` of the job. For more information, see [Configuring maximum parallelism](/deploy/k8s-cluster-scaling#configuring-maximum-parallelism). |
+
+```sql
+-- Set the parallelism of the index "idx_orders" to 3.
+ALTER INDEX idx_orders SET PARALLELISM = 3;
+```
