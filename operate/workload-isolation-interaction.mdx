@@ -39,20 +39,20 @@ Resource groups offer a powerful mechanism for fine-grained control over compute
 
 ### Concept
 
-A *resource group* is a named logical pool consisting of specific compute nodes (CNs) within your RisingWave cluster. Administrators typically define these groups and their associated CNs during cluster setup or configuration.
+A *resource group* is a named logical pool consisting of specific Compute Nodes (CNs) within your RisingWave cluster. In RisingWave, a Compute Node can be a dedicated Serving or Streaming Node, or a hybrid node that can handle both serving and streaming tasks. Administrators typically define these groups and their associated CNs during cluster setup or configuration.
 
 ### Defining a resource group
 
-You define a resource group by assigning compute nodes to it when starting these compute nodes. Each compute node can be independently assigned to a named group. All compute nodes launched with the same resource group name collectively form that logical group, allowing them to be managed and targeted as a single unit.
+You define a resource group by assigning Compute Nodes to it when starting these Compute Nodes. Each Compute Node can be independently assigned to a named group. All compute nodes launched with the same resource group name collectively form that logical group, allowing them to be managed and targeted as a single unit.
 
-This assignment is done when launching a compute node by using the `--resource-group` command-line flag or by setting the `RW_RESOURCE_GROUP` environment variable.
+This assignment is done when launching a Compute Node by using the `--resource-group` command-line flag or by setting the `RW_RESOURCE_GROUP` environment variable.
 
 ```
 risingwave compute-node --resource-group test
 ```
 
 <Note>
-If neither the flag nor the environment variable is specified, the compute node will be assigned to the "default" resource group.
+If neither the flag nor the environment variable is specified, the Compute Node will be assigned to the "default" resource group.
 </Note>
 
 ### How resource groups provide isolation and control
@@ -61,7 +61,7 @@ When you assign a database to a resource group, all streaming jobs belonging to 
 
 1.  Granular fault isolation (limiting blast radius):
     *   By assigning independent databases to resource groups backed by distinct sets of compute nodes, you achieve robust infrastructure fault isolation.
-    *   *Example:* If a compute node within `resource_group_A` crashes, it only impacts databases assigned to `resource_group_A`. Databases in `resource_group_B` (running on different CNs) remain unaffected by that specific hardware failure. This is crucial for ensuring the availability of critical applications.
+    *   *Example:* If a Compute Node within `resource_group_A` crashes, it only impacts databases assigned to `resource_group_A`. Databases in `resource_group_B` (running on different CNs) remain unaffected by that specific hardware failure. This is crucial for ensuring the availability of critical applications.
 
 2.  Workload matching & performance optimization:
     *   You can tailor resource allocation to workload needs by creating resource groups backed by specialized hardware.

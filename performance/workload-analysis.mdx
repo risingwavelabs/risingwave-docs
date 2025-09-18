@@ -23,7 +23,7 @@ The relationship between these two types of latency is illustrated below:
 
 ### Barrier latency
 
-A *barrier* is a special type of message that RisingWave injects periodically into the data stream of all sources. Barriers flow along with regular data through the entire stream processing graph (all operators and actors).  *Barrier latency* refers to the time it takes for a batch of barriers (one from each source) to travel from the meta node (where they are emitted) to all compute nodes (where they are collected). This metric provides a statistical measure of the current processing time within the cluster. See [Monitoring and metrics - Barrier monitoring](/performance/metrics#barrier-monitoring) for details on viewing barrier latency.
+A *barrier* is a special type of message that RisingWave injects periodically into the data stream of all sources. Barriers flow along with regular data through the entire stream processing graph (all operators and actors).  *Barrier latency* refers to the time it takes for a batch of barriers (one from each source) to travel from the Meta Node (where they are emitted) to all compute nodes (where they are collected). This metric provides a statistical measure of the current processing time within the cluster. See [Monitoring and metrics - Barrier monitoring](/performance/metrics#barrier-monitoring) for details on viewing barrier latency.
 
 ![Barrier Flow](/images/performance/barrier-flow.png)
 *Figure 2: Barrier flow in RisingWave.*
@@ -80,7 +80,7 @@ This mechanism ensures that backpressure propagates upstream from a slow downstr
 
 ### Backpressure details in the source executor
 
-Barriers, as mentioned earlier, are periodically emitted by the meta node and sent to a dedicated *barrier channel* for each source executor. The source executor consumes both barriers (from the barrier channel) and data (from the external system), merging them into a single stream.
+Barriers, as mentioned earlier, are periodically emitted by the Meta Node and sent to a dedicated *barrier channel* for each source executor. The source executor consumes both barriers (from the barrier channel) and data (from the external system), merging them into a single stream.
 
 The source executor *always prioritizes the consumption of barriers*. It only consumes data from the external system when the barrier channel is empty.
 
@@ -116,7 +116,7 @@ Consider a simplified scenario:
 *   Source executor consumes 100,000 rows *before* experiencing backpressure.
 *   Barrier interval: 1 second.
 
-In this case, the downstream will take 10 seconds (100,000 rows / 10,000 rows/second) to process the data. During these 10 seconds, the source executor is backpressured and won't consume data *or* barriers. The 10 barriers issued by the meta node will accumulate in the barrier channel.
+In this case, the downstream will take 10 seconds (100,000 rows / 10,000 rows/second) to process the data. During these 10 seconds, the source executor is backpressured and won't consume data *or* barriers. The 10 barriers issued by the Meta Node will accumulate in the barrier channel.
 
 Once the downstream finishes processing, the source executor will prioritize the 10 backlogged barriers (which are processed very quickly). Then, it will consume another 100,000 rows from the upstream, and the cycle repeats.
 

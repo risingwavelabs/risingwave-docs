@@ -24,7 +24,7 @@ Starting from version 1.10, RisingWave calculates the reserved memory based on t
 * Plus 20% of the remaining memory
 
 <Accordion title="Details">
-Read an example.For example, let's consider a compute node with 32GB of memory. The reserved memory would be calculated as follows:
+Read an example.For example, let's consider a Streaming Node with 32GB of memory. The reserved memory would be calculated as follows:
 * 30% of the first 16GB is 4.8GB.
 * 20% of the remaining 16GB is 3.2GB.
 * The total reserved memory is 4.8GB + 3.2GB = 8GB.
@@ -34,13 +34,13 @@ This calculation method ensures that in scenarios with less memory, the system r
 
 However, this may not be suitable for all workloads and machine setups. To address this, you can use the startup option `--reserved-memory-bytes` or the environment variable `RW_RESERVED_MEMORY_BYTES` to override the reserved memory configuration for compute nodes. **But note that the memory reserved should be at least 512MB.**
 
-For instance, suppose you are deploying a compute node on a machine or pod with 64GB of memory. By default, the reserved memory would be calculated as follows:
+For instance, suppose you are deploying a Streaming Node on a machine or pod with 64GB of memory. By default, the reserved memory would be calculated as follows:
 
 * 30% of the first 16GB is 4.8GB.
 * 20% of the remaining 48GB (64GB - 16GB) is 9.6GB.
 * The total reserved memory would be 4.8GB + 9.6GB, which equals 14.4GB.
 
-However, if you find this excessive for your specific use case, you have the option to specify a different value. You can set either `RW_RESERVED_MEMORY_BYTES=8589934592` as an environment variable or `--reserved-memory-bytes=8589934592` as a command line parameter when starting up the compute node. This will allocate 8GB as the reserved memory instead.
+However, if you find this excessive for your specific use case, you have the option to specify a different value. You can set either `RW_RESERVED_MEMORY_BYTES=8589934592` as an environment variable or `--reserved-memory-bytes=8589934592` as a command line parameter when starting up the Streaming Node. This will allocate 8GB as the reserved memory instead.
 
 <Accordion title="Reserved memory setting before 1.10">
 Before version 1.9, RisingWave just allocated 30% of the total memory as reserved memory by default. However, through practical application, we realized that this default setting may not be suitable for all scenarios. Therefore, in version 1.9, we introduced the ability to customize the reserved memory.

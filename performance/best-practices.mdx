@@ -38,13 +38,13 @@ Efficient resource allocation is crucial for achieving optimal performance and a
 
 ### When to scale up or scale out computation and compaction resources?
 
-The discussion is limited to compute nodes and compactor nodes as other components are not involved in processing in most cases.
+The discussion is limited to compute nodes and Compactor Nodes as other components are not involved in processing in most cases.
 
 RisingWave was built as a scalable distributed processing system from day one. However, just like any other distributed system, being a distributed system introduces extra overhead as there is more network communication among different machines. Moreover, resource fragmentation is more likely to appear with more machines splitting the same total amount of resources. We remark that this is the intrinsic nature of a distributed system but not a special limitation of RisingWave itself.
 
 Therefore, we generally prefer scaling up over scaling out for compute nodes. If the streaming queries are mostly stateless (i.e., those without aggregation, join, or over window functions) and do not involve data shuffling, then scaling up and scaling out is the same. If you are experiencing high latency or slow stream processing, see [Troubleshooting - High Latency](/performance/troubleshoot-high-latency).
 
-In terms of compactor nodes, we favor scaling up when the resources of the compactor node are less than 4 CPU and 8 GB memory. This is because some compaction tasks can occasionally be quite resource-intensive and use up to 4 CPU and 8 GB memory. However, once the resource of the compactor node exceeds this threshold, both scaling up and scaling out are equally fine. See [Monitoring and metrics - Resource utilization](/performance/metrics#resource-utilization) to monitor CPU and memory usage, and [Monitoring and Metrics - Compaction](/performance/metrics#compaction) for compaction-related metrics.
+In terms of Compactor Nodes, we favor scaling up when the resources of the Compactor Node are less than 4 CPU and 8 GB memory. This is because some compaction tasks can occasionally be quite resource-intensive and use up to 4 CPU and 8 GB memory. However, once the resource of the Compactor Node exceeds this threshold, both scaling up and scaling out are equally fine. See [Monitoring and metrics - Resource utilization](/performance/metrics#resource-utilization) to monitor CPU and memory usage, and [Monitoring and Metrics - Compaction](/performance/metrics#compaction) for compaction-related metrics.
 
 
 ## Query optimization

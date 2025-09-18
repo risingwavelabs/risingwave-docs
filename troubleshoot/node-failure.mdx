@@ -11,40 +11,40 @@ In this topic, we will provide answers to these questions. However, before you c
 
 ---
 
-A RisingWave cluster consists of four internal components: compute node, frontend node, meta node, and compactor node. Additionally, there is one external component: the highly available storage backend for the meta node. We will explain the above questions by node type.
+A RisingWave cluster consists of four internal components: streaming node, serving node, Meta Node, and Compactor Node. Additionally, there is one external component: the highly available storage backend for the Meta Node. We will explain the above questions by node type.
 
-## Compute nodes
+## Streaming Nodes
 
-When a compute node fails, the meta node stops receiving its heartbeat message, signaling a crash. The meta node then instructs all components to pause operations and awaits the return of the compute node.
+When a Streaming Node fails, the Meta Node stops receiving its heartbeat message, signaling a crash. The Meta Node then instructs all components to pause operations and awaits the return of the Streaming Node.
 
-If RisingWave operates on Kubernetes (which we recommend for production), and a compute node pod terminates for any reason, RisingWave relies on Kubernetes to automatically initiate a new compute node pod. The total downtime comprises two phases:
+If RisingWave operates on Kubernetes (which we recommend for production), and a streaming node pod terminates for any reason, RisingWave relies on Kubernetes to automatically initiate a new Streaming Node pod. The total downtime comprises two phases:
 
 1. The time taken by Kubernetes to terminate the old pod and launch the new one.
-2. The time for the new compute node to reconnect to the meta node and resume paused jobs.
+2. The time for the new Streaming Node to reconnect to the Meta Node and resume paused jobs.
 
 It's important to mention that the duration of phase one is not under RisingWave's control and may vary based on your Kubernetes instances, including your configuration and resource allocation. These are optimized by our RisingWave Cloud service.
 
-On the other hand, phase two is expected to be relatively short, typically lasting only a few seconds. This is due to RisingWave's storage-decoupled architecture, which eliminates the need for data movement between the old and new compute nodes. Only lightweight metadata-level operations take place during this phase.
+On the other hand, phase two is expected to be relatively short, typically lasting only a few seconds. This is due to RisingWave's storage-decoupled architecture, which eliminates the need for data movement between the old and new streaming nodes. Only lightweight metadata-level operations take place during this phase.
 
 Based on our experience, we expect the total downtime to generally be around 20 seconds. However, with the right configuration and optimizations, it is possible to further reduce phase one, resulting in single-digit seconds of total downtime.
 
-## Meta nodes
+## Meta Nodes
 
-If a meta node fails, the cluster stops all operations until the meta node is restored. The new meta node retrieves important metadata from the high-availability storage backend and reactivates the cluster.
+If a Meta Node fails, the cluster stops all operations until the Meta Node is restored. The new Meta Node retrieves important metadata from the high-availability storage backend and reactivates the cluster.
 
-Given the time taken for Kubernetes to create a new pod, the recommended practice for production is to have multiple replicas of the meta node. In the event of the current active leader's failure, one of the followers assumes leadership and restores the cluster. We expect this approach to keep the downtime at a relatively low-to-medium single-digit seconds.
+Given the time taken for Kubernetes to create a new pod, the recommended practice for production is to have multiple replicas of the Meta Node. In the event of the current active leader's failure, one of the followers assumes leadership and restores the cluster. We expect this approach to keep the downtime at a relatively low-to-medium single-digit seconds.
 
-## Frontend nodes
+## Serving Nodes
 
-When a frontend node fails, it does not affect stream processing jobs. However, if the failed frontend node is the only one in the cluster, it becomes impossible to issue SQL statements.
+When a serving node fails, it does not affect stream processing jobs. However, if the failed serving node is the only one in the cluster, it becomes impossible to issue SQL statements.
 
-To enhance high availability, it is recommended to provision multiple frontend nodes. This allows them to operate independently, ensuring that even if one frontend node goes down, the others can handle incoming SQL queries effectively.
+To enhance high availability, it is recommended to provision multiple serving nodes. This allows them to operate independently, ensuring that even if one serving node goes down, the others can handle incoming SQL queries effectively.
 
-## Compactor nodes
+## Compactor Nodes
 
-When a compactor node fails, it does not have an immediate impact on stream processing jobs or batch queries. However, as compute nodes keep writing new files into RisingWave's storage engine, the read/write performance gradually decreases. This can result in throttling of input sources.
+When a Compactor Node fails, it does not have an immediate impact on stream processing jobs or batch queries. However, as compute nodes keep writing new files into RisingWave's storage engine, the read/write performance gradually decreases. This can result in throttling of input sources.
 
-Since compaction is an append-only operation and does not modify files in place, compactor node crashes are rare and relatively insignificant. As long as Kubernetes restores the compactor node within the expected timeframe of 1 minute, it is not a major cause for concern.
+Since compaction is an append-only operation and does not modify files in place, Compactor Node crashes are rare and relatively insignificant. As long as Kubernetes restores the Compactor Node within the expected timeframe of 1 minute, it is not a major cause for concern.
 
 ## Highly-available metadata storage backends
 
