@@ -39,6 +39,31 @@ ALTER TABLE employees ADD age int;
 * Columns added by this command cannot be used by any existing materialized views or indexes. You must create new materialized views or indexes to reference it.
 </Note>
 
+### `CONNECTOR WITH`
+
+<Note>
+Added in v2.6.0.
+</Note>
+
+```sql
+ALTER TABLE table_name CONNECTOR WITH (
+  'property_name' = 'value',
+  ...
+);
+```
+
+| Parameter         | Description |
+| :---------------- | :---------- |
+| **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing table without recreating it. Be aware that the properties defined in CONNECTION should be altered by `ALTER CONNECTION`.|
+| property_name | We currently support altering Kafka connectors only. Support for more connectors and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
+
+```sql Example
+ALTER TABLE plain_students
+CONNECTOR WITH (
+  'properties.security.protocol' = 'SASL_SSL'
+);
+```
+
 ### `DROP COLUMN`
 
 ```sql
