@@ -10,7 +10,7 @@ This topic addresses frequently asked questions related to RisingWave performanc
   <Accordion title="How do I adjust the resources allocated to each streaming query?">
     RisingWave uses a session variable called `streaming_parallelism` to control the parallelism of streaming queries. This variable affects all streaming queries created *after* the variable is set within the same session.
 
-    Suppose you have a RisingWave cluster with 3 compute nodes, each with 8 CPUs. By default, `streaming_parallelism` is set to 0, allowing a streaming query to access a maximum of 24 CPUs (3 nodes * 8 CPUs/node).  However, reaching 100% CPU utilization may not occur in reality due to factors like insufficient data ingestion or lightweight computations. If you set `streaming_parallelism` to 2, the maximum CPU resources streaming queries can use is 3 nodes * 2 CPUs/node = 6 CPUs total.
+    Suppose you have a RisingWave cluster with 3 Compute Nodes, each with 8 CPUs. By default, `streaming_parallelism` is set to 0, allowing a streaming query to access a maximum of 24 CPUs (3 nodes * 8 CPUs/node).  However, reaching 100% CPU utilization may not occur in reality due to factors like insufficient data ingestion or lightweight computations. If you set `streaming_parallelism` to 2, the maximum CPU resources streaming queries can use is 3 nodes * 2 CPUs/node = 6 CPUs total.
 
     If you have multiple streaming queries, their CPU resource allocation is approximately proportional to the `streaming_parallelism` value when the query was created, *if* the total CPU demand exceeds the available resources.  Otherwise, each query gets the resources it needs.
 
@@ -37,9 +37,9 @@ This topic addresses frequently asked questions related to RisingWave performanc
   </Accordion>
 
   <Accordion title="When should I deploy a dedicated batch-serving cluster?">
-    By default, all compute nodes run both streaming and batch queries. This can lead to resource competition, making it difficult to guarantee the performance of both query types.
+    By default, all Compute Nodes run both streaming and batch queries. This can lead to resource competition, making it difficult to guarantee the performance of both query types.
 
-    If you have batch queries that require sub-second latency, a dedicated batch-serving cluster is recommended. This isolates batch query workloads, preventing resource contention with streaming jobs.  It also improves the availability of batch query processing, as failures of compute nodes used for stream processing won't affect batch queries. See [Best practices - Resource allocation](/performance/best-practices#resource-allocation).
+    If you have batch queries that require sub-second latency, a dedicated batch-serving cluster is recommended. This isolates batch query workloads, preventing resource contention with streaming jobs.  It also improves the availability of batch query processing, as failures of Compute Nodes used for stream processing won't affect batch queries. See [Best practices - Resource allocation](/performance/best-practices#resource-allocation).
   </Accordion>
 
     <Accordion title="Is there any difference between configuring a Compute Node for stream processing only and for batch serving only?">
@@ -47,7 +47,7 @@ This topic addresses frequently asked questions related to RisingWave performanc
 
     When a Compute Node is used for batch serving only, the operator cache is not needed.  You can increase the memory allocated to the block cache and meta cache to improve performance for batch queries by caching more data locally.
 
-    We recommend using this [configuration](https://github.com/risingwavelabs/risingwave/blob/main/src/config/serving-only.toml) for batch-serving compute nodes. For other configuration examples, check out the [RisingWave repository](https://github.com/risingwavelabs/risingwave/tree/main/src/config).
+    We recommend using this [configuration](https://github.com/risingwavelabs/risingwave/blob/main/src/config/serving-only.toml) for batch-serving Compute Nodes. For other configuration examples, check out the [RisingWave repository](https://github.com/risingwavelabs/risingwave/tree/main/src/config).
 
     </Accordion>
 
