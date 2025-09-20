@@ -1,9 +1,9 @@
 ---
 title: "Manage a large number of streaming jobs"
-description: "By default, RisingWave is configured to utilize the maximum available CPUs across compute nodes for streaming jobs. In RisingWave, a streaming job refers to the creation of a table, source, index, materialized view, or sink. This design aims to achieve high performance by fully utilizing compute resources."
+description: "By default, RisingWave is configured to utilize the maximum available CPUs across Compute Nodes for streaming jobs. In RisingWave, a streaming job refers to the creation of a table, source, index, materialized view, or sink. This design aims to achieve high performance by fully utilizing compute resources."
 ---
 
-However, this default configuration may not be optimal when the number of streaming jobs running in the cluster exceeds 300\. In such cases, resource sharing and contention among multiple streaming jobs can arise. Also, due to the high number of tasks scheduled and communicating on the compute node, the default configuration can lead to poor performance and increased risks of Out of Memory (OOM) errors. This guide describes and explains some do’s and don’ts in this case.
+However, this default configuration may not be optimal when the number of streaming jobs running in the cluster exceeds 300\. In such cases, resource sharing and contention among multiple streaming jobs can arise. Also, due to the high number of tasks scheduled and communicating on the Streaming Node, the default configuration can lead to poor performance and increased risks of Out of Memory (OOM) errors. This guide describes and explains some do’s and don’ts in this case.
 
 Even with the correct cluster settings in place, RisingWave may still experience overload, leading to performance issues such as high latency and OOM errors. In such cases, we recommend users to consider increasing resources to address these issues. RisingWave offers the flexibility to scale up, down, in, or out, making it easy and quick to adjust resources as needed. We advise users to adjust resources through a trial and error approach.
 
@@ -149,7 +149,7 @@ ALTER_TABLE
 
 ### Adjust actors distribution
 
-After adding a new compute node to a cluster with many existing streaming jobs, the distribution of actors among the compute nodes might become unbalanced, resulting in low workload on some nodes. This SQL query can display the distribution of actors on each compute node.
+After adding a new Streaming Node to a cluster with many existing streaming jobs, the distribution of actors among the Compute Nodes might become unbalanced, resulting in low workload on some nodes. This SQL query can display the distribution of actors on each Streaming Node.
 
 ```sql
 select worker_id, count(*) from rw_actors a, rw_parallel_units p where a.parallel_unit_id = p.id group by p.worker_id;
@@ -165,7 +165,7 @@ worker_id|count|
     12003|23300|
 ```
 
-To rebalance the actor, you can use the alter parallelism statement mentioned above after v1.7.0, and the actors will be distributed to different compute nodes automatically.
+To rebalance the actor, you can use the alter parallelism statement mentioned above after v1.7.0, and the actors will be distributed to different Compute Nodes automatically.
 
 <Warning>
 
@@ -175,5 +175,5 @@ In some references, `/risingwave/bin/risingwave ctl scale horizon --include-work
 
 ## Other precautions for too many actors
 
-* Resources of meta store and meta node: During recovering or scaling processes,there might be spikes in resource usage on the nodes. If you encounter OOM errors or observe some error logs in the meta, please try to scale up the nodes.
+* Resources of meta store and Meta Node: During recovering or scaling processes,there might be spikes in resource usage on the nodes. If you encounter OOM errors or observe some error logs in the meta, please try to scale up the nodes.
 * Resources of the prometheus or other monitoring systems: The number of metrics' time series grows linearly with the number of actors, so please pay attention to the resource requirements of your monitoring system and ensure that it can handle the growing number of metrics efficiently.

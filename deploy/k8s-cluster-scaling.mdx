@@ -9,7 +9,7 @@ RisingWave supports adaptive and fixed parallelism for each streaming job, inclu
 
 - Adaptive parallelism
 
-  Adaptive parallelism is the **default** setting for newly created streaming jobs since v1.7\. In this mode, RisingWave automatically adjusts parallelism to utilize all CPU cores across the compute nodes in the cluster. When nodes are added or removed, parallelism adjusts accordingly based on the current number of CPU cores.
+  Adaptive parallelism is the **default** setting for newly created streaming jobs since v1.7\. In this mode, RisingWave automatically adjusts parallelism to utilize all CPU cores across the streaming nodes in the cluster. When nodes are added or removed, parallelism adjusts accordingly based on the current number of CPU cores.
   To modify the scaling policy to adaptive parallelism, use the SQL command:
 
   ```sql
@@ -68,9 +68,9 @@ When deciding on a value, please note that:
 
 ## Scale-out
 
-Scale-out here refers to the process of adding more **compute nodes** to the cluster. For frontend nodes, you can simply scale out/in by adding more frontend nodes to the cluster, because they are stateless and can be automatically discovered by the meta nodes.
+Scale-out here refers to the process of adding more **streaming nodes** to the cluster. For serving nodes, you can simply scale out/in by adding more serving nodes to the cluster, because they are stateless and can be automatically discovered by the Meta Nodes.
 
-1. First, add more compute nodes with `kubectl`.
+1. First, add more streaming nodes with `kubectl`.
 
   ```bash
   # If you are using risingwave-operator
@@ -78,15 +78,15 @@ Scale-out here refers to the process of adding more **compute nodes** to the clu
   # If you are not using risingwave-operator
   kubectl scale statefulset/risingwave-compute --replicas=<number-of-replicas>
   ```
-  Then wait until new compute nodes start.
+  Then wait until new streaming nodes start.
 
-2. If you are using fixed parallelism, you may need to manually adjust the parallelism of the streaming jobs to utilize the new compute nodes. For adaptive parallelism, the system will automatically adjust the parallelism to utilize the new compute nodes.
+2. If you are using fixed parallelism, you may need to manually adjust the parallelism of the streaming jobs to utilize the new streaming nodes. For adaptive parallelism, the system will automatically adjust the parallelism to utilize the new streaming nodes.
 
 ## Scale-in
 
-Scale-in here refers to the process of decreasing **compute nodes** from the cluster. By default, there's a 5-minute delay in scale-in operations. The delay is intentional to prevent unnecessary heavy recovery operations caused by transient failures like network jitters and CPU stalls.
+Scale-in here refers to the process of decreasing **streaming nodes** from the cluster. By default, there's a 5-minute delay in scale-in operations. The delay is intentional to prevent unnecessary heavy recovery operations caused by transient failures like network jitters and CPU stalls.
 
-1. Since v2.0, to trigger an immediate scale-in, apply the following yaml files to decrease the number of compute nodes:
+1. Since v2.0, to trigger an immediate scale-in, apply the following yaml files to decrease the number of streaming nodes:
 
   ```bash
   # If you are using risingwave-operator

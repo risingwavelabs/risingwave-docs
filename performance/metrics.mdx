@@ -23,12 +23,12 @@ Monitoring resource utilization helps you understand how efficiently your cluste
 
 ![CPU Usage](/images/CPU_Usage.png)
 
-Among all of the components, we primarily focus on the CPU usage of compute nodes and compactor nodes. In the setting of the figure above, we have allocated 8 CPUs for the compute node and 8 CPUs for the compactor node.
+Among all of the components, we primarily focus on the CPU usage of Streaming Nodes and Compactor Nodes. In the setting of the figure above, we have allocated 8 CPUs for the Streaming Node and 8 CPUs for the Compactor Node.
 
 **Takeaway**
 
-1. When the CPU usage of the compute node is close to the total number of CPUs this compute node has (i.e., 800% in this case), we can likely improve the performance, e.g., throughput, by adding more CPUs to the compute node.
-2. We can apply the same reasoning to compactor nodes. We will revisit this when we introduce the metrics "LSM Compact Pending Bytes", which suggests the ideal number of CPUs to reserve for compaction workload.
+1. When the CPU usage of the Streaming Node is close to the total number of CPUs this Node has (i.e., 800% in this case), we can likely improve the performance, e.g., throughput, by adding more CPUs to the Strearming Node.
+2. We can apply the same reasoning to Compactor Nodes. We will revisit this when we introduce the metrics "LSM Compact Pending Bytes", which suggests the ideal number of CPUs to reserve for compaction workload.
 
 ### Memory usage
 
@@ -40,7 +40,7 @@ A simplified description of RisingWave's memory control mechanism:
 2. RisingWave reserves 30% of the total memory, i.e., reserved memory, as a buffer. In case of a sudden spike in input data, RisingWave has enough time to adjust its memory usage.
 3. RisingWave periodically checks the current memory usage against the rest 70% of the total memory, i.e., usable memory, and decides if it should evict data. If it exceeds 70% of usable memory, it gracefully evicts. The eviction will be further intensified if it exceeds 80% and 90%.
 
-In the figure above, we have allocated 12 GB of memory to the compute node. The real memory usage keeps fluctuating around 8.64 GB (over 90% of usable memory). This suggests that the eviction is triggered constantly as RisingWave tries to use more memory.
+In the figure above, we have allocated 12 GB of memory to the Streaming Node. The real memory usage keeps fluctuating around 8.64 GB (over 90% of usable memory). This suggests that the eviction is triggered constantly as RisingWave tries to use more memory.
 
 **Takeaway**
 
@@ -54,7 +54,7 @@ Operators such as join and aggregation are stateful. They maintain intermediate 
 
 ### Operator cache miss ratios
 
-For example, the following are the cache miss ratio metrics of the join operator, showing the metrics at the actor level. Each operator is parallelized by multiple actors, whose number is equal to the `streaming_parallelism`. By default, the parallelism is the same as the number of CPUs on compute nodes.
+For example, the following are the cache miss ratio metrics of the join operator, showing the metrics at the actor level. Each operator is parallelized by multiple actors, whose number is equal to the `streaming_parallelism`. By default, the parallelism is the same as the number of CPUs on Compute Nodes.
 
 ![Cache Miss 1](/images/cache_miss_1.png)
 
@@ -68,7 +68,7 @@ Below is the same metric but for the aggregation operator.
 
 The cache miss rate of actor 25 is `658/2.45K ~= 27%`, which is relatively high. It indicates that we are likely to improve the performance if we increase the memory.
 
-Other than the operator cache, the storage engine named Hummock on each compute node maintains the block (data) cache and meta cache. The data cache stores data. Unlike the operator cache, the block (data) cache stores everything in its binary/serialized format. And all the operators share the same block cache. The meta cache stores metadata. Hummock requires metadata to locate the data files it needs to read from S3.
+Other than the operator cache, the storage engine named Hummock on each Compute Node maintains the block (data) cache and meta cache. The data cache stores data. Unlike the operator cache, the block (data) cache stores everything in its binary/serialized format. And all the operators share the same block cache. The meta cache stores metadata. Hummock requires metadata to locate the data files it needs to read from S3.
 
 We also track the cache miss ratio of these two caches:
 

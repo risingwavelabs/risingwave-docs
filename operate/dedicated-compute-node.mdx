@@ -1,18 +1,17 @@
 ---
-title: "Dedicated compute node"
-sidebarTitle: Set up a dedicated compute node
-description: "By default, a compute node can process both streaming jobs and ad-hoc queries (i.e. serving). Alternatively, you can process streaming and serving by different compute nodes respectively, to mitigate resource contention or to isolate streaming or serving failure. This guide introduces how to set up such dedicated compute nodes to decouple streaming and serving."
+title: "Dedicated Compute Nodes"
+sidebarTitle: Set up a dedicated Compute Node
+description: "By default, a Compute Node can process both streaming jobs and ad-hoc queries (i.e. serving). Alternatively, you can process streaming and serving by different Compute Nodes respectively, to mitigate resource contention or to isolate streaming or serving failure. This guide introduces how to set up such dedicated Compute Nodes to decouple streaming and serving."
 ---
+To decouple streaming and serving, you need at least one Compute Node with the `streaming` role (Streaming Node) and one Compute Node with the `serving` role (Serving Node).
 
-To decouple streaming and serving, you need at least one compute node with the `streaming` role and one compute node with the `serving` role.
-
-When launching a compute node, its role can be specified via either the `--role` command-line argument, or `RW_COMPUTE_NODE_ROLE` environment variable.
+When launching a Compute Node, its role can be specified via either the `--role` command-line argument, or `RW_COMPUTE_NODE_ROLE` environment variable.
 
 You need to restart the node to update the role. A role can be one of:
 
-* `both`: The default role, if not specified. Indicates that the compute node is available for both streaming and serving.
-* `serving`: Indicates that the compute node is read-only and executes batch queries only.
-* `streaming`: Indicates that the compute node is only available for streaming.
+* `hybrid`: The default role, if not specified. Indicates that the Compute Node is available for both streaming and serving.
+* `serving`: Indicates that the Compute Node is read-only and executes batch queries only.
+* `streaming`: Indicates that the Compute Node is only available for streaming.
 
 <Note>
 In a production environment, it's advisable to use separate nodes for batch and streaming operations. The `both` mode, which allows a node to handle both batch and streaming queries, is more suited for testing scenarios. While it's possible to execute batch and streaming queries concurrently, it's recommended to avoid running resource-intensive batch and streaming queries at the same time.
@@ -40,7 +39,7 @@ Apply the changes to your Kubernetes cluster:
 kubectl apply -f your-risingwave-custom-resource.yaml
 ```
 
-After enabling the embedded serving mode, the frontend component will be transformed into a combination of frontend and serving compute node, while the compute component will be dedicated to streaming operations only. This means:
+After enabling the embedded serving mode, the frontend component will be transformed into a combination of frontend and serving Compute Node, while the compute component will be dedicated to streaming operations only. This means:
 
 - The frontend pods will now handle both frontend tasks and serving (batch) queries.
 - The compute pods will exclusively handle streaming tasks.
@@ -73,7 +72,7 @@ helm upgrade your-risingwave-release-name risingwavelabs/risingwave \
   --reuse-values
 ```
 
-After enabling the embedded serving mode, the frontend component will be transformed into a combination of frontend and serving compute node, while the compute component will be dedicated to streaming operations only. This means:
+After enabling the embedded serving mode, the frontend component will be transformed into a combination of frontend and serving Compute Node, while the compute component will be dedicated to streaming operations only. This means:
 
 - The frontend pods will now handle both frontend tasks and serving (batch) queries.
 - The compute pods will exclusively handle streaming tasks.
@@ -84,20 +83,20 @@ This architecture provides better isolation between streaming and serving worklo
 </Tab>
 </Tabs>
 
-## Configure a `serving` compute node for batch queries
+## Configure a Serving Node for batch queries
 
-You can use a TOML configuration file to configure a `serving` compute node. For detailed instructions, see [Node-specific configurations](/deploy/node-specific-configurations).
+You can use a TOML configuration file to configure a `serving` Compute Node (Serving Node). For detailed instructions, see [Node-specific configurations](/deploy/node-specific-configurations).
 
-Unlike a general-purpose `both` compute node, a `serving` compute node doesn't require memory allocation or reservation for shared buffer and operator caches. Instead, it's more efficient to increase the sizes of the block and meta caches. However, making these caches too large can limit the scope of data that batch queries can execute.
+Unlike a general-purpose `hybrid` Compute Node, a `serving` Compute Node doesn't require memory allocation or reservation for shared buffer and operator caches. Instead, it's more efficient to increase the sizes of the block and meta caches. However, making these caches too large can limit the scope of data that batch queries can execute.
 
-Here's an example configuration for a `serving` compute node with 16GB of memory which you can find in `/risingwave/src/config/serving.toml`:
+Here's an example configuration for a `serving` Compute Node with 16GB of memory which you can find in `/risingwave/src/config/serving.toml`:
 
 ```bash
 [storage]
-# Shared buffer is not needed for a serving-only compute node.
+# Shared buffer is not needed for a serving-only Compute Node.
 shared_buffer_capacity_mb = 1
 
-# Compactor is irrelevant to a serving-only compute node.
+# Compactor is irrelevant to a serving-only Compute Node.
 compactor_memory_limit_mb = 1
 
 # Allocate 30% of total memory to block cache: 16GB * 0.3 = 4.8GB

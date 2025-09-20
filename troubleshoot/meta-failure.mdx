@@ -1,11 +1,11 @@
 ---
 title: "Meta failure"
-description: "If the meta fails to start or abruptly exits during operation, there is currently only one known issue that can cause this problem: the meta node fails to remain active while participating in the campaign."
+description: "If the meta fails to start or abruptly exits during operation, there is currently only one known issue that can cause this problem: the Meta Node fails to remain active while participating in the campaign."
 ---
 
 ## Symptoms
 
-If you come across the following logs in the meta node, it is likely that you are encountering this particular issue.
+If you come across the following logs in the Meta Node, it is likely that you are encountering this particular issue.
 
 1. `lease timeout`
 2. `ERROR risingwave_meta::rpc::election_client: keep alive failed, stopping main loop`
@@ -17,7 +17,7 @@ The observed issue is most likely a result of ETCD experiencing fluctuations, wh
 ## Solutions
 
 1. Check etcd configures, whether `-auto-compaction-mode`, `-max-request-bytes` are set properly.
-2. If only one meta node is deployed, you can set the parameter `meta_leader_lease_secs` to `86400` to avoid impact on leader election by the disk performance. For multi-node deployment, you can also increase the value of this parameter.
+2. If only one Meta Node is deployed, you can set the parameter `meta_leader_lease_secs` to `86400` to avoid impact on leader election by the disk performance. For multi-node deployment, you can also increase the value of this parameter.
 3. For better performance and stability of the cluster, it is recommended to use higher-performance disks and configure etcd correctly.
 
 ## Further explanation
@@ -28,4 +28,4 @@ Moreover, we currently only support the behavior of upgrading from follower to l
 
 Therefore, this behavior heavily relies on the performance of etcd. When etcd is deployed in environments such as mechanical disks, virtual disks, or network disks, if there’s a massive amount of traffic in risingwave leading to high-load writes by meta on etcd, this will cause a large number of timeouts in etcd. This can lead to consecutive failures of election keep alive, thereby leading to our active exit.
 
-Therefore, when we only have one meta node, this election behavior is actually unnecessary. We can set the election lease to an infinitely large value, even to one whole day as 86400 seconds.
+Therefore, when we only have one Meta Node, this election behavior is actually unnecessary. We can set the election lease to an infinitely large value, even to one whole day as 86400 seconds.
