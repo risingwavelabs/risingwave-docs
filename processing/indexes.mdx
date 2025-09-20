@@ -15,7 +15,7 @@ Indexes can be particularly useful for optimizing the performance of queries tha
 
 ## How to use indexes
 
-You can use the [CREATE INDEX](/sql/commands/sql-create-index) command to construct an index on a table or a materialized view. The syntax is as follows:
+You can use the [CREATE INDEX](/sql/commands/sql-create-index) command to construct an index on a table or a materialized view. Indexes can be standard for accelerating lookups and sorts or vector indexes for similarity search in machine learning, AI applications, etc. The syntax is as follows:
 
 ```sql
 CREATE INDEX [IF NOT EXISTS] index_name ON object_name ( index_column [ ASC | DESC ], [, ...] )
@@ -114,13 +114,19 @@ SELECT * FROM customers WHERE c_name = 'Alice';
 
 ## Indexes on expressions
 
-RisingWave supports creating indexes on expressions. Indexes on expressions are normally used to improve the performance of queries for frequently used expressions. To create an index on an expression, use the syntax:
+RisingWave supports creating indexes on expressions. Indexes on expressions are normally used to improve the performance of queries for frequently used expressions.
+
+### Standard indexes on expressions
+
+To create an index on an expression, use the syntax:
 
 ```sql
 CREATE INDEX index_name ON object_name (expression(column_name));
 ```
 
-For example, if you often perform queries like this:
+**Example 1: Concatenated strings**
+
+If you often perform queries like this:
 
 ```sql
 SELECT * FROM people WHERE (first_name || ' ' || last_name) = 'John Smith';
@@ -131,6 +137,8 @@ Then you might want to create an index like the following to improve the perform
 ```sql
 CREATE INDEX people_names ON people ((first_name || ' ' || last_name));
 ```
+
+**Example 2: JSONB field extraction**
 
 This syntax is quite useful when working with a semi-structured table that utilizes the [JSONB](/sql/data-types/jsonb) datatype. Here is an example of creating an index on a specific field within a JSONB column.
 
@@ -145,6 +153,37 @@ dev=> explain select * from t where (v->'field')::int = 123;
  BatchExchange { order: [], dist: Single }
  └─BatchScan { table: i, columns: [v], scan_ranges: [CAST = Int32(123)] }
 (2 rows)
+```
+
+### Vector index on function expressions
+
+<Note>
+Creating vector index on function expression is added in v2.6.0 and is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
+</Note>
+
+RisingWave supports creating vector indexes on the results of function expressions.
+
+```sql Syntax
+CREATE INDEX index_name ON table_name USING flat (function_expression(column))
+[INCLUDE (other_columns)]
+WITH (distance_type = '<type>');
+```
+
+**Example: text embedding with a function**
+
+Suppose you have a `text` column and a function `get_embedding(text)` that converts text into a vector. You can create a vector index directly on the output of this function:
+
+```sql
+-- Create a vector index on the result of get_embedding(text)
+CREATE INDEX i ON items USING flat (get_embedding(text))
+INCLUDE (text)
+WITH (distance_type = 'l2');
+
+-- Query the most similar text entries using the indexed embedding
+SELECT id, text
+FROM items
+ORDER BY get_embedding(text) <-> '[0.1,0.2,0.3]'::vector(3)
+LIMIT 5;
 ```
 
 ## More examples
