@@ -1,0 +1,76 @@
+---
+title: "Iceberg compaction"
+sidebarTitle: Compaction
+description: "Learn how RisingWave supports Iceberg compaction for sinks and table engines, and Copy-on-Write mode to improve performance."
+---
+
+When RisingWave streams data into Iceberg, the process can generate many small data files and delete files. These files accumulate over time, increasing storage overhead and slowing down query performance.
+
+To address this, RisingWave provides two approaches to compaction:
+
+- Compaction for Iceberg sinks and table engines
+
+- Copy-on-Write (CoW) mode
+
+## Compaction for Iceberg sinks and table engines
+
+Iceberg compaction for sinks and table engines periodically merges small data files and delete files into larger, optimized data files. It can also expire old snapshots to reduce metadata size and enhance read performance. These operations run in the background at user-defined intervals, ensuring efficient storage management with minimal disruption.
+
+Below is example for Iceberg sinks. For detailed syntax, parameters, and configuration details, see [Compaction for Iceberg sink](/iceberg/deliver-to-iceberg#compaction-for-iceberg-sink).
+
+```sql Compaction for Iceberg sink
+CREATE SINK sink_demo_rest FROM t
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = true,
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxxx',
+    s3.secret.key = 'xxxx',
+    s3.path.style.access = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'http://localhost:8181/api/catalog',
+    warehouse.path = 'warehouse',
+    database.name = 'ns',
+    table.name = 't1',
+    -- the following configurations are about iceberg compaction
+    enable_compaction=true, 
+    compaction_interval_sec=3600, 
+    enable_snapshot_expiration=true
+);
+```
+
+Below is example for Iceberg table engine. For detailed syntax, parameters, and configuration details, see [Compaction for Iceberg sink](/iceberg/create-manage-native-iceberg-tables#compaction-for-native-iceberg-tables).
+
+```sql Compaction for table engine
+CREATE TABLE t (
+    id INT PRIMARY KEY, 
+    name VARCHAR
+) WITH (
+    enable_compaction = true, 
+    compaction_interval_sec = 3600, 
+    enable_snapshot_expiration = true
+) ENGINE = iceberg;
+```
+
+## Copy-on-Write (CoW) mode
+
+While standard compaction focuses on merging files, CoW mode makes sure that external applications always see a clean, delete-free view of the data. This is crucial for workloads with frequent upserts where downstream systems require a stable clean view without delete files.
+
+Iceberg CoW mode uses two branches to separate ingestion from external queries. The **ingestion-branch** handles continuous writes, including data files and delete files, while the **main-branch** provides a clean, delete-free view for downstream applications.
+
+Optionally, compaction jobs can record metadata, such as the last compacted snapshot ID and timestamp in `table.metadata.properties` for tracking and monitoring.
+
+To use CoW mode, specify `write_mode = 'copy-on-write'` when creating your Iceberg table.
+
+```sql CoW mode for Iceberg table engine
+CREATE TABLE t_cow (
+    a INT PRIMARY KEY,
+    b INT
+) WITH (
+    commit_checkpoint_interval = 1,
+    compaction_interval_sec = 10,
+    write_mode = 'copy-on-write'
+) ENGINE = iceberg;
+```
