@@ -20,11 +20,11 @@ In your Grafana dashboard (dev), navigate to **Cluster Node** > **Node CPU panel
 
 **Actions:**
 
-*   Consider scaling up (adding more cores to a compute node) or scaling out (adding more compute nodes to the cluster). See [Resource allocation](/performance/best-practices#resource-allocation).
+*   Consider scaling up (adding more cores to a Streaming Node) or scaling out (adding more Streaming Nodes to the cluster). See [Resource allocation](/performance/best-practices#resource-allocation).
 
 **Caveats:**
 
-*   Low CPU usage *doesn't* necessarily mean you can scale down. If the bottleneck is caused by slow state reads/updates due to insufficient memory, shrinking compute nodes might worsen the situation.
+*   Low CPU usage *doesn't* necessarily mean you can scale down. If the bottleneck is caused by slow state reads/updates due to insufficient memory, shrinking Compute Nodes might worsen the situation.
 *   High memory usage is expected in RisingWave, as it utilizes available memory for caching. For details, see [Why is the memory usage so high?](/faq/faq-using-risingwave#why-the-memory-usage-is-so-high).
 
 ## State access bottleneck (read)
@@ -50,7 +50,7 @@ And navigate to the **Streaming Actors** > **Executor Cache Miss Ratio** panel:
 
 **Actions:**
 
-*   Increase compute node memory by scaling up or scaling out. See [Resource allocation](/performance/best-practices#resource-allocation).
+*   Increase Streaming Node memory by scaling up or scaling out. See [Resource allocation](/performance/best-practices#resource-allocation).
 
 ### Storage read
 
@@ -155,7 +155,7 @@ Navigate to Grafana dashboard (dev) > **Hummock (Read)** > **Cache Miss Ratio**
 
 **Actions:**
 
-*   Scale up the compute node or tune memory configurations. See [Resource allocation](/performance/best-practices#resource-allocation).
+*   Scale up the Streaming Node or tune memory configurations. See [Resource allocation](/performance/best-practices#resource-allocation).
 
 **Caveats:**
 
@@ -178,7 +178,7 @@ Navigate to Grafana dashboard (dev) > **Hummock (Read)** > **Cache Ops**.
 
 **Actions:**
 
-*   Scale up the compute node or tune memory configurations.
+*   Scale up the Streaming Node or tune memory configurations.
 *   Investigate potential [Object store issues](#object-store-issues).
 
 ## State update bottleneck (write)
@@ -231,12 +231,12 @@ Navigate to ***Grafana dashboard (dev) > Hummock (Write) > Event handler pending
 
 **Indicators:**
 
-*   The event number remains consistently high. This often indicates too many actors/state tables on a single compute node.
+*   The event number remains consistently high. This often indicates too many actors/state tables on a single Streaming Node.
 
 **Actions:**
 
 *   Check the per-compute-node actor count: Grafana dashboard (dev) > **Actor/Table Id Info** > **Actor Count (Group By Compute Node)**
-*   Add more compute nodes and rebalance actors.
+*   Add more Compute Nodes and rebalance actors.
 
 ## Compaction bottleneck
 
@@ -314,7 +314,7 @@ Data between `safe_epoch` and `max_committed_epoch` is readable in a multi-versi
 
 *   Check for long-running batch queries: `SHOW PROCESSLIST;`
 *   Trigger a manual recovery: `RECOVER;`
-*   Restart all frontend nodes.
+*   Restart all serving nodes.
 
 ## UDF bottleneck
 
@@ -344,7 +344,7 @@ Navigate to ***Grafana dashboard (dev) > Object Store > Operation Rate/Duration/
 Potential causes of object store slowness include:
 
 1.  **High Operation Duration:** Check logs for errors/warnings.
-2.  **High Operation Rate:** With S3, >3000 OPS may cause duration spikes. Consider scaling up compute nodes to reduce cache misses.
+2.  **High Operation Rate:** With S3, >3000 OPS may cause duration spikes. Consider scaling up Compute Nodes to reduce cache misses.
 3.  **Persistent Operation Failure Rate:** Indicates misconfiguration or network/object store unavailability. Check logs.
 4.  **Persistent Operation Retry Rate:** Indicates misconfiguration or network/object store unavailability. Check logs. If retries are due to timeouts, consider tuning retry configurations.
 
@@ -355,7 +355,7 @@ Navigate to ***Grafana dashboard (dev) > User Streaming Errors > Sink Errors By 
 ![Sink Errors](/images/performance/sink-errors.png)
 *Figure 20: Sink errors in Grafana.*
 
-You should ideally see no errors here. If errors are present, search for "sink" and "Error" in the compute node logs.
+You should ideally see no errors here. If errors are present, search for "sink" and "Error" in the node logs.
 
 If other indicators (e.g., the Await Tree Dump) suggest a sink bottleneck, consider enabling sink decoupling to isolate temporary sink slowness. See [Sink decoupling](/delivery/overview#sink-decoupling).
 

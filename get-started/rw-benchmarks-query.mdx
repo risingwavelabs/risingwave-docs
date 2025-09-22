@@ -19,8 +19,8 @@ The performance tests were conducted using a modified version of the [sysbench](
 ### Environment
 
 - **Hardware:**
-    - One AWS EC2 instance (8 vCPUs, 16GB memory) for the RisingWave compute node.
-    - One AWS EC2 instance (8 vCPUs, 16GB memory) for the RisingWave frontend node.
+    - One AWS EC2 instance (8 vCPUs, 16GB memory) for the RisingWave streaming node.
+    - One AWS EC2 instance (8 vCPUs, 16GB memory) for the RisingWave serving node.
     - One AWS EC2 instance (8 vCPUs, 16GB memory) for the sysbench client (query generator).
 - **Software:** RisingWave (specific version not mentioned in the report, but presumably a recent stable or nightly build).
 
@@ -86,4 +86,4 @@ Three types of queries from the sysbench OLTP workload were used:
 ## Key observations
 
 - Memory impact: When the memory is sufficient to cache all the queried data, performance remains relatively stable as the table size grows. This highlights the importance of memory capacity for OLTP workloads.
-- Bottlenecks: In the `oltp_point_select` workload, the frontend node becomes the primary bottleneck due to the lightweight nature of the operations. For `select_random_points` and `select_random_ranges`, both the compute and frontend nodes experience CPU saturation.
+- Bottlenecks: In the `oltp_point_select` workload, the serving node becomes the primary bottleneck due to the lightweight nature of the operations. For `select_random_points` and `select_random_ranges`, both the streaming and serving nodes experience CPU saturation.

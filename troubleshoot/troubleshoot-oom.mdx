@@ -3,16 +3,16 @@ title: "Out of memory"
 description: Out-of-Memory (OOM) is a common issue in data processing systems that can have multiple causes. This guide aims to help you identify the root causes of OOM errors and efficiently resolve the issues.
 ---
 
-RisingWave uses shared storage like AWS S3 and uses the compute node's memory as a cache to enhance streaming jobs. The cache operates in a Least Recently Used (LRU) manner. That means the least-used entries will be removed when memory becomes insufficient.
+RisingWave uses shared storage like AWS S3 and uses the Streaming Node's memory as a cache to enhance streaming jobs. The cache operates in a Least Recently Used (LRU) manner. That means the least-used entries will be removed when memory becomes insufficient.
 
-For optimal performance, the recommended minimum memory for a compute node is 8 GB, but we suggest using 16 GB or more for production usage.
+For optimal performance, the recommended minimum memory for a Streaming Node is 8 GB, but we suggest using 16 GB or more for production usage.
 
-This guide focuses on addressing OOM issues on the compute node. If you encounter OOM on other nodes, we recommend upgrading to the latest version first. If the issue persists, please contact us.
+This guide focuses on addressing OOM issues on the Streaming Node. If you encounter OOM on other nodes, we recommend upgrading to the latest version first. If the issue persists, please contact us.
 
 ## OOM symptoms
 
-1. The Kubernetes shows the compute node pod suddenly restarts due to **OOM Killed (137)**.
-2. The Grafana metrics show memory increases unbounded, beyond the limit of `total_memory` set for the compute node. Memory settings can be found in the booting logs of the compute node. Search for the keyword “Memory outline" to locate the specific section.
+1. The Kubernetes shows the Streaming Node pod suddenly restarts due to **OOM Killed (137)**.
+2. The Grafana metrics show memory increases unbounded, beyond the limit of `total_memory` set for the Streaming Node. Memory settings can be found in the booting logs of the Streaming Node. Search for the keyword “Memory outline" to locate the specific section.
 <Frame>
   <img src="/images/current/troubleshoot-oom/oom-symptom.png"/>
 </Frame>
@@ -25,7 +25,7 @@ If OOM happens during the creation of a new materialized view, it might be cause
 CREATE MATERIALIZED VIEW mv WITH ( source_rate_limit = 200 ) AS ...
 ```
 
-The parameter [source\_rate\_limit](/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters) refers to the maximum number of records per second for each parallelism on each source, where the default parallelism for streaming jobs is the total number of CPU cores across the cluster. For example, assuming a materialized view has four parallelisms and two sources joining together, each source's throughput will be throttled to `4 * source_rate_limit` records/s.
+The parameter [source_rate_limit](/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters) refers to the maximum number of records per second for each parallelism on each source, where the default parallelism for streaming jobs is the total number of CPU cores across the cluster. For example, assuming a materialized view has four parallelisms and two sources joining together, each source's throughput will be throttled to `4 * source_rate_limit` records/s.
 
 Alternatively, you may use `risectl` to alter the streaming rate limit of an existent materialized view, where the `<id>` can be found either from the RisingWave Dashboard or `rw_catalog` schema.
 
@@ -48,7 +48,7 @@ Please refer to [High latency](/performance/troubleshoot-high-latency) for more 
 
 ## OOM during prefetching
 
-If OOM occurs during long batch queries, it might result from excessive memory usage on compute nodes. In such a case, consider reducing the memory usage of prefetching by adjusting the value of the `storage.prefetch_buffer_capacity_mb` parameter in the TOML file.
+If OOM occurs during long batch queries, it might result from excessive memory usage on Compute Nodes. In such a case, consider reducing the memory usage of prefetching by adjusting the value of the `storage.prefetch_buffer_capacity_mb` parameter in the TOML file.
 
 The `storage.prefetch_buffer_capacity_mb` configuration defines the maximum memory allowed for prefetching. It aims to optimize streaming executor and batch query performance through pre-reading. This feature allows hummock to read larger chunks of data in a single I/O operation, but at a higher memory cost. When the memory usage during prefetch operations reaches this limit, hummock will revert to the original read method, processing data in 64 KB blocks. If you set the parameter to 0, this feature will be disabled. By default, it is set to 7% of the total machine memory.
 
@@ -61,7 +61,7 @@ We have added a heap profiling utility in the RisingWave Dashboard to help you a
 <Note>
 
 
-To enable memory profiling, please set the environment variable `MALLOC_CONF=prof:true` for the compute nodes.
+To enable memory profiling, please set the environment variable `MALLOC_CONF=prof:true` for the Compute Nodes.
 </Note>
 
 Go to the RisingWave Dashboard and select **Debug** \> **Heap Profiling**. If RisingWave is running on your local machine, you can access the RisingWave Dashboard at `127.0.0.1:5691`.
