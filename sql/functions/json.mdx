@@ -420,6 +420,24 @@ jsonb_set ( target jsonb, path text[], new_value jsonb [, create_if_missing bool
 jsonb_set('[{"f1":1,"f2":null},2]', '{0,f3}', '[2,3,4]') → [{"f1": 1, "f2": null, "f3": [2, 3, 4]}, 2]
 ```
 
+### `jsonb_to_array`
+
+<Note>
+Added in v2.6.0.
+</Note>
+
+Converts the a JSONB array to a SQL array of JSONB elements. It is functionally equivalent to [`jsonb_array_elements`](/sql/functions/json#jsonb-array-elements) followed by `array_agg` but simpler to use. `jsonb_to_array` preserves the original element order and accurately distinguishes between `null` and an empty array.
+
+```sql
+jsonb_to_array ( jsonb ) → jsonb[]
+```
+
+```sql
+SELECT jsonb_to_array('[1,true,[2,false]]'::jsonb);
+------RESULT
+{1,true,"[2, false]"}
+```
+
 ### `jsonb_typeof`
 Returns the type of the top-level JSON value as a text string.
 
