@@ -30,7 +30,7 @@ VACUUM [FULL] schema_name.object_name;
 -- Insert and update data
 insert into t_vacuum_test values(1, 'alice', 100), (2, 'bob', 200), (3, 'charlie', 300);
 FLUSH;
-sleep 5s
+-- sleep 5s
 
 -- Check data
 select * from t_vacuum_test;
@@ -38,15 +38,13 @@ select * from t_vacuum_test;
 -- More inserts/updates
 insert into t_vacuum_test values(4, 'david', 400), (5, 'eve', 500);
 FLUSH;
-sleep 5s
+-- sleep 5s
 update t_vacuum_test set v1 = 150 where id = 1;
 FLUSH;
-sleep 5s
+-- sleep 5s
 
 -- Run VACUUM and verify
 VACUUM t_vacuum_test;
-select count(*) > 1 from rw_iceberg_files where schema_name = 'public' and source_name = '__iceberg_source_t_vacuum_test';
 
 VACUUM FULL t_vacuum_test;
-select count(*) from rw_iceberg_files where schema_name = 'public' and source_name = '__iceberg_source_t_vacuum_test';  -- Should return 1
 ```
