@@ -1,0 +1,76 @@
+---
+title: "Sink Data into Iceberg and Query with Databricks"
+sidebarTitle: "Databricks (Glue)"
+description: "Learn how to sink data from RisingWave into Iceberg tables on AWS Glue + S3, and query them using Databricks."
+---
+
+This guide shows how to sink data from RisingWave into an Iceberg table backed by AWS Glue (catalog) and Amazon S3 (warehouse), and then query the table using Databricks.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- A running RisingWave cluster.
+
+- (Optional) An Iceberg compactor if you plan to sink upsert streams. Contact our [support team](mailto:cloud-support@risingwave-labs.com) or [sales team](mailto:sales@risingwave-labs.com) if you need this.
+
+- A Databricks cluster.
+
+- An Amazon S3 bucket.
+
+- AWS Glue.
+
+## Iceberg catalog and warehouse
+
+The Iceberg catalog should be AWS Glue. As for the warehouse, we recommended using AWS S3.
+
+## Sink data from RisingWave into Iceberg
+
+Follow the [instruction](/iceberg/deliver-to-iceberg#use-with-different-storage-backends) to create a sink to sink your data into Iceberg table.
+
+Below are two examples.
+
+```sql Glue + S3 (append-only)
+CREATE SINK glue_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'glue',
+    catalog.name = 'my_catalog',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2'
+);
+```
+
+```sql Glue + S3 (upsert)
+CREATE SINK glue_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'glue',
+    catalog.name = 'my_catalog',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    write_mode = 'copy-on-write',
+    enable_compaction = true,
+    compaction_interval_sec = 300
+);
+```
+
+<Note>
+For `upsert` type, since Databricks doesn’t support reading position delete and equality delete files, please use [Copy-on-Write mode](/iceberg/compaction#copy-on-write-cow-mode) `write_mode = 'copy-on-write'` and enable the iceberg compaction as well. The `compaction_interval_sec` determines the freshness of the Iceberg table, since Copy-on-Write mode relies on the Iceberg compaction.
+</Note>
+
+## Query Iceberg table in Databricks
+
+Follow [Unity catalog Lakehouse federation](https://docs.databricks.com/aws/en/query-federation/hms-federation-glue) to query iceberg data from AWS Glue.
+
+Once configured, you can directly query the Iceberg table from Databricks.
