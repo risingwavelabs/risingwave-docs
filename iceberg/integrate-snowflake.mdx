@@ -1,0 +1,84 @@
+---
+title: "Sink data into Iceberg and query with Snowflake"
+sidebarTitle: "Snowflake"
+description: "Learn how to sink data from RisingWave into Iceberg and query it using Snowflake."
+---
+
+This guide shows how to sink data from RisingWave into Iceberg tables and query them using Snowflake. It covers both AWS Glue and REST catalog options, with S3 as the recommended warehouse.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- A running RisingWave cluster.
+
+- (Optional) An Iceberg compactor if you plan to sink upsert streams. Contact our support team if needed.
+
+- A Snowflake cluster
+
+- S3 bucket
+
+- AWS Glue or an Iceberg REST catalog
+
+## Catalog and warehouse
+
+Recommended Iceberg catalogs:
+
+- AWS Glue catalog.
+- REST catalog. It could be any catalogs compatible with [Iceberg rest openapi spec](https://github.com/apache/iceberg/blob/main/open-api/rest-catalog-open-api.yaml).
+
+Recommended warehouse: AWS S3.
+
+## Sink data from RisingWave into Iceberg
+
+Follow the [instruction](/iceberg/deliver-to-iceberg#use-with-different-storage-backends) to create a sink to sink your data into Iceberg table.
+
+```sql Glue + S3 (append-only)
+CREATE SINK glue_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'glue',
+    catalog.name = 'my_catalog',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2'
+);
+```
+
+```sql REST catalog + S3
+CREATE SINK rest_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    catalog.credential = 'username:password',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    write_mode = 'copy-on-write',
+    enable_compaction = true,
+    compaction_interval_sec = 300
+);
+```
+
+<Note>
+For `upsert` type, since Snowflake doesn’t support reading equality delete files, please use Copy-on-Write mode `write_mode = 'copy-on-write'` and enable the Iceberg compaction as well. The `compaction_interval_sec` determines the freshness of the Iceberg table, since Copy-on-Write mode relies on the Iceberg compaction.
+</Note>
+
+## Configure Snowflake catalog integration
+
+Use Snowflake catalog integration to query Iceberg data from
+
+1. [Glue catalog](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-glue)
+2. [REST catalog](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-rest)
+
+Once you finished the configuration, you can query your Iceberg table in Snowflake.
+
