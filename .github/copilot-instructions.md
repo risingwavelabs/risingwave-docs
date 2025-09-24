@@ -68,7 +68,11 @@ mod: wide  # Optional - for wide layout
     <img src="/images/path/to/image.png" alt="Descriptive alt text"/>
   </Frame>
   ```
-- **Include alt text** for all images for accessibility (note: current documentation has inconsistent alt text usage)
+- **Include descriptive alt text** for all images to ensure accessibility.
+  - When updating existing images, add or improve alt text if it is missing or unclear.
+  - Alt text should briefly and accurately describe the content and purpose of the image.
+  - **Good example:** `alt="RisingWave Console dashboard showing stream status"`
+  - **Bad example:** `alt="screenshot"` or missing alt attribute.
 - **Use consistent screenshot dimensions** where possible
 - **Organize images** in logical subdirectories under `/images/`
 
