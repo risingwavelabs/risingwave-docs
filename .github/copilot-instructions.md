@@ -241,7 +241,7 @@ Before submitting any documentation changes:
 
 ## Version Management
 
-- **Current version** is maintained in `mint.json` line 91: `"Current (v2.5)"`
+- **Current version** is maintained in `mint.json` under the `version` field.
 - **Feature availability** should be noted in documentation
 - **Deprecated features** should be clearly marked
 - **Migration guides** provided for breaking changes
