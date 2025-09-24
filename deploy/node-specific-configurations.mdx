@@ -79,6 +79,11 @@ Streaming configurations can be set in `[streaming]` section in the configuratio
 ```toml
 [streaming]
 unsafe_enable_strict_consistency = true
+
+[streaming.developer]
+default_enable_mem_preload_state_table = false
+mem_preload_state_table_ids_whitelist = [1001, 1002]
+mem_preload_state_table_ids_blacklist = []
 ```
 
 RisingWave now supports the following configurations:
@@ -86,6 +91,16 @@ RisingWave now supports the following configurations:
 | Configuration                       | Default | Description                                                                                                                                                                |
 | :---------------------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | unsafe\_enable\_strict\_consistency | true    | Control the strictness of stream consistency. When set to false, data inconsistency like double-insertion or double-deletion with the same primary keys will be tolerated. |
+
+#### Developer configurations
+
+Advanced streaming configurations can be set in the `[streaming.developer]` section. These are for advanced use cases and performance tuning:
+
+| Configuration                               | Default | Description                                                                                                                                                                |
+| :------------------------------------------ | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| default\_enable\_mem\_preload\_state\_table | false   | **Premium feature.** Whether to enable preloading all rows in memory for state tables by default. When enabled, all capable state tables will preload their state to memory for improved performance. Can be overridden globally with the `DEFAULT_ENABLE_MEM_PRELOAD_STATE_TABLE` environment variable. |
+| mem\_preload\_state\_table\_ids\_whitelist | \[\]    | **Premium feature.** List of state table IDs to enable memory preloading for. Only takes effect when `default_enable_mem_preload_state_table` is false. |
+| mem\_preload\_state\_table\_ids\_blacklist | \[\]    | **Premium feature.** List of state table IDs to disable memory preloading for. Only takes effect when `default_enable_mem_preload_state_table` is true. |
 
 ### Storage configurations
 

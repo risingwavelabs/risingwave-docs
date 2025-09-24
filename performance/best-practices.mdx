@@ -46,6 +46,20 @@ Therefore, we generally prefer scaling up over scaling out for Compute Nodes. If
 
 In terms of Compactor Nodes, we favor scaling up when the resources of the Compactor Node are less than 4 CPU and 8 GB memory. This is because some compaction tasks can occasionally be quite resource-intensive and use up to 4 CPU and 8 GB memory. However, once the resource of the Compactor Node exceeds this threshold, both scaling up and scaling out are equally fine. See [Monitoring and metrics - Resource utilization](/performance/metrics#resource-utilization) to monitor CPU and memory usage, and [Monitoring and Metrics - Compaction](/performance/metrics#compaction) for compaction-related metrics.
 
+### State table memory optimization
+
+*Premium feature available in RisingWave Cloud and Enterprise.*
+
+For workloads with frequent state access patterns, you can enable state table memory preloading to significantly improve performance by keeping state data in memory. This is particularly effective for:
+
+- Complex stateful computations with large internal states
+- Workloads with frequent random access to state data  
+- Small to medium-sized state tables that fit in available memory
+
+Consider enabling memory preloading when you have sufficient memory resources and observe high cache miss rates in state operations. See [State table memory preloading](/performance/streaming-optimizations#state-table-memory-preloading) for configuration details.
+
+**Memory considerations:** Monitor memory usage carefully when enabling this feature, as it increases memory consumption but can provide substantial performance improvements for suitable workloads.
+
 
 ## Query optimization
 

@@ -30,3 +30,57 @@ Checkout [Converting StreamOverWindow to StreamGroupTopN](/processing/sql/top-n-
 ## Join optimizations
 
 Checkout [Join Optimizations](/processing/sql/joins#converting-dimension-table-joins-to-process-time-joins) for more details.
+
+## State table memory preloading
+
+*Premium feature available in RisingWave Cloud and Enterprise.*
+
+State table memory preloading is an advanced performance optimization that can significantly boost streaming query performance by preloading all state table rows into memory. This feature is particularly beneficial for workloads with:
+
+- Complex stateful computations requiring large internal states
+- Frequent state access patterns
+- Small to medium-sized state tables that fit comfortably in memory
+
+### When to enable memory preloading
+
+Consider enabling state table memory preloading when:
+
+- You have sufficient memory resources available
+- Your state tables are relatively small (can fit in available memory)
+- Your workload involves frequent random access to state data
+- You observe high cache miss rates in state table operations
+
+### Configuration
+
+Memory preloading can be configured in the `[streaming.developer]` section of your `risingwave.toml` configuration file:
+
+```toml
+[streaming.developer]
+# Enable memory preloading for all state tables by default
+default_enable_mem_preload_state_table = true
+
+# Or selectively enable for specific table IDs
+default_enable_mem_preload_state_table = false
+mem_preload_state_table_ids_whitelist = [1001, 1002, 1003]
+
+# Or disable for specific table IDs when globally enabled
+default_enable_mem_preload_state_table = true
+mem_preload_state_table_ids_blacklist = [2001, 2002]
+```
+
+You can also enable memory preloading globally using an environment variable:
+
+```bash
+export DEFAULT_ENABLE_MEM_PRELOAD_STATE_TABLE=true
+```
+
+### Performance considerations
+
+- **Memory usage:** Memory preloading increases memory consumption as state data is kept in memory
+- **Startup time:** Initial loading may take longer as all state data is preloaded
+- **Cache performance:** Once loaded, memory access patterns become much more efficient
+- **Watermark compatibility:** Tables with non-primary-key prefix watermarks will automatically disable memory preloading
+
+### Monitoring
+
+Monitor memory usage and cache performance metrics to ensure the feature is providing the expected benefits without exhausting system resources.
