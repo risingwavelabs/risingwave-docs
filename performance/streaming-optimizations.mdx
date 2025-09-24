@@ -35,52 +35,65 @@ Checkout [Join Optimizations](/processing/sql/joins#converting-dimension-table-j
 
 *Premium feature available in RisingWave Cloud and Enterprise.*
 
-State table memory preloading is an advanced performance optimization that can significantly boost streaming query performance by preloading all state table rows into memory. This feature is particularly beneficial for workloads with:
+### Syntax
 
-- Complex stateful computations requiring large internal states
-- Frequent state access patterns
-- Small to medium-sized state tables that fit comfortably in memory
-
-### When to enable memory preloading
-
-Consider enabling state table memory preloading when:
-
-- You have sufficient memory resources available
-- Your state tables are relatively small (can fit in available memory)
-- Your workload involves frequent random access to state data
-- You observe high cache miss rates in state table operations
-
-### Configuration
-
-Memory preloading can be configured in the `[streaming.developer]` section of your `risingwave.toml` configuration file:
+Configure memory preloading in your `risingwave.toml` file:
 
 ```toml
 [streaming.developer]
-# Enable memory preloading for all state tables by default
 default_enable_mem_preload_state_table = true
-
-# Or selectively enable for specific table IDs
-default_enable_mem_preload_state_table = false
-mem_preload_state_table_ids_whitelist = [1001, 1002, 1003]
-
-# Or disable for specific table IDs when globally enabled
-default_enable_mem_preload_state_table = true
-mem_preload_state_table_ids_blacklist = [2001, 2002]
+mem_preload_state_table_ids_whitelist = [1001, 1002]
+mem_preload_state_table_ids_blacklist = [2001]
 ```
 
-You can also enable memory preloading globally using an environment variable:
+Or use environment variable for global configuration:
 
 ```bash
 export DEFAULT_ENABLE_MEM_PRELOAD_STATE_TABLE=true
 ```
 
-### Performance considerations
+### Parameters
 
-- **Memory usage:** Memory preloading increases memory consumption as state data is kept in memory
-- **Startup time:** Initial loading may take longer as all state data is preloaded
-- **Cache performance:** Once loaded, memory access patterns become much more efficient
-- **Watermark compatibility:** Tables with non-primary-key prefix watermarks will automatically disable memory preloading
+| Parameter                               | Type         | Default | Notes                                                     |
+| :-------------------------------------- | :----------- | :------ | :-------------------------------------------------------- |
+| default\_enable\_mem\_preload\_state\_table | bool         | false   | Enable memory preloading for all state tables            |
+| mem\_preload\_state\_table\_ids\_whitelist | int\[\]      | \[\]    | State table IDs to enable when global setting is false   |
+| mem\_preload\_state\_table\_ids\_blacklist | int\[\]      | \[\]    | State table IDs to disable when global setting is true   |
 
-### Monitoring
+### When to use
 
-Monitor memory usage and cache performance metrics to ensure the feature is providing the expected benefits without exhausting system resources.
+Enable memory preloading for:
+- State tables with frequent random access patterns
+- Tables that fit in available memory
+- Workloads experiencing high cache miss rates
+
+Monitor memory usage when enabling this feature.
+
+### Examples
+
+**Enable for all state tables:**
+
+```toml
+[streaming.developer]
+default_enable_mem_preload_state_table = true
+```
+
+**Enable for specific tables only:**
+
+```toml
+[streaming.developer]
+default_enable_mem_preload_state_table = false
+mem_preload_state_table_ids_whitelist = [1001, 1002, 1003]
+```
+
+**Enable globally but exclude specific tables:**
+
+```toml
+[streaming.developer]
+default_enable_mem_preload_state_table = true
+mem_preload_state_table_ids_blacklist = [2001, 2002]
+```
+
+<Note>
+Tables with non-primary-key prefix watermarks automatically disable memory preloading.
+</Note>
