@@ -1,7 +1,7 @@
 ---
 title: "Sink data into Iceberg and query with Databricks"
 sidebarTitle: "Databricks (Glue)"
-description: "Learn how to sink data from RisingWave into Iceberg tables on AWS Glue + S3, and query them using Databricks."
+description: "Learn how to sink data from RisingWave into Iceberg and query it using Databricks."
 ---
 
 This guide shows how to sink data from RisingWave into an Iceberg table backed by AWS Glue (catalog) and Amazon S3 (warehouse), and then query the table using Databricks.
@@ -22,7 +22,7 @@ Before you begin, make sure you have:
 
 ## Iceberg catalog and warehouse
 
-The Iceberg catalog should be AWS Glue. As for the warehouse, we recommended using AWS S3.
+The Iceberg catalog should be AWS Glue. As for warehouse, we recommended using AWS S3.
 
 ## Sink data from RisingWave into Iceberg
 
@@ -66,11 +66,11 @@ WITH (
 ```
 
 <Note>
-For `upsert` type, since Databricks doesn’t support reading position delete and equality delete files, please use [Copy-on-Write mode](/iceberg/compaction#copy-on-write-cow-mode) `write_mode = 'copy-on-write'` and enable the iceberg compaction as well. The `compaction_interval_sec` determines the freshness of the Iceberg table, since Copy-on-Write mode relies on the Iceberg compaction.
+For `upsert` type, since Databricks doesn’t support reading position delete and equality delete files, please use Copy-on-Write mode `write_mode = 'copy-on-write'` and enable the Iceberg compaction as well. The `compaction_interval_sec` determines the freshness of the Iceberg table, since Copy-on-Write mode relies on the Iceberg compaction.
 </Note>
 
 ## Query Iceberg table in Databricks
 
-Follow [Unity catalog Lakehouse federation](https://docs.databricks.com/aws/en/query-federation/hms-federation-glue) to query iceberg data from AWS Glue.
+Follow [Unity catalog Lakehouse federation](https://docs.databricks.com/aws/en/query-federation/hms-federation-glue) to query Iceberg data from AWS Glue.
 
 Once configured, you can directly query the Iceberg table from Databricks.
