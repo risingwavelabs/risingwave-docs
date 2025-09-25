@@ -28,7 +28,7 @@ CREATE TABLE documents (
 
 -- Create a SQL UDF to avoid writing API key multiple times.
 CREATE FUNCTION text_embedding(t VARCHAR) RETURNS REAL[] LANGUAGE sql AS $$
-    SELECT openai_embedding('your-openai-api-key', 'text-embedding-3-small', t)
+    SELECT openai_embedding('{"model": "text-embedding-3-small", "api_key": "your-openai-api-key"}'::jsonb, t)
 $$;
 
 CREATE MATERIALIZED VIEW document_embeddings AS
