@@ -6,6 +6,30 @@ description: This guide describes how to sink data from RisingWave to Snowflake 
 
 Snowflake is a cloud-based data warehousing platform that allows for scalable and efficient data storage and analysis. The Snowflake v2 sink connector provides enhanced functionality including automatic schema changes and improved data ingestion methods.
 
+## Snowflake v2 vs Original Snowflake Sink
+
+The Snowflake v2 sink offers several advantages over the [original Snowflake sink](/integrations/destinations/snowflake):
+
+| Feature | Original Snowflake | Snowflake v2 |
+| :------ | :----------------- | :----------- |
+| Auto Schema Change | ❌ Not supported | ✅ Full support |
+| Table Auto-Creation | ❌ Manual setup required | ✅ Automatic with `create_table_if_not_exists` |
+| Upsert Support | ⚠️ Manual CDC handling | ✅ Built-in CDC processing |
+| Direct JDBC Mode | ❌ S3 staging only | ✅ Optional direct JDBC |
+| Task Management | ❌ Manual Snowflake task setup | ✅ Automatic task creation/management |
+| Connection Method | S3 + Snowpipe | S3 + Snowpipe or Direct JDBC |
+
+**When to use Snowflake v2:**
+- You need automatic schema evolution
+- You want simplified setup with automatic table creation
+- You require upsert functionality with built-in CDC processing
+- You prefer automated task management
+
+**When to use original Snowflake:**
+- You have existing pipelines with manual Snowpipe setup
+- You need full control over Snowflake task configuration
+- You're using the sink in append-only mode without schema changes
+
 <Tip>
 **PREMIUM FEATURE**
 
@@ -100,6 +124,12 @@ Auto schema change requires premium features to be enabled.
 
 The Snowflake v2 sink supports automatic schema evolution, allowing you to add new columns to your sink without manual intervention.
 
+<Note>
+**Source Integration**
+
+Auto schema change works best when paired with CDC sources that also support schema evolution, such as [MySQL CDC](/ingestion/sources/mysql/mysql-cdc#automatic-schema-changes) or [PostgreSQL CDC](/ingestion/sources/postgresql-cdc#automatic-schema-changes). This creates an end-to-end schema evolution pipeline.
+</Note>
+
 ### Enabling Auto Schema Change
 
 ```sql
@@ -122,6 +152,8 @@ CREATE SINK snowflake_v2_sink FROM source_table WITH (
 1. **Column Addition**: When new columns are added to the upstream source, they are automatically added to the Snowflake target table
 2. **Type Safety**: Only compatible data types are supported for automatic schema evolution
 3. **Non-Breaking Changes**: Only additive changes (new columns) are supported; column deletions or type changes require manual intervention
+4. **Automatic Detection**: Changes are detected when RisingWave processes new data with additional columns
+5. **Target Table Updates**: Both the main target table and intermediate CDC table (if using upsert mode) are updated simultaneously
 
 ### Supported Data Type Mapping
 
@@ -227,6 +259,12 @@ CREATE SINK snowflake_direct_sink FROM my_small_source WITH (
     create_table_if_not_exists = 'true'
 );
 ```
+
+<Note>
+**JDBC Mode Limitations**
+
+When using direct JDBC mode (`with_s3 = 'false'`), the sink uses the traditional JDBC-based approach which may have lower throughput compared to S3 staging. This mode is suitable for smaller data volumes or development environments.
+</Note>
 
 ## Upsert Mode Details
 

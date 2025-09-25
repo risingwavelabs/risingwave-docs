@@ -82,6 +82,12 @@ All parameters are required unless specified otherwise.
 
 The Redshift sink supports automatic schema evolution, allowing you to add new columns to your sink tables without manual intervention.
 
+<Note>
+**Source Integration**
+
+Auto schema change works best when paired with CDC sources that also support schema evolution, such as [MySQL CDC](/ingestion/sources/mysql/mysql-cdc#automatic-schema-changes) or [PostgreSQL CDC](/ingestion/sources/postgresql-cdc#automatic-schema-changes). This enables end-to-end schema evolution from source to sink.
+</Note>
+
 ### Enabling Auto Schema Change
 
 ```sql
@@ -101,6 +107,8 @@ CREATE SINK redshift_sink FROM source_table WITH (
 1. **Automatic Column Addition**: When new columns are added to the upstream source, they are automatically added to the Redshift target table
 2. **Table Creation**: When `create_table_if_not_exists = 'true'`, tables are automatically created with the correct schema
 3. **Type Mapping**: RisingWave data types are automatically mapped to compatible Redshift types
+4. **Intermediate Table Updates**: For upsert sinks, both target and intermediate CDC tables are updated with new columns
+5. **Processing Continuity**: Schema changes don't interrupt ongoing data processing
 
 ### Supported Data Type Mapping
 
