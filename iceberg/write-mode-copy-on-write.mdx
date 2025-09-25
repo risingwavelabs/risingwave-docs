@@ -1,0 +1,30 @@
+---
+title: "Copy-on-Write mode"
+sidebarTitle: Copy-on-Write mode
+description: "Learn how RisingWave uses Copy-on-Write mode for Iceberg tables and sinks."
+---
+
+RisingWave supports copy-on-write (CoW) mode for Iceberg tables and sinks. This is designed to ensure that external consumers always see a clean, delete-free snapshot of the data.
+
+Iceberg CoW mode uses two branches to separate ingestion from external queries. The **ingestion-branch** handles continuous writes, including data files and delete files, while the **main-branch** provides a clean, delete-free view for downstream applications.
+
+## Scenario
+
+Instead of leaving delete files for readers to merge in [MoR mode](/iceberg/write-mode-merge-on-read), RisingWave periodically rewrites data files to absorb the deletes. This approach is ideal for workloads with frequent upserts where downstream systems require a stable and consistent view.
+
+The trade-off is higher write amplification and potential latency during compaction.
+
+## Example
+
+To use Copy-on-Write mode, set the parameter `write_mode = 'copy-on-write'` when creating your Iceberg table or sink.
+
+```sql
+CREATE TABLE t_cow (
+    a INT PRIMARY KEY,
+    b INT
+) WITH (
+    commit_checkpoint_interval = 1,
+    compaction_interval_sec = 10,
+    write_mode = 'copy-on-write'
+) ENGINE = iceberg;
+```
