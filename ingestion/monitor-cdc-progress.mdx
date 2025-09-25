@@ -108,6 +108,46 @@ To monitor the progress of real-time CDC replication:
     SHOW SLAVE STATUS\G
      ```
     The value of `Seconds_Behind_Master` indicates the replication lag.
+
+## Monitoring parallelized CDC backfill progress
+
+For CDC tables created with parallelized backfill enabled (`backfill.parallelism` > 0), you can monitor the overall progress using the system catalog:
+
+### Using the rw_cdc_progress system catalog
+
+The `rw_cdc_progress` system catalog provides a high-level overview of CDC backfill progress:
+
+```sql
+SELECT * FROM rw_catalog.rw_cdc_progress;
+```
+
+This returns information like:
+
+```
+ job_id | split_total_count | split_backfilled_count | split_completed_count
+--------+-------------------+------------------------+----------------------
+   1001 |                12 |                     12 |                     8
+   1002 |                 6 |                      4 |                     4
+```
+
+The columns represent:
+- `job_id`: The CDC table's internal job ID
+- `split_total_count`: Total number of splits created for this table
+- `split_backfilled_count`: Number of splits that have completed snapshot backfill  
+- `split_completed_count`: Number of splits that have completed backfill and synchronized with the latest CDC offset
+
+### Detailed progress monitoring
+
+For more detailed progress tracking, you can still use the internal tables as described in the previous sections. For parallelized CDC backfill, the internal table schema includes additional columns for CDC offset tracking:
+
+- `cdc_offset_low`: The earliest CDC offset encountered during backfill
+- `cdc_offset_high`: The latest CDC offset encountered during backfill
+
+```sql
+SHOW INTERNAL TABLES;
+SELECT * FROM __internal_my_table_id_streamcdcscan_executor_id;
+```
+
 <Note>
 RisingWave commits offsets to the upstream database, allowing the database to free up space used by log files (WAL files for PostgreSQL, binlog files for MySQL). This offset commitment happens during checkpoint commits in the CDC source. If there is high checkpoint latency, log files may accumulate on the upstream server.
 </Note>
