@@ -1,0 +1,365 @@
+---
+title: "Sink data from RisingWave to Amazon Redshift"
+sidebarTitle: Amazon Redshift
+description: This guide describes how to sink data from RisingWave to Amazon Redshift using the Redshift sink connector with auto schema change support.
+---
+
+Amazon Redshift is a fully managed, petabyte-scale data warehouse service in the cloud. The RisingWave Redshift sink connector provides efficient data ingestion with support for automatic schema changes and both S3-based and direct loading methods.
+
+## Prerequisites
+
+Before using the Redshift sink, ensure you have:
+
+* An Amazon Redshift cluster with appropriate permissions
+* Database credentials with permissions to create tables and execute COPY commands
+* An upstream materialized view or source in RisingWave that you can sink data from
+
+### Optional S3 Setup
+
+For high-throughput scenarios (recommended):
+
+* An S3 bucket accessible by both RisingWave and Redshift
+* S3 credentials or IAM role with read/write permissions
+* Redshift cluster configured to access your S3 bucket
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector='redshift',
+   connector_parameter = 'value', ...
+);
+```
+
+## Parameters
+
+All parameters are required unless specified otherwise.
+
+### Connection Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| `jdbc.url` | **Required**. JDBC connection URL for Redshift. Format: `jdbc:redshift://cluster-endpoint:5439/database` |
+| `user` | **Optional**. Redshift username (can be included in JDBC URL) |
+| `password` | **Optional**. Redshift password (can be included in JDBC URL) |
+| `schema` | **Optional**. Target schema name. Default: `public` |
+| `table.name` | **Required**. Target table name in Redshift |
+
+### Data Loading Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| `with_s3` | **Optional**. Whether to use S3 for staging data. Default: `true` |
+| `batch.insert.rows` | **Optional**. Batch size for direct inserts (when S3 is disabled). Default: `4096` |
+
+### S3 Configuration (when `with_s3=true`)
+
+| Parameter | Description |
+| :-------- | :---------- |
+| `s3.bucket_name` | **Required**. S3 bucket name for staging files |
+| `s3.region_name` | **Required**. S3 region name |
+| `s3.credentials.access` | **Optional**. S3 access key ID |
+| `s3.credentials.secret` | **Optional**. S3 secret access key |
+| `s3.assume_role` | **Optional**. IAM role ARN for S3 access |
+| `s3.path` | **Optional**. S3 path prefix for staging files |
+
+### Schema Change and Table Management
+
+| Parameter | Description |
+| :-------- | :---------- |
+| `create_table_if_not_exists` | **Optional**. Automatically create target table. Default: `false` |
+| `intermediate.table.name` | **Required for upsert**. Name of intermediate table for CDC processing |
+
+### Advanced Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| `write.target.interval.seconds` | **Optional**. Interval for merging CDC data in upsert mode. Default: `3600` (1 hour) |
+
+## Auto Schema Change
+
+The Redshift sink supports automatic schema evolution, allowing you to add new columns to your sink tables without manual intervention.
+
+### Enabling Auto Schema Change
+
+```sql
+CREATE SINK redshift_sink FROM source_table WITH (
+    connector = 'redshift',
+    jdbc.url = 'jdbc:redshift://mycluster.region.redshift.amazonaws.com:5439/mydb',
+    user = 'myuser',
+    password = 'mypassword',
+    schema = 'public',
+    table.name = 'target_table',
+    create_table_if_not_exists = 'true'
+);
+```
+
+### How Auto Schema Change Works
+
+1. **Automatic Column Addition**: When new columns are added to the upstream source, they are automatically added to the Redshift target table
+2. **Table Creation**: When `create_table_if_not_exists = 'true'`, tables are automatically created with the correct schema
+3. **Type Mapping**: RisingWave data types are automatically mapped to compatible Redshift types
+
+### Supported Data Type Mapping
+
+| RisingWave Type | Redshift Type |
+| :-------------- | :------------ |
+| SMALLINT        | SMALLINT      |
+| INTEGER         | INTEGER       |
+| BIGINT          | BIGINT        |
+| REAL            | REAL          |
+| DOUBLE          | FLOAT         |
+| BOOLEAN         | BOOLEAN       |
+| VARCHAR         | VARCHAR(MAX)  |
+| DATE            | DATE          |
+| TIME            | TIME          |
+| TIMESTAMP       | TIMESTAMP     |
+| TIMESTAMPTZ     | TIMESTAMPTZ   |
+| JSONB           | VARCHAR(MAX)  |
+| DECIMAL         | DECIMAL       |
+
+## Examples
+
+### Append-Only Sink with S3 Staging
+
+```sql
+-- Create an append-only sink using S3 for staging
+CREATE SINK redshift_append_sink FROM my_source WITH (
+    connector = 'redshift',
+    jdbc.url = 'jdbc:redshift://data-cluster.region.redshift.amazonaws.com:5439/analytics',
+    user = 'data_user',
+    password = 'secure_password',
+    schema = 'public',
+    table.name = 'orders',
+    
+    -- S3 staging configuration
+    with_s3 = 'true',
+    s3.bucket_name = 'my-redshift-staging',
+    s3.region_name = 'us-east-1',
+    s3.credentials.access = 'AKIAIOSFODNN7EXAMPLE',
+    s3.credentials.secret = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+    s3.path = 'staging/orders/',
+    
+    -- Auto table creation
+    create_table_if_not_exists = 'true'
+);
+```
+
+### Upsert Sink with Change Data Capture
+
+```sql
+-- Create an upsert sink with CDC processing
+CREATE SINK redshift_upsert_sink FROM my_source WITH (
+    connector = 'redshift',
+    jdbc.url = 'jdbc:redshift://analytics-cluster.region.redshift.amazonaws.com:5439/warehouse',
+    user = 'analytics_user',
+    password = 'analytics_password',
+    schema = 'analytics',
+    table.name = 'customer_data',
+    intermediate.table.name = 'customer_data_cdc',
+    
+    -- S3 staging
+    with_s3 = 'true',
+    s3.bucket_name = 'analytics-redshift-staging',
+    s3.region_name = 'us-west-2',
+    s3.assume_role = 'arn:aws:iam::123456789012:role/RedshiftS3Role',
+    
+    -- Auto table creation
+    create_table_if_not_exists = 'true',
+    
+    -- Processing interval (30 minutes)
+    write.target.interval.seconds = '1800'
+);
+```
+
+### Direct JDBC Sink (without S3)
+
+```sql
+-- Create a sink that writes directly via JDBC (for smaller data volumes)
+CREATE SINK redshift_direct_sink FROM my_small_source WITH (
+    connector = 'redshift',
+    jdbc.url = 'jdbc:redshift://test-cluster.region.redshift.amazonaws.com:5439/testdb',
+    user = 'test_user',
+    password = 'test_password',
+    schema = 'public', 
+    table.name = 'test_data',
+    
+    -- Disable S3 staging for direct inserts
+    with_s3 = 'false',
+    batch.insert.rows = '1000',  -- Smaller batch size for testing
+    
+    create_table_if_not_exists = 'true'
+);
+```
+
+### Using IAM Role for S3 Access
+
+```sql
+-- Use IAM role instead of access keys for better security
+CREATE SINK redshift_iam_sink FROM secure_source WITH (
+    connector = 'redshift',
+    jdbc.url = 'jdbc:redshift://secure-cluster.region.redshift.amazonaws.com:5439/production',
+    user = 'prod_user',
+    password = 'prod_password',
+    schema = 'production',
+    table.name = 'secure_data',
+    
+    -- Use IAM role for S3 access
+    with_s3 = 'true',
+    s3.bucket_name = 'production-redshift-staging',
+    s3.region_name = 'us-east-1',
+    s3.assume_role = 'arn:aws:iam::123456789012:role/RedshiftDataLoadRole',
+    
+    create_table_if_not_exists = 'true'
+);
+```
+
+## Upsert Mode Details
+
+When using upsert sinks (tables with primary keys), the Redshift sink implements change data capture (CDC) processing:
+
+### CDC Processing Flow
+
+1. **Intermediate Table**: All changes are initially written to an intermediate CDC table
+2. **Periodic Merging**: A background process periodically merges changes into the target table
+3. **Change Consolidation**: Multiple changes to the same record are consolidated, keeping only the latest state
+4. **Cleanup**: Processed CDC records are removed from the intermediate table
+
+### Change Operations
+
+The sink handles the following change operations:
+- **INSERT** (op code 1): New records
+- **DELETE** (op code 2): Record deletions  
+- **UPDATE_INSERT** (op code 3): New state after an update
+- **UPDATE_DELETE** (op code 4): Old state before an update
+
+### Merge Process
+
+The merge process uses SQL operations similar to:
+
+```sql
+-- Delete records marked for deletion
+DELETE FROM target_table 
+WHERE primary_key IN (
+    SELECT primary_key FROM cdc_table 
+    WHERE __op IN (2, 4) AND processed = false
+);
+
+-- Upsert remaining changes
+INSERT INTO target_table 
+SELECT * FROM cdc_table 
+WHERE __op IN (1, 3) AND processed = false
+ON CONFLICT (primary_key) DO UPDATE SET ...;
+```
+
+## Performance Optimization
+
+### S3 Staging Benefits
+
+Using S3 staging (`with_s3 = 'true'`) provides several advantages:
+
+1. **Higher Throughput**: COPY commands are much faster than individual INSERTs
+2. **Better Concurrency**: Doesn't lock tables during data loading
+3. **Error Recovery**: Failed loads can be retried without affecting target tables
+4. **Cost Efficiency**: Reduces Redshift compute usage
+
+### Batch Size Configuration
+
+For direct JDBC mode (`with_s3 = 'false'`):
+- Increase `batch.insert.rows` for better throughput
+- Monitor connection timeouts and adjust accordingly
+- Consider switching to S3 staging for large volumes
+
+### Processing Intervals
+
+For upsert sinks:
+- Shorter intervals (`write.target.interval.seconds`) provide lower latency
+- Longer intervals improve processing efficiency
+- Balance based on your consistency requirements
+
+## Best Practices
+
+### Security
+
+1. **Use IAM roles** instead of access keys when possible
+2. **Restrict S3 bucket permissions** to necessary operations only
+3. **Use VPC endpoints** for S3 access from Redshift
+4. **Enable SSL** in JDBC connection strings
+5. **Store sensitive credentials** using RisingWave's secret management
+
+### Schema Design
+
+1. **Choose appropriate sort keys** for your Redshift tables
+2. **Use distribution keys** to optimize query performance
+3. **Consider compression** for frequently accessed columns
+4. **Plan for data growth** when designing schemas
+
+### Monitoring
+
+1. **Monitor COPY command performance** in Redshift query history
+2. **Track S3 staging bucket usage** and lifecycle policies
+3. **Watch for processing delays** in upsert mode
+4. **Set up alerts** for failed sink operations
+
+## Troubleshooting
+
+### Common Issues
+
+**Connection Problems**
+- Verify Redshift cluster endpoint and port
+- Check security group settings and VPC configuration
+- Confirm database credentials and permissions
+
+**S3 Access Issues**
+- Verify S3 bucket permissions and policies
+- Check IAM role configuration for Redshift
+- Ensure S3 bucket and Redshift cluster are in compatible regions
+
+**Data Loading Errors**
+- Review Redshift query history for COPY command failures
+- Check data type compatibility between RisingWave and Redshift
+- Verify table permissions and schema existence
+
+**Performance Issues**
+- Consider increasing Redshift cluster size
+- Optimize table distribution and sort keys
+- Review S3 staging file sizes and frequency
+
+### Error Messages
+
+**"Permission denied for schema"**
+- Grant CREATE permissions on the schema
+- Verify the user has appropriate table permissions
+
+**"Could not open S3 bucket"**
+- Check S3 bucket permissions and IAM roles
+- Verify bucket region matches cluster region
+
+**"Invalid JDBC URL"**
+- Ensure URL format: `jdbc:redshift://endpoint:port/database`
+- Check for special characters in connection parameters
+
+### Monitoring Queries
+
+Monitor your Redshift sink using these queries:
+
+```sql
+-- Check recent COPY operations
+SELECT query, starttime, endtime, duration, status
+FROM stl_query 
+WHERE querytxt LIKE 'COPY%'
+ORDER BY starttime DESC;
+
+-- Monitor table growth
+SELECT schemaname, tablename, size 
+FROM pg_tables_size 
+WHERE schemaname = 'your_schema'
+ORDER BY size DESC;
+
+-- View current connections
+SELECT datname, usename, client_addr, state
+FROM pg_stat_activity 
+WHERE usename = 'your_sink_user';
+```
