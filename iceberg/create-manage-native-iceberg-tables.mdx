@@ -293,6 +293,10 @@ To configure Iceberg compaction for a native Iceberg table, specify the followin
 | `enable_compaction`         | Whether to enable Iceberg compaction (`true`/`false`).                      |
 | `compaction_interval_sec`   | Interval (in seconds) between two compaction runs. Defaults to 3600 seconds.                           |
 | `enable_snapshot_expiration`| Whether to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
+| `snapshot_expiration_expire_older_than` | The timestamp (in milliseconds) to expire snapshots older than this. |
+| `snapshot_expiration_retain_last` | The number of snapshots to retain. |
+| `snapshot_expiration_clear_expired_files` | Whether to delete expired data files. Default is `true`. |
+| `snapshot_expiration_clear_expired_meta_data` | Whether to delete expired metadata files. Default is `true`. |
 
 ```sql Example
 CREATE TABLE t (
@@ -301,7 +305,11 @@ CREATE TABLE t (
 ) WITH (
     enable_compaction = true, 
     compaction_interval_sec = 3600, 
-    enable_snapshot_expiration = true
+    enable_snapshot_expiration = true,
+    snapshot_expiration_expire_older_than = 604800000,
+    snapshot_expiration_retain_last = 5,
+    snapshot_expiration_clear_expired_files = true,
+    snapshot_expiration_clear_expired_meta_data = true
 ) ENGINE = iceberg;
 ```
 
