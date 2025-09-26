@@ -1,0 +1,158 @@
+---
+title: "Vector indexes"
+description: "Create and use vector indexes for efficient similarity search operations in RisingWave."
+---
+
+RisingWave supports vector indexes to enable efficient similarity search operations. Vector indexes are specialized data structures that optimize queries involving vector distance calculations.
+
+## Creating vector indexes
+
+Use the `CREATE INDEX` command with vector-specific syntax to create vector indexes. For more details, see [CREATE INDEX](/sql/commands/sql-create-index).
+
+```sql Syntax
+CREATE INDEX index_name ON table_name 
+USING { FLAT | HNSW } (vector_column | expression) 
+[ INCLUDE ( include_column [, ...] ) ]
+[ WITH ( option = value [, ...] ) ];
+```
+
+## Index types
+
+RisingWave supports two methods when creating index:
+
+- FLAT index: Provides exact results by comparing the query vector against all stored vectors.
+
+    ```sql
+    -- Create a FLAT vector index
+    CREATE INDEX idx_embedding ON items 
+    USING FLAT (embedding) 
+    INCLUDE (name) 
+    WITH (distance_type = 'l2');
+    ```
+
+- HNSW index: Hierarchical Navigable Small World (HNSW) index that provides approximate nearest neighbor search with better performance for large datasets.
+
+
+    ```sql
+    -- Create an HNSW vector index
+    CREATE INDEX idx_embedding_hnsw ON items 
+    USING HNSW (embedding) 
+    INCLUDE (name) 
+    WITH (
+        distance_type = 'inner_product', 
+        m = 32, 
+        ef_construction = 40, 
+        max_level = 5
+    );
+    ```
+
+## Parameters
+
+| Parameter | Description | Valid for |
+| :--- | :--- | :--- |
+| `distance_type` | Distance metric to use: `l2`, `cosine`, `l1`, or `inner_product` | FLAT, HNSW |
+| `m` | Maximum number of connections per node | HNSW |
+| `ef_construction` | Size of dynamic candidate list during construction | HNSW |
+| `max_level` | Maximum level of the HNSW graph | HNSW |
+
+## Vector distance operators
+
+RisingWave provides specialized operators for calculating vector distances:
+
+| Operator | Function | Description |
+| :--- | :--- | :--- |
+| `<->` | `l2_distance()` | Euclidean (L2) distance |
+| `<=>` | `cosine_distance()` | Cosine distance |
+| `<+>` | `l1_distance()` | Manhattan (L1) distance |
+| `<#>` | Negative inner product | Negative inner product distance |
+
+## Vector similarity search
+
+Use vector distance operators with `ORDER BY` and `LIMIT` to perform similarity search:
+
+```sql
+-- Find the 5 most similar items using L2 distance
+SELECT * FROM items 
+ORDER BY embedding <-> '[3,1,2]' 
+LIMIT 5;
+
+-- Find similar items using cosine distance
+SELECT id, name FROM items 
+ORDER BY embedding <=> '[0.5, 0.3, 0.2]' 
+LIMIT 10;
+```
+
+## Vector data type, operators, functions
+
+RisingWave provides a `vector(n)` data type where `n` specifies the dimension of the vector.
+
+```sql
+-- Create a table with vector columns
+CREATE TABLE items (
+    id INT PRIMARY KEY,
+    name STRING,
+    embedding vector(3)
+) APPEND ONLY;
+```
+
+RisingWave also provides various operators and functions for working with vectors. See [Vector data type](/sql/data-types/vector) for details.
+
+## Vector indexes on function expressions
+
+You can create vector indexes on function expressions:
+
+```sql
+-- Create index on a function expression
+CREATE INDEX idx_embedding_func ON items 
+USING FLAT (get_embedding(text)) 
+INCLUDE(text) 
+WITH (distance_type = 'l2');
+```
+
+## Examples
+
+### Basic vector similarity search
+
+```sql
+-- Create table with vector data
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name STRING,
+    features vector(128)
+) APPEND ONLY;
+
+-- Create vector index
+CREATE INDEX idx_features ON products 
+USING HNSW (features) 
+WITH (distance_type = 'cosine');
+
+-- Insert sample data
+INSERT INTO products VALUES 
+(1, 'Product A', '[0.1, 0.2, ...]'),
+(2, 'Product B', '[0.3, 0.4, ...]');
+
+-- Find similar products
+SELECT id, name 
+FROM products 
+ORDER BY features <=> '[0.2, 0.3, ...]' 
+LIMIT 5;
+```
+
+### Using different distance metrics
+
+```sql
+-- L2 distance for geometric similarity
+SELECT * FROM items 
+ORDER BY embedding <-> '[1.0, 2.0, 3.0]' 
+LIMIT 3;
+
+-- Cosine distance for normalized similarity
+SELECT * FROM items 
+ORDER BY embedding <=> '[0.5, 0.5, 0.0]' 
+LIMIT 3;
+
+-- Inner product for dot product similarity
+SELECT * FROM items 
+ORDER BY embedding <#> '[1.0, 0.0, 1.0]' 
+LIMIT 3;
+```

@@ -1,0 +1,68 @@
+---
+title: "Vector data type"
+sidebarTitle: Vector
+description: "Introduces the vector data type along with the functions and operators available for working with vectors"
+---
+
+RisingWave supports a dedicated vector(n) data type to represent fixed-length numerical vectors, similar to the [`pgvector`](https://github.com/pgvector/pgvector) extension in PostgreSQL. Vectors are commonly used to store embeddings and other high-dimensional feature data.
+
+## Define a vector type
+
+```sql
+vector(n)
+```
+
+`n` is a positive integer specifying the number of dimensions (elements) in the vector. All elements are stored as real (float32) values, and they must be finite numbers,`NULL`, `NaN`, `inf`, and `-inf` are not allowed. Vectors are represented in SQL using a bracketed, comma-separated list format such as `[1.0, 2.0, 3.0]`.
+
+## Examples
+
+```sql
+-- Create a table with vector columns
+CREATE TABLE embeddings (
+    id INT PRIMARY KEY,
+    text_content VARCHAR,
+    embedding vector(128),  -- 128-dimensional vector
+    features vector(3)      -- 3-dimensional vector
+);
+
+-- Insert vector data
+INSERT INTO embeddings VALUES 
+(1, 'Sample text', '[0.1, 0.2, 0.3, ...]', '[1.0, 2.0, 3.0]'),
+(2, 'Another text', '[0.4, 0.5, 0.6, ...]', '[4.0, 5.0, 6.0]');
+```
+
+## Type casts
+
+Vectors can be converted between other types using casts:
+
+| From                                                    | To          | Cast type |
+| :------------------------------------------------------ | :---------- | :-------- |
+| `vector(n)`                                             | `varchar`   | assign    |
+| `varchar`                                               | `vector(n)` | explicit  |
+| `vector(n)`                                             | `real[]`    | implicit  |
+| `int[]` / `numeric[]` / `real[]` / `double precision[]` | `vector(n)` | assign    |
+
+## Distance functions
+
+RisingWave provides built-in operators and functions for measuring distance and similarity between vectors.
+
+| Operator / Function                                                                 | Note               |
+| :---------------------------------------------------------------------------------- | :------------------------ |
+| `vector(n) <-> vector(n) → double precision` / `l2_distance(vector(n), vector(n)) → double precision`  |    |
+| `vector(n) <=> vector(n) → double precision` / `cosine_distance(vector(n), vector(n)) → double precision` |           |
+| `vector(n) <+> vector(n) → double precision` / `l1_distance(vector(n), vector(n)) → double precision`  |   |
+| `vector(n) <#> vector(n) → double precision`                                        | Negative inner product    |
+| `inner_product(vector(n), vector(n)) → double precision`                            |             |
+
+## Other vector operators
+
+In addition to distance functions, RisingWave supports element-wise operations and vector transformations:
+
+| Operator / Function                         | Description                   |
+| :------------------------------------------ | :---------------------------- |
+| `vector(n) + vector(n) → vector(n)`         | Element-wise addition         |
+| `vector(n) - vector(n) → vector(n)`         | Element-wise subtraction      |
+| `vector(n) * vector(n) → vector(n)`         | Element-wise multiplication   |
+| `vector(m) \|\| vector(n) → vector(m+n)`      | Concatenate two vectors     |
+| `vector_norm(vector(n)) → double precision` | Euclidean norm                |
+| `l2_normalize(vector(n)) → vector(n)`       | Normalize with Euclidean norm |
