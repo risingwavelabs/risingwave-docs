@@ -10,49 +10,49 @@ Support for certain earlier version will end following the release of v2.6, plea
 ## SQL features
 
 - SQL commands:
-    - **Technical preview**: Supports using `CREATE INDEX` to create vector indexes, including flat and HNSW methods, and allows creating vector indexes on function expressions. https://github.com/risingwavelabs/risingwave/pull/22432, https://github.com/risingwavelabs/risingwave/pull/22022, https://github.com/risingwavelabs/risingwave/pull/22808
-    - `CREATE SINK` supports `auto.schema.change` option for Elasticsearch, Redshift, and Snowflake. https://github.com/risingwavelabs/risingwave/pull/22611
-    - `DROP CONNECTION` supports `CASCADE` option to automatically drop dependent objects, except for Iceberg connections. https://github.com/risingwavelabs/risingwave/pull/22557
-    - `DROP FUNCTION` supports `CASCADE` option to automatically remove dependent objects. https://github.com/risingwavelabs/risingwave/pull/22991
-    - Supports using multiple version columns to resolve upsert conflicts. https://github.com/risingwavelabs/risingwave/pull/22931
+    - **Technical preview**: Supports using `CREATE INDEX` to create vector indexes, including flat and HNSW methods, and allows creating vector indexes on function expressions. [#22432](https://github.com/risingwavelabs/risingwave/pull/22432), [#22022](https://github.com/risingwavelabs/risingwave/pull/22022), [#22808](https://github.com/risingwavelabs/risingwave/pull/22808)
+    - `CREATE SINK` supports `auto.schema.change` option for Elasticsearch, Redshift, and Snowflake. [#22611](https://github.com/risingwavelabs/risingwave/pull/22611)
+    - `DROP CONNECTION` supports `CASCADE` option to automatically drop dependent objects, except for Iceberg connections. [#22557](https://github.com/risingwavelabs/risingwave/pull/22557)
+    - `DROP FUNCTION` supports `CASCADE` option to automatically remove dependent objects. [#22991](https://github.com/risingwavelabs/risingwave/pull/22991)
+    - Supports using multiple version columns to resolve upsert conflicts. [#22931](https://github.com/risingwavelabs/risingwave/pull/22931)
 - SQL functions & operators:
-    - Supports new data type `vector(n)`. https://github.com/risingwavelabs/risingwave/pull/22019
-    - Supports `jsonb_to_array` function to convert a JSONB array into a SQL array of JSONB elements. https://github.com/risingwavelabs/risingwave/pull/22777
-    - `openai_embedding` accepts a single constant JSONB `config` parameter instead of separate `api_key` and `model` arguments. https://github.com/risingwavelabs/risingwave/pull/22960
-    - Supports `arg_min` and `arg_max` aggregate functions. https://github.com/risingwavelabs/risingwave/pull/22895
+    - Supports new data type `vector(n)`. [#22019](https://github.com/risingwavelabs/risingwave/pull/22019)
+    - Supports `jsonb_to_array` function to convert a JSONB array into a SQL array of JSONB elements. [#22777](https://github.com/risingwavelabs/risingwave/pull/22777)
+    - `openai_embedding` accepts a single constant JSONB `config` parameter instead of separate `api_key` and `model` arguments. [#22960](https://github.com/risingwavelabs/risingwave/pull/22960)
+    - Supports `arg_min` and `arg_max` aggregate functions. [#22895](https://github.com/risingwavelabs/risingwave/pull/22895)
 - System catalog:
-    - Adds system function `has_database_privilege`. https://github.com/risingwavelabs/risingwave/pull/22576
+    - Adds system function `has_database_privilege`. [#22576](https://github.com/risingwavelabs/risingwave/pull/22576)
 
 ## Connectors
 
-- **Public preview:** Iceberg table engine supports `copy-on-write` write mode for enhanced compaction. https://github.com/risingwavelabs/risingwave/pull/22713
-- Supports Redshift and Snowflake v2 sink connectors. You can use intermediate table and leverage S3 to improve sink performance, and auto schema change is supported to automatically add new columns. https://github.com/risingwavelabs/risingwave/pull/22984
-- Iceberg table engine and Iceberg sink support `VACUUM [FULL] schema_name.object_name` syntax. https://github.com/risingwavelabs/risingwave/pull/22942
-- NATS connector no longer creates stream automatically unless new option `allow_create_stream` is explicitly set to `true` . https://github.com/risingwavelabs/risingwave/pull/22315
-- Kafka source supports altering `group.id.prefix` parameter at runtime. https://github.com/risingwavelabs/risingwave/pull/22492
-- For Kafka source, when querying with a timestamp beyond the latest message, it starts from the latest offset instead of resetting to the earliest. https://github.com/risingwavelabs/risingwave/pull/22413
-- MQTT source supports multiple comma-separated topics.  https://github.com/risingwavelabs/risingwave/pull/22074
-- Postgres CDC supports parallelized CDC backfill. https://github.com/risingwavelabs/risingwave/pull/22536
-- For PostgreSQL CDC, if you’ve already created a publication, fewer permissions are required. https://github.com/risingwavelabs/risingwave/pull/22807
-- Supports TOASTed data from PostgreSQL when using the CDC connector. https://github.com/risingwavelabs/risingwave/pull/22852
+- **Public preview:** Iceberg table engine supports `copy-on-write` write mode for enhanced compaction. [#22713](https://github.com/risingwavelabs/risingwave/pull/22713)
+- Supports Redshift and Snowflake v2 sink connectors. You can use intermediate table and leverage S3 to improve sink performance, and auto schema change is supported to automatically add new columns. [#22984](https://github.com/risingwavelabs/risingwave/pull/22984)
+- Iceberg table engine and Iceberg sink support `VACUUM [FULL] schema_name.object_name` syntax. [#22942](https://github.com/risingwavelabs/risingwave/pull/22942)
+- NATS connector no longer creates stream automatically unless new option `allow_create_stream` is explicitly set to `true`. [#22315](https://github.com/risingwavelabs/risingwave/pull/22315)
+- Kafka source supports altering `group.id.prefix` parameter at runtime. [#22492](https://github.com/risingwavelabs/risingwave/pull/22492)
+- For Kafka source, when querying with a timestamp beyond the latest message, it starts from the latest offset instead of resetting to the earliest. [#22413](https://github.com/risingwavelabs/risingwave/pull/22413)
+- MQTT source supports multiple comma-separated topics. [#22074](https://github.com/risingwavelabs/risingwave/pull/22074)
+- Postgres CDC supports parallelized CDC backfill. [#22536](https://github.com/risingwavelabs/risingwave/pull/22536)
+- For PostgreSQL CDC, if you’ve already created a publication, fewer permissions are required. [#22807](https://github.com/risingwavelabs/risingwave/pull/22807)
+- Supports TOASTed data from PostgreSQL when using the CDC connector. [#22852](https://github.com/risingwavelabs/risingwave/pull/22852)
 
 ## Installation and deployment
 
-- Supports deploying lakekeeper as an Iceberg REST catalog via Docker compose or Kubernetes. https://github.com/risingwavelabs/risingwave/pull/23045
-- Supports using HashiCorp Vault as secret backend with Token or AppRole authentication methods. https://github.com/risingwavelabs/risingwave/pull/22627
+- Supports deploying lakekeeper as an Iceberg REST catalog via Docker compose or Kubernetes. [#23045](https://github.com/risingwavelabs/risingwave/pull/23045)
+- Supports using HashiCorp Vault as secret backend with Token or AppRole authentication methods. [#22627](https://github.com/risingwavelabs/risingwave/pull/22627)
 
 ## Cluster configuration changes
 
-- Supports Memory-Only Mode for faster, low-latency queries by fully loading operator states into memory. You can configure it at the operator level to balance performance and memory usage. https://github.com/risingwavelabs/risingwave/pull/22857
-- Adds session variable `streaming_separate_consecutive_join` to separate consecutive stream joins to improve performance. https://github.com/risingwavelabs/risingwave/pull/22259
-- Adds session variable `streaming_join_encoding` to switch join encoding type. https://github.com/risingwavelabs/risingwave/pull/22416
-- Adds session variable `streaming_separate_sink` to separate sink. https://github.com/risingwavelabs/risingwave/pull/22827
-- Adds `protect_drop_table_with_incoming_sink` to block table drops if incoming sinks exist. https://github.com/risingwavelabs/risingwave/pull/22347
-- Adds `streaming_now_progress_ratio` to decouple `now_timestamp` from `epoch_timestamp`. https://github.com/risingwavelabs/risingwave/pull/22487
+- Supports Memory-Only Mode for faster, low-latency queries by fully loading operator states into memory. You can configure it at the operator level to balance performance and memory usage. [#22857](https://github.com/risingwavelabs/risingwave/pull/22857)
+- Adds session variable `streaming_separate_consecutive_join` to separate consecutive stream joins to improve performance. [#22259](https://github.com/risingwavelabs/risingwave/pull/22259)
+- Adds session variable `streaming_join_encoding` to switch join encoding type. [#22416](https://github.com/risingwavelabs/risingwave/pull/22416)
+- Adds session variable `streaming_separate_sink` to separate sink. [#22827](https://github.com/risingwavelabs/risingwave/pull/22827)
+- Adds `protect_drop_table_with_incoming_sink` to block table drops if incoming sinks exist. [#22347](https://github.com/risingwavelabs/risingwave/pull/22347)
+- Adds `streaming_now_progress_ratio` to decouple `now_timestamp` from `epoch_timestamp`. [#22487](https://github.com/risingwavelabs/risingwave/pull/22487)
 
 ## Access control list (ACL)
 
-- Adds a new superuser `rwadmin` for the Cloud control plane. https://github.com/risingwavelabs/risingwave/pull/22327
+- Adds a new superuser `rwadmin` for the Cloud control plane. [#22327](https://github.com/risingwavelabs/risingwave/pull/22327)
 
 ## Assets
 
