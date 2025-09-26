@@ -58,6 +58,6 @@ LANGUAGE & STYLE:
 - Output documentation text in **English**.
 - Match tone and formatting of `{{DOCS_STYLE_SAMPLE}}` (short, pragmatic, example-driven).
 - Use fenced code blocks for any code or SQL examples and ensure examples are taken only from `.slt` or PR code.
-- Should be more like a guide and contains less general description
+- Should be more like a guide and contain less general description
 
 END.
