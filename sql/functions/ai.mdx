@@ -18,3 +18,19 @@ openai_embedding ( api_key constant text, model constant text, input text ) → 
 ```sql Example
 openai_embedding('sk-proj-1234567890', 'text-embedding-3-small', 'Hello, world!') -> {0.0001, 0.0002, 0.0003, ...}
 ```
+
+The result of embedding functions can be converted to the `vector(n)` data type for use with vector similarity search. See [Vector Functions](/sql/functions/vector) for operations on vector data.
+
+```sql Example with vectors
+-- Convert embedding result to vector type
+SELECT openai_embedding('sk-proj-1234567890', 'text-embedding-3-small', 'Hello, world!')::vector(1536);
+
+-- Store embeddings in a table with vector index
+CREATE TABLE documents (
+    id INT PRIMARY KEY,
+    content TEXT,
+    embedding vector(1536)
+);
+
+CREATE INDEX idx_embedding ON documents USING HNSW (embedding) WITH (distance_type = 'cosine');
+```

@@ -1,0 +1,181 @@
+---
+title: "Vector data type"
+description: "The vector data type for storing and querying vector embeddings in RisingWave."
+---
+
+The `vector(n)` data type is designed for storing fixed-length vectors with `n` dimensions, commonly used for machine learning embeddings and similarity search operations.
+
+## Syntax
+
+```sql
+vector(n)
+```
+
+Where `n` is a positive integer specifying the number of dimensions (elements) in the vector.
+
+## Examples
+
+```sql
+-- Create a table with vector columns
+CREATE TABLE embeddings (
+    id INT PRIMARY KEY,
+    text_content VARCHAR,
+    embedding vector(128),  -- 128-dimensional vector
+    features vector(3)      -- 3-dimensional vector
+);
+
+-- Insert vector data
+INSERT INTO embeddings VALUES 
+(1, 'Sample text', '[0.1, 0.2, 0.3, ...]', '[1.0, 2.0, 3.0]'),
+(2, 'Another text', '[0.4, 0.5, 0.6, ...]', '[4.0, 5.0, 6.0]');
+```
+
+## Input Format
+
+Vectors can be specified as:
+
+### String literal format
+```sql
+SELECT '[1.0, 2.0, 3.0]'::vector(3);
+```
+
+### Array conversion
+```sql
+-- From real array
+SELECT ARRAY[1.0, 2.0, 3.0]::vector(3);
+
+-- From other numeric array types
+SELECT ARRAY[1, 2, 3]::int[]::vector(3);
+SELECT ARRAY[1.5, 2.5, 3.5]::numeric[]::vector(3);
+```
+
+## Output Format
+
+Vectors are displayed in bracket notation:
+
+```sql
+SELECT '[1.0, 2.0, 3.0]'::vector(3);
+-- Result: [1.0, 2.0, 3.0]
+```
+
+## Type Conversions
+
+### Explicit conversions
+
+```sql
+-- String to vector (explicit cast required)
+SELECT '[1.0, 2.0, 3.0]'::vector(3);
+
+-- Array to vector (assignment conversion)
+SELECT ARRAY[1.0, 2.0, 3.0]::vector(3);
+```
+
+### Implicit conversions
+
+```sql
+-- Vector to real array (implicit)
+SELECT embedding::real[] FROM embeddings;
+
+-- Vector to string (automatic)
+SELECT embedding::varchar FROM embeddings;
+```
+
+## Operations
+
+### Arithmetic operations
+```sql
+-- Element-wise addition
+SELECT '[1.0, 2.0, 3.0]'::vector(3) + '[0.1, 0.2, 0.3]'::vector(3);
+-- Result: [1.1, 2.2, 3.3]
+
+-- Element-wise subtraction  
+SELECT '[1.0, 2.0, 3.0]'::vector(3) - '[0.1, 0.2, 0.3]'::vector(3);
+-- Result: [0.9, 1.8, 2.7]
+
+-- Element-wise multiplication
+SELECT '[1.0, 2.0, 3.0]'::vector(3) * '[2.0, 0.5, 1.0]'::vector(3);
+-- Result: [2.0, 1.0, 3.0]
+
+-- Vector concatenation
+SELECT '[1.0, 2.0]'::vector(2) || '[3.0, 4.0]'::vector(2);
+-- Result: [1.0, 2.0, 3.0, 4.0] as vector(4)
+```
+
+### Distance operations
+```sql
+-- L2 (Euclidean) distance
+SELECT embedding <-> '[1.0, 2.0, 3.0]' FROM embeddings;
+
+-- Cosine distance
+SELECT embedding <=> '[0.5, 0.3, 0.2]' FROM embeddings;
+
+-- L1 (Manhattan) distance
+SELECT embedding <+> '[1.0, 0.0, 2.0]' FROM embeddings;
+
+-- Inner product distance (negative)
+SELECT embedding <#> '[1.0, 1.0, 1.0]' FROM embeddings;
+```
+
+## Indexing
+
+Vector columns can be indexed for efficient similarity search:
+
+```sql
+-- Create a FLAT index for exact search
+CREATE INDEX idx_embedding ON embeddings 
+USING FLAT (embedding) 
+WITH (distance_type = 'l2');
+
+-- Create an HNSW index for approximate search
+CREATE INDEX idx_embedding_hnsw ON embeddings 
+USING HNSW (embedding) 
+WITH (distance_type = 'cosine', m = 32, ef_construction = 40);
+```
+
+## Similarity Search
+
+Use vector indexes for efficient similarity search:
+
+```sql
+-- Find most similar vectors
+SELECT id, text_content,
+       embedding <-> '[0.1, 0.2, 0.3, ...]' AS distance
+FROM embeddings
+ORDER BY distance
+LIMIT 5;
+```
+
+## Storage Considerations
+
+- Vectors are stored as fixed-length binary data
+- Storage size is proportional to the number of dimensions
+- Higher dimensional vectors require more storage and memory
+
+## Limitations
+
+- Vector dimensions must be specified at table creation time
+- All vectors in a column must have the same dimensionality
+- Maximum supported dimensions may be limited by available memory
+
+## Integration with AI Functions
+
+Vector types work seamlessly with AI embedding functions:
+
+```sql
+-- Store OpenAI embeddings as vectors
+INSERT INTO embeddings (id, text_content, embedding)
+VALUES (1, 'Hello world', 
+        openai_embedding('api-key', 'text-embedding-3-small', 'Hello world')::vector(1536));
+
+-- Query similar embeddings
+SELECT text_content
+FROM embeddings 
+ORDER BY embedding <=> openai_embedding('api-key', 'text-embedding-3-small', 'Query text')::vector(1536)
+LIMIT 10;
+```
+
+## See Also
+
+- [Vector Functions](/sql/functions/vector) - Functions and operators for vector operations
+- [Vector Indexes](/sql/commands/sql-create-vector-index) - Creating indexes for similarity search
+- [AI Functions](/sql/functions/ai) - Functions for generating embeddings
