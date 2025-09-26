@@ -1,0 +1,143 @@
+---
+title: "Sink data from RisingWave to Amazon Redshift"
+sidebarTitle: Amazon Redshift
+description: This guide describes how to sink data from RisingWave to Amazon Redshift using the Redshift sink connector.
+---
+
+Amazon Redshift is a fully managed, petabyte-scale data warehouse service in the cloud. The RisingWave Redshift sink connector provides efficient data ingestion with support for automatic schema changes and both S3-based and direct loading methods.
+
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector='redshift',
+   connector_parameter = 'value', ...
+);
+```
+
+## Parameters
+
+| Parameter                   | Description |
+|:-----------------------------|:------------|
+| jdbc.url                     | JDBC URL to connect to Redshift |
+| user                         | Redshift username |
+| password                     | Redshift password |
+| schema                       | Redshift schema name |
+| table.name                   | Name of the target table |
+| intermediate.table.name      | Name of the intermediate table used for upsert |
+| auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
+| create_table_if_not_exists   | Create target table if it does not exist |
+| schedule_seconds             | Interval in seconds for scheduled writes (default: 3600) |
+| batch_insert_rows            | Number of rows per batch insert (default: 4096) |
+| with_s3                      | Enable writing via S3 (default: true) |
+| s3.region_name               | AWS region for S3 |
+| s3.bucket_name               | S3 bucket name |
+| s3.path                      | S3 folder path for sink files |
+| enable_config_load           | Load S3 credentials from environment (self-hosted only) |
+| s3.credentials.access        | AWS access key ID |
+| s3.credentials.secret        | AWS secret access key |
+| s3.endpoint_url              | Custom S3 endpoint URL (for self-hosted setups) |
+| s3.assume_role               | IAM role ARN to assume for S3 access |
+
+
+## Auto schema change
+
+Redshift supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. With auto schema change enabled in the Redshift sink, RisingWave can automatically evolve the schema of your Redshift table. When new columns are detected in the source data, RisingWave will add those columns to the Redshift table before ingesting new records. This automation simplifies data pipeline maintenance and ensures that your Redshift table structure always reflects the latest upstream schema.
+
+To enable it, set `auto_schema_change` to true, and RisingWave will automatically add new columns to the target table.
+
+## S3 integration
+
+Redshift sink uses S3 Integration to stage data files in Amazon S3 before bulk loading into Redshift. Data is written to the configured S3 bucket and path, and then loaded efficiently using Redshift's COPY command. This approach allows for high-throughput ingestion, scalability, and secure data transfer. You have full control over the S3 bucket, region, path, credentials, and other advanced options in [Parameters](/integrations/destinations/redshift#parameters) to fit your deployment and security requirements.
+
+## Append-only and upsert modes
+
+Amazon Redshift sink connector supports both `append-only` and `upsert` modes for flexible data handling.
+
+In `upsert` mode, performance is optimized through the use of an intermediate table:
+
+- An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
+
+- Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting.
+
+- By default, an S3 bucket is required to achieve optimal ingestion performance into the intermediate table.
+
+- Alternatively, you can use `INSERT` SQL statements to load data directly into the intermediate table, though this approach is not recommended due to performance drawbacks.
+
+Examples:
+
+1. Redshift sink with S3 writer (Append-only mode)
+
+```sql
+CREATE SINK redshift_sink FROM test_table WITH (
+    connector = 'redshift',
+    type = 'append-only',
+    table.name = 'test_table',
+    schema = 'RW_SCHEMA',
+
+    -- JDBC configs are always required for Redshift
+    jdbc.url = 'jdbc:redshift://...',
+    username = '...',
+    password = '...',
+
+    -- `with_s3` is default to true. If `with_s3` is set to false (not recommended), you to specify `batch.insert.rows`, and the value must be a power of 2, such as 1024 or 4096.
+    with_s3 = true,
+    s3.bucket_name = '...',
+    s3.region_name = '...',
+    s3.path = '...',
+
+    -- Authentication: access key / secret (default)
+    s3.credentials.access = '...',
+    s3.credentials.secret = '...',
+
+    -- Or assume role (requires cloud support)
+    s3.assume_role = '...',
+    enable_config_load = 'true',
+
+    -- Defaults (can be overridden)
+    auto.schema.change = 'false',
+    create_table_if_not_exists = 'false'
+);
+```
+
+2. Redshift sink with S3 writer (Upsert mode)
+
+```sql
+CREATE SINK redshift_sink FROM test_table WITH (
+    connector = 'redshift',
+    type = 'upsert',
+    table.name = 'test_table',
+    schema = 'RW_SCHEMA',
+
+    -- Intermediate table required for upsert
+    intermediate.table.name = '...',
+    -- Default: 3600 seconds (1 hour)
+    write.target.interval.seconds = '...',
+
+    -- JDBC configs are always required for Redshift
+    jdbc.url = 'jdbc:redshift://...',
+    username = '...',
+    password = '...',
+
+    -- `with_s3` is default to true. If `with_s3` is set to false (not recommended), you to specify `batch.insert.rows`, and the value must be a power of 2, such as 1024 or 4096.
+    with_s3 = true,
+    s3.bucket_name = '...',
+    s3.region_name = '...',
+    s3.path = '...',
+
+    -- Authentication: access key / secret (default)
+    s3.credentials.access = '...',
+    s3.credentials.secret = '...',
+
+    -- Or assume role (requires cloud support)
+    s3.assume_role = '...',
+    enable_config_load = 'true',
+
+    -- Defaults (can be overridden)
+    auto.schema.change = 'false',
+    create_table_if_not_exists = 'false'
+);
+```
