@@ -1,59 +1,14 @@
 ---
 title: "Sink data from RisingWave to Snowflake (v2)"
 sidebarTitle: Snowflake v2
-description: This guide describes how to sink data from RisingWave to Snowflake using the enhanced Snowflake v2 sink connector with auto schema change support.
+description: This guide describes how to sink data from RisingWave to Snowflake using the enhanced Snowflake v2 sink connector.
 ---
 
-Snowflake is a cloud-based data warehousing platform that allows for scalable and efficient data storage and analysis. The Snowflake v2 sink connector provides enhanced functionality including automatic schema changes and improved data ingestion methods.
-
-## Snowflake v2 vs Original Snowflake Sink
-
-The Snowflake v2 sink offers several advantages over the [original Snowflake sink](/integrations/destinations/snowflake):
-
-| Feature | Original Snowflake | Snowflake v2 |
-| :------ | :----------------- | :----------- |
-| Auto Schema Change | ❌ Not supported | ✅ Full support |
-| Table Auto-Creation | ❌ Manual setup required | ✅ Automatic with `create_table_if_not_exists` |
-| Upsert Support | ⚠️ Manual CDC handling | ✅ Built-in CDC processing |
-| Direct JDBC Mode | ❌ S3 staging only | ✅ Optional direct JDBC |
-| Task Management | ❌ Manual Snowflake task setup | ✅ Automatic task creation/management |
-| Connection Method | S3 + Snowpipe | S3 + Snowpipe or Direct JDBC |
-
-**When to use Snowflake v2:**
-- You need automatic schema evolution
-- You want simplified setup with automatic table creation
-- You require upsert functionality with built-in CDC processing
-- You prefer automated task management
-
-**When to use original Snowflake:**
-- You have existing pipelines with manual Snowpipe setup
-- You need full control over Snowflake task configuration
-- You're using the sink in append-only mode without schema changes
-
-<Tip>
-**PREMIUM FEATURE**
-
-This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
-</Tip>
-
-## Prerequisite
-
-Before using the Snowflake v2 sink, ensure you have:
-
-* A Snowflake account with appropriate permissions
-* Access to create tables, stages, and pipes in your Snowflake database
-* An upstream materialized view or source in RisingWave that you can sink data from
-* Valid Snowflake credentials (username and password)
-
-### Optional S3 Setup
-
-If using S3-based data loading (recommended for large volumes):
-
-* An S3 bucket that both RisingWave and Snowflake can access
-* S3 credentials with read/write permissions
-* A Snowflake stage configured to access your S3 bucket
+Snowflake is a cloud-based data warehousing platform that enables scalable and efficient data storage and analysis. Starting with v2.6.0, RisingWave introduced the Snowflake v2 sink connector, providing a more powerful and improved integration. For compatibility, the original [Snowflake connector](/integrations/destinations/snowflake) remains supported.
 
 ## Syntax
+
+To use Snowflake v2, specify `connector = 'snowflake_v2'` in your CREATE SINK statement.
 
 ```sql
 CREATE SINK [ IF NOT EXISTS ] sink_name
@@ -67,273 +22,140 @@ WITH (
 
 ## Parameters
 
-All parameters are required unless specified otherwise.
+| Parameter                     | Description |
+|:------------------------------|:------------|
+| type                          | Sink type (e.g., append-only or upsert) |
+| intermediate.table.name       | Name of the intermediate table used for upsert |
+| table.name                    | Name of the target table |
+| database                      | Snowflake database name |
+| schema                        | Snowflake schema name |
+| snowflake_schedule_seconds    | Interval in seconds for scheduled writes (default: 3600) |
+| warehouse                     | Snowflake warehouse name |
+| jdbc.url                       | JDBC URL to connect to Snowflake |
+| username                      | Snowflake username |
+| password                      | Snowflake password |
+| commit_checkpoint_interval     | Commit every n checkpoints (default: 10) |
+| auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
+| create_table_if_not_exists     | Create target table if it does not exist |
+| with_s3                        | Enable writing via S3 (default: true) |
+| s3.region_name                 | AWS region for S3 |
+| s3.bucket_name                 | S3 bucket name |
+| s3.path                        | S3 folder path for sink files |
+| enable_config_load             | Load S3 credentials from environment (self-hosted only) |
+| s3.credentials.access          | AWS access key ID |
+| s3.credentials.secret          | AWS secret access key |
+| s3.endpoint_url                | Custom S3 endpoint URL (for self-hosted setups) |
+| s3.assume_role                 | IAM role ARN to assume for S3 access |
+| stage                          | Snowflake stage name |
 
-### Connection Parameters
+## Auto schema change
 
-| Parameter | Description |
-| :-------- | :---------- |
-| `jdbc.url` | **Required**. JDBC connection URL for Snowflake. Format: `jdbc:snowflake://<account>.snowflakecomputing.com/?warehouse=<warehouse>&db=<database>&schema=<schema>` |
-| `username` | **Required**. Snowflake username |
-| `password` | **Required**. Snowflake password |
-| `database` | **Required**. Target Snowflake database name |
-| `schema` | **Required**. Target Snowflake schema name |
-| `table.name` | **Required**. Target table name in Snowflake |
+Snowflake v2 supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. Auto schema change in Snowflake V2 Sink enables RisingWave to automatically alter the destination table in Snowflake when new columns appear in the upstream source data. This process ensures seamless schema evolution, reducing manual intervention and keeping your Snowflake table in sync with changing data structures.
 
-### Data Loading Parameters
+To enable it, set `auto_schema_change` to true, and RisingWave will automatically add new columns to the target table.
 
-| Parameter | Description |
-| :-------- | :---------- |
-| `type` | **Required**. Sink type. Either `append-only` or `upsert` |
-| `with_s3` | **Optional**. Whether to use S3 for staging data. Default: `true` |
-| `warehouse` | **Required for upsert**. Snowflake warehouse for task execution |
+## S3 integration
 
-### S3 Configuration (when `with_s3=true`)
+Snowflake V2 Sink leverages S3 Integration to efficiently stage data before loading it into Snowflake. Data are written to files in the specified S3 bucket and folder, then loaded via Snowflake. This integration offers significant performance gains for large datasets and supports secure, scalable data transfer. You can configure credentials, bucket, region, path, and other S3-specific options in [Parameters](/integrations/destinations/snowflake-v2#parameters) to match your environment.
 
-| Parameter | Description |
-| :-------- | :---------- |
-| `s3.bucket_name` | **Required**. S3 bucket name for staging files |
-| `s3.region_name` | **Required**. S3 region name |
-| `s3.credentials.access` | **Optional**. S3 access key ID |
-| `s3.credentials.secret` | **Optional**. S3 secret access key |
-| `s3.path` | **Optional**. S3 path prefix for staging files |
-| `stage` | **Required**. Snowflake stage name for S3 integration |
+## Append-only and upsert modes
 
-### Schema Change Parameters
+Snowflake v2 sink connector supports both modes for flexible data handling.
 
-| Parameter | Description |
-| :-------- | :---------- |
-| `auto.schema.change` | **Optional**. Enable automatic schema evolution. Default: `false` |
-| `create_table_if_not_exists` | **Optional**. Automatically create target table. Default: `false` |
+In `upsert` mode, performance is optimized through the use of an intermediate table:
 
-### Advanced Parameters
+- An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
 
-| Parameter | Description |
-| :-------- | :---------- |
-| `intermediate.table.name` | **Required for upsert**. Name of intermediate table for CDC processing |
-| `write.target.interval.seconds` | **Optional**. Interval for data processing in upsert mode. Default: `3600` (1 hour) |
-| `commit_checkpoint_interval` | **Optional**. Commit every n checkpoints. Default: `10` |
+- Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting.
 
-## Auto Schema Change
+- By default, an S3 bucket is required to achieve optimal ingestion performance into the intermediate table.
 
-<Tip>
-**PREMIUM FEATURE**
+- Alternatively, you can use `INSERT` SQL statements to load data directly into the intermediate table, though this approach is not recommended due to performance drawbacks.
 
-Auto schema change requires premium features to be enabled.
-</Tip>
+Examples:
 
-The Snowflake v2 sink supports automatic schema evolution, allowing you to add new columns to your sink without manual intervention.
-
-<Note>
-**Source Integration**
-
-Auto schema change works best when paired with CDC sources that also support schema evolution, such as [MySQL CDC](/ingestion/sources/mysql/mysql-cdc#automatic-schema-changes) or [PostgreSQL CDC](/ingestion/sources/postgresql-cdc#automatic-schema-changes). This creates an end-to-end schema evolution pipeline.
-</Note>
-
-### Enabling Auto Schema Change
+1. Snowflake v2 sink with S3 writer (Append-only mode)
 
 ```sql
-CREATE SINK snowflake_v2_sink FROM source_table WITH (
+CREATE SINK snowflake_sink FROM test_table WITH (
     connector = 'snowflake_v2',
     type = 'append-only',
-    jdbc.url = 'jdbc:snowflake://myaccount.snowflakecomputing.com/?warehouse=compute_wh&db=mydb&schema=public',
-    username = 'myuser',
-    password = 'mypassword',
-    database = 'mydb',
-    schema = 'public',
-    table.name = 'target_table',
-    auto.schema.change = 'true',
-    create_table_if_not_exists = 'true'
+    table.name = 'test_table',
+
+    -- Snowflake concepts
+    warehouse = 'COMPUTE_WH',
+    database = 'RW_TEST',
+    schema = 'RW_SCHEMA',
+
+    -- S3 writer (enabled by default)
+    with_s3 = true,
+    s3.bucket_name = '...',
+    s3.region_name = '...',
+    s3.path = '...',
+
+    -- Authentication: access key / secret (default)
+    s3.credentials.access = '...',
+    s3.credentials.secret = '...',
+
+    -- Or assume role (requires cloud support)
+    s3.assume_role = '...',
+    enable_config_load = 'true',
+
+    -- Required if auto.schema.change = false 
+    -- and create_table_if_not_exists = false
+    jdbc.url = 'jdbc:snowflake://...',
+    username = '...',
+    password = '...',
+
+    -- Defaults (can be overridden)
+    auto.schema.change = 'false',
+    create_table_if_not_exists = 'false'
 );
 ```
 
-### How Auto Schema Change Works
-
-1. **Column Addition**: When new columns are added to the upstream source, they are automatically added to the Snowflake target table
-2. **Type Safety**: Only compatible data types are supported for automatic schema evolution
-3. **Non-Breaking Changes**: Only additive changes (new columns) are supported; column deletions or type changes require manual intervention
-4. **Automatic Detection**: Changes are detected when RisingWave processes new data with additional columns
-5. **Target Table Updates**: Both the main target table and intermediate CDC table (if using upsert mode) are updated simultaneously
-
-### Supported Data Type Mapping
-
-| RisingWave Type | Snowflake Type |
-| :-------------- | :------------- |
-| SMALLINT        | SMALLINT       |
-| INTEGER         | INTEGER        |
-| BIGINT          | BIGINT         |
-| REAL            | FLOAT4         |
-| DOUBLE          | FLOAT8         |
-| BOOLEAN         | BOOLEAN        |
-| VARCHAR         | STRING         |
-| DATE            | DATE           |
-| TIME            | TIME           |
-| TIMESTAMP       | TIMESTAMP      |
-| TIMESTAMPTZ     | TIMESTAMP_TZ   |
-| JSONB           | STRING         |
-| DECIMAL         | DECIMAL        |
-| BYTEA           | BINARY         |
-
-## Examples
-
-### Append-Only Sink with S3
+2. Snowflake v2 sink with S3 writer (Upsert mode):
 
 ```sql
--- Create a basic append-only sink using S3 staging
-CREATE SINK snowflake_append_sink FROM my_source WITH (
-    connector = 'snowflake_v2',
-    type = 'append-only',
-    jdbc.url = 'jdbc:snowflake://myaccount.snowflakecomputing.com/?warehouse=compute_wh&db=sales&schema=public',
-    username = 'data_user',
-    password = 'secure_password',
-    database = 'sales',
-    schema = 'public',
-    table.name = 'orders',
-    
-    -- S3 configuration
-    with_s3 = 'true',
-    s3.bucket_name = 'my-snowflake-stage',
-    s3.region_name = 'us-east-1',
-    s3.credentials.access = 'AKIAIOSFODNN7EXAMPLE',
-    s3.credentials.secret = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    stage = 'my_s3_stage',
-    
-    -- Auto schema features
-    auto.schema.change = 'true',
-    create_table_if_not_exists = 'true'
-);
-```
-
-### Upsert Sink with Auto Schema Change
-
-```sql
--- Create an upsert sink with automatic table creation and schema evolution
-CREATE SINK snowflake_upsert_sink FROM my_source WITH (
+CREATE SINK snowflake_sink FROM test_table WITH (
     connector = 'snowflake_v2',
     type = 'upsert',
-    primary_key = 'id',
-    
-    -- Connection details
-    jdbc.url = 'jdbc:snowflake://myaccount.snowflakecomputing.com/?warehouse=compute_wh&db=analytics&schema=public',
-    username = 'analytics_user',
-    password = 'secure_password',
-    database = 'analytics',
-    schema = 'public',
-    warehouse = 'compute_wh',
-    table.name = 'customer_data',
-    intermediate.table.name = 'customer_data_cdc',
-    
-    -- S3 staging
-    with_s3 = 'true',
-    s3.bucket_name = 'analytics-staging',
-    s3.region_name = 'us-west-2',
-    stage = 'analytics_stage',
-    
-    -- Auto schema and table creation
-    auto.schema.change = 'true',
-    create_table_if_not_exists = 'true',
-    
-    -- Processing interval
-    write.target.interval.seconds = '1800'  -- 30 minutes
+    table.name = 'test_table',
+
+    -- Snowflake concepts
+    warehouse = 'COMPUTE_WH',
+    database = 'RW_TEST',
+    schema = 'RW_SCHEMA',
+
+    -- Intermediate table required for upsert
+    intermediate.table.name = '...',
+    -- Default: 3600 seconds (1 hour)
+    write.target.interval.seconds = '...',
+
+    -- S3 writer (enabled by default)
+    with_s3 = true,
+    s3.bucket_name = '...',
+    s3.region_name = '...',
+    s3.path = '...',
+
+    -- Authentication: access key / secret (default)
+    s3.credentials.access = '...',
+    s3.credentials.secret = '...',
+
+    -- Or assume role (requires cloud support)
+    s3.assume_role = '...',
+    enable_config_load = 'true',
+
+    -- Unlike append-only mode, JDBC configs are required
+    jdbc.url = 'jdbc:snowflake://...',
+    username = '...',
+    password = '...',
+
+    -- Defaults (can be overridden)
+    auto.schema.change = 'false',
+    create_table_if_not_exists = 'false'
 );
 ```
 
-### Direct JDBC Sink (without S3)
 
-```sql
--- Create a sink that writes directly via JDBC (suitable for smaller volumes)
-CREATE SINK snowflake_direct_sink FROM my_small_source WITH (
-    connector = 'snowflake_v2',
-    type = 'append-only',
-    jdbc.url = 'jdbc:snowflake://myaccount.snowflakecomputing.com/?warehouse=small_wh&db=test&schema=public',
-    username = 'test_user',
-    password = 'test_password', 
-    database = 'test',
-    schema = 'public',
-    table.name = 'test_data',
-    
-    -- Disable S3 staging
-    with_s3 = 'false',
-    
-    auto.schema.change = 'true',
-    create_table_if_not_exists = 'true'
-);
-```
 
-<Note>
-**JDBC Mode Limitations**
 
-When using direct JDBC mode (`with_s3 = 'false'`), the sink uses the traditional JDBC-based approach which may have lower throughput compared to S3 staging. This mode is suitable for smaller data volumes or development environments.
-</Note>
-
-## Upsert Mode Details
-
-When using `type = 'upsert'`, the Snowflake v2 sink implements change data capture (CDC) processing:
-
-1. **Intermediate Table**: Changes are first written to an intermediate CDC table
-2. **Scheduled Processing**: A Snowflake task periodically merges changes into the target table
-3. **Deduplication**: The latest change for each primary key is applied
-4. **Change Operations**: Supports INSERT, UPDATE, and DELETE operations
-
-### Upsert Processing Flow
-
-```
-RisingWave → Intermediate CDC Table → Snowflake Task → Target Table
-```
-
-The processing interval is controlled by `write.target.interval.seconds` and defaults to 1 hour.
-
-## Best Practices
-
-### Performance Optimization
-
-1. **Use S3 staging** for high-throughput scenarios (`with_s3 = 'true'`)
-2. **Set appropriate processing intervals** for upsert sinks based on your latency requirements
-3. **Use append-only mode** when possible for better performance
-4. **Configure proper warehouse sizes** in Snowflake for your workload
-
-### Security Considerations
-
-1. **Use secure connection strings** with SSL enabled
-2. **Store credentials securely** using RisingWave's secret management
-3. **Limit S3 bucket permissions** to only necessary operations
-4. **Use IAM roles** instead of access keys when possible
-
-### Schema Management
-
-1. **Test schema changes** in development environments first
-2. **Monitor schema evolution** to ensure compatibility
-3. **Plan for data type changes** that may require manual intervention
-4. **Consider column naming conventions** to avoid conflicts
-
-## Troubleshooting
-
-### Common Issues
-
-**Connection Errors**
-- Verify JDBC URL format and credentials
-- Check network connectivity to Snowflake
-- Ensure warehouse, database, and schema exist
-
-**S3 Access Issues**
-- Verify S3 credentials and permissions
-- Check bucket region configuration
-- Ensure Snowflake stage is properly configured
-
-**Schema Evolution Problems**
-- Verify auto.schema.change is enabled
-- Check data type compatibility
-- Review Snowflake table permissions
-
-**Performance Issues**
-- Consider increasing warehouse size
-- Optimize processing intervals
-- Monitor S3 staging efficiency
-
-### Monitoring
-
-Monitor your Snowflake v2 sink using:
-- RisingWave system tables for sink status
-- Snowflake query history for task execution
-- S3 bucket metrics for staging performance
-- Snowflake warehouse usage statistics
