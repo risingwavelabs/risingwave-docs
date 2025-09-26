@@ -51,8 +51,8 @@ CONSERVATIVE EDIT RULES (non-negotiable):
 - Never modify docs unrelated to changed code paths.
 - If you are unsure about a wording change that might be interpreted as a behavior change, prefer to leave a short TODO in the PR body rather than change docs.
 - Keep edits minimal and precise.
-- If the code change is changing default behavior or making breaking change, you need to highlight the change and require human's verification.
-  - In breaking change case, you need to mention the change is made in which version.
+- If the code change is changing default behavior or making a breaking change, you need to highlight the change and require human verification.
+  - In the breaking change case, you need to mention the change is made in which version.
 
 LANGUAGE & STYLE:
 - Output documentation text in **English**.
