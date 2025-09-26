@@ -1,0 +1,215 @@
+---
+title: "Vector functions"
+description: "Functions and operators for working with vector data types in RisingWave."
+---
+
+RisingWave provides comprehensive support for vector operations through various functions and operators designed for similarity search and vector processing.
+
+## Vector Data Type
+
+The `vector(n)` data type represents a fixed-length vector with `n` dimensions, commonly used for storing embeddings in machine learning applications.
+
+```sql
+-- Create a vector column
+CREATE TABLE embeddings (
+    id INT,
+    features vector(128)
+);
+```
+
+## Distance Operators
+
+Vector distance operators provide efficient similarity calculations:
+
+### L2 Distance (Euclidean)
+- **Operator**: `<->`
+- **Function**: `l2_distance(vector(n), vector(n)) → double precision`
+- **Description**: Calculates the Euclidean distance between two vectors
+
+```sql
+-- Using operator
+SELECT embedding <-> '[1.0, 2.0, 3.0]' AS distance FROM items;
+
+-- Using function
+SELECT l2_distance(embedding, '[1.0, 2.0, 3.0]') AS distance FROM items;
+```
+
+### Cosine Distance
+- **Operator**: `<=>`
+- **Function**: `cosine_distance(vector(n), vector(n)) → double precision`
+- **Description**: Calculates the cosine distance (1 - cosine similarity)
+
+```sql
+-- Using operator
+SELECT embedding <=> '[0.5, 0.3, 0.2]' AS distance FROM items;
+
+-- Using function
+SELECT cosine_distance(embedding, '[0.5, 0.3, 0.2]') AS distance FROM items;
+```
+
+### L1 Distance (Manhattan)
+- **Operator**: `<+>`
+- **Function**: `l1_distance(vector(n), vector(n)) → double precision`
+- **Description**: Calculates the Manhattan distance between two vectors
+
+```sql
+-- Using operator
+SELECT embedding <+> '[1.0, 0.0, 2.0]' AS distance FROM items;
+
+-- Using function
+SELECT l1_distance(embedding, '[1.0, 0.0, 2.0]') AS distance FROM items;
+```
+
+### Inner Product Distance
+- **Operator**: `<#>`
+- **Description**: Calculates the negative inner product (higher values indicate greater similarity)
+
+```sql
+-- Using operator (note: this is negative inner product)
+SELECT embedding <#> '[1.0, 1.0, 1.0]' AS neg_inner_product FROM items;
+```
+
+### Inner Product Function
+- **Function**: `inner_product(vector(n), vector(n)) → double precision`
+- **Description**: Calculates the inner product (dot product) of two vectors
+
+```sql
+-- Using function (positive inner product)
+SELECT inner_product(embedding, '[1.0, 1.0, 1.0]') AS inner_product FROM items;
+```
+
+## Arithmetic Operations
+
+Vectors support element-wise arithmetic operations:
+
+### Addition
+```sql
+-- Element-wise addition
+SELECT '[1.0, 2.0, 3.0]'::vector(3) + '[0.1, 0.2, 0.3]'::vector(3);
+-- Result: [1.1, 2.2, 3.3]
+```
+
+### Subtraction
+```sql
+-- Element-wise subtraction
+SELECT '[1.0, 2.0, 3.0]'::vector(3) - '[0.1, 0.2, 0.3]'::vector(3);
+-- Result: [0.9, 1.8, 2.7]
+```
+
+### Multiplication
+```sql
+-- Element-wise multiplication
+SELECT '[1.0, 2.0, 3.0]'::vector(3) * '[2.0, 0.5, 1.0]'::vector(3);
+-- Result: [2.0, 1.0, 3.0]
+```
+
+### Concatenation
+```sql
+-- Vector concatenation
+SELECT '[1.0, 2.0]'::vector(2) || '[3.0, 4.0]'::vector(2);
+-- Result: [1.0, 2.0, 3.0, 4.0] as vector(4)
+```
+
+## Utility Functions
+
+### Vector Norm
+- **Function**: `vector_norm(vector(n)) → double precision`
+- **Description**: Calculates the Euclidean norm (L2 norm) of a vector
+
+```sql
+SELECT vector_norm('[3.0, 4.0, 0.0]'::vector(3));
+-- Result: 5.0
+```
+
+### L2 Normalization
+- **Function**: `l2_normalize(vector(n)) → vector(n)`
+- **Description**: Normalizes a vector to unit length using L2 norm
+
+```sql
+SELECT l2_normalize('[3.0, 4.0, 0.0]'::vector(3));
+-- Result: [0.6, 0.8, 0.0]
+```
+
+## Type Conversions
+
+### From Vector to Other Types
+
+```sql
+-- Vector to varchar (automatic)
+SELECT '[1.0, 2.0, 3.0]'::vector(3)::varchar;
+-- Result: '[1.0, 2.0, 3.0]'
+
+-- Vector to real array (implicit)
+SELECT '[1.0, 2.0, 3.0]'::vector(3)::real[];
+-- Result: {1.0, 2.0, 3.0}
+```
+
+### From Other Types to Vector
+
+```sql
+-- Varchar to vector (explicit)
+SELECT '[1.0, 2.0, 3.0]'::vector(3);
+
+-- Array types to vector (assignment)
+SELECT ARRAY[1.0, 2.0, 3.0]::vector(3);
+SELECT ARRAY[1, 2, 3]::int[]::vector(3);
+SELECT ARRAY[1.5, 2.5, 3.5]::numeric[]::vector(3);
+```
+
+## Similarity Search Examples
+
+### Finding Similar Items
+
+```sql
+-- Create sample data
+CREATE TABLE documents (
+    id INT PRIMARY KEY,
+    title STRING,
+    embedding vector(3)
+);
+
+INSERT INTO documents VALUES
+(1, 'Document A', '[0.1, 0.2, 0.3]'),
+(2, 'Document B', '[0.4, 0.5, 0.6]'),
+(3, 'Document C', '[0.7, 0.8, 0.9]');
+
+-- Find documents similar to a query vector using different distance metrics
+SELECT id, title, 
+       embedding <-> '[0.2, 0.3, 0.4]' AS l2_distance,
+       embedding <=> '[0.2, 0.3, 0.4]' AS cosine_distance
+FROM documents
+ORDER BY l2_distance
+LIMIT 5;
+```
+
+### Advanced Similarity Search
+
+```sql
+-- Combine distance calculation with filtering
+SELECT id, title,
+       embedding <-> '[0.5, 0.5, 0.5]' AS distance
+FROM documents
+WHERE vector_norm(embedding) > 0.5  -- Filter by vector magnitude
+ORDER BY distance
+LIMIT 10;
+
+-- Use normalized vectors for cosine similarity
+SELECT id, title,
+       l2_normalize(embedding) <=> l2_normalize('[0.3, 0.6, 0.9]') AS normalized_cosine_distance
+FROM documents
+ORDER BY normalized_cosine_distance
+LIMIT 5;
+```
+
+## Performance Tips
+
+1. **Use appropriate distance metrics**: Choose the distance function that best matches your similarity requirements
+2. **Create vector indexes**: Use `CREATE INDEX ... USING HNSW` or `USING FLAT` for faster similarity search
+3. **Consider normalization**: Normalize vectors when using cosine similarity for better performance
+4. **Batch operations**: Process multiple vectors in batches when possible
+
+## See Also
+
+- [Vector Indexes](/sql/commands/sql-create-vector-index) - Creating indexes for efficient similarity search
+- [Data Types Overview](/sql/data-types/overview) - All supported data types
+- [Mathematical Functions](/sql/functions/mathematical) - Other mathematical operations

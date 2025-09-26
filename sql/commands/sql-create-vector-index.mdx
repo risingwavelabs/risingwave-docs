@@ -1,0 +1,200 @@
+---
+title: "Vector Indexes"
+description: "Create and use vector indexes for efficient similarity search operations in RisingWave."
+---
+
+RisingWave supports vector indexes to enable efficient similarity search operations. Vector indexes are specialized data structures that optimize queries involving vector distance calculations.
+
+## Vector Data Type
+
+RisingWave provides a `vector(n)` data type where `n` specifies the dimension of the vector.
+
+```sql
+-- Create a table with vector columns
+CREATE TABLE items (
+    id INT PRIMARY KEY,
+    name STRING,
+    embedding vector(3)
+) APPEND ONLY;
+```
+
+## Creating Vector Indexes
+
+Use the `CREATE INDEX` command with vector-specific syntax to create vector indexes.
+
+### Syntax
+
+```sql
+CREATE INDEX index_name ON table_name 
+USING { FLAT | HNSW } (vector_column | expression) 
+[ INCLUDE ( include_column [, ...] ) ]
+[ WITH ( option = value [, ...] ) ];
+```
+
+### Index Types
+
+RisingWave supports two types of vector indexes:
+
+#### FLAT Index
+
+A brute-force index that provides exact results by comparing the query vector against all stored vectors.
+
+```sql
+-- Create a FLAT vector index
+CREATE INDEX idx_embedding ON items 
+USING FLAT (embedding) 
+INCLUDE (name) 
+WITH (distance_type = 'l2');
+```
+
+#### HNSW Index
+
+A Hierarchical Navigable Small World (HNSW) index that provides approximate nearest neighbor search with better performance for large datasets.
+
+```sql
+-- Create an HNSW vector index
+CREATE INDEX idx_embedding_hnsw ON items 
+USING HNSW (embedding) 
+INCLUDE (name) 
+WITH (
+    distance_type = 'inner_product', 
+    m = 32, 
+    ef_construction = 40, 
+    max_level = 5
+);
+```
+
+### Vector Index Parameters
+
+| Parameter | Description | Default | Valid for |
+| :--- | :--- | :--- | :--- |
+| `distance_type` | Distance metric to use: `l2`, `cosine`, `l1`, or `inner_product` | `l2` | FLAT, HNSW |
+| `m` | Maximum number of connections per node | 16 | HNSW |
+| `ef_construction` | Size of dynamic candidate list during construction | 200 | HNSW |
+| `max_level` | Maximum level of the HNSW graph | Auto-calculated | HNSW |
+
+## Vector Distance Operators
+
+RisingWave provides specialized operators for calculating vector distances:
+
+| Operator | Function | Description |
+| :--- | :--- | :--- |
+| `<->` | `l2_distance()` | Euclidean (L2) distance |
+| `<=>` | `cosine_distance()` | Cosine distance |
+| `<+>` | `l1_distance()` | Manhattan (L1) distance |
+| `<#>` | Negative inner product | Negative inner product distance |
+
+## Vector Similarity Search
+
+Use vector distance operators with `ORDER BY` and `LIMIT` to perform similarity search:
+
+```sql
+-- Find the 5 most similar items using L2 distance
+SELECT * FROM items 
+ORDER BY embedding <-> '[3,1,2]' 
+LIMIT 5;
+
+-- Find similar items using cosine distance
+SELECT id, name FROM items 
+ORDER BY embedding <=> '[0.5, 0.3, 0.2]' 
+LIMIT 10;
+```
+
+## Vector Functions
+
+RisingWave provides various functions for working with vectors:
+
+### Type Casting
+- `vector(n)` to `varchar`: Automatic conversion
+- `varchar` to `vector(n)`: Explicit casting required
+- `vector(n)` to `real[]`: Implicit conversion
+- Array types (`int[]`, `numeric[]`, `real[]`, `double precision[]`) to `vector(n)`: Assignment conversion
+
+### Distance Functions
+- `l2_distance(vector(n), vector(n)) → double precision`
+- `cosine_distance(vector(n), vector(n)) → double precision`
+- `l1_distance(vector(n), vector(n)) → double precision`
+- `inner_product(vector(n), vector(n)) → double precision`
+
+### Arithmetic Operations
+- `vector(n) + vector(n) → vector(n)`: Element-wise addition
+- `vector(n) - vector(n) → vector(n)`: Element-wise subtraction
+- `vector(n) * vector(n) → vector(n)`: Element-wise multiplication
+- `vector(m) || vector(n) → vector(m+n)`: Vector concatenation
+
+### Utility Functions
+- `vector_norm(vector(n)) → double precision`: Euclidean norm
+- `l2_normalize(vector(n)) → vector(n)`: Normalize with Euclidean norm
+
+## Vector Indexes on Function Expressions
+
+You can create vector indexes on function expressions:
+
+```sql
+-- Create index on a function expression
+CREATE INDEX idx_embedding_func ON items 
+USING FLAT (get_embedding(text)) 
+INCLUDE(text) 
+WITH (distance_type = 'l2');
+```
+
+## Examples
+
+### Basic Vector Similarity Search
+
+```sql
+-- Create table with vector data
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name STRING,
+    features vector(128)
+) APPEND ONLY;
+
+-- Create vector index
+CREATE INDEX idx_features ON products 
+USING HNSW (features) 
+WITH (distance_type = 'cosine');
+
+-- Insert sample data
+INSERT INTO products VALUES 
+(1, 'Product A', '[0.1, 0.2, ...]'),
+(2, 'Product B', '[0.3, 0.4, ...]');
+
+-- Find similar products
+SELECT id, name 
+FROM products 
+ORDER BY features <=> '[0.2, 0.3, ...]' 
+LIMIT 5;
+```
+
+### Using Different Distance Metrics
+
+```sql
+-- L2 distance for geometric similarity
+SELECT * FROM items 
+ORDER BY embedding <-> '[1.0, 2.0, 3.0]' 
+LIMIT 3;
+
+-- Cosine distance for normalized similarity
+SELECT * FROM items 
+ORDER BY embedding <=> '[0.5, 0.5, 0.0]' 
+LIMIT 3;
+
+-- Inner product for dot product similarity
+SELECT * FROM items 
+ORDER BY embedding <#> '[1.0, 0.0, 1.0]' 
+LIMIT 3;
+```
+
+## Performance Considerations
+
+- **FLAT indexes** provide exact results but scale linearly with data size
+- **HNSW indexes** provide approximate results with sub-linear query time
+- Choose `distance_type` based on your similarity metric requirements
+- For HNSW indexes, tune `m` and `ef_construction` parameters based on your accuracy/performance tradeoffs
+
+## See Also
+
+- [CREATE INDEX](/sql/commands/sql-create-index) - General index creation
+- [Data Types Overview](/sql/data-types/overview) - All supported data types
+- [Vector Functions](/sql/functions/overview) - Complete function reference
