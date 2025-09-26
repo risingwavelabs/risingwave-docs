@@ -1,0 +1,28 @@
+---
+title: "Iceberg snapshot expiration"
+sidebarTitle: Snapshot expiration
+description: "Learn how RisingWave supports Iceberg snapshot expiration for sinks and table engines."
+---
+
+When RisingWave streams data into Iceberg, it continuously creates snapshots that capture the state of a table or a sink at a given point in time. Over time, these snapshots accumulate and consume storage. Regularly expiring old snapshots helps keep storage usage under control and improves query performance.
+
+## Periodic expiration
+
+RisingWave supports automatic snapshot expiration for sinks and table engines. At user-defined intervals, the system evaluates existing snapshots and removes those that are older than the configured threshold or exceed the retention count. You can also configure whether to clean up expired data and metadata files.
+
+To enable snapshot expiration, specify the following parameters in the `WITH` clause when creating a sink or table:
+
+| Parameter                                      | Description                                                                 |
+|:-----------------------------------------------|:----------------------------------------------------------------------------|
+| `snapshot_expiration_expire_older_than`        | The timestamp (in milliseconds) to expire snapshots older than this.         |
+| `snapshot_expiration_retain_last`              | The number of snapshots to retain.                                           |
+| `snapshot_expiration_clear_expired_files`      | Whether to delete expired data files. Default is `true`.                     |
+| `snapshot_expiration_clear_expired_meta_data`  | Whether to delete expired metadata files. Default is `true`.                 |
+
+For detailed syntax, parameters, and configuration details, see [Compaction for Iceberg sink](/iceberg/deliver-to-iceberg#compaction-for-iceberg-sink) and [Compaction for Iceberg table engine](/iceberg/create-manage-native-iceberg-tables#compaction-for-native-iceberg-tables).
+
+## Manual expiration
+
+In addition to periodic background expiration, you can also expire snapshots manually.  
+
+By running the [`VACUUM FULL`](/sql/commands/sql-vacuum) command, RisingWave will expire old snapshots on demand. This is useful when you want to immediately reclaim storage or reset snapshot history.
