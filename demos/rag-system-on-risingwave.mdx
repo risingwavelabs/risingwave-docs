@@ -96,6 +96,35 @@ ORDER BY similarity DESC
 LIMIT 10;
 ```
 
+<Note>
+**Alternative with Vector Data Type (v2.5+)**
+
+Starting with RisingWave v2.5, you can use the native `vector(n)` data type and vector indexes for more efficient similarity search:
+
+```sql
+-- Create table with vector column
+CREATE TABLE documents_v2 (
+    file_name VARCHAR PRIMARY KEY,
+    content TEXT,
+    embedding vector(1536)  -- OpenAI text-embedding-3-small uses 1536 dimensions
+);
+
+-- Create vector index for fast similarity search
+CREATE INDEX idx_embedding ON documents_v2 
+USING HNSW (embedding) 
+WITH (distance_type = 'cosine');
+
+-- Query using vector distance operators (more efficient)
+SELECT file_name, content,
+       embedding <=> text_embedding('write a Python UDF')::vector(1536) AS distance
+FROM documents_v2
+ORDER BY distance  -- Lower distance = higher similarity
+LIMIT 10;
+```
+
+This approach provides better performance for large datasets and eliminates the need for custom similarity functions.
+</Note>
+
 For your convenience, we provide a Python script to answer questions.
 
 ```bash
