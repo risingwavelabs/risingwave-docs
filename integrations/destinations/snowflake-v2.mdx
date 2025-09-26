@@ -1,0 +1,157 @@
+---
+title: "Sink data from RisingWave to Snowflake (v2)"
+sidebarTitle: Snowflake v2
+description: This guide describes how to sink data from RisingWave to Snowflake using the enhanced Snowflake v2 sink connector.
+---
+
+Snowflake is a cloud-based data warehousing platform that enables scalable and efficient data storage and analysis. Starting with v2.6.0, RisingWave introduced the Snowflake v2 sink connector, providing a more powerful and improved integration. For compatibility, the original [Snowflake connector](/integrations/destinations/snowflake) remains supported.
+
+## Syntax
+
+To use Snowflake v2, specify `connector = 'snowflake_v2'` in your CREATE SINK statement.
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector='snowflake_v2',
+   type='append-only' | 'upsert',
+   connector_parameter = 'value', ...
+);
+```
+
+## Parameters
+
+| Parameter                     | Description |
+|:------------------------------|:------------|
+| type                          | Sink type (e.g., append-only or upsert) |
+| intermediate.table.name       | Name of the intermediate table used for upsert |
+| table.name                    | Name of the target table |
+| database                      | Snowflake database name |
+| schema                        | Snowflake schema name |
+| snowflake_schedule_seconds    | Interval in seconds for scheduled writes (default: 3600) |
+| warehouse                     | Snowflake warehouse name |
+| jdbc.url                       | JDBC URL to connect to Snowflake |
+| username                      | Snowflake username |
+| password                      | Snowflake password |
+| commit_checkpoint_interval     | Commit every n checkpoints (default: 10) |
+| auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
+| create_table_if_not_exists     | Create target table if it does not exist |
+| with_s3                        | Enable writing via S3 (default: true) |
+| s3.region_name                 | AWS region for S3 |
+| s3.bucket_name                 | S3 bucket name |
+| s3.path                        | S3 folder path for sink files |
+| enable_config_load             | Load S3 credentials from environment (self-hosted only) |
+| s3.credentials.access          | AWS access key ID |
+| s3.credentials.secret          | AWS secret access key |
+| s3.endpoint_url                | Custom S3 endpoint URL (for self-hosted setups) |
+| s3.assume_role                 | IAM role ARN to assume for S3 access |
+| stage                          | Snowflake stage name |
+
+## Auto schema change
+
+Snowflake v2 supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. Auto schema change in Snowflake V2 Sink enables RisingWave to automatically alter the destination table in Snowflake when new columns appear in the upstream source data. This process ensures seamless schema evolution, reducing manual intervention and keeping your Snowflake table in sync with changing data structures.
+
+To enable it, set `auto_schema_change` to true, and RisingWave will automatically add new columns to the target table.
+
+## S3 integration
+
+Snowflake V2 Sink leverages S3 Integration to efficiently stage data before loading it into Snowflake. Data are written to files in the specified S3 bucket and folder, then loaded via Snowflake. This integration offers significant performance gains for large datasets and supports secure, scalable data transfer. You can configure credentials, bucket, region, path, and other S3-specific options in [Parameters](/integrations/destinations/snowflake-v2#parameters) to match your environment.
+
+## Append-only and upsert modes
+
+Snowflake v2 sink connector supports both modes for flexible data handling.
+
+In `upsert` mode, performance is optimized through the use of an intermediate table:
+
+- An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
+
+- Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting.
+
+- By default, an S3 bucket is required to achieve optimal ingestion performance into the intermediate table.
+
+- Alternatively, you can use `INSERT` SQL statements to load data directly into the intermediate table, though this approach is not recommended due to performance drawbacks.
+
+Examples:
+
+1. Snowflake v2 sink with S3 writer (Append-only mode)
+
+```sql
+CREATE SINK snowflake_sink FROM test_table WITH (
+    connector = 'snowflake_v2',
+    type = 'append-only',
+    table.name = 'test_table',
+
+    -- Snowflake concepts
+    warehouse = 'COMPUTE_WH',
+    database = 'RW_TEST',
+    schema = 'RW_SCHEMA',
+
+    -- S3 writer (enabled by default)
+    with_s3 = true,
+    s3.bucket_name = '...',
+    s3.region_name = '...',
+    s3.path = '...',
+
+    -- Authentication: access key / secret (default)
+    s3.credentials.access = '...',
+    s3.credentials.secret = '...',
+
+    -- Or assume role (requires cloud support)
+    s3.assume_role = '...',
+    enable_config_load = 'true',
+
+    -- Required if auto.schema.change = false 
+    -- and create_table_if_not_exists = false
+    jdbc.url = 'jdbc:snowflake://...',
+    username = '...',
+    password = '...',
+
+    -- Defaults (can be overridden)
+    auto.schema.change = 'false',
+    create_table_if_not_exists = 'false'
+);
+```
+
+2. Snowflake v2 sink with S3 writer (Upsert mode):
+
+```sql
+CREATE SINK snowflake_sink FROM test_table WITH (
+    connector = 'snowflake_v2',
+    type = 'upsert',
+    table.name = 'test_table',
+
+    -- Snowflake concepts
+    warehouse = 'COMPUTE_WH',
+    database = 'RW_TEST',
+    schema = 'RW_SCHEMA',
+
+    -- Intermediate table required for upsert
+    intermediate.table.name = '...',
+    -- Default: 3600 seconds (1 hour)
+    write.target.interval.seconds = '...',
+
+    -- S3 writer (enabled by default)
+    with_s3 = true,
+    s3.bucket_name = '...',
+    s3.region_name = '...',
+    s3.path = '...',
+
+    -- Authentication: access key / secret (default)
+    s3.credentials.access = '...',
+    s3.credentials.secret = '...',
+
+    -- Or assume role (requires cloud support)
+    s3.assume_role = '...',
+    enable_config_load = 'true',
+
+    -- Unlike append-only mode, JDBC configs are required
+    jdbc.url = 'jdbc:snowflake://...',
+    username = '...',
+    password = '...',
+
+    -- Defaults (can be overridden)
+    auto.schema.change = 'false',
+    create_table_if_not_exists = 'false'
+);
+```
