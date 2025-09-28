@@ -50,7 +50,7 @@ WITH (
 
 ## Auto schema change
 
-Snowflake v2 supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. Auto schema change in Snowflake V2 Sink enables RisingWave to automatically alter the destination table in Snowflake when new columns appear in the upstream source data. This process ensures seamless schema evolution, reducing manual intervention and keeping your Snowflake table in sync with changing data structures.
+Snowflake v2 supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. Auto schema change in Snowflake V2 sink enables RisingWave to automatically alter the destination table in Snowflake when new columns appear in the upstream source data. This process ensures seamless schema evolution, reducing manual intervention and keeping your Snowflake table in sync with changing data structures.
 
 To enable it, set `auto_schema_change` to true, and RisingWave will automatically add new columns to the target table.
 
@@ -154,4 +154,198 @@ CREATE SINK snowflake_sink FROM test_table WITH (
     auto.schema.change = 'false',
     create_table_if_not_exists = 'false'
 );
+```
+
+## Set up Snowflake
+
+Before connecting RisingWave to Snowflake, you need to prepare a dedicated user, role, schema, and warehouse in Snowflake. If you already have a Snowflake user with the necessary privileges, you can skip this step.
+
+Follow the steps below to create and configure the required resources.
+
+1. Set `database_name`, `warehouse_name`, and `rw_schema` accordingly to use an existing database, warehouse, and/or schema.
+
+```sql Example
+-- Set database, warehouse, role, user, schema, and password
+set database_name = 'RW_DB';
+set warehouse_name = 'RW_WH';
+set rw_role = 'RW_ROLE';
+set rw_user = 'RW_USER';
+set rw_schema = 'RW_SCHEMA';
+set password = 'xxxxxx';
+```    
+
+2. Create role and schema for RisingWave.
+
+```sql
+create role if not exists identifier($rw_role);
+grant role identifier($rw_role) to role SYSADMIN;
+```
+
+3. Create Snowflake database.
+
+```sql
+create database if not exists identifier($database_name);
+use database identifier($database_name);
+create schema if not exists identifier($rw_schema);
+```
+
+4. Create a user for RisingWave.
+
+```
+create user if not exists identifier($rw_user) PASSWORD = $password
+default_role = $rw_role
+default_warehouse = $warehouse_name;
+grant role identifier($rw_role) to user identifier($rw_user);
+grant all on schema identifier($rw_schema) to identifier($rw_role);
+grant execute task on account to role identifier($rw_role);
+```
+
+5. Create a warehouse for RisingWave.
+
+```
+create warehouse if not exists identifier($warehouse_name)
+warehouse_size = xsmall
+warehouse_type = standard
+auto_suspend = 60
+auto_resume = true
+initially_suspended = true;
+```
+
+6. Grant RisingWave role access to warehouse.
+
+```sql
+grant USAGE
+on warehouse identifier($warehouse_name)
+to role identifier($rw_role);
+```
+
+7. Grant RisingWave access to database.
+
+```sql
+grant CREATE SCHEMA, MONITOR, USAGE on database identifier($database_name) to role identifier($rw_role);
+use role sysadmin;
+COMMIT;
+```
+
+## Set up Snowflake S3 integration
+
+To enable RisingWave to write data into Snowflake through S3, you need to set up a Snowflake Storage Integration and a Stage in Snowflake. Follow these steps:
+
+1. Use `ACCOUNTADMIN` role in `RW_DB.RW_SCHEMA` created above.
+
+```sql
+USE SCHEMA RW_DB.RW_SCHEMA;
+USE ROLE ACCOUNTADMIN;
+```
+
+2. Create a Snowflake storage integration that connects to your S3 bucket. Replace the ARN and S3 path with your own.
+
+```sql
+CREATE STORAGE INTEGRATION S3_INT
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = 'S3'
+  ENABLED = TRUE
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::023339134545:role/mysnowflakerole'  -- IAM role created in AWS
+  STORAGE_ALLOWED_LOCATIONS = ('s3://iceberg-test/mysnowflake/');  -- Your S3 bucket with proper policy
+```
+
+3. Configure IAM trust policy
+
+Run the following command to retrieve values required for the AWS IAM trust policy.
+
+```sql
+DESC INTEGRATION S3_INT;
+```
+
+From the output, copy `STORAGE_AWS_IAM_USER_ARN`(e.g. `arn:aws:iam::398211280607:user/....`) and `STORAGE_AWS_EXTERNAL_ID`(e.g. `....c9aPS5npkOTkSO8=`) to configure AWS IAM trusted policy.
+
+4. Validate that Snowflake can access your S3 bucket.
+
+```sql
+SELECT SYSTEM$VALIDATE_STORAGE_INTEGRATION(
+  'S3_INT',
+  's3://iceberg-test/mysnowflake/',
+  'validate_all.txt',
+  'ALL');
+```
+
+5. Create an external stage.
+
+```sql
+USE SCHEMA SNOWFLAKE_LEARNING_DB.PUBLIC;
+```
+
+```sql
+CREATE STAGE MY_S3_STAGE
+  STORAGE_INTEGRATION = S3_INT
+  URL = 's3://iceberg-test/mysnowflake/'
+  FILE_FORMAT = (TYPE = JSON);
+```
+
+If you want to use `public` or other roles, you need to fully configure and grant these privileges:
+
+```sql
+GRANT USAGE ON STAGE RW_DB.RW_SCHEMA.MY_S3_STAGE TO ROLE <role_name>;
+GRANT READ, WRITE ON STAGE RW_DB.RW_SCHEMA.MY_S3_STAGE TO ROLE <role_name>;
+GRANT USAGE ON INTEGRATION S3_INT TO ROLE <role_name>;
+```
+
+## Set up S3 IAM and role
+
+RisingWave supports direct access to S3 using Access Key / Secret Key (AK/SK) by default. If you prefer to set up S3 IAM and role, follow the official Snowflake [guide](https://docs.snowflake.com/en/user-guide/data-load-s3-config-storage-integration). Below are additional notes specific to RisingWave.
+
+1. Create an IAM policy for S3 access.
+
+```json Example
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+              "s3:PutObject",
+              "s3:GetObject",
+              "s3:GetObjectVersion",
+              "s3:DeleteObject",
+              "s3:DeleteObjectVersion"
+            ],
+            "Resource": "arn:aws:s3:::<bucket>/<prefix>/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "arn:aws:s3:::<bucket>",
+            "Condition": {
+                "StringLike": {
+                    "s3:prefix": [
+                        "<prefix>/*"
+                    ]
+                }
+            }
+        }
+    ]
+}
+```
+
+2. Configure the following additional trusted entities for your IAM Role to allow RisingWave arn to assume the role. Please don’t click required external id to trust RisingWave arn here.
+
+```json Example
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": [
+                    "arn:aws:iam::600598779918:role/g1j1jcf11aejvbjhkaccqsubue-role"
+                ]
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {}
+        }
+    ]
+}
 ```
