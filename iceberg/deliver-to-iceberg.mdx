@@ -230,10 +230,11 @@ To configure Iceberg compaction when creating a sink, specify the following para
 | `enable_compaction`        | Whether to enable Iceberg compaction (`true`/`false`).                       |
 | `compaction_interval_sec`  | Interval (in seconds) between two compaction runs. Defaults to `3600` seconds. |
 | `enable_snapshot_expiration` | Whether to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
-| `snapshot_expiration_expire_older_than` | The timestamp (in milliseconds) to expire snapshots older than this. |
+| `snapshot_expiration_max_age_millis` | The maximum age (in milliseconds) for snapshots before they expire. For example, if set to 3600000, snapshots older than 1 hour will be expired. If you want to keep only the latest snapshot, set `snapshot_expiration_max_age_millis = 0`. |
 | `snapshot_expiration_retain_last` | The number of snapshots to retain. |
 | `snapshot_expiration_clear_expired_files` | Whether to delete expired data files. Default is `true`. |
 | `snapshot_expiration_clear_expired_meta_data` | Whether to delete expired metadata files. Default is `true`. |
+| `max_snapshots_num_before_compaction` | The maximum number of snapshots allowed since the last rewrite operation. If set, sink will check snapshot count and wait if exceeded. |
 
 ```sql Example
 CREATE SINK sink_demo_rest FROM t
@@ -255,7 +256,7 @@ WITH (
     enable_compaction=true, 
     compaction_interval_sec=3600, 
     enable_snapshot_expiration=true,
-    snapshot_expiration_expire_older_than = 604800000,
+    snapshot_expiration_max_age_millis = 604800000,
     snapshot_expiration_retain_last = 5,
     snapshot_expiration_clear_expired_files = true,
     snapshot_expiration_clear_expired_meta_data = true
@@ -268,8 +269,8 @@ WITH (
 Currently, please contact us via [RisingWave Slack workspace](https://www.risingwave.com/slack) to allocate the necessary resources. We are working on a self-service feature that will let you allocate Iceberg compactors directly from the cloud portal.
 </Warning>
 
-RisingWave also supports compaction for Iceberg table engine. For details, see [
-Compaction for Iceberg table engine](/iceberg/create-manage-native-iceberg-tables#compaction-for-native-iceberg-tables).
+RisingWave also supports compaction for Iceberg engine table. For details, see [
+Compaction for Iceberg engine table](/iceberg/create-manage-native-iceberg-tables#compaction-for-native-iceberg-tables).
 
 ## Use with different storage backends
 

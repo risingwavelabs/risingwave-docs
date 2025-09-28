@@ -18,13 +18,36 @@ The trade-off is higher write amplification and potential latency during compact
 
 To use Copy-on-Write mode, set the parameter `write_mode = 'copy-on-write'` when creating your Iceberg table or sink.
 
-```sql
+```sql Create an Iceberg table
 CREATE TABLE t_copy_on_write (
     a INT PRIMARY KEY,
     b INT
 ) WITH (
-    commit_checkpoint_interval = 1,
-    compaction_interval_sec = 10,
+    commit_checkpoint_interval = 10,
+    compaction_interval_sec = 30,
     write_mode = 'copy-on-write'
 ) ENGINE = iceberg;
+```
+
+```sql Create an Iceberg sink
+CREATE SINK rest_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    catalog.credential = 'username:password',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    enable_compaction = true,
+    write_mode = 'copy-on-write',
+    commit_checkpoint_interval = 10,
+    compaction_interval_sec = 30,
+    enable_snapshot_expiration = true,
+    snapshot_expiration_max_age_millis=0
+);
 ```
