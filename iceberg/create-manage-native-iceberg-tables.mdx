@@ -155,9 +155,8 @@ WITH (
     properties.bootstrap.server = 'kafka:9092'
 ) FORMAT JSON;
 
--- Create materialized view that inserts into Iceberg table
-CREATE MATERIALIZED VIEW insert_into_iceberg AS
-INSERT INTO user_events
+-- Create a sink that write data to Iceberg table
+CREATE SINK insert_into_iceberg INTO user_events AS
 SELECT user_id, event_type, event_time, properties
 FROM user_activity_stream;
 ```
