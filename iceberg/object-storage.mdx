@@ -1,0 +1,205 @@
+---
+title: "Object storage"
+sidebarTitle: "Object storage"
+description: "This guide provides configuration details for connecting RisingWave to different object storage backends for your Iceberg data, including Amazon S3, Google Cloud Storage (GCS), and Azure Blob Storage."
+---
+
+This guide provides configuration details for connecting RisingWave to different object storage backends for your Iceberg data, including Amazon S3, Google Cloud Storage (GCS), and Azure Blob Storage. You will need to provide these parameters when creating an Iceberg connection, source, or sink.
+
+## S3-compatible storage
+
+To integrate RisingWave with Iceberg tables stored in S3-compatible object storage, you must provide the necessary connection details. These configurations tell RisingWave exactly where your data warehouse resides and how to authenticate and access it.
+
+These parameters configure the connection to the underlying S3-compatible storage system where the Iceberg data files are stored. This includes AWS S3, MinIO, and other compatible services.
+
+| Parameter             | Description                                                                                                |
+| :-------------------- | :---------------------------------------------------------- |
+| `warehouse.path`        | The base path to your Iceberg warehouse in the S3-compatible storage.  Example:  `'s3://my-bucket/iceberg-warehouse'`                  |
+| `s3.endpoint`       | **Optional**. Endpoint of the S3. <ul><li>For MinIO object store backend, it should be `http://${MINIO_HOST}:${MINIO_PORT}`. </li><li>For AWS S3, refer to [S3](https://docs.aws.amazon.com/general/latest/gr/s3.html) for your region's endpoint.</li></ul>     |
+| `s3.region`         | **Optional**. The region where the S3 bucket is hosted. Either s3.endpoint or s3.region must be specified.       |
+| `s3.access.key`     | **Required**. Access key of the S3 compatible object store.    |
+| `s3.secret.key`     | **Required**. Secret key of the S3 compatible object store.    |
+| `s3.path.style.access` | **Optional**. Determines the access style for S3. If `true`, use path-style; if `false`, use [virtual-hosted–style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html). |
+| `enable_config_load` | **Optional**. Controls whether configuration is loaded from environment variables. Set to `true` will load warehouse credentials from environment variables. Only supported in self-hosted environments. |
+
+## Google Cloud Storage (GCS)
+
+<Note>
+Added in v2.3.0.
+</Note>
+
+RisingWave supports creating Iceberg sinks on GCS with catalog types `storage` or `rest`. To enable it, configure the following specific parameters:
+
+These parameters configure the connection to the underlying GCS storage system where the Iceberg data files are stored.
+
+| Parameter name | Description |
+| :------------- | :---------- |
+| warehouse.path             | Specifies the Google Cloud Storage path. |
+| gcs.credential             | Base64-encoded credential key obtained from the GCS service account key JSON file. To get this JSON file, refer to the [guides of GCS documentation](https://cloud.google.com/iam/docs/keys-create-delete#iam-service-account-keys-create-console). <ul><li>To encode it in base64, run the following command: <code>cat ~/Downloads/rwc-byoc-test-464bdd851bce.json &#124; base64 -b 0 &#124; pbcopy</code>, and then paste the output as the value for this parameter.</li><li>If this field is not specified, ADC (application default credentials) will be used.</li></ul>|
+
+```sql Example
+CREATE SINK sink_t FROM t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+    database.name = 'public',
+    table.name = 't',
+    catalog.name = 'demo',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181',
+    warehouse.path = 'gs://bucket/path',
+    gcs.credential = 'xxxxxxxx'
+);
+```
+For more details on sinking data to GCS, see [Sink data to Google Cloud Storage](/integrations/destinations/google-cloud-storage).
+
+## Azure Blob Storage
+
+<Note>
+Added in v2.4.0.
+</Note>
+
+RisingWave supports creating Iceberg sinks on Azure Blob with catalog types `storage` or `rest`. To enable it, configure the following specific parameters:
+
+These parameters configure the connection to Azure Blob storage where the Iceberg data files are stored.
+
+| Parameter name | Description |
+| :------------- | :---------- |
+| warehouse.path             | Specifies the Azure Blob Storage path. |
+| azblob.account_name |	The Azure Storage account name used to authenticate access. |
+| azblob.account_key | The Azure Storage account key associated with the account name, used for authentication. |
+| azblob.endpoint_url |  The full endpoint URL of the Azure Blob service. |
+
+```sql Example
+CREATE SINK sink1 AS select * from mv1 WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    database.name = 'demo_db',
+    table.name = 'test_azblob_iceberg',
+    catalog.name = 'demo',
+    catalog.type = 'storage',
+    warehouse.path = 'azblob://<demo>',
+    azblob.account_name = 'xxx',
+    azblob.account_key = 'xxx',
+    azblob.endpoint_url = 'https://<account_name>.blob.core.windows.net/',
+    ...
+);
+```
+
+For more details on sinking data to Azure Blob, see [Sink data to Azure Blob](/integrations/destinations/azure-blob).
+
+## Amazon S3 Tables
+
+You can configure RisingWave Iceberg connectors to use Amazon S3 Tables as their catalog. This setup allows RisingWave to sink data into or read data from Iceberg tables managed by the AWS native S3 Tables catalog service.
+
+To achieve this, specify the `rest` catalog type within your `CREATE SINK` or `CREATE SOURCE` statement and include the necessary parameters for SigV4 authentication against the S3 Tables REST API.
+
+**Required REST Catalog Parameters for S3 Tables:**
+
+While these parameters might be optional in general Iceberg configurations, they are **required** when `catalog.type = 'rest'` is used to connect to Amazon S3 Tables:
+
+| Parameter name                | Description                                                      | Value for S3 Tables |
+| :---------------------------- | :--------------------------------------------------------------- | :------------------ |
+| `catalog.rest.signing_region` | The AWS region for signing REST catalog requests.                | e.g., `us-east-1`   |
+| `catalog.rest.signing_name`   | The service name for signing REST catalog requests.              | `s3tables`          |
+| `catalog.rest.sigv4_enabled`  | Enables SigV4 signing for REST catalog requests. Set to `true`. | `true`              |
+
+### Example for Iceberg sink
+
+```sql
+CREATE SINK my_s3_tables_sink FROM source_table
+WITH (
+    connector = 'iceberg',
+    type = 'upsert', -- Or 'append-only'
+    primary_key = 'id', -- Required for 'upsert' type
+
+    -- Specify the S3 Tables warehouse ARN
+    warehouse.path = 'arn:aws:s3tables:<your-region>:<your-account-id>:bucket/<your-bucket-name>',
+    -- AWS Credentials
+    s3.access.key = '<your-aws-access-key-id>',
+    s3.secret.key = '<your-aws-secret-access-key>',
+    s3.region = '<your-region>', -- e.g., 'us-east-1'
+
+    -- S3 Tables REST catalog endpoint
+    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+    -- REST catalog signing configurations
+    catalog.rest.signing_region = '<your-region>', -- e.g., 'us-east-1'
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
+    -- Specify REST catalog type
+    catalog.type = 'rest',
+
+    -- Target Iceberg table details within S3 Tables catalog
+    database.name = '<your-database-name>', -- Database in S3 Tables
+    table.name = '<your-table-name>',       -- Table name in S3 Tables
+    create_table_if_not_exists = true      -- Optional: Create table if it doesn't exist
+);
+```
+
+### Example for Iceberg source
+
+```sql
+CREATE SOURCE my_s3_tables_source
+WITH (
+    connector = 'iceberg',
+
+    -- Specify the S3 Tables warehouse ARN
+    warehouse.path = 'arn:aws:s3tables:<your-region>:<your-account-id>:bucket/<your-bucket-name>',
+    -- AWS Credentials
+    s3.access.key = '<your-aws-access-key-id>',
+    s3.secret.key = '<your-aws-secret-access-key>',
+    s3.region = '<your-region>', -- e.g., 'us-east-1'
+
+    -- S3 Tables REST catalog endpoint
+    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+    -- REST catalog signing configurations (Required for S3 Tables)
+    catalog.rest.signing_region = '<your-region>', -- e.g., 'us-east-1'
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
+    -- Specify REST catalog type
+    catalog.type = 'rest',
+
+    -- Target Iceberg table details within S3 Tables catalog
+    database.name = '<your-database-name>', -- Database in S3 Tables
+    table.name = '<your-table-name>'       -- Table name in S3 Tables
+;
+```
+
+<Note>Replace placeholder values with your specific AWS account, region, bucket, database, table names, and credentials.</Note>
+
+Once created, this sink will write data from `source_table` into the specified Iceberg table (`<your-table-name>`) within the `<your-database-name>` database, using Amazon S3 Tables to manage the table's metadata.
+
+Once created, RisingWave will use this source to read data from the specified Iceberg table, leveraging Amazon S3 Tables for metadata discovery. 
+
+## Use with RisingWave Managed Iceberg
+
+While these object storage configurations are primarily used with the **Bring Your Own Iceberg** approach, they are also required when using **RisingWave Managed Iceberg** since the Iceberg table engine stores data on external object storage:
+
+```sql
+-- Hosted catalog with S3 storage
+CREATE CONNECTION managed_s3_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 's3://my-bucket/managed-warehouse/',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    hosted_catalog = true
+);
+
+-- External catalog with GCS storage  
+CREATE CONNECTION managed_gcs_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 'gs://my-bucket/managed-warehouse/',
+    gcs.credential = 'base64-encoded-service-account-key',
+    catalog.type = 'rest',
+    catalog.uri = 'http://catalog-service:8181',
+    catalog.name = 'production'
+);
+```
+
+
+## Next steps
+
+- **Configure catalogs**: Set up your catalog system with [Catalog configuration](/iceberg/catalogs).
+- **Ingest from Iceberg**: Create sources with [Ingest from Iceberg](/iceberg/ingest-from-iceberg).
+- **Deliver to Iceberg**: Create sinks with [Deliver to Iceberg](/iceberg/deliver-to-iceberg).

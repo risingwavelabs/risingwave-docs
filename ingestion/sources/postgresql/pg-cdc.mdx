@@ -19,13 +19,44 @@ Before connecting to RisingWave, you must enable logical replication on your ups
 
 Once setup is complete, return to this guide to connect RisingWave.
 
+## User permissions
+
+Before connecting to PostgreSQL CDC, you need to set up proper user permissions. The PostgreSQL user used for CDC must have specific privileges to perform logical replication.
+
+### Required user permissions
+
+The replication user needs the following permissions:
+
+* `REPLICATION` privilege
+* `CONNECT` privilege on the target database
+* `SELECT` privilege on the tables to be replicated
+* Permission to create publications (if `publication.create.enable` is enabled)
+
+### Publication permissions
+
+If you don't make any special settings, RisingWave will automatically help you create publications. In this case, the user needs:
+
+* **CREATE PUBLICATION permission**: The user must be the database owner, have SUPERUSER privileges, or have CREATE privileges on the database
+* **ALTER PUBLICATION ADD TABLE permission**: The user must be the table owner or have SUPERUSER privileges
+
+If you set `publication.create.enable = 'false'`, the user only needs SELECT privileges on the tables, and you must manually create the publication. This approach reduces permission requirements since you don't need to be the table owner.
+
+### Setting up permissions
+
+For basic user creation and privilege granting, see the setup instructions for your specific PostgreSQL deployment:
+
+* **[Self-hosted PostgreSQL](/ingestion/sources/postgresql/self-hosted)**
+* **[AWS RDS PostgreSQL](/ingestion/sources/postgresql/aws-rds)**
+* **[Neon PostgreSQL](/ingestion/sources/postgresql/neon)**
+* **[Supabase PostgreSQL](/ingestion/sources/postgresql/supabase)**
+
 ## Connect to PostgreSQL
 
 RisingWave uses the `CREATE SOURCE` or `CREATE TABLE ... FROM source` syntax to connect to PostgreSQL CDC. You'll use `CREATE SOURCE` to create a shared source, and then create multiple tables from it, each representing a table in the upstream PostgreSQL database.
 
-### `CREATE SOURCE` (shared source)
+### `CREATE SOURCE`
 
-Use the `CREATE SOURCE` statement to define the shared source with connection parameters.
+Use the `CREATE SOURCE` statement to define the source with connection parameters.
 
 ```sql
 CREATE SOURCE [ IF NOT EXISTS ] source_name WITH (
@@ -206,7 +237,7 @@ CREATE TABLE {{ this }} (
 
 ### Extract metadata from sources
 
-The `INCLUDE` clause allows you to ingest fields *not* included in the main Debezium payload (such as metadata). See [Extracting metadata from sources](/ingestion/advanced/extract-metadata-from-sources) for details. The available fields are:
+The `INCLUDE` clause allows you to ingest fields *not* included in the main Debezium payload (such as metadata). See [Extracting metadata from sources](/ingestion/extract-metadata-from-sources) for details. The available fields are:
 
 *   `timestamp`
 *   `partition`
@@ -225,11 +256,9 @@ CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_nam
 ### Automatic schema changes
 
 <Tip>
-**PREMIUM EDITION FEATURE**
+**PREMIUM FEATURE**
 
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 RisingWave supports auto schema changes in Postgres CDC. It ensures that your RisingWave pipeline stays synchronized with any schema changes in the source database, reducing the need for manual updates and preventing inconsistencies.
@@ -325,5 +354,5 @@ RisingWave does not support time travel for the native PostgreSQL CDC connector.
 
 ## What's next?
 
-*   **Supported data formats:** [Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options)
-*   [Monitor CDC ingestion progress](/ingestion/advanced/monitor-cdc-progress)
+*   **Supported data formats:** [Data formats and encoding options](/ingestion/formats-and-encoding-options)
+*   [Monitor CDC ingestion progress](/ingestion/monitor-cdc-progress)

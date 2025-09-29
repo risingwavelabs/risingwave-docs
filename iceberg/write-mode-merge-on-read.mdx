@@ -1,0 +1,47 @@
+---
+title: "Merge-on-Read mode"
+sidebarTitle: Merge-on-Read mode
+description: "Learn how RisingWave uses Merge-on-Read mode for Iceberg tables and sinks."
+---
+
+RisingWave supports merge-on-read (MoR) mode as the default write mode for Iceberg tables and sinks. In this mode, both data files and delete files are written directly into the tables and sinks. When external queries are executed, the engine reads these files and merges them to produce the latest view of the data.
+
+## Scenario
+
+This mode is particularly efficient for continuous ingestion because it avoids rewriting data files for every update or delete. However, queries must apply delete files at read time, which can add overhead. Merge-on-read is ideal when downstream systems, such as query engines, natively support Iceberg deletes and can efficiently reconstruct the latest data.
+
+## Example
+
+To use Merge-on-Read mode, set the parameter `write_mode = 'merge-on-read'` when creating your Iceberg table or sink.
+
+```sql Create an Iceberg engine table
+CREATE TABLE t_merge_on_read (
+    id INT PRIMARY KEY,
+    value STRING
+) WITH (
+    write_mode = 'merge-on-read'
+) ENGINE = iceberg;
+```
+
+```sql Create an Iceberg sink
+CREATE SINK rest_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    catalog.credential = 'username:password',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    enable_compaction = true,
+    write_mode = 'merge-on-read',
+    commit_checkpoint_interval = 10,
+    compaction_interval_sec = 30,
+    enable_snapshot_expiration = true,
+    snapshot_expiration_max_age_millis=0
+);
+```

@@ -1,0 +1,211 @@
+---
+title: Iceberg REST Catalog with Lakekeeper
+sidebarTitle: "REST"
+description: "Learn how to deploy RisingWave with a hosted REST catalog to manage Iceberg tables."
+---
+
+This guide will help you deploy RisingWave together with Lakekeeper, a hosted REST catalog. With this setup, you can easily create an Iceberg table and ingest data into a REST catalog using RisingWave.
+
+Lakekeeper can be deployed in two ways:
+
+- **Docker** – quick and easy for local testing.  
+- **Kubernetes (Helm)** – recommended for production or cluster environments.  
+
+## Deploy Lakekeeper with Docker
+
+### Prerequisites
+
+1. Install [**Docker Desktop**](https://docs.docker.com/get-docker/) in your environment, ensure that it is running before launching the cluster.
+
+2. Clone the [**risingwave**](https://github.com/risingwavelabs/risingwave) repository.
+
+    ```bash
+    git clone https://github.com/risingwavelabs/risingwave.git
+    ```
+
+3. Open the repository in a terminal and run the following command to navigate to the `docker` directory.
+
+    ```bash
+    cd docker
+    ```
+
+4. Run the `docker compose` command to deploy a RisingWave cluster and the Lakekeeper catalog. A default warehouse named **`risingwave-warehouse`** will be registered in Lakekeeper. Once Docker is up, you can view its configuration details at `http://localhost:8181/ui/warehouse`.
+
+    ```bash
+    docker compose -f docker-compose-with-lakekeeper.yml up
+    ```
+
+5. You can then start creating first iceberg table in the catalog via risingwave.
+
+    ```bash
+    psql -h localhost -p 4566 -d dev -U root
+    ```
+
+### Steps
+
+1. First, create an Iceberg connection
+
+    ```sql
+    CREATE CONNECTION lakekeeper_catalog_conn
+    WITH (
+        type = 'iceberg',
+        catalog.type = 'rest',
+        catalog.uri = 'http://lakekeeper:8181/catalog/',
+        warehouse.path = 'risingwave-warehouse',
+        s3.access.key = 'hummockadmin',
+        s3.secret.key = 'hummockadmin',
+        s3.path.style.access = 'true',
+        s3.endpoint = 'http://minio-0:9301',
+        s3.region = 'us-east-1'
+    );
+    ```
+
+2. Set the connection as Iceberg engine default connection
+
+    ```sql
+    SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+    ALTER SYSTEM SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+    ```
+
+3. Create an Iceberg table
+
+    ```sql
+    CREATE TABLE t_lakekeeper_basic(
+        id INT PRIMARY KEY,
+        name VARCHAR,
+        v BIGINT
+    )
+    WITH (commit_checkpoint_interval = 1)
+    ENGINE = iceberg;
+    ```
+
+4. Insert some data
+
+    ```sql
+    INSERT INTO t_lakekeeper_basic VALUES
+        (1, 'alice', 100),
+        (2, 'bob', 200),
+        (3, 'charlie', 300);
+    FLUSH;
+    ```
+
+5. Query the iceberg table
+
+    ```sql
+    SELECT * FROM t_lakekeeper_basic;
+    ```
+
+## Deploy Lakekeeper with Kubernetes (Helm)
+
+### Prerequisites
+
+Before proceeding with this guide, you should first set up your Kubernetes environment with Helm by following the [instructions](/deploy/risingwave-k8s-helm).
+
+### Steps
+
+1. Configure Helm (3.10+ required, 3.18+ preferred)
+
+    ```bash
+    helm repo add risingwavelabs https://risingwavelabs.github.io/helm-charts/ --force-update
+    helm repo add lakekeeper https://lakekeeper.github.io/lakekeeper-charts/
+    helm repo update
+    ```
+
+2. Create a namespace
+
+    ```bash
+    kubectl create namespace risingwave
+    ```
+
+3. Install RisingWave (with bundled PostgreSQL + MinIO)
+
+    ```bash
+    helm install -n risingwave --set tags.bundle=true risingwavelabs/risingwave
+    ```
+
+4. Install Lakekeeper (with bundled PG)**
+
+    ```bash
+    helm install -n risingwave my-lakekeeper lakekeeper/lakekeeper
+    ```
+
+5. Verify pods
+
+    ```bash
+    kubectl get pods -n risingwave
+    ```
+
+    Example output:
+
+    ```
+    NAME                                    READY   STATUS      RESTARTS   AGE
+    my-lakekeeper-57448667f6-cmd5h          1/1     Running     0          26m
+    my-lakekeeper-db-migration-1-qkgft      0/1     Completed   0          26m
+    my-lakekeeper-lakekeeper-pg-0           1/1     Running     0          26m
+    risingwave-compactor-74bd46489f-8wt4n   1/1     Running     0          21m
+    risingwave-compute-0                    1/1     Running     0          21m
+    risingwave-frontend-7cd89c7c4b-q5kv7    1/1     Running     0          21m
+    risingwave-meta-0                       1/1     Running     0          21m
+    risingwave-minio-5d86bdd9dd-dkpw7       1/1     Running     0          21m
+    risingwave-postgresql-0                 1/1     Running     0          21m
+    ```
+
+6. Get MinIO password
+
+    ```bash
+    k get secret risingwave-minio -o jsonpath="{.data['root-password']}" | base64 -d
+    ```
+
+7. Forward ports (run each in a separate terminal)
+
+    ```bash
+    kubectl -n risingwave port-forward svc/risingwave 4567
+    kubectl -n risingwave port-forward svc/risingwave-minio 9001
+    kubectl -n risingwave port-forward svc/my-lakekeeper 8181
+    ```
+
+8. Configure MinIO and Lakekeeper
+
+    <Note>
+    This guide uses **MinIO** as an example. If you need to use another object store, such as **S3**, you can configure it accordingly in the Lakekeeper UI.
+    </Note>
+
+    Open a browser to `http://localhost:9001` and create a bucket (e.g., "abc"), then open a browser to `http://localhost:8181` and create a warehouse (e.g., "abc").
+
+    - For the **Access key**, enter `root`;
+    - For the **Password**, use the one you obtained earlier;
+    - Enable the **Path style** toggle;
+    - The **Region** can be anything, typically `us-east-1`.
+
+    
+
+9. Connect RisingWave and test SQL
+
+    ```bash Connect to RisingWave
+    psql -h localhost -p 4567 -d dev -U root
+    ```
+
+    ```sql Run SQL
+    create connection lakekeeper_catalog_conn
+    with (
+        type = 'iceberg',
+        catalog.type = 'rest',
+        catalog.uri = 'http://my-lakekeeper:8181/catalog/',
+        warehouse.path = 'abc',       -- replace the warehouse name here
+        s3.access.key = 'root',
+        s3.secret.key = 'K9xXOGgEHx', -- replace the secret key here
+        s3.path.style.access = 'true',
+        s3.endpoint = 'http://risingwave-minio:9000',
+        s3.region = 'us-east-1'
+    );
+
+    set iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+
+    create table t_lakekeeper_basic(id int primary key, name varchar, v bigint)
+    with(commit_checkpoint_interval = 1) engine = iceberg;
+
+    insert into t_lakekeeper_basic values(1, 'alice', 100), (2, 'bob', 200), (3, 'charlie', 300);
+    flush;
+
+    select * from t_lakekeeper_basic;
+    ```

@@ -91,10 +91,10 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 | watermark\_clause                 | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For the watermark clause to be valid, the table must be an append-only table. That is, the APPEND ONLY option must be specified. This restriction only applies to a table. For details about watermarks, See [Watermarks](#watermarks) below for more.           |
 | APPEND ONLY                       | When this option is specified, the table will be created as an append-only table. An append-only table cannot have primary keys. UPDATE and DELETE statements are not valid for append-only tables. See [Watermarks](#append-only) below for more.                                                                            |
 | ON CONFLICT                       | Specify the alternative action when the newly inserted record brings a violation of PRIMARY KEY constraint on the table. See [PK conflict behavior](#pk-conflict-behavior) below for more information.                                                                                                                                                                                                  |
-| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/ingest-additional-fields-with-include-clause).                                                                                                                                                                                                                                                     |
+| **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/extract-metadata-from-sources).                                                                                                                                                                                                                                                     |
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See the [Data ingestion](/ingestion/overview) page for the full list of supported source as well as links to specific connector pages detailing the syntax for each source.                                                                                                                                       |
-| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats and encoding options](/ingestion/getting-started/formats-and-encoding-options).                                                                                                                                                                                                                  |
-| **ENGINE** | Specify the Iceberg table engine to store data natively in the Iceberg format. For more information, see [Create a table with the Iceberg engine](/iceberg/iceberg-table-engine#3-create-a-table-with-the-iceberg-engine).                                                                                                                                                                                                                  |
+| **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats and encoding options](/ingestion/formats-and-encoding-options).                                                                                                                                                                                                                  |
+| **ENGINE** | Specify the Iceberg table engine to store data natively in the Iceberg format. For more information, see [Create and manage native Iceberg tables](/iceberg/create-manage-native-iceberg-tables).                                                                                                                                                                                                                  |
 
 <Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
@@ -110,7 +110,7 @@ The append-only table does not support delete or update operations, nor does it 
 
 ## Use Iceberg table engine
 
-In a `CREATE TABLE` statement, you can specify `ENGINE = iceberg` to store table data in the Apache Iceberg format on external object storage. This provides an alternative to RisingWave’s default internal row-based storage, making it easier to persist data for long-term use and cross-system access. For more information on the syntax and usage, see [Iceberg table engine](/iceberg/iceberg-table-engine).
+In a `CREATE TABLE` statement, you can specify `ENGINE = iceberg` to store table data in the Apache Iceberg format on external object storage. This provides an alternative to RisingWave’s default internal row-based storage, making it easier to persist data for long-term use and cross-system access. For more information on the syntax and usage, see [Create and manage native Iceberg tables](/iceberg/create-manage-native-iceberg-tables).
 
 ## Watermarks
 
@@ -149,7 +149,8 @@ When `DO UPDATE IF NOT NULL` behavior is applied, `DEFAULT` clause is not allowe
 
 A version column is a non-primary-key column that can be used with `OVERWRITE` and `DO UPDATE IF NOT NULL` to tune the conflict handling behaviors.
 
-Common use cases include:
+**Common use cases**
+
 1. Use an event time column as the version column to ensure temporal ordering and ignore late-arriving data.
 2. Use an integer as a logical version number. You can use an Upsert-then-Delete pattern with a logical version column to implement "zero-downtime incremental version upgrade" for data in the table: you insert a new version of data with a higher version number while keeping old data, and then after finishing the upgrade, you clean up old data with a `DELETE` statement.
 
@@ -159,6 +160,30 @@ Common use cases include:
 When a row is updated only with a new version number and other columns remain unchanged, downstream streaming jobs that don’t use the version column won’t be affected. RisingWave will
     automatically compact "no-op" updates to prevent massive updates for downstream jobs. You can create a logical view with `SELECT * EXCEPT(version_col)` to avoid depending on the version column by mistake.
 </Note>
+
+**Composite version columns**
+
+<Note>
+Added in v2.6.0.
+</Note>
+
+RisingWave supports specifying composite version columns in the `VERSION COLUMN` clause.
+
+```sql Syntax
+CREATE TABLE t (
+  id INT,
+  v1 INT,
+  v2 VARCHAR,
+  data TEXT,
+  PRIMARY KEY(id)
+)
+ON CONFLICT DO UPDATE IF NOT NULL
+WITH VERSION COLUMN(v1, v2);
+```
+
+When conflicts occur, the specified columns are compared lexicographically (from left to right) to determine which row should be kept.
+
+For example, with `version_column(v1, v2)`, a new row with `(v1=2, v2=1)` will override an existing row with `(v1=1, v2=5)` because `v1=2` > `v1=1`.
 
 ## Example
 

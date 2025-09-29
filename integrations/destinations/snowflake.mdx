@@ -9,11 +9,9 @@ Snowflake is a cloud-based data warehousing platform that allows for scalable an
 Sinking from RisingWave to Snowflake utilizes [Snowpipe](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-rest-apis) for data loading. Initially, data is staged in a user-managed S3 bucket in JSON format, and then loaded into the Snowflake table via Snowpipe. For more information, see [Overview of the Snowpipe REST endpoints to load data](https://docs.snowflake.com/user-guide/data-load-snowpipe-rest-overview).
 
 <Tip>
-**PREMIUM EDITION FEATURE**
+**PREMIUM FEATURE**
 
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 ## Prerequisite
@@ -130,7 +128,7 @@ Snowpipe only ingests new rows; it does **not** apply updates or deletes.
 To surface those changes, you need to create a materialized view using `AS CHANGELOG` in RisingWave.  
 This instructs RisingWave to add two metadata columns to each change log row:
 
-* `changelog_op`: the change type (`1` = INSERT, `2` = DELETE, `3` = UPDATE-AFTER, `4` = UPDATE-BEFORE)  
+* `changelog_op`: the change type (`1` = Insert, `2` = Delete, `3` = UpdateInsert, `4` = UpdateDelete)  
 * `_changelog_row_id`: a monotonically increasing identifier that captures the order of the change
 
 You can rename these columns (for example, to `__op` and `__row_id`) in the `SELECT` list so they appear in the Snowflake sink.

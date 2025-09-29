@@ -1,0 +1,247 @@
+---
+title: "RisingWave Premium features"
+sidebarTitle: Premium features
+description: "Discover RisingWave's premium features for enterprise workloads. This guide details what's available and explains how to get access, whether you're on RisingWave Cloud or running a self-managed cluster."
+---
+
+## What are RisingWave premium features?
+
+RisingWave offers a set of premium features for enterprise and mission-critical use cases. These features are built on top of the open-source RisingWave Community Edition and provide advanced capabilities to help users maximize the benefits of their RisingWave deployments.
+
+The Community Edition will continue to be freely available under the Apache License (Version 2.0), and we remain committed to supporting the needs of our open-source community and ecosystem. RisingWave's core functionalities and a majority of its features are, and will always be, available in the Community Edition.
+
+## How to access premium features
+
+Access to premium features depends on your RisingWave setup.
+
+### Self-managed deployments
+
+For self-managed RisingWave clusters, you need to purchase a license key to unlock premium features. The RisingWave Community Edition and the binaries with premium features share the same underlying code. The license key simply unlocks the premium capabilities.
+
+### RisingWave Cloud
+
+The availability of premium features in RisingWave Cloud depends on your subscription tier.
+
+*   **Pro Tier**: All premium features are available out-of-the-box for users on the Pro tier.
+*   **Basic Tier**: **Users on the Basic tier have access to premium connectors without any additional charges**. To access all other premium features, you will need to upgrade to the Pro tier.
+
+## Available premium features
+
+The following are premium features, which include a "Premium Feature" note in the documentation.
+
+### Tooling
+
+Customers with premium features can take advantage of our on-prem management tool to enhance observability for their RisingWave clusters. This tool accelerates issue detection, streamlines troubleshooting, and optimizes performance.
+  
+A lightweight version is available under the Apache 2.0 License: [risingwave-console](https://github.com/risingwavelabs/risingwave-console).
+
+### Performance and cost
+
+The [**Elastic disk cache**](/get-started/disk-cache) feature harnesses modern hardware to dramatically reduce S3 access costs - by up to **90%** - while enhancing performance and improving robustness. [Contact us](https://risingwave.com/contact-us/) to learn more.
+
+### SQL and security
+
+- [Time travel queries](/processing/time-travel-queries)
+- [Secret management](/operate/manage-secrets)
+- [Database isolation](/operate/workload-isolation-interaction#database-isolation)
+- [Resource groups](/operate/workload-isolation-interaction#resource-groups)
+
+### Schema management
+
+- [Automatic schema changes for PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc#automatic-schema-changes)
+- [Automatic schema changes for MySQL CDC](/ingestion/sources/mysql/mysql-cdc#automatic-schema-changes)
+- [AWS Glue Schema Registry for Kafka Source](/ingestion/sources/kafka-config#use-aws-glue-schema-registry) and [Kafka Sink](/integrations/destinations/apache-kafka#use-aws-glue-schema-registry)
+
+### Connectors
+
+<Note>
+While the following connectors are premium features, they are available to users on both the Basic and Pro tiers of RisingWave Cloud.
+</Note>
+
+- [Sink to Snowflake](/integrations/destinations/snowflake)
+- [Sink to DynamoDB](/integrations/destinations/amazon-dynamodb)
+- [Sink to OpenSearch](/integrations/destinations/opensearch)
+- [Sink to BigQuery](/integrations/destinations/bigquery)
+- [Sink to SharedMergeTree table engine on ClickHouse Cloud](/integrations/destinations/clickhouse#supported-table-engines)
+- [Sink to SQL Server](/integrations/destinations/sql-server)
+- [Direct SQL Server CDC source connector](/ingestion/sources/sql-server-cdc)
+- [Glue catalog for Iceberg](/iceberg/catalogs#glue-catalog)
+- [Iceberg compaction](/iceberg/create-manage-native-iceberg-tables#compaction-for-native-iceberg-tables)
+
+For users who are already using these features in 1.9.x or earlier versions, rest assured that the functionality of these features will be intact if you stay on the version. If you choose to upgrade to v2.0 or later versions, an error will show up to indicate you need a license to use the features.
+
+The premium features are carefully selected based on the following criteria:
+
+- Seamless integration with proprietary or licensed open-source systems.
+- Advanced features that enhance development velocity and lower production deployment overhead.
+- Performance improvements for non-standard deployment environments.
+- Tailored features specifically requested by our paying customers.
+
+## Set up a license key
+
+For self-managed deployments, you need to purchase and set up a license key to access premium features. The license key, essentially a certificate, is a JSON Web Token (JWT) that encodes information such as the license tier and expiration time. The integrity of the license key is validated using asymmetric encryption.
+
+### Free trial
+
+RisingWave provides a trial of paid features for clusters with up to 4 Streaming Node CPUs, allowing you to evaluate these features on a small scale. When there are more CPUs in the cluster, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
+
+- For a fresh deployment, this free trial is included automatically.
+- For an existing deployment upgrading to this version, you may need to refresh the license key by executing `ALTER SYSTEM SET license_key TO DEFAULT;` in the SQL shell to activate the trial.
+
+### Set license key
+
+Depending on the deployment, there are several different ways of setting license key.
+
+<Tabs>
+  <Tab title="RisingWave Operator (Kubernetes)">
+  If you used the [RisingWave Operator](https://github.com/risingwavelabs/risingwave-operator) to deploy the RisingWave, 
+  you could follow the steps to set the license key. 
+  For detailed instructions of deploying RisingWave with the RisingWave Operator, please check the [Deploy RisingWave on Kubernetes with Operator](deploy/risingwave-kubernetes).
+
+1. Prepare a secret under the same namespace as the RisingWave object, e.g.,
+
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: risingwave-license
+    stringData:
+      licenseKey: |
+        <content of the license key>
+    ```
+
+2. Set the following fields of the RisingWave object.
+
+    ```yaml
+    apiVersion: risingwave.risingwavelabs.com/v1alpha1
+    kind: RisingWave
+    metadata:
+      name: <your-risingwave>
+    spec:
+      licenseKey:
+        secretName: risingwave-license # the name of the secret above
+        secretKey: licenseKey # the key in the secret above referencing the data of the license key
+    ```
+
+3. Apply the RisingWave object to Kubernetes.
+
+The pod of the Meta Node (or standalone node) will restart to reflect the license key.
+
+If you'd like to renew the license key afterwards, you could simply update the content of the secret created above. The change will be propagated to and loaded by RisingWave automatically.
+
+  </Tab>
+<Tab title="Helm (Kubernetes)">
+
+If you used the [Helm chart](https://github.com/risingwavelabs/helm-charts/tree/main/charts/risingwave) to deploy the RisingWave,
+you could follow the steps to set the license key.
+For detailed instructions of deploying RisingWave with Helm, please check the [Deploy RisingWave on Kubernetes with Helm](deploy/risingwave-k8s-helm).
+
+1. Prepare a secret under the same namespace as the RisingWave Helm release, e.g.,
+
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: risingwave-license
+   stringData:
+     licenseKey: |
+       <content of the license key>
+   ```
+
+2. Set the following values, e.g., in the `values.yaml` file.
+
+   ```yaml
+   license:
+     secret:
+       name: "risingwave-license"
+       key: "licenseKey"
+   ```
+
+3. Apply the values with the helm command-line tool.
+
+    ```shell
+    # For fresh installation, you could provide additional values with more "-f <values.yaml>"
+    # For more information of the helm install, please refer to https://helm.sh/docs/helm/helm_install/
+    helm install -f values.yaml [-f <other-values.yaml>] <release-name> risingwavelabs/risingwave
+
+    # For upgrading existing one.
+    # For more information of the helm upgrade, please refer to https://helm.sh/docs/helm/helm_upgrade/
+    helm upgrade -f values.yaml --reuse-values <release-name> risingwavelabs/risingwave
+    ```
+
+The pod of the Meta Node (or standalone node) will restart afterwards to set the license key.
+
+If you'd like to renew the license key afterwards, you could simply update the content of the secret created above. The change will be propagated to and loaded by RisingWave automatically.
+
+</Tab>
+
+<Tab title="SQL">
+
+For an existing cluster, use this SQL command:
+
+```sql
+ALTER SYSTEM SET license_key TO '...';
+```
+
+Note you'll need to rotate the license by yourself with the same SQL command before expiration.
+
+</Tab>
+<Tab title="Local">
+
+There are several ways to set your license key to a local RisingWave:
+
+1. Add `system.license_key` to your TOML configuration file before launching a new RisingWave
+2. Set `RW_LICENSE_KEY` environment variable on Meta Node
+3. Use the `--license-key-path` CLI option or the `RW_LICENSE_KEY_PATH` environment variable on Meta Node to specify a file holding the license key.
+   Changes to the file will be monitored and Meta Node will reload the license key. This helps streamline license key rotation.
+
+When the `--license-key-path` option or the `RW_LICENSE_KEY_PATH` environment variable is specified, any manual configuration of the license key through
+system parameters (`license_key`), the initial configuration (`system.license_key`), or the `RW_LICENSE_KEY` environment variable will be rejected.
+
+</Tab>
+
+</Tabs>
+
+### Verify license key
+
+To check if your license key is valid, run:
+
+```sql
+SELECT rw_test_paid_tier();
+```
+
+A result of `t` means the key is valid; an error message indicates an invalid key.
+
+### Retrieve license details
+
+To retrieve detailed license information, run:
+
+```sql
+SELECT rw_license();
+```
+
+If the current license is valid, the output will look like this:
+
+```json
+{"cpu_core_limit": null, "exp": 9999999999, "iss": "test.risingwave.com", "sub": "rw-test", "tier": "paid"}
+```
+Otherwise, an error message will indicate the issue (e.g., invalid token, expired license).
+
+## Premium support packages
+
+RisingWave provides two levels of premium support packages:
+
+| **Support package**                  | **Pro**         | **Mission-Critical** |
+| :----------------------------------- | :-------------- | :------------------- |
+| Service Hours                        | 24x7            | 24x7                 |
+| Support Type                         | Premium         | Premium              |
+| Support SLA                          | Urgent - 2 hrs  | Urgent - 1 hr        |
+|                                      | High - 8 hrs    | High - 4 hrs         |
+|                                      | Normal - 24 hrs | Normal - 12 hrs      |
+|                                      | Low - 48 hrs    | Low - 24 hrs         |
+| Designated Technical Account Manager | No              | Yes                  |
+| Slack / Team Channels                | Yes             | Yes                  |
+
+## Pricing
+
+A license for RisingWave premium features doesn't include premium support. Customers can upgrade to the **Pro** or **Mission-Critical** support packages for an additional fee. For detailed pricing information on the premium features and support packages, please contact our sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).

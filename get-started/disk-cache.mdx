@@ -9,11 +9,9 @@ Added in v2.3.0.
 </Note>
 
 <Tip>
-**PREMIUM EDITION FEATURE**
+**PREMIUM FEATURE**
 
-This is a Premium Edition feature. All Premium Edition features are available out of the box without additional cost on RisingWave Cloud. For self-hosted deployments, users need to purchase a license key to access this feature. To purchase a license key, please contact sales team at [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
-
-For a full list of Premium Edition features, see [RisingWave Premium Edition](/get-started/rw-premium-edition-intro). 
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 RisingWave is designed for high-performance stream processing, and it achieves this by **leveraging S3 as its primary storage**. This means all data, including the internal states of streaming jobs, tables, and materialized views, is persisted in S3. To optimize performance, RisingWave also utilizes local memory as a cache, allowing for rapid data access.
@@ -36,21 +34,21 @@ The elastic disk cache is particularly beneficial for users with performance-sen
 *   **Reduced S3 access & costs:** By keeping more data locally available, the disk cache minimizes the frequency and volume of data retrieved from S3, leading to lower costs.
 *   **Improved dynamic scaling:** The disk cache dramatically reduces cache warm-up time during scaling operations. New nodes can quickly access data from their local disk cache instead of relying solely on S3.
 *   **Faster failure recovery:** Similar to scaling, recovery from failures is significantly accelerated. The system can restore state from the local disk cache, minimizing downtime.
-*   **Enhanced performance in rate-limited environments:** In environments with object storage rate limits (common in private clouds), the disk cache reduces reliance on S3, enabling smoother scaling and more consistent performance. "Smoother scaling" means the ability to quickly add compute nodes with minimal performance impact during the scaling process, thanks to the reduced reliance on fetching data from a potentially rate-limited object store.
+*   **Enhanced performance in rate-limited environments:** In environments with object storage rate limits (common in private clouds), the disk cache reduces reliance on S3, enabling smoother scaling and more consistent performance. "Smoother scaling" means the ability to quickly add Compute Nodes with minimal performance impact during the scaling process, thanks to the reduced reliance on fetching data from a potentially rate-limited object store.
 
 ## Configuration steps
 
-To enable and configure Elastic Disk Cache on your self-hosted compute nodes:
+To enable and configure Elastic Disk Cache on your self-hosted Streaming Nodes:
 
 1. Plan cache resources:
-    - Determine the performance (throughput MB/s, IOPS) of the disk volume intended for caching on each compute node.
+    - Determine the performance (throughput MB/s, IOPS) of the disk volume intended for caching on each Streaming Node.
     - Decide the total disk capacity (MB) and maximum write throughput (MB/s) to allocate for the cache based on available resources and performance benchmarks.
-2. Configure compute nodes:
+2. Configure Streaming Nodes:
 
-    Modify the [node-specific configuration file](/deploy/node-specific-configurations) for each compute node where you want to enable the disk cache. Add or update the `[storage]` section with settings for the metadata cache (`meta_file_cache`) and data block cache (`data_file_cache`).
+    Modify the [node-specific configuration file](/deploy/node-specific-configurations) for each Streaming Node where you want to enable the disk cache. Add or update the `[storage]` section with settings for the metadata cache (`meta_file_cache`) and data block cache (`data_file_cache`).
         
         ```toml
-        # Example configuration within a compute node's TOML file
+        # Example configuration within a Streaming Node's TOML file
         [storage.meta_file_cache]
         # Directory for caching SST metadata files. Must exist.
         dir = "/path/to/your/meta_cache_dir"
@@ -77,9 +75,9 @@ To enable and configure Elastic Disk Cache on your self-hosted compute nodes:
         data_refill_levels = [0, 1, 2, 3, 4, 5, 6]
         ```
     
-3. Restart compute nodes:
+3. Restart the Streaming Nodes.
     
-    Restart the modified compute nodes for the configuration changes to take effect.
+    Restart the modified Streaming Nodes for the configuration changes to take effect.
 
 ## Key configuration parameters
 
