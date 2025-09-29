@@ -1,55 +1,113 @@
 ---
 title: "Glossary"
-description: "This page explains key concepts and terms that are used throughout the documentation. In the first part, we present terms closely related to RisingWave. In the second part, we include a broader range of terms in a glossary."
+description: "This page explains key concepts and terms that are used throughout the documentation."
 ---
 
-## Key concepts of RisingWave
+## Avro
 
-### Clusters
+Avro is an open-source data serialization system that facilitates data exchange between systems, programming languages, and processing frameworks. Avro has a JSON-like data model, but it can be represented as either JSON or in a compact binary form. RisingWave can decode Avro data. You need to specify the schema by providing a schema registry URL (only for Kafka topics).
+
+## Change data capture (CDC)
+
+Change data capture refers to the process of identifying and capturing changes as they are made in a database or source application, then delivering those changes in real time to a downstream process, system, or data lake. RisingWave supports ingesting CDC events in Debezium JSON or [Maxwell](https://maxwells-daemon.io/) JSON from Kafka topics.
+
+## Clusters
 
 A group of interconnected nodes and services that act as a single system running an instance of RisingWave.
 
-### Compute nodes[](#compute-nodes "Direct link to Compute nodes")
+## Compactor Nodes
 
-The compute nodes in RisingWave are responsible for ingesting data from upstream systems, parsing and running SQL queries, and delivering data to downstream systems.
+A Compactor Node handles data storage and retrieval from object storage. It also performs data compaction to optimize storage efficiency.
 
-### Compactor nodes[](#compactor-nodes "Direct link to Compactor nodes")
+## Connection
 
-The compactor nodes handle data storage and retrieval from object storage. They also perform data compaction to optimize storage efficiency.
+A connection allows access to services located outside of your VPC. AWS PrivateLink provides a network connection used to create a private connection between VPCs, private networks, and other services. In RisingWave, the [CREATE CONNECTION](/sql/commands/sql-create-connection) command establishes a connection between RisingWave and an external service. Then, a source or sink can be created to receive or send messages.
 
-### Fragments[](#fragments "Direct link to Fragments")
+## Data persistence
+
+Data persistence means that data survives after the process that generated the data has ended. For a database to be considered persistent, it must write to non-volatile storage. This type of storage is able to retain data in the absence of a power supply. To learn about how data is persisted in RisingWave, see [Data persistence](/reference/data-persistence).
+
+## Debezium
+
+Debezium is an open-source distributed platform for [change data capture (CDC)](#change-data-capture-cdc). It converts change records from existing databases into event streams in the form of Kafka topics. Debezium provides a unified format schema for changelog and supports serializing messages in JSON and Apache Avro.
+
+## Fragments
 
 In RisingWave, when a streaming query plan executes, it divides into multiple independent fragments to allow parallel execution. Each fragment is a chain of SQL operators. Under the hood, it is executed by parallel actors. The degree of parallelism between fragments can be different.
 
-### Indexes[](#indexes "Direct link to Indexes")
+## Indexes
 
 Indexes in a database are typically created on one or more columns of a table, allowing the database management system (DBMS) to locate and retrieve the desired data from the table quickly. This can significantly improve the performance of database queries, especially for large tables or frequently accessed tables. In RisingWave, indexes can speed up batch queries.
 
-### Materialized views[](#materialized-views "Direct link to Materialized views")
+## Materialized Views
 
 When the results of a view expression are stored in a database system, they are called materialized views. In RisingWave, the result of a materialized view is updated when a relevant event arrives in the system. When you query the result, it is returned instantly as the computation has already been completed when the data comes in. You need to use the [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) statement to create a materialized view.
 
-### Meta node[](#meta-node "Direct link to Meta node")
+## Meta Nodes
 
-The meta node takes charge of managing the metadata of compute and compactor nodes and orchestrating operations across the system.
+The Meta Node takes charge of managing the metadata of compute and Compactor Nodes and orchestrating operations across the system.
 
-### Nodes[](#nodes "Direct link to Nodes")
+## Nodes
 
 A node is a logical collection of IT resources that handles specific workloads based on their types. RisingWave has the following types of nodes:
 
-* Compute node
-* Compactor node
-* Meta node
+* Serving Nodes
+* Streaming Node
+* Compactor Node
+* Meta Node
 
-### Parallelism[](#parallelism "Direct link to Parallelism")
+## Object storage
+
+Object storage, or object-based storage, is a technology that stores data in a hierarchy-free manner. Data in object storage exists as discrete units (objects) at the same level in a storage pool. Each object has a unique, identifying name that an application uses to retrieve it. The benefits of using object storage include massive scalability and cost efficiency.
+
+## Parallelism
 
 Parallelism refers to the technique of simultaneously executing multiple database operations or queries to improve performance and increase efficiency. It involves dividing a database workload into smaller tasks and executing them concurrently on multiple processors or machines. In RisingWave, you can set the parallelism of streaming jobs, like [tables](/sql/commands/sql-alter-table#set-parallelism), [materialized views](/sql/commands/sql-alter-materialized-view#set-parallelism), and [sinks](/sql/commands/sql-alter-sink#set-parallelism).
 
-### Sinks[](#sinks "Direct link to Sinks")
+## Protobuf
+
+Protocol buffers (commonly known as Protobuf) are Google's language-neutral, platform-neutral, extensible mechanism for serializing structured data. It is similar to XML, but smaller, faster, and simpler. RisingWave supports decoding Protobuf data. When creating a source that uses the Protobuf format, you need to specify the schema. For details about the requirements, see [Protobuf requirements](/ingestion/formats-and-encoding-options#protobuf-handling).
+
+## `psql`
+
+`psql` is a terminal-based front-end to PostgreSQL and other databases that are compatible with the PostgreSQL [wire protocol](#wire-protocol), such as RisingWave. With `psql`, you can type queries interactively, issue these queries to RisingWave, and see the query results. In addition, `psql` provides a number of meta-commands and various shell-like features to facilitate writing scripts and automating a wide variety of tasks.
+
+## `risedev`
+
+`risedev` is a command-line utility that facilitates the development of RisingWave. It is built on `cargo-make`, a crucial tool for building Rust projects. `risedev` is included in RisingWave's source code. Additionally, `risectl` is integrated into `risedev` as a subcommand: `risedev ctl`.
+
+## `risectl`
+
+`risectl` is a command-line tool for managing the RisingWave kernel. It allows you to inspect the cluster status and access low-level APIs for cluster control. This tool is included with each [version release](https://github.com/risingwavelabs/risingwave/releases/). Please use it at your own risk. Run `risectl help` for more details.
+
+**RisingWave Console**
+
+For a web-based interface to manage and monitor your RisingWave clusters, you can use the [RisingWave Console](/risingwave-console/introduction), which provides a user-friendly alternative to `risectl` commands with additional features like diagnostic collection and automated monitoring.
+
+## `risingwave`
+
+`risingwave` is the standalone binary for the RisingWave database. You can initiate different nodes using subcommands; for instance, `risingwave compute-node` launches the Compute Node. Run `risingwave help` for more details. `risectl` is also incorporated into `risingwave` as a subcommand, `risingwave ctl`. 
+
+## `rwc`
+
+`rwc` (RisingWave Cloud CLI) is a command-line tool for accessing and managing RisingWave Cloud/BYOC instances via open APIs. It is particularly useful for [setting up the BYOC cluster](/cloud/project-byoc#create-a-byoc-environment). For more information, please refer to [this document](https://github.com/risingwavelabs/risingwave-cloud/blob/main/cli/README.md#installation).
+
+## Serialization
+
+In stream processing, serialization is the process of converting business objects into bytes so that they can be easily saved or transmitted. The reverse process, recreating the data structure or object from a stream of bytes, is called deserialization. Common data serialization formats include JSON, [Avro](#avro), Protobuf (protocol buffers), and CSV.
+
+## Serving Nodes
+
+A Serving Node has the following responsibilities:
+
+* **Acts as a frontend:** It handles user requests and is compatible with the PostgreSQL wire protocol, allowing tools like `psql` to connect seamlessly.
+* **Processes queries:** It executes batch queries directly. For streaming queries, it generates an execution plan and dispatches it to the stream engine.
+
+## Sinks
 
 A sink is an external target to which you can send data. RisingWave now supports exporting data to Kafka topics. Before you stream data out of RisingWave to a sink, you need to create a sink using the [CREATE SINK](/sql/commands/sql-create-sink) statement to establish the connection.
 
-### Sources[](#sources "Direct link to Sources")
+## Sources
 
 A source is a resource that RisingWave can read data from. Common sources include message brokers such as Apache Kafka and Apache Pulsar and databases such as MySQL and PostgreSQL. You can create a source in RisingWave using the [CREATE SOURCE](/sql/commands/sql-create-source) command.
 
@@ -57,86 +115,32 @@ If you want to persist the data from the source, you should use the [CREATE TABL
 
 Regardless of whether the data is persisted in RisingWave, you can create materialized views to perform data transformations.
 
-### Stream processing[](#stream-processing "Direct link to Stream processing")
+## Stream processing
 
 Stream processing is the processing of data in motion, or in other words, computing on data directly as it is produced or received. The majority of data are born as continuous streams: sensor events, user activity on a website, financial trades, and so on – all these data are created as a series of events over time.
 
-### Streaming actors[](#streaming-actors "Direct link to Streaming actors")
+## Streaming actors
 
 RisingWave distributes its computation across lightweight threads called "streaming actors," which run simultaneously on CPU cores.
 
 By spreading these streaming actors across cores, RisingWave achieves parallel computation, resulting in improved performance, scalability, and throughput.
 
-### Streaming database[](#streaming-database "Direct link to Streaming database")
+## Streaming database
 
 A streaming database is broadly defined as a data store designed to collect, process, and/or enrich streams of data in real time, typically immediately after the data is created.
 
-### Streaming queries[](#streaming-queries "Direct link to Streaming queries")
+## Streaming Nodes
+
+The Compute Nodes in RisingWave are responsible for ingesting data from upstream systems, parsing and running SQL queries, and delivering data to downstream systems.
+
+## Streaming queries
 
 A streaming query, also known as a streaming job, is an SQL query that operates on data that is continuously generated. In RisingWave, the following SQL statements are considered streaming queries: `CREATE SOURCE`, `CREATE TABLE` (with connector settings), `CREATE MATERIALIZED VIEW`, `CREATE INDEX`, and `CREATE SINK`.
 
-### Views[](#views "Direct link to Views")
+## Views
 
 A view is a virtual relation that acts as an actual relation. It is not a part of the logical relational model of the database system. The query expression of the view is stored in the database system. The results of a non-materialized view are not stored in the database system and are calculated every time the view is accessed.
 
-## More terms[](#more-terms "Direct link to More terms")
-
-### Avro[](#avro "Direct link to Avro")
-
-Avro is an open-source data serialization system that facilitates data exchange between systems, programming languages, and processing frameworks. Avro has a JSON-like data model, but it can be represented as either JSON or in a compact binary form. RisingWave can decode Avro data. You need to specify the schema by providing a schema registry URL (only for Kafka topics).
-
-### Connection[](#connection "Direct link to Connection")
-
-A connection allows access to services located outside of your VPC. AWS PrivateLink provides a network connection used to create a private connection between VPCs, private networks, and other services. In RisingWave, the [CREATE CONNECTION](/sql/commands/sql-create-connection) command establishes a connection between RisingWave and an external service. Then, a source or sink can be created to receive or send messages.
-
-### Change data capture (CDC)[](#change-data-capture-cdc "Direct link to Change data capture (CDC)")
-
-Change data capture refers to the process of identifying and capturing changes as they are made in a database or source application, then delivering those changes in real time to a downstream process, system, or data lake. RisingWave supports ingesting CDC events in Debezium JSON or [Maxwell](https://maxwells-daemon.io/) JSON from Kafka topics.
-
-### Data persistence[](#data-persistence "Direct link to Data persistence")
-
-Data persistence means that data survives after the process that generated the data has ended. For a database to be considered persistent, it must write to non-volatile storage. This type of storage is able to retain data in the absence of a power supply. To learn about how data is persisted in RisingWave, see [Data persistence](/reference/data-persistence).
-
-### Debezium[](#debezium "Direct link to Debezium")
-
-Debezium is an open-source distributed platform for [change data capture (CDC)](#change-data-capture-cdc). It converts change records from existing databases into event streams in the form of Kafka topics. Debezium provides a unified format schema for changelog and supports serializing messages in JSON and Apache Avro.
-
-### Object storage[](#object-storage "Direct link to Object storage")
-
-Object storage, or object-based storage, is a technology that stores data in a hierarchy-free manner. Data in object storage exists as discrete units (objects) at the same level in a storage pool. Each object has a unique, identifying name that an application uses to retrieve it. The benefits of using object storage include massive scalability and cost efficiency.
-
-### Protobuf[](#protobuf "Direct link to Protobuf")
-
-Protocol buffers (commonly known as Protobuf) are Google's language-neutral, platform-neutral, extensible mechanism for serializing structured data. It is similar to XML, but smaller, faster, and simpler. RisingWave supports decoding Protobuf data. When creating a source that uses the Protobuf format, you need to specify the schema. For details about the requirements, see [Protobuf requirements](/ingestion/formats-and-encoding-options#protobuf-handling).
-
-### `psql`[](#psql "Direct link to psql")
-
-`psql` is a terminal-based front-end to PostgreSQL and other databases that are compatible with the PostgreSQL [wire protocol](#wire-protocol), such as RisingWave. With `psql`, you can type queries interactively, issue these queries to RisingWave, and see the query results. In addition, `psql` provides a number of meta-commands and various shell-like features to facilitate writing scripts and automating a wide variety of tasks.
-
-### `risectl`
-
-`risectl` is a command-line tool for managing the RisingWave kernel. It allows you to inspect the cluster status and access low-level APIs for cluster control. This tool is included with each [version release](https://github.com/risingwavelabs/risingwave/releases/). Please use it at your own risk. Run `risectl help` for more details.
-
-**Alternative: RisingWave Console**
-
-For a web-based interface to manage and monitor your RisingWave clusters, you can use the [RisingWave Console](/risingwave-console/introduction), which provides a user-friendly alternative to `risectl` commands with additional features like diagnostic collection and automated monitoring.
-
-### `risedev`
-
-`risedev` is a command-line utility that facilitates the development of RisingWave. It is built on `cargo-make`, a crucial tool for building Rust projects. `risedev` is included in RisingWave's source code. Additionally, `risectl` is integrated into `risedev` as a subcommand: `risedev ctl`.
-
-### `risingwave`
-
-`risingwave` is the standalone binary for the RisingWave database. You can initiate different nodes using subcommands; for instance, `risingwave compute-node` launches the compute node. Run `risingwave help` for more details. `risectl` is also incorporated into `risingwave` as a subcommand, `risingwave ctl`. 
-
-### `rwc`
-
-`rwc` (RisingWave Cloud CLI) is a command-line tool for accessing and managing RisingWave Cloud/BYOC instances via open APIs. It is particularly useful for [setting up the BYOC cluster](/cloud/project-byoc#create-a-byoc-environment). For more information, please refer to [this document](https://github.com/risingwavelabs/risingwave-cloud/blob/main/cli/README.md#installation).
-
-### Serialization[](#serialization "Direct link to Serialization")
-
-In stream processing, serialization is the process of converting business objects into bytes so that they can be easily saved or transmitted. The reverse process, recreating the data structure or object from a stream of bytes, is called deserialization. Common data serialization formats include JSON, [Avro](#avro), Protobuf (protocol buffers), and CSV.
-
-### Wire protocol[](#wire-protocol "Direct link to Wire protocol")
+## Wire protocol
 
 A wire protocol is a format for interactions between a database server and its clients. It consists of authentication, sending queries, and receiving responses. The wire protocol for PostgreSQL is called pgwire. If a tool or database is compatible with pgwire, it can work with most PostgreSQL database tools.

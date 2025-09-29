@@ -6,15 +6,27 @@ title: "AI functions"
 
 ### `openai_embedding`
 <Note>
-Added in v2.5.0.
+- Added in v2.5.0.
+- Since v2.6.0, `openai_embedding` function has been updated to accept a single config argument as a constant JSONB value containing the embedding configuration, instead of separate `api_key` and `model` arguments. 
 </Note>
 
-Get the text embedding vector for a given text. The `api_key` and `model` arguments must be constant values.
+Get the text embedding vector for a given text. The `config` argument must be a constant JSONB value containing the embedding configuration.
 
 ```sql Syntax
-openai_embedding ( api_key constant text, model constant text, input text ) → real[]
+openai_embedding ( config constant jsonb, input text ) → real[]
 ```
 
+The `config` parameter is a JSONB object that supports the following options:
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `model` | Yes | The embedding model to use (e.g., `text-embedding-3-small`) |
+| `api_key` | No | OpenAI API key |
+| `org_id` | No | OpenAI organization ID |
+| `proj_id` | No | OpenAI project ID |
+| `api_base` | No | Custom API base URL. Default: `https://api.openai.com/v1` |
+
 ```sql Example
-openai_embedding('sk-proj-1234567890', 'text-embedding-3-small', 'Hello, world!') -> {0.0001, 0.0002, 0.0003, ...}
+openai_embedding('{"model": "text-embedding-3-small", "api_key": "sk-proj-1234567890"}'::jsonb, 'Hello, world!') -> {0.0001, 0.0002, 0.0003, ...}
 ```
+
