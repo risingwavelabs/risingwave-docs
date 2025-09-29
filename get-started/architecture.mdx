@@ -1,7 +1,7 @@
 ---
 title: "Architecture"
 description: "This topic covers the nodes, their responsibilities, and relationships within our product architecture for developers seeking a deeper understanding of RisingWave."
-sidebarTitle: Overview
+sidebarTitle: Architecture
 mode: wide
 ---
 
@@ -11,7 +11,7 @@ RisingWave comprises several key components: Serving, Streaming, Compactor and t
   <img src="/images/rw-architecture-v2.png"/>
 </Frame>
 
-## Serving node
+## Serving Node
 
 This service handles user requests and is designed to be compatible with the PostgreSQL wire protocol, allowing tools like `psql` to connect seamlessly
 
@@ -42,7 +42,7 @@ The **fragmenter** breaks the execution plan into fragments, which are groups of
 
 The **scheduler** then manages the execution of this fragmented plan. It spawns multiple instances of each execution node per data partition for parallel computation. A final shuffle aggregates all partitioned results into a single instance, and a root node performs any necessary sorting. Finally, the root node sends the results back to the session.
 
-## Streaming node
+## Streaming Node
 
 The streaming node executes **streaming queries**. This involves managing their state and performing computations such as aggregations and joins.
 
@@ -68,25 +68,25 @@ Instead of executing once, the query executes continuously as updates arrive fro
   <img src="/images/stream-query-lifecycle.png"/>
 </Frame>
 
-The query will go through the same initial phases as the [Batch query lifecycle](#batch-query-lifecycle). After fragmentation, we diverge from the batch execution path, and send the execution plans to the **meta node**.
+The query will go through the same initial phases as the [Batch query lifecycle](#batch-query-lifecycle). After fragmentation, we diverge from the batch execution path, and send the execution plans to the **Meta Node**.
 
-Using the execution plan, the meta node schedules jobs on streaming worker nodes by instructing them to construct the execution nodes specified in the plan. These execution nodes handle filtering, join, aggregation and various other computations. You can run `EXPLAIN` to see what the execution graph looks like.
+Using the execution plan, the Meta Node schedules jobs on streaming worker nodes by instructing them to construct the execution nodes specified in the plan. These execution nodes handle filtering, join, aggregation and various other computations. You can run `EXPLAIN` to see what the execution graph looks like.
 
 Once the execution nodes are built, we trigger historical data backfilling to ensure consistency with upstream sources. After backfilling completes, the streaming job will be created to continuously process upstream data, materialize updates, and propagate the transformed data stream to any downstream systems. See [An overview of the RisingWave streaming engine](https://risingwavelabs.github.io/risingwave/design/streaming-overview.html) for more information.
 
-## Meta node
+## Meta Node
 
-The meta node manages cluster metadata by interacting with a meta store, which serves as the persistence layer for metadata. RisingWave supports Postgres, MySQL, and SQLite as meta store options. All database objects are persisted in the meta store, while the serving node retrieves the database catalog from the meta node and caches it locally to serve queries.
+The Meta Node manages cluster metadata by interacting with a meta store, which serves as the persistence layer for metadata. RisingWave supports Postgres, MySQL, and SQLite as meta store options. All database objects are persisted in the meta store, while the serving node retrieves the database catalog from the Meta Node and caches it locally to serve queries.
 
-Additionally, the meta node manages the lifecycle of streaming jobs, including their creation, state checkpointing for consistency, and eventual deletion.
+Additionally, the Meta Node manages the lifecycle of streaming jobs, including their creation, state checkpointing for consistency, and eventual deletion.
 
-- For job creation: The serving node sends the planned query to the meta node. The meta node then instantiates the query into actors and assigns them to compute nodes. It then triggers actor creation on the designated compute nodes.
+- For job creation: The Serving Node sends the planned query to the Meta Node. The Meta Node then instantiates the query into actors and assigns them to Compute Nodes. It then triggers actor creation on the designated Compute Nodes.
 
-- For checkpointing: The meta node sends barriers to the streaming nodes. These nodes commit their state and propagate the barriers downstream. Terminal nodes then return the barriers to the meta node for collection. Once all checkpoint barriers are collected and the state is uploaded to the object store, the checkpoint process completes, resulting in a consistent snapshot.
+- For checkpointing: The Meta Node sends barriers to the streaming nodes. These nodes commit their state and propagate the barriers downstream. Terminal nodes then return the barriers to the Meta Node for collection. Once all checkpoint barriers are collected and the state is uploaded to the object store, the checkpoint process completes, resulting in a consistent snapshot.
 
-- For recovery and compaction: the meta node recreates actors on the compute node, starting from the last checkpoint snapshot to maintain consistency. The meta node manages compaction by generating compaction tasks, assigning them to compaction nodes, and updating the meta store's metadata upon task completion.
+- For recovery and compaction: the Meta Node recreates actors on the Streaming Node, starting from the last checkpoint snapshot to maintain consistency. The Meta Node manages compaction by generating compaction tasks, assigning them to compaction nodes, and updating the meta store's metadata upon task completion.
 
-## Compactor
+## Compactor Node
 
 RisingWave employs a **Log Structured Merge (LSM) Tree** storage model, meaning that all data operations are handled in an append-only manner, even deletions are represented as tombstone records. The storage is **tiered**, organized hierarchically from L0 to L6 (or potentially more levels). The data is initially written to L0 and progressively compacted into higher levels (L0 → L1 → L2, etc.). As a result, hot data resides in lower levels (frequently accessed), while cold data migrates to higher levels (less frequently accessed).
 
@@ -98,6 +98,8 @@ This section covers how different nodes interact, providing insights into resour
 
 ### Compute-Storage
 
+In RisingWave, a Compute Node can be a dedicated Serving or Streaming Node, or a hybrid one (the default) that can handle both serving and streaming tasks.
+
 Object storage serves as our persistence layer. We use OpenDAL to abstract over different storage backends such as AWS S3, Google Cloud Storage (GCS), Azure Blob Storage, and Minio.
 
 This architecture means there's no limit to the amount of data that can be warehoused in RisingWave. It also allows us to scale Compute Nodes freely without scaling storage, since storage capacity is virtually unlimited.
@@ -106,19 +108,19 @@ Each **Compute Node** operates independently, enabling high parallelism for both
 
 ### Compute-Compactor
 
-As the compute node scales up in resources, for instance, from 1 CPU to 8 CPUs, the parallelism of data ingestion also increases proportionally. This scaling can raise ingestion rates from 100K records per second to 800K records per second. The corresponding increase in write pressure on storage often leads to significant accumulation of unsorted data in the L0 level.
+As the Compute Node scales up in resources, for instance, from 1 CPU to 8 CPUs, the parallelism of data ingestion also increases proportionally. This scaling can raise ingestion rates from 100K records per second to 800K records per second. The corresponding increase in write pressure on storage often leads to significant accumulation of unsorted data in the L0 level.
 
 This accumulation directly impacts read performance because, when reading a range of values, we need to sort them to resolve conflicts between older and newer records. This affects both serving and streaming performance, as streaming sometimes needs to read states to update them or refresh the operator cache for stateful queries.
 
-Hence, it is typically recommended to maintain a 2:1 ratio between compute and compactor sizes. For instance, with a 4 CPU cores, 16 GB memory compute node, we recommend using a 2 CPU cores, 8 GB compactor node. In a write-heavy workload, such as when 500K rows are written to storage per second, we recommend a 1:8 compute-to-compactor ratio. This typically occurs during the backfilling of historical data, where the ingestion size is really large. See how to diagnose [compaction bottleneck](/performance/specific-bottlenecks#compaction-bottleneck) for more information.
+Hence, it is typically recommended to maintain a 2:1 ratio between compute and compactor sizes. For instance, with a 4 CPU cores, 16 GB memory Compute Node, we recommend using a 2 CPU cores, 8 GB Compactor Node. In a write-heavy workload, such as when 500K rows are written to storage per second, we recommend a 1:8 compute-to-compactor ratio. This typically occurs during the backfilling of historical data, where the ingestion size is really large. See how to diagnose [compaction bottleneck](/performance/specific-bottlenecks#compaction-bottleneck) for more information.
 
 In RisingWave Cloud, we can use **Serverless Compaction** (currently in **Public preview** stage) to automatically scale compactors and simplify compaction resource management.
 
 ### Compute-Meta
 
-As the compute node scales up in resources, the metadata size also increases. For instance, if we scale from 1 to 64 cores, the number of actors increases by 64 times. We need to capture the metadata of these new actors, which puts pressure on the meta node.
+As the Compute Node scales up in resources, the metadata size also increases. For instance, if we scale from 1 to 64 cores, the number of actors increases by 64 times. We need to capture the metadata of these new actors, which puts pressure on the Meta Node.
 
-As such, we generally recommend a 4:1 ratio between compute and meta sizes. For instance, with 8 CPU cores for the compute node, we recommend 2 CPU cores for the meta node.
+As such, we generally recommend a 4:1 ratio between compute and meta sizes. For instance, with 8 CPU cores for the Compute Node, we recommend 2 CPU cores for the Meta Node.
 
 ### CPU-Memory
 

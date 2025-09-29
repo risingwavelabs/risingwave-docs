@@ -22,10 +22,10 @@ The Trial plan is offered for free. This plan equips you with all the essential 
 The Standard plan operates on a pay-as-you-go model. You only pay for your actual usage, which includes compute resources, storage capacity, and network usage.
 
 * **Compute resources**: Compute resources are measured in RisingWave Unit (RWU) hours used across all projects in the organization. See the [explanation of RWU](#risingwave-unit-rwu) below. In each RisingWave project, the usages are tracked for all four components:
-   * Compute node
-   * Frontend node
-   * Meta node
-   * Compactor node
+   * Serving Node
+   * Streaming Node
+   * Meta Node
+   * Compactor Node
 For detailed information on each node, see [Understanding nodes in RisingWave](/cloud/choose-a-project-plan/#understanding-nodes-in-risingwave).
 * **Storage capacity**: RisingWave Cloud bills the storage in per GB-month increments at a second rate. You pay for the storage capacity of the data your RisingWave project persisted during stream processing, such as tables, materialized views, and internal states.
 * **Network**: Network usage is billed based on data transfer. For detailed information about network billing, see [Network billing](/cloud/network-billing).
@@ -38,11 +38,15 @@ The Advanced plan offers a customized pricing model based on your specific needs
 
 ## RisingWave Unit (RWU)
 
-In RisingWave Cloud, the primary unit of computational resource allocation and pricing is the RisingWave Unit (RWU). An RWU is a pre-allocated bundle of computational resources, specifically designed to facilitate horizontal scalability in your data processing operations.
+In RisingWave Cloud, the RisingWave Unit (RWU) is the standard measure for the computing resources you use. Each RWU represents a specific amount of vCPU and memory.
 
-Each RWU is composed of approximately 1-core vCPU and 4 GB of memory. This allocation allows for efficient resource management and cost-effective scalability.
+The number of RWUs for a component is calculated based on its vCPU and memory allocation using this formula:
 
-Billing for all components within a RisingWave project is based on RWU-hour usage. This means that possessing one RWU for one hour equates to 1 RWU-hour.
+`RWU = MAX(vCPU, Memory in GB / 4)`
+
+This means 1 RWU is equivalent to 1 vCPU or 4 GB of memory, whichever value is higher.
+
+Your total charge is based on the RWU-hours consumed by all components in your project. For instance, using 1 RWU for 1 hour equals 1 RWU-hour.
 
 ## Pricing information
 
@@ -54,10 +58,10 @@ To better understand how pricing works in RisingWave Cloud, let's consider a hyp
 
 Suppose you've provisioned a RisingWave project with the following configuration:
 
-* 3 Compute nodes, each with 8 RWUs
-* 3 Frontend nodes, each with 2 RWUs
-* 1 Meta node with 4 RWUs
-* 1 Compactor node with 4 RWUs
+* 3 Serving nodes, each with 2 RWUs
+* 3 Streaming nodes, each with 8 RWUs
+* 1 Meta Node with 4 RWUs
+* 1 Compactor Node with 4 RWUs
 
 In total, the project utilizes 41 RWUs and stores 20GB of data. The project operated for 700 hours in the past month. The project also transferred 1TB (1024GB) of public ingress data and 20GB of public egress data.
 

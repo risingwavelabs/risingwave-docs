@@ -30,6 +30,7 @@ WITH (
    subject='<your subject>',
 
  -- optional parameters
+   allow_create_stream='<true|false>',
    connect_mode=<connect_mode>
    username='<your user name>',
    password='<your password>'
@@ -43,6 +44,14 @@ After the sink is created, RisingWave will continuously sink data to the NATS su
 
 <Note>
 The NATS sink connector in RisingWave provides at-least-once delivery semantics. Events may be redelivered in case of failures.
+</Note>
+
+<Note>
+**Stream creation security**
+
+Starting in v2.5, RisingWave does not create NATS streams automatically by default (`allow_create_stream = false`). This prevents accidental stream creation in production environments due to typos or misconfigurations. 
+
+To enable automatic stream creation, set `allow_create_stream = 'true'`. Only enable this in development environments or when you specifically want RisingWave to manage stream creation.
 </Note>
 
 According to the [NATS documentation](https://docs.nats.io/running-a-nats-service/nats%5Fadmin/jetstream%5Fadmin/naming), stream names must adhere to subject naming rules as well as be friendly to the file system. Here are the recommended guidelines for stream names:
@@ -60,6 +69,7 @@ According to the [NATS documentation](https://docs.nats.io/running-a-nats-servic
 | :-------------------- | :--------------------------- |
 | server\_url           | **Required**. URLs of the NATS server, in the format of `address:port`. If multiple addresses are specified, use commas to separate them.                                                                                                                                                                                                       |
 | subject               | **Required**. NATS subject that you want to sink data to.                                                                                                                                                                                                                                                                                         |
+| allow\_create\_stream | **Optional**. Whether to allow RisingWave to create the NATS stream if it doesn't exist. Default: `false` (changed in v2.5). When `false`, RisingWave will return an error if the specified stream doesn't exist. When `true`, RisingWave will create the stream if it doesn't exist. For production environments, it's recommended to keep this as `false` to prevent accidental stream creation. |
 | connect\_mode         | **Required**. Authentication mode for the connection. Allowed values: <ul><li>`plain`: No authentication;</li><li>`user_and_password`: Use user name and password for authentication. For this option, username and password must be specified;</li><li>`credential`: Use JSON Web Token (JWT) and NKeys for authentication. For this option, jwt and nkey must be specified.</li></ul> |
 | jwt and nkey          | JWT and NKEY for authentication. For details, see [JWT](https://docs.nats.io/running-a-nats-service/configuration/securing%5Fnats/auth%5Fintro/jwt) and [NKeys](https://docs.nats.io/running-a-nats-service/configuration/securing%5Fnats/auth%5Fintro/nkey%5Fauth).                                                                          |
 | username and password | **Conditional**. The client user name and password. Required when `connect_mode` is `user_and_password`.                                                                                                                                                                                                                                           |
