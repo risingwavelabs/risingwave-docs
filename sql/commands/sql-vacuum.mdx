@@ -1,0 +1,49 @@
+---
+title: "VACUUM"
+description: "Introduce VACUUM syntax for Iceberg tables and sinks to enable manual compaction and snapshot expiration in RisingWave."
+---
+
+RisingWave supports `VACUUM` syntax for Iceberg engine table and Iceberg sink. This allows you to manage storage, reclaim disk space, and optimize performance for Iceberg data within RisingWave.
+
+## Syntax
+
+```sql
+VACUUM [FULL] schema_name.object_name;
+```
+
+- `VACUUM`: Manually **expires** old snapshots on the specified Iceberg table/sink, freeing up space used by outdated versions.
+- `VACUUM FULL`: **Compacts** the specified Iceberg table/sink (rewrites the table to reclaim space), then **expires** outdated snapshots. This operation takes longer and requires extra disk space, as a new copy is written before the old copy is released.
+
+
+## Parameters
+
+| Parameter             | Description     |
+| :-------------------- | :-------------- |
+| FULL | Optional. If specified, compacts the table and expires snapshots; otherwise, only snapshots are expired. |
+| object_name | Can be an Iceberg engine table or an Iceberg sink. |
+
+
+## Example
+
+```sql
+-- Insert and update data
+insert into t_vacuum_test values(1, 'alice', 100), (2, 'bob', 200), (3, 'charlie', 300);
+FLUSH;
+-- sleep 5s
+
+-- Check data
+select * from t_vacuum_test;
+
+-- More inserts/updates
+insert into t_vacuum_test values(4, 'david', 400), (5, 'eve', 500);
+FLUSH;
+-- sleep 5s
+update t_vacuum_test set v1 = 150 where id = 1;
+FLUSH;
+-- sleep 5s
+
+-- Run VACUUM and verify
+VACUUM t_vacuum_test;
+
+VACUUM FULL t_vacuum_test;
+```
