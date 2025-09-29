@@ -18,7 +18,13 @@ USING { FLAT | HNSW } (vector_column | expression)
 
 ## Index types
 
-RisingWave supports two methods when creating index:
+Before creating a vector index, you may create a sample table `item` to reference the table name and column names:
+
+```sql
+create table items (id int primary key, name string, embedding vector(128)) append only;  -- vector index only support append-only input, so we have to specify the table as append-only.
+```
+
+RisingWave supports two methods when creating index. 
 
 - FLAT index: Provides exact results by comparing the query vector against all stored vectors.
 
@@ -54,6 +60,7 @@ RisingWave supports two methods when creating index:
 | `m` | Maximum number of connections per node | HNSW |
 | `ef_construction` | Size of dynamic candidate list during construction | HNSW |
 | `max_level` | Maximum level of the HNSW graph | HNSW |
+| `ef_search` | Controls the accuracy/speed trade-off for nearest neighbor searches. Can be set via the session variable `batch_hnsw_ef_search` (default 40). |
 
 ## Vector distance operators
 
@@ -99,15 +106,34 @@ RisingWave also provides various operators and functions for working with vector
 
 ## Vector indexes on function expressions
 
-You can create vector indexes on function expressions:
+You can create vector indexes on function expressions instead of raw columns. This allows you to avoid storing a separate vector column, saving storage and reducing maintenance costs.
+
+1. Create or alter the table to include the input column
 
 ```sql
--- Create index on a function expression
-CREATE INDEX idx_embedding_func ON items 
-USING FLAT (get_embedding(text)) 
-INCLUDE(text) 
+ALTER TABLE items ADD COLUMN description STRING;
+```
+
+2. Define the user-defined function (UDF)
+
+```sql
+CREATE FUNCTION get_embedding(string) RETURNS VECTOR(128) LANGUAGE SQL AS $$
+SELECT openai_embedding('{"model": <EMBEDDING_MODEL_NAME>, "api_key": <API_KEY>}'::jsonb, $1)::vector(128);
+$$;
+```
+
+3. Create the vector index on the function expression
+
+```sql
+CREATE INDEX idx_embedding_func ON items
+USING FLAT (get_embedding(description))
+INCLUDE(description)
 WITH (distance_type = 'l2');
 ```
+
+In this example, `get_embedding(description)` is used as the index expression.
+
+This approach avoids materializing a separate vector column in the table, which reduces storage costs and keeps the table schema simpler.
 
 ## Examples
 
@@ -118,12 +144,12 @@ WITH (distance_type = 'l2');
 CREATE TABLE products (
     id INT PRIMARY KEY,
     name STRING,
-    features vector(128)
+    embedding vector(128)
 ) APPEND ONLY;
 
 -- Create vector index
-CREATE INDEX idx_features ON products 
-USING HNSW (features) 
+CREATE INDEX idx_embedding ON products 
+USING HNSW (embedding) 
 WITH (distance_type = 'cosine');
 
 -- Insert sample data
@@ -134,25 +160,20 @@ INSERT INTO products VALUES
 -- Find similar products
 SELECT id, name 
 FROM products 
-ORDER BY features <=> '[0.2, 0.3, ...]' 
+ORDER BY embedding <=> '[0.2, 0.3, ...]' 
 LIMIT 5;
 ```
 
-### Using different distance metrics
+### Using cosine distance type
 
 ```sql
--- L2 distance for geometric similarity
-SELECT * FROM items 
-ORDER BY embedding <-> '[1.0, 2.0, 3.0]' 
-LIMIT 3;
-
 -- Cosine distance for normalized similarity
 SELECT * FROM items 
 ORDER BY embedding <=> '[0.5, 0.5, 0.0]' 
 LIMIT 3;
 
--- Inner product for dot product similarity
-SELECT * FROM items 
-ORDER BY embedding <#> '[1.0, 0.0, 1.0]' 
+-- Query on a function expression
+SELECT * FROM items
+ORDER BY get_embedding(description) <=> '[1.0, 2.0, 3.0]'
 LIMIT 3;
 ```
