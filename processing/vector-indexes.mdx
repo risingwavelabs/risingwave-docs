@@ -57,10 +57,9 @@ RisingWave supports two methods when creating index:
 | Parameter | Description | Valid for |
 | :--- | :--- | :--- |
 | `distance_type` | Distance metric to use: `l2`, `cosine`, `l1`, or `inner_product` | FLAT, HNSW |
-| `m` | Maximum number of connections per node | HNSW |
-| `ef_construction` | Size of dynamic candidate list during construction | HNSW |
-| `max_level` | Maximum level of the HNSW graph | HNSW |
-| `ef_search` | Controls the accuracy/speed trade-off for nearest neighbor searches. Can be set via the session variable `batch_hnsw_ef_search` (default 40). | HNSW |
+| `m` | Optional. Maximum number of connections per node | HNSW |
+| `ef_construction` | Optional. Size of dynamic candidate list during construction | HNSW |
+| `max_level` | Optional. Maximum level of the HNSW graph | HNSW |
 
 ## Vector distance operators
 
@@ -89,30 +88,21 @@ ORDER BY embedding <=> '[0.5, 0.3, 0.2]'
 LIMIT 10;
 ```
 
-## Vector data type, operators, functions
-
-RisingWave provides a `vector(n)` data type where `n` specifies the dimension of the vector.
-
-```sql
--- Create a table with vector columns
-CREATE TABLE items (
-    id INT PRIMARY KEY,
-    name STRING,
-    embedding vector(3)
-) APPEND ONLY;
-```
-
-RisingWave also provides various operators and functions for working with vectors. See [Vector data type](/sql/data-types/vector) for details.
-
 ## Vector indexes on function expressions
 
 You can create vector indexes on function expressions instead of raw columns. This allows you to avoid storing a separate vector column, saving storage and reducing maintenance costs.
 
-1. Create or alter the table to include the input column
+1. Create the table to include the input column
 
 ```sql
-ALTER TABLE items ADD COLUMN description STRING;
+CREATE TABLE items (
+    id INT PRIMARY KEY,
+    description STRING
+    -- embedding column is optional if using function expression
+);
 ```
+
+The `description` column stores the text data. The embedding column is used to store vector embeddings generated from description. If you create a vector index directly on description using a function expression, you do not need to store the embedding separately, saving storage and reducing maintenance.
 
 2. Define the user-defined function (UDF)
 
@@ -144,34 +134,43 @@ This approach avoids materializing a separate vector column in the table, which 
 CREATE TABLE products (
     id INT PRIMARY KEY,
     name STRING,
+    description STRING,
     embedding vector(128)
 ) APPEND ONLY;
 
 -- Create vector index
-CREATE INDEX idx_embedding ON products 
-USING HNSW (embedding) 
+CREATE INDEX idx_embedding ON products
+USING HNSW (embedding)
 WITH (distance_type = 'cosine');
 
 -- Insert sample data
-INSERT INTO products VALUES 
-(1, 'Product A', '[0.1, 0.2, ...]'),
-(2, 'Product B', '[0.3, 0.4, ...]');
+INSERT INTO products (id, name, description, embedding) VALUES
+(1, 'Product A', 'Description for Product A', '[0.1, 0.2, ...]'),
+(2, 'Product B', 'Description for Product B', '[0.3, 0.4, ...]');
 
 -- Find similar products
-SELECT id, name 
-FROM products 
-ORDER BY embedding <=> '[0.2, 0.3, ...]' 
+SELECT id, name
+FROM products
+ORDER BY embedding <=> '[0.2, 0.3, ...]'
 LIMIT 5;
 ```
 
 ### Using cosine distance type
 
+The SQL query depends on the type of vector index you created:
+
+- If the vector index is built on a raw embedding column, use the raw column in your `ORDER BY` clause.
+
 ```sql
--- Cosine distance for normalized similarity
-SELECT * FROM items 
+-- Query on the raw embedding column
+SELECT * FROM items
 ORDER BY embedding <=> '[0.5, 0.5, 0.0]' 
 LIMIT 3;
+```
 
+- If the vector index is built using a function expression, use the same function expression in your `ORDER BY` clause.
+
+```sql
 -- Query on a function expression
 SELECT * FROM items
 ORDER BY get_embedding(description) <=> '[1.0, 2.0, 3.0]'
@@ -182,4 +181,4 @@ LIMIT 3;
 
 - [CREATE INDEX](/sql/commands/sql-create-index) command
 
-- [Vector data type](/sql/data-types/vector)
+- [Vector data type, operators, functions](/sql/data-types/vector)
