@@ -18,13 +18,13 @@ USING { FLAT | HNSW } (vector_column | expression)
 
 ## Index types
 
-Before creating a vector index, you may create a sample table `item` to reference the table name and column names:
+Before creating a vector index, you may create a sample table `item` to reference the table name and column names. Currently, we only support creating vector indexes on append-only inputs, such as append-only tables or materialized views. Therefore, we have to specify the table as append-only here:
 
 ```sql
-create table items (id int primary key, name string, embedding vector(128)) append only;  -- vector index only support append-only input, so we have to specify the table as append-only.
+create table items (id int primary key, name string, embedding vector(128)) append only;
 ```
 
-RisingWave supports two methods when creating index. 
+RisingWave supports two methods when creating index:
 
 - FLAT index: Provides exact results by comparing the query vector against all stored vectors.
 
@@ -60,7 +60,7 @@ RisingWave supports two methods when creating index.
 | `m` | Maximum number of connections per node | HNSW |
 | `ef_construction` | Size of dynamic candidate list during construction | HNSW |
 | `max_level` | Maximum level of the HNSW graph | HNSW |
-| `ef_search` | Controls the accuracy/speed trade-off for nearest neighbor searches. Can be set via the session variable `batch_hnsw_ef_search` (default 40). |
+| `ef_search` | Controls the accuracy/speed trade-off for nearest neighbor searches. Can be set via the session variable `batch_hnsw_ef_search` (default 40). | HNSW |
 
 ## Vector distance operators
 
@@ -177,3 +177,9 @@ SELECT * FROM items
 ORDER BY get_embedding(description) <=> '[1.0, 2.0, 3.0]'
 LIMIT 3;
 ```
+
+## Related topics
+
+- [CREATE INDEX](/sql/commands/sql-create-index) command
+
+- [Vector data type](/sql/data-types/vector)
