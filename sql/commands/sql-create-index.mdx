@@ -15,9 +15,9 @@ CREATE INDEX [ IF NOT EXISTS ] index_name ON object_name ( index_column [ ASC | 
 
 ```sql Vector index syntax
 CREATE INDEX [ IF NOT EXISTS ] index_name ON object_name
-USING index_method ( index_column [ ASC | DESC ], [, ...] )
+USING index_method ( index_column )
 [INCLUDE ( include_column [, ...] ) ]
-WITH (distance_type = '<type>');
+WITH (distance_type = '<type>', ...);
 ```
 
 <Note>
@@ -94,14 +94,14 @@ WHERE c_phone = '123456789';
 
 In an e-commerce platform, each product can be represented by an embedding vector that captures semantic features derived from its title and description. A vector index can then be used to recommend items similar to a user’s query. 
 
-1. Create a table with vector data. This store product information along with a semantic embedding vector that represents its features.
+1. Create a table with vector data. This stores product information along with a semantic embedding vector that represents its features.
 
 ```sql
 CREATE TABLE products (
     id INT PRIMARY KEY,
     name STRING,
     description STRING,
-    embedding VECTOR(3)
+    embedding VECTOR(128)
 ) APPEND ONLY; -- Must be append only mode here
 ```
 
@@ -109,7 +109,7 @@ CREATE TABLE products (
 
 ```sql
 CREATE INDEX prod_vec_idx
-ON products USING flat (embedding)
+ON products USING hnsw (embedding)
 INCLUDE (name, description)
 WITH (distance_type = 'inner_product');
 ```
