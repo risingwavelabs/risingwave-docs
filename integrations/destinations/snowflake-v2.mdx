@@ -50,13 +50,41 @@ WITH (
 
 ## Auto schema change
 
-Snowflake v2 supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. Auto schema change in Snowflake V2 sink enables RisingWave to automatically alter the destination table in Snowflake when new columns appear in the upstream source data. This process ensures seamless schema evolution, reducing manual intervention and keeping your Snowflake table in sync with changing data structures.
+Snowflake v2 supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. When enabled, RisingWave will automatically alter the target table to add new columns from the upstream data source.
 
-To enable it, set `auto_schema_change` to true, and RisingWave will automatically add new columns to the target table.
+To enable it:
 
-## S3 integration
+```sql
+auto_schema_change = true
+```
+This ensures your Snowflake table stays in sync with upstream schema changes with minimal manual intervention.
 
-Snowflake V2 Sink leverages S3 Integration to efficiently stage data before loading it into Snowflake. Data are written to files in the specified S3 bucket and folder, then loaded via Snowflake. This integration offers significant performance gains for large datasets and supports secure, scalable data transfer. You can configure credentials, bucket, region, path, and other S3-specific options in [Parameters](/integrations/destinations/snowflake-v2#parameters) to match your environment.
+## Configure RisingWave to write to S3
+
+You need to configure how RisingWave authenticates with AWS S3. There are two primary methods:
+
+- Access Key / Secret Key (AK/SK) authentication
+
+This is the default method. Provide your AWS Access Key ID and Secret Access Key directly in the `CREATE SINK` statement.
+
+```sql
+s3.credentials.access = 'YOUR_AWS_ACCESS_KEY_ID',
+s3.credentials.secret = 'YOUR_AWS_SECRET_ACCESS_KEY',
+```
+
+- Assume role authentication
+
+For enhanced security, RisingWave can assume an IAM Role in your AWS account to gain temporary credentials for S3 access.
+
+```sql
+s3.assume_role = 'arn:aws:iam::123456789012:role/YourRisingWaveS3Role',
+enable_config_load = 'true',
+```
+
+To use this method, you need to configure an IAM Role in AWS that RisingWave can assume. This involves:
+1. Obtaining the RisingWave service ARN from our [support team](mailto:cloud-support@risingwave-labs.com).
+2. Creating an IAM policy with the necessary S3 read/write permissions for your bucket and prefix.
+3. Configuring the IAM Role's trust policy to allow the RisingWave service ARN to assume it.
 
 ## Append-only and upsert modes
 

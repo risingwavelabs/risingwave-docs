@@ -49,9 +49,32 @@ Redshift supports sink auto schema change when [`sink_decoupling`](/delivery/ove
 
 To enable it, set `auto_schema_change` to true, and RisingWave will automatically add new columns to the target table.
 
-## S3 integration
+## Configure RisingWave to write to S3
 
-Redshift sink uses S3 Integration to stage data files in Amazon S3 before bulk loading into Redshift. Data is written to the configured S3 bucket and path, and then loaded efficiently using Redshift's COPY command. This approach allows for high-throughput ingestion, scalability, and secure data transfer. You have full control over the S3 bucket, region, path, credentials, and other advanced options in [Parameters](/integrations/destinations/redshift#parameters) to fit your deployment and security requirements.
+You need to configure how RisingWave authenticates with AWS S3. There are two primary methods:
+
+- Access Key / Secret Key (AK/SK) authentication
+
+This is the default method. Provide your AWS Access Key ID and Secret Access Key directly in the `CREATE SINK` statement.
+
+```sql
+s3.credentials.access = 'YOUR_AWS_ACCESS_KEY_ID',
+s3.credentials.secret = 'YOUR_AWS_SECRET_ACCESS_KEY',
+```
+
+- Assume role authentication
+
+For enhanced security, RisingWave can assume an IAM Role in your AWS account to gain temporary credentials for S3 access.
+
+```sql
+s3.assume_role = 'arn:aws:iam::123456789012:role/YourRisingWaveS3Role',
+enable_config_load = 'true',
+```
+
+To use this method, you need to configure an IAM Role in AWS that RisingWave can assume. This involves:
+1. Obtaining the RisingWave service ARN from our [support team](mailto:cloud-support@risingwave-labs.com).
+2. Creating an IAM policy with the necessary S3 read/write permissions for your bucket and prefix.
+3. Configuring the IAM Role's trust policy to allow the RisingWave service ARN to assume it.
 
 ## Append-only and upsert modes
 
@@ -141,3 +164,86 @@ CREATE SINK redshift_sink FROM test_table WITH (
     create_table_if_not_exists = 'false'
 );
 ```
+
+## Set up Redshift
+
+When configuring RisingWave to write to Redshift, the JDBC user must have appropriate permissions depending on whether the `create_table_if_not_exists` option is enabled.
+
+- If `create_table_if_not_exists` is not enabled, the user must have permissions on the target table:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE, ALTER ON [table_name] TO [username];
+```
+
+These permissions allow RisingWave to read, insert, update, delete, and alter the existing table.
+
+- If `create_table_if_not_exists` is enabled, the user needs the table permissions above plus schema-level permissions to create new tables:
+
+```sql
+GRANT CREATE ON SCHEMA [schema_name] TO [username];
+```
+
+This ensures that RisingWave can create tables in the specified schema when they do not already exist.
+
+## Set up Redshift S3
+
+When using S3 as an intermediate storage for Redshift sinks, you need to configure assume role permissions so that RisingWave can write to the user’s S3 bucket.
+
+1. Permissions for the S3 account configured in RisingWave
+
+The S3 account credentials used in RisingWave must have the following permissions on the target bucket/path:
+
+```
+s3:GetObject
+s3:ListBucket
+s3:PutObject
+s3:DeleteObject
+```
+
+These permissions allow RisingWave to read, list, write, and delete files in the staging S3 location.
+
+2. Permissions for Redshift to access the S3 account
+
+Redshift itself also needs permissions to read from the same S3 bucket. Grant the following permissions to Redshift’s IAM role:
+
+```
+s3:GetObject
+s3:ListBucket
+```
+
+This allows Redshift to copy data from S3 into the Redshift table.
+
+## Redshift IAM Role configuration
+
+To guarantee that the IAM role has sufficient permissions to connect to Redshift and access AWS resources:
+
+1. Attach policy to the IAM Role
+
+Attach the policy `AmazonRedshiftAllCommandsFullAccess` to the role.
+
+2. Configure trusted entities
+
+In the IAM Role trust relationship, allow Redshift service to assume the role:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "redshift.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+3. Attach the IAM role to Redshift instance
+
+- Navigate to the **Amazon Redshift** service in the AWS Management Console.
+
+- In the left navigation pane, select **Clusters** and choose the cluster you want to configure.
+
+- From the **Actions** menu, select **Manage IAM Roles**, and attach the configured IAM role.
