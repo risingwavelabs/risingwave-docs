@@ -132,9 +132,29 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 
 These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
 
-| Parameter        | Description                                                                                                                   | Required | Default |
-| :--------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------- | :------ |
-| `snapshot`       | If `false`, disables the initial snapshot (backfill) of the table. Only new changes will be ingested.                          | No       | `true`  |
+| Parameter        | Description           |
+| :--------------- | :-------------------- |
+| `snapshot`       | **Optional**. If `false`, disables the initial snapshot (backfill) of the table. Only new changes will be ingested. The default value is `true`.                         |
+| snapshot.interval    | **Optional**. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
+| snapshot.batch_size | **Optional**. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
+| backfill.parallelism | **Optional**. Controls the parallelism of CDC table backfill. When set to a value greater than 0, enables parallelized CDC backfill. The default value is `0` (disabled).                                                                                         |
+| backfill_num_rows_per_split | **Optional**. Specifies number of rows per split for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `100000`.                                                                                                  |
+| backfill_as_even_splits | **Optional**. Whether to create even splits for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `true`.                                                                                             |
+
+Create a CDC table with parallelized backfill enabled for better performance on large tables:
+
+```sql
+CREATE TABLE large_table (
+  id integer primary key,
+  data varchar
+)
+WITH (
+  backfill.parallelism = '4',
+  backfill.num_rows_per_split = '50000',
+  backfill.as_even_splits = 'true'
+)
+FROM pg_mydb TABLE 'public.large_table';
+```
 
 ### Debezium parameters
 

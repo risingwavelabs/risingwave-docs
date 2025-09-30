@@ -79,9 +79,9 @@ The following fields are used when creating a CDC table.
 | snapshot             | **Optional**. If false, CDC backfill will be disabled and only upstream events that have occurred after the creation of the table will be consumed. This option can only be applied for tables created from a shared source. |
 | snapshot.interval    | **Optional**. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
 | snapshot.batch\_size | **Optional**. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
-| backfill.parallelism | **Optional**. Controls the parallelism of CDC table backfill. When set to a value greater than 0, enables parallelized CDC backfill. The default value is 0 (disabled).                                                                                           |
-| backfill.num\_rows\_per\_split | **Optional**. Specifies number of rows per split for parallelized CDC backfill. Only effective when `backfill.parallelism` > 0. The default value is 100,000.                                                                                                          |
-| backfill.as\_even\_splits | **Optional**. Whether to create even splits for parallelized CDC backfill. Only effective when `backfill.parallelism` > 0. The default value is true.                                                                                                          |
+| backfill.parallelism | **Optional**. Controls the parallelism of CDC table backfill. When set to a value greater than 0, enables parallelized CDC backfill. The default value is `0` (disabled).                                                                                         |
+| backfill_num_rows_per_split | **Optional**. Specifies number of rows per split for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `100000`.                                                                                                  |
+| backfill_as_even_splits | **Optional**. Whether to create even splits for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `true`.                                                                                             |
 
 Regarding the `INCLUDE timestamp AS column_name` clause, it allows you to ingest the upstream commit timestamp. For historical data, the commit timestamp will be set to `1970-01-01 00:00:00+00:00`. Here is an example:
 
@@ -189,7 +189,7 @@ CREATE TABLE t3_rw (
 ) FROM mysql_mydb TABLE 'mydb.t3';
 ```
 
-You can also create a CDC table with parallelized backfill enabled for better performance on large tables:
+Create a CDC table with parallelized backfill enabled for better performance on large tables:
 
 ```sql
 CREATE TABLE large_orders (
