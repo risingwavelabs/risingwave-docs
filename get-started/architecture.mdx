@@ -5,7 +5,17 @@ sidebarTitle: Architecture
 mode: wide
 ---
 
-RisingWave comprises several key components: Serving, Streaming, Compactor and the Meta service. At its core, RisingWave is a **unified batch and streaming database**. If you are new to RisingWave, we recommend starting with [What is RisingWave](/get-started/intro) to gain a comprehensive understanding.
+RisingWave comprises several key components: Serving, Streaming, Compactor and the Meta Node. At its core, RisingWave is a **unified batch and streaming database**. If you are new to RisingWave, we recommend starting with [What is RisingWave](/get-started/intro) to gain a comprehensive understanding.
+
+Here is a brief overview of each component:
+
+- **Serving Node**: The stateless frontend that parses and optimizes queries, and serves results to clients in a highly concurrent and low-latency manner. It handles user connections, executes batch queries, and dispatches streaming jobs to the Streaming Nodes.
+
+- **Streaming Node**: The core processing engine for streaming data. It executes the stream graph, maintains the state of streaming jobs, and performs continuous computations.
+
+- **Meta Node**: The central coordinator of the cluster. It manages metadata for all database objects and orchestrates the lifecycle of streaming jobs, including scheduling, checkpointing, and failure recovery.
+
+- **Compactor Node**: A background node that optimizes data storage. It performs compaction on the LSM-tree-based storage to improve read performance and reclaim space.
 
 <Frame>
   <img src="/images/rw-architecture-v2.png"/>
@@ -13,9 +23,9 @@ RisingWave comprises several key components: Serving, Streaming, Compactor and t
 
 ## Serving Node
 
-This service handles user requests and is designed to be compatible with the PostgreSQL wire protocol, allowing tools like `psql` to connect seamlessly
+This node serves as the PostgreSQL-compatible frontend. It handles user requests and delivers results with high concurrency and low latency. Clients like `psql` can connect to it seamlessly.
 
-- For batch queries, the service executes them directly.
+- For batch queries, this node executes them directly.
 - For streaming queries, it generates an execution plan and dispatches it to the stream engine for processing.
 
 ### Batch query execution modes
