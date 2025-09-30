@@ -4,7 +4,7 @@ sidebarTitle: Snowflake v2
 description: This guide describes how to sink data from RisingWave to Snowflake using the enhanced Snowflake v2 sink connector.
 ---
 
-Snowflake is a cloud-based data warehousing platform that enables scalable and efficient data storage and analysis. Starting with v2.6.0, RisingWave introduced the Snowflake v2 sink connector, providing a more powerful and improved integration. For compatibility, the original [Snowflake connector](/integrations/destinations/snowflake) remains supported.
+Snowflake is a cloud-based data warehousing platform that enables scalable and efficient data storage and analysis. Starting with v2.6.0, RisingWave introduced the Snowflake v2 sink connector, providing a more powerful and improved integration. The original [Snowflake connector](/integrations/destinations/snowflake) remains supported for compatibility, but we recommend using Snowflake v2 for more powerful and comprehensive functionality.
 
 ## Syntax
 
@@ -25,11 +25,11 @@ WITH (
 | Parameter                     | Description |
 |:------------------------------|:------------|
 | type                          | Sink type (e.g., append-only or upsert) |
-| intermediate.table.name       | Name of the intermediate table used for upsert |
+| intermediate.table.name      | Name of the intermediate table used for upsert mode. No need to fill this out in append-only mode |
 | table.name                    | Name of the target table |
 | database                      | Snowflake database name |
 | schema                        | Snowflake schema name |
-| snowflake_schedule_seconds    | Interval in seconds for scheduled writes (default: 3600) |
+| write.target.interval.seconds   | Interval in seconds for scheduled writes (default: 3600) |
 | warehouse                     | Snowflake warehouse name |
 | jdbc.url                       | JDBC URL to connect to Snowflake |
 | username                      | Snowflake username |
@@ -37,6 +37,13 @@ WITH (
 | commit_checkpoint_interval     | Commit every n checkpoints (default: 10) |
 | auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
 | create_table_if_not_exists     | Create target table if it does not exist |
+
+**S3 parameters**
+
+These options only need to be set when `with_s3 = true`:
+
+| Parameter                     | Description |
+|:------------------------------|:------------|
 | with_s3                        | Enable writing via S3 (default: true) |
 | s3.region_name                 | AWS region for S3 |
 | s3.bucket_name                 | S3 bucket name |
@@ -46,7 +53,6 @@ WITH (
 | s3.credentials.secret          | AWS secret access key |
 | s3.endpoint_url                | Custom S3 endpoint URL (for self-hosted setups) |
 | s3.assume_role                 | IAM role ARN to assume for S3 access |
-| stage                          | Snowflake stage name |
 
 ## Auto schema change
 

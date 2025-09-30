@@ -27,13 +27,20 @@ WITH (
 | password                     | Redshift password |
 | schema                       | Redshift schema name |
 | table.name                   | Name of the target table |
-| intermediate.table.name      | Name of the intermediate table used for upsert |
+| intermediate.table.name      | Name of the intermediate table used for upsert mode. No need to fill this out in append-only mode |
 | auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
 | create_table_if_not_exists   | Create target table if it does not exist |
-| schedule_seconds             | Interval in seconds for scheduled writes (default: 3600) |
+| write.target.interval.seconds      | Interval in seconds for scheduled writes (default: 3600) |
 | batch_insert_rows            | Number of rows per batch insert (default: 4096) |
+
+**S3 parameters**
+
+These options only need to be set when `with_s3 = true`:
+
+| Parameter                   | Description |
+|:-----------------------------|:------------|
 | with_s3                      | Enable writing via S3 (default: true) |
-| s3.region_name               | AWS region for S3 |
+| s3.region_name               | AWS region for S3  |
 | s3.bucket_name               | S3 bucket name |
 | s3.path                      | S3 folder path for sink files |
 | enable_config_load           | Load S3 credentials from environment (self-hosted only) |
