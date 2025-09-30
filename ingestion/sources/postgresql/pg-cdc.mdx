@@ -214,10 +214,10 @@ Added in v2.6.0.
 
 RisingWave supports [TOASTed (The Oversized-Attribute Storage Technique) data](https://www.postgresql.org/docs/current/storage-toast.html) from PostgreSQL when using the CDC connector. This ensures that even columns with very large values, such as long text or large JSON objects, are ingested completely and accurately during both the initial backfill and incremental changes.
 
-Supported TOAST-able data types:
+Supported TOAST-able data types in Postgres:
 
-- Scalar types: `varchar`, `text`, `xml`, `jsonb`, `bytea`.
-- Array types: `varchar[]`, `text[]`, `jsonb[]`, `bytea[]`.
+- Standard types: `varchar`, `text`, `xml`, `jsonb`, `bytea`.
+- One-dimensional array of the above types: `varchar[]`, `text[]`, `jsonb[]`, `bytea[], xml[]`.
 
 The example below demonstrates how RisingWave ingests large data that triggers PostgreSQL's TOAST mechanism and ensures that large fields are not lost even when non-TOAST columns are updated.
 
