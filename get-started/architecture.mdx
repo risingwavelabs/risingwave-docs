@@ -5,7 +5,17 @@ sidebarTitle: Architecture
 mode: wide
 ---
 
-RisingWave comprises several key components: Serving, Streaming, Compactor and the Meta service. At its core, RisingWave is a **unified batch and streaming database**. If you are new to RisingWave, we recommend starting with [What is RisingWave](/get-started/intro) to gain a comprehensive understanding.
+RisingWave has four main components: the Serving Node, Streaming Node, Compactor Node, and Meta Node. At its core, RisingWave is a **unified batch and streaming database**. For a high-level overview, see [What is RisingWave](/get-started/intro).
+
+Here is a brief overview of each component:
+
+- **Serving Node**: The stateless frontend that parses and optimizes queries, and serves results to clients in a highly concurrent and low-latency manner. It handles user connections, executes batch queries, and dispatches streaming jobs to the Streaming Nodes.
+
+- **Streaming Node**: The core processing engine for streaming data. It executes the stream graph, maintains the state of streaming jobs, and performs continuous computations.
+
+- **Meta Node**: The central coordinator of the cluster. It manages metadata for all database objects and orchestrates the lifecycle of streaming jobs, including scheduling, checkpointing, and failure recovery.
+
+- **Compactor Node**: A background node that optimizes data storage. It performs compaction on the LSM-tree-based storage to improve read performance and reclaim space.
 
 <Frame>
   <img src="/images/rw-architecture-v2.png"/>
@@ -13,10 +23,10 @@ RisingWave comprises several key components: Serving, Streaming, Compactor and t
 
 ## Serving Node
 
-This service handles user requests and is designed to be compatible with the PostgreSQL wire protocol, allowing tools like `psql` to connect seamlessly
+This node serves as the PostgreSQL-compatible frontend. It handles user requests and delivers results with high concurrency and low latency. Clients like `psql` can connect to it seamlessly.
 
-- For batch queries, the service executes them directly.
-- For streaming queries, it generates an execution plan and dispatches it to the stream engine for processing.
+- It executes batch queries directly.
+- For streaming queries, it creates an execution plan and sends it to the Streaming Engine.
 
 ### Batch query execution modes
 
@@ -24,7 +34,7 @@ There are two serving execution modes, **local** and **distributed**. Depending 
 
 - For queries that don’t require extensive computation, the primary overhead is likely in the initial optimization phases. In such cases, we use **local execution mode**. This mode avoids full optimizer passes and opts for simpler, heuristic-based passes. Point queries typically use this execution mode.
 
-- For more complex queries with several joins and aggregations, we use **distributed execution mode**. These queries often require more time during batch execution; therefore, we thoroughly optimize them and distribute their execution across the serving worker nodes.
+- For more complex queries with several joins and aggregations, we use **distributed execution mode**. These queries often require more time during batch execution; therefore, we thoroughly optimize them and distribute their execution across the Serving worker nodes.
 
 <Note>
 The iceberg serving engine operates when a table is specified with `engine=iceberg`, powered by [Apache Iceberg table format](https://iceberg.apache.org/). Data is stored in a columnar structure to enhance performance for ad hoc OLAP-style queries.
@@ -36,7 +46,7 @@ The iceberg serving engine operates when a table is specified with `engine=icebe
   <img src="/images/batch-query-lifecycle.png"/>
 </Frame>
 
-When a user submits a query, it first goes to the serving node where the parser converts the raw query text into an **Abstract Syntax Tree (AST)**. Next, the binder matches the query elements in the ASTs to actual database objects, creating a **Bound AST**. During this binding step, table names are linked to their actual specifications, and wildcards (*) are expanded to show all physical columns in a table. Finally, the optimizer processes this **Bound AST** through several optimization passes to create a batch execution plan.
+When a user submits a query, it first goes to the Serving Node where the parser converts the raw query text into an **Abstract Syntax Tree (AST)**. Next, the binder matches the query elements in the ASTs to actual database objects, creating a **Bound AST**. During this binding step, table names are linked to their actual specifications, and wildcards (*) are expanded to show all physical columns in a table. Finally, the optimizer processes this **Bound AST** through several optimization passes to create a batch execution plan.
 
 The **fragmenter** breaks the execution plan into fragments, which are groups of execution nodes that share the same data distribution to minimize data shuffling.
 
@@ -44,7 +54,7 @@ The **scheduler** then manages the execution of this fragmented plan. It spawns 
 
 ## Streaming Node
 
-The streaming node executes **streaming queries**. This involves managing their state and performing computations such as aggregations and joins.
+The Streaming Node executes **streaming queries**. This involves managing their state and performing computations such as aggregations and joins.
 
 ### Streaming query
 
@@ -70,21 +80,21 @@ Instead of executing once, the query executes continuously as updates arrive fro
 
 The query will go through the same initial phases as the [Batch query lifecycle](#batch-query-lifecycle). After fragmentation, we diverge from the batch execution path, and send the execution plans to the **Meta Node**.
 
-Using the execution plan, the Meta Node schedules jobs on streaming worker nodes by instructing them to construct the execution nodes specified in the plan. These execution nodes handle filtering, join, aggregation and various other computations. You can run `EXPLAIN` to see what the execution graph looks like.
+Using the execution plan, the Meta Node schedules jobs on Streaming worker nodes by instructing them to construct the execution nodes specified in the plan. These execution nodes handle filtering, join, aggregation and various other computations. You can run `EXPLAIN` to see what the execution graph looks like.
 
 Once the execution nodes are built, we trigger historical data backfilling to ensure consistency with upstream sources. After backfilling completes, the streaming job will be created to continuously process upstream data, materialize updates, and propagate the transformed data stream to any downstream systems. See [An overview of the RisingWave streaming engine](https://risingwavelabs.github.io/risingwave/design/streaming-overview.html) for more information.
 
 ## Meta Node
 
-The Meta Node manages cluster metadata by interacting with a meta store, which serves as the persistence layer for metadata. RisingWave supports Postgres, MySQL, and SQLite as meta store options. All database objects are persisted in the meta store, while the serving node retrieves the database catalog from the Meta Node and caches it locally to serve queries.
+The Meta Node manages cluster metadata by interacting with a meta store, which serves as the persistence layer for metadata. RisingWave supports Postgres, MySQL, and SQLite as meta store options. All database objects are persisted in the meta store, while the Serving Node retrieves the database catalog from the Meta Node and caches it locally to serve queries.
 
 Additionally, the Meta Node manages the lifecycle of streaming jobs, including their creation, state checkpointing for consistency, and eventual deletion.
 
 - For job creation: The Serving Node sends the planned query to the Meta Node. The Meta Node then instantiates the query into actors and assigns them to Compute Nodes. It then triggers actor creation on the designated Compute Nodes.
 
-- For checkpointing: The Meta Node sends barriers to the streaming nodes. These nodes commit their state and propagate the barriers downstream. Terminal nodes then return the barriers to the Meta Node for collection. Once all checkpoint barriers are collected and the state is uploaded to the object store, the checkpoint process completes, resulting in a consistent snapshot.
+- For checkpointing: The Meta Node sends barriers to the Streaming Nodes. These nodes commit their state and propagate the barriers downstream. Terminal nodes then return the barriers to the Meta Node for collection. Once all checkpoint barriers are collected and the state is uploaded to the object store, the checkpoint process completes, resulting in a consistent snapshot.
 
-- For recovery and compaction: the Meta Node recreates actors on the Streaming Node, starting from the last checkpoint snapshot to maintain consistency. The Meta Node manages compaction by generating compaction tasks, assigning them to compaction nodes, and updating the meta store's metadata upon task completion.
+- For recovery and compaction: the Meta Node recreates actors on the Streaming Node, starting from the last checkpoint snapshot to maintain consistency. The Meta Node manages compaction by generating compaction tasks, assigning them to Compactor Nodes, and updating the meta store's metadata upon task completion.
 
 ## Compactor Node
 
@@ -98,7 +108,7 @@ This section covers how different nodes interact, providing insights into resour
 
 ### Compute-Storage
 
-In RisingWave, a Compute Node can be a dedicated Serving or Streaming Node, or a hybrid one (the default) that can handle both serving and streaming tasks.
+In RisingWave, a Compute Node can be a dedicated Serving Node or Streaming Node, or a hybrid one (the default) that can handle both serving and streaming tasks.
 
 Object storage serves as our persistence layer. We use OpenDAL to abstract over different storage backends such as AWS S3, Google Cloud Storage (GCS), Azure Blob Storage, and Minio.
 
@@ -112,7 +122,7 @@ As the Compute Node scales up in resources, for instance, from 1 CPU to 8 CPUs, 
 
 This accumulation directly impacts read performance because, when reading a range of values, we need to sort them to resolve conflicts between older and newer records. This affects both serving and streaming performance, as streaming sometimes needs to read states to update them or refresh the operator cache for stateful queries.
 
-Hence, it is typically recommended to maintain a 2:1 ratio between compute and compactor sizes. For instance, with a 4 CPU cores, 16 GB memory Compute Node, we recommend using a 2 CPU cores, 8 GB Compactor Node. In a write-heavy workload, such as when 500K rows are written to storage per second, we recommend a 1:8 compute-to-compactor ratio. This typically occurs during the backfilling of historical data, where the ingestion size is really large. See how to diagnose [compaction bottleneck](/performance/specific-bottlenecks#compaction-bottleneck) for more information.
+Hence, it is typically recommended to maintain a 2:1 ratio between Compute and Compactor sizes. For instance, with a 4 CPU cores, 16 GB memory Compute Node, we recommend using a 2 CPU cores, 8 GB Compactor Node. In a write-heavy workload, such as when 500K rows are written to storage per second, we recommend a 1:8 Compute-to-Compactor ratio. This typically occurs during the backfilling of historical data, where the ingestion size is really large. See how to diagnose [compaction bottleneck](/performance/specific-bottlenecks#compaction-bottleneck) for more information.
 
 In RisingWave Cloud, we can use **Serverless Compaction** (currently in **Public preview** stage) to automatically scale compactors and simplify compaction resource management.
 
@@ -120,7 +130,7 @@ In RisingWave Cloud, we can use **Serverless Compaction** (currently in **Public
 
 As the Compute Node scales up in resources, the metadata size also increases. For instance, if we scale from 1 to 64 cores, the number of actors increases by 64 times. We need to capture the metadata of these new actors, which puts pressure on the Meta Node.
 
-As such, we generally recommend a 4:1 ratio between compute and meta sizes. For instance, with 8 CPU cores for the Compute Node, we recommend 2 CPU cores for the Meta Node.
+As such, we generally recommend a 4:1 ratio between Compute and Meta sizes. For instance, with 8 CPU cores for the Compute Node, we recommend 2 CPU cores for the Meta Node.
 
 ### CPU-Memory
 
