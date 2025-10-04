@@ -52,9 +52,21 @@ These options only need to be set when `with_s3 = true`:
 
 ## Auto schema change
 
-Redshift supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. With auto schema change enabled in the Redshift sink, RisingWave can automatically evolve the schema of your Redshift table. When new columns are detected in the source data, RisingWave will add those columns to the Redshift table before ingesting new records. This automation simplifies data pipeline maintenance and ensures that your Redshift table structure always reflects the latest upstream schema.
+<Tip>
+**PREMIUM FEATURE**
 
-To enable it, set `auto_schema_change` to true, and RisingWave will automatically add new columns to the target table.
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+Redshift sinks support auto schema change to automatically adapt their output schema according to changes in the upstream table. This feature is supported only when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`.
+
+Once auto schema change is enabled, if you alter the schema of the source table (e.g., add, drop, or modify columns), the sink will automatically update to match the new schema. This reduces manual intervention and makes your data pipelines more robust to schema evolution.
+
+To enable it, set the following option when creating the sink:
+
+```sql
+auto_schema_change = true
+```
 
 ## Configure RisingWave to write to S3
 
