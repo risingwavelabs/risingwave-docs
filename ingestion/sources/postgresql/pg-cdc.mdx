@@ -132,9 +132,29 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 
 These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
 
-| Parameter        | Description                                                                                                                   | Required | Default |
-| :--------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------- | :------ |
-| `snapshot`       | If `false`, disables the initial snapshot (backfill) of the table. Only new changes will be ingested.                          | No       | `true`  |
+| Parameter        | Description           |
+| :--------------- | :-------------------- |
+| `snapshot`       | **Optional**. If `false`, disables the initial snapshot (backfill) of the table. Only new changes will be ingested. The default value is `true`.                         |
+| snapshot.interval    | **Optional**. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
+| snapshot.batch_size | **Optional**. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
+| backfill.parallelism | **Optional**. Controls the parallelism of CDC table backfill. When set to a value greater than 0, enables parallelized CDC backfill. The default value is `0` (disabled).                                                                                         |
+| backfill_num_rows_per_split | **Optional**. Specifies number of rows per split for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `100000`.                                                                                                  |
+| backfill_as_even_splits | **Optional**. Whether to create even splits for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `true`.                                                                                             |
+
+Create a CDC table with parallelized backfill enabled for better performance on large tables:
+
+```sql
+CREATE TABLE large_table (
+  id integer primary key,
+  data varchar
+)
+WITH (
+  backfill.parallelism = '4',
+  backfill.num_rows_per_split = '50000',
+  backfill.as_even_splits = 'true'
+)
+FROM pg_mydb TABLE 'public.large_table';
+```
 
 ### Debezium parameters
 
@@ -205,6 +225,103 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | CIDR                                                 | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR                                              | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR8                                             | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+### Support for PostgreSQL TOAST
+
+<Note>
+Added in v2.6.0.
+</Note>
+
+RisingWave supports [TOASTed (The Oversized-Attribute Storage Technique) data](https://www.postgresql.org/docs/current/storage-toast.html) from PostgreSQL when using the CDC connector. This ensures that even columns with very large values, such as long text or large JSON objects, are ingested completely and accurately during both the initial backfill and incremental changes.
+
+Supported TOAST-able data types in Postgres:
+
+- Standard types: `varchar`, `text`, `xml`, `jsonb`, `bytea`.
+- One-dimensional array of the above types: `varchar[]`, `text[]`, `jsonb[]`, `bytea[], xml[]`.
+
+<Note>
+RisingWave currently supports the TOAST-able data types mentioned above. Other types that may trigger TOAST, mainly simple one-dimensional arrays with low probability, are not yet supported. For more details, please refer to the [issue](https://github.com/risingwavelabs/risingwave/issues/22916).
+</Note>
+
+The example below demonstrates how RisingWave ingests large data that triggers PostgreSQL's TOAST mechanism and ensures that large fields are not lost even when non-TOAST columns are updated.
+
+1. Create a table with TOAST-able columns in PostgreSQL.
+
+```
+CREATE TABLE test_toast (
+    id int PRIMARY KEY,
+    v_text text,
+    v_json jsonb,
+    v_bytea bytea
+);
+```
+
+2. Insert large TOAST data in PostgreSQL.
+
+```
+INSERT INTO test_toast (id, v_text, v_json, v_bytea)
+VALUES (
+    1,
+    repeat('long_text_', 10000),  -- large text triggers TOAST
+    jsonb_build_object('data', repeat('x', 50000)),  -- large JSON triggers TOAST
+    repeat('a', 2000000)::bytea  -- large bytea triggers TOAST
+);
+```
+
+3. Create a RisingWave source from PostgreSQL CDC.
+
+```
+CREATE SOURCE src_test_toast WITH (
+    connector = 'postgres-cdc',
+    hostname = 'localhost',
+    port = 5432,
+    username = 'pguser',
+    password = 'pgpassword',
+    database.name = 'mydb',
+    schema.name = 'public',
+    slot.name = 'rw_slot_toast_example'
+);
+```
+
+4. Create a RisingWave table from the source.
+
+```
+CREATE TABLE rw_test_toast(*) FROM src_test_toast TABLE 'public.test_toast';
+```
+
+5. Verify data is ingested in RisingWave with TOAST preserved.
+
+```
+SELECT
+    id,
+    CASE WHEN octet_length(v_text) > 15000 THEN 'toast-triggered' ELSE 'small' END AS v_text_check,
+    CASE WHEN octet_length(v_json::text) > 50000 THEN 'toast-triggered' ELSE 'small' END AS v_json_check,
+    CASE WHEN octet_length(v_bytea) > 1500000 THEN 'toast-triggered' ELSE 'small' END AS v_bytea_check
+FROM rw_test_toast
+WHERE id = 1;
+```
+
+6. Update non-TOAST column to test placeholder handling.
+
+```
+ALTER TABLE test_toast ADD COLUMN v_counter int DEFAULT 0;
+UPDATE test_toast SET v_counter = 1 WHERE id = 1;
+```
+
+Verify TOAST columns remain intact.
+
+```
+SELECT
+    id,
+    octet_length(v_text) AS text_len,
+    octet_length(v_json::text) AS json_len,
+    octet_length(v_bytea) AS bytea_len,
+    v_counter
+FROM rw_test_toast
+WHERE id = 1;
+```
+
+RisingWave can process changes to rows with TOASTed data even if the upstream table's `REPLICA IDENTITY` is set to `default`. It achieves this by leveraging its own materialized state of the source data. When an `UPDATE` or `DELETE` event occurs, RisingWave uses the record stored within its materialized view to construct the full change event, rather than relying on the `before` field in the CDC message.
 
 ### Use dbt to ingest data from PostgreSQL CDC
 
