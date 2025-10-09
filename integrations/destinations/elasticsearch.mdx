@@ -58,10 +58,29 @@ WITH (
 | username             | **Optional**. elastic user name for accessing the Elasticsearch endpoint. It must be used with password.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | password             | **Optional**. Password for accessing the Elasticsearch endpoint. It must be used with username.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | delimiter            | **Optional**. Delimiter for Elasticsearch ID when the sink's primary key has multiple columns.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
 
 For versions under 8.x, there was once a parameter `type`. In Elasticsearch 6.x, users could directly set the type, but starting from 7.x, it is set to not recommended and the default value is unified to `_doc`. In version 8.x, the type has been completely removed. See [Elasticsearch's official documentation](https://www.elastic.co/guide/en/elasticsearch/reference/7.17/removal-of-types.html) for more details.
 
 So, if you are using Elasticsearch 7.x, we set it to the official's recommended value, which is `_doc`. If you are using Elasticsearch 8.x, this parameter has been removed by the Elasticsearch official, so no setting is required.
+
+## Auto schema change
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+Elasticsearch sinks support auto schema change to automatically adapt their output schema according to changes in the upstream table. This feature is supported only when [`sink_decoupling`](/delivery/overview#sink-decoupling) is disabled.
+
+Once auto schema change is enabled, if you add new columns to the source table, the sink will automatically update to match the new schema. This reduces manual intervention and makes your data pipelines more robust to schema evolution.
+
+To enable it, set the following option when creating the sink:
+
+```sql
+auto_schema_change = true
+```
 
 
 ## Primary keys and Elasticsearch IDs
