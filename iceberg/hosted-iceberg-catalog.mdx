@@ -1,60 +1,32 @@
 ---
-title: Hosted Iceberg catalog
-sidebarTitle: "Overview"
-description: "Discover hosted Iceberg catalog options and usage in RisingWave."
+title: "Hosted Iceberg catalogs"
+sidebarTitle: "Hosted catalogs"
+description: "Learn about RisingWave's hosted JDBC and REST catalog options for internal Iceberg tables."
 ---
 
-The hosted Iceberg catalog is a built-in catalog service for the Iceberg table engine. It simplifies the process of creating Iceberg tables by eliminating the need to set up, configure, and manage an external catalog service like AWS Glue, a separate JDBC database, or a REST service.
+When creating internal Iceberg tables, you can use one of RisingWave's two built-in **hosted catalog** options. A hosted catalog simplifies setup by managing Iceberg metadata directly within RisingWave, eliminating the need to deploy and manage an external catalog service like AWS Glue or a separate Hive Metastore.
 
-For users new to Iceberg, or for those who want to reduce operational overhead, the hosted catalog provides the quickest way to get started with the Iceberg table engine in RisingWave.
+This is the recommended approach for getting started with internal Iceberg tables.
 
-## Hosted catalog options
+### Hosted catalog options
 
-RisingWave supports the following types of hosted catalogs:
+RisingWave supports two types of hosted catalogs, each based on a standard Iceberg protocol:
 
-- **[JDBC hosted catalog](/iceberg/iceberg-catalog-jdbc)** – backed by RisingWave’s internal PostgreSQL-compatible metastore.  
-- **[REST hosted catalog](/iceberg/iceberg-catalog-rest)** – powered by [Lakekeeper](https://lakekeeper.io), a REST service that manages Iceberg metadata.
+- **[JDBC Hosted Catalog](/iceberg/hosted-catalog-jdbc)**: Utilizes RisingWave’s internal PostgreSQL-compatible metastore to function as a standard Iceberg JDBC catalog. This is the simplest option with zero external dependencies.
+- **[REST Hosted Catalog](/iceberg/hosted-catalog-rest)**: Provides a REST API endpoint for catalog operations, powered by the integrated Lakekeeper service.
 
-## Benefits of the hosted catalog
+### Benefits of using a hosted catalog
 
-- **Zero external dependencies**: No need to set up AWS Glue, PostgreSQL, or other catalog services
-- **Rapid prototyping**: Get started with Iceberg immediately without infrastructure setup
-- **Standard compliance**: Uses the standard Iceberg JDBC catalog protocol for compatibility
-- **External accessibility**: Tables can be accessed by external Iceberg-compatible tools
-- **Reduced complexity**: Fewer moving parts in your data architecture
+- **Zero external dependencies**: No need to set up and manage AWS Glue, PostgreSQL, or other catalog services.
+- **Rapid development**: Get started with internal Iceberg tables immediately without complex infrastructure setup.
+- **Standard compliance**: Both options use standard Iceberg protocols (JDBC and REST) for broad compatibility.
+- **External accessibility**: Tables created using a hosted catalog can still be accessed by external, Iceberg-compatible tools like Spark and Trino.
 
-## When to use external catalogs instead
+### When to use an external catalog instead
 
-While the hosted catalog is great for getting started, you might want to use external catalogs when:
+While hosted catalogs are ideal for many use cases, you may want to use an external catalog (like AWS Glue, Hive Metastore, or Nessie) when:
 
-- **Multi-system environments**: Multiple systems need to share the same catalog metadata
-- **Enterprise requirements**: You need integration with existing catalog infrastructure (AWS Glue, etc.)
-- **Governance**: You have strict data governance requirements that mandate specific catalog systems
-- **Scale**: You're managing hundreds or thousands of Iceberg tables across multiple systems
+- You need to share a single catalog across multiple systems (e.g., Spark, Flink, and RisingWave).
+- Your organization has existing investments in or governance requirements for a specific external catalog service.
 
-For external catalog configurations, see [Catalog configuration](/iceberg/catalogs).
-
-## System tables
-
-When using the hosted catalog, you can inspect the catalog metadata through RisingWave's system tables:
-
-```sql
--- View all Iceberg tables managed by the hosted catalog
-SELECT * FROM iceberg_tables;
-
--- View namespace properties
-SELECT * FROM iceberg_namespace_properties;
-```
-
-## Best practices
-
-1. **For simplified management**: Use for development, testing, or production scenarios where RisingWave is the primary system managing the Iceberg tables and a shared external catalog is not needed.
-2. **Backup your metadata**: Since metadata is stored in RisingWave's metastore, ensure you have proper backup procedures for it.
-3. **Monitor storage growth**: Keep an eye on metastore storage as you create more tables.
-4. **Plan for scale**: Consider external catalogs if you anticipate managing many tables or integrating with multiple systems.
-
-## Next steps
-
-- **Create your first table**: Follow the [Create and manage native Iceberg tables](/iceberg/create-manage-native-iceberg-tables) guide for detailed table creation and usage.
-- **Configure object storage**: Review [Object storage configuration](/iceberg/object-storage) for your storage backend.
-- **Explore external access**: Test connecting external tools like Spark or Trino to your hosted catalog tables.
+For details on connecting to your own catalog, see [Catalog configuration](/iceberg/catalogs).
