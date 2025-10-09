@@ -56,14 +56,21 @@ These options only need to be set when `with_s3 = true`:
 
 ## Auto schema change
 
-Snowflake v2 supports sink auto schema change when [`sink_decoupling`](/delivery/overview#sink-decoupling) is `false`. When enabled, RisingWave will automatically alter the target table to add new columns from the upstream data source.
+<Tip>
+**PREMIUM FEATURE**
 
-To enable it:
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+Snowflake v2 sinks support auto schema change to automatically adapt their output schema according to changes in the upstream table. This feature is supported only when [`sink_decoupling`](/delivery/overview#sink-decoupling) is disabled.
+
+Once auto schema change is enabled, if you add new columns to the source table, the sink will automatically update to match the new schema. This reduces manual intervention and makes your data pipelines more robust to schema evolution.
+
+To enable it, set the following option when creating the sink:
 
 ```sql
 auto_schema_change = true
 ```
-This ensures your Snowflake table stays in sync with upstream schema changes with minimal manual intervention.
 
 ## Configure RisingWave to write to S3
 
