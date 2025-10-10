@@ -1,0 +1,77 @@
+---
+title: "Integrate with Snowflake"
+sidebarTitle: "Snowflake"
+description: "Sink data from RisingWave to an Apache Iceberg table and query it in Snowflake."
+---
+
+This guide shows how to sink data from RisingWave into an Apache Iceberg table and make it available for querying in Snowflake. This integration allows you to use RisingWave for real-time stream processing and Snowflake for large-scale analytics and data warehousing.
+
+**How it works**
+RisingWave → Iceberg table on S3 → AWS Glue or REST Catalog → Snowflake
+
+### Prerequisites
+
+- A running RisingWave cluster.
+- A Snowflake account.
+- An AWS S3 bucket to serve as the Iceberg warehouse.
+- A configured Iceberg catalog (either AWS Glue or a REST-compatible catalog).
+
+### Step 1: Sink data from RisingWave to Iceberg
+
+Create a `SINK` in RisingWave that writes to your Iceberg table.
+
+For `upsert` streams, you must use the `copy-on-write` mode. Snowflake cannot read Iceberg tables that use the merge-on-read format with delete files.
+
+<Tabs>
+<Tab title="Using AWS Glue Catalog">
+
+```sql
+CREATE SINK snowflake_glue_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'glue',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    -- Required for upsert streams to be readable by Snowflake
+    write_mode = 'copy-on-write'
+);
+```
+
+</Tab>
+<Tab title="Using REST Catalog">
+
+```sql
+CREATE SINK snowflake_rest_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    -- Required for upsert streams to be readable by Snowflake
+    write_mode = 'copy-on-write'
+);
+```
+</Tab>
+</Tabs>
+
+### Step 2: Query from Snowflake
+
+Follow the official Snowflake documentation to configure a catalog integration and create an external Iceberg table that points to your data in S3.
+
+- [Configure a catalog integration for AWS Glue](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-glue)
+- [Configure a catalog integration for a REST catalog](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-rest)
+
+Once configured, you can query the Iceberg table directly from Snowflake.

@@ -1,0 +1,111 @@
+---
+title: "Integrate with Databricks"
+sidebarTitle: "Databricks"
+description: "Sink data from RisingWave to Iceberg and query it in Databricks using either Unity Catalog or AWS Glue."
+---
+
+This guide shows how to sink data from RisingWave into an Apache Iceberg table and make it available for querying in Databricks. You can use one of two catalog patterns for this integration:
+
+- **Databricks Unity Catalog**: Write data from RisingWave directly to a Databricks-managed Iceberg table.
+- **AWS Glue as a federated catalog**: Write data from RisingWave to an Iceberg table that uses AWS Glue as its catalog, and then connect Databricks to Glue.
+
+<Tabs>
+<Tab title="Using Unity Catalog">
+
+This pattern is ideal when you want to manage your Iceberg tables centrally within the Databricks ecosystem. RisingWave acts as a streaming ETL engine, writing data directly into your Unity Catalog.
+
+**How it works**
+RisingWave → Iceberg table on S3 → Databricks Unity Catalog
+
+### Prerequisites
+
+- A running RisingWave cluster.
+- A Databricks workspace with Unity Catalog enabled.
+- Permissions to create and access credentials for external access in Unity Catalog.
+
+### Step 1: Configure Unity Catalog for external access
+
+1. Follow the Databricks documentation to [configure your Unity Catalog metastore](https://docs.databricks.com/aws/en/external-access/admin#external-data-access) to allow external clients like RisingWave to access it.
+
+2. [Acquire the necessary credentials](https://docs.databricks.com/aws/en/external-access/iceberg) to connect. You will need the following parameters for your sink:
+    - `catalog.uri`: The REST endpoint for your Unity Catalog.
+    - `catalog.oauth2_server_uri`: The OAuth token endpoint.
+    - `catalog.credential`: Your client ID and secret, formatted as `<oauth_client_id>:<oauth_client_secret>`.
+    - `warehouse.path`: The name of the catalog in Unity Catalog.
+
+### Step 2: Sink data from RisingWave to Unity Catalog
+
+Create a `SINK` in RisingWave that writes to your Databricks-managed table. Note that currently, only `append-only` sinks are supported for this integration.
+
+```sql
+CREATE SINK databricks_uc_sink FROM my_source
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+  force_append_only = 'true',
+  warehouse.path = '<your-uc-catalog-name>',
+  database.name = '<your-schema-name>',
+  table.name = '<your-table-name>',
+  s3.region = 'ap-southeast-1',
+  catalog.type = 'rest',
+  catalog.uri = 'https://<workspace-url>/api/2.1/unity-catalog/iceberg-rest',
+  catalog.oauth2_server_uri = 'https://<workspace-url>/oidc/v1/token',
+  catalog.credential= '<oauth_client_id>:<oauth_client_secret>',
+  catalog.scope='all-apis'
+);
+```
+
+### Step 3: Query in Databricks
+
+Once the sink is active, you can query the table directly in your Databricks workspace.
+
+```sql
+SELECT * FROM <your-uc-catalog-name>.<your-schema-name>.<your-table-name>;
+```
+
+</Tab>
+<Tab title="Using AWS Glue Catalog">
+
+This pattern is ideal when you use AWS Glue as your central metastore for multiple query engines, not just Databricks.
+
+**How it works**
+RisingWave → Iceberg table on S3 → AWS Glue Catalog → Databricks
+
+### Prerequisites
+
+- A running RisingWave cluster.
+- A Databricks cluster.
+- An AWS S3 bucket to serve as the Iceberg warehouse.
+- AWS Glue configured as your catalog.
+
+### Step 1: Sink data from RisingWave to Iceberg
+
+Create a `SINK` in RisingWave that writes to an Iceberg table using AWS Glue as the catalog.
+
+For `upsert` streams, you must use the `copy-on-write` mode. Databricks cannot read Iceberg tables that use the merge-on-read format with delete files.
+
+```sql
+-- For an upsert stream, using copy-on-write
+CREATE SINK databricks_glue_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'glue',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    -- Required for upsert streams to be readable by Databricks
+    write_mode = 'copy-on-write'
+);
+```
+
+### Step 2: Query from Databricks
+
+Follow the Databricks documentation to [query Iceberg data from AWS Glue](https://docs.databricks.com/aws/en/query-federation/hms-federation-glue). Once configured, you can query the Iceberg table directly from Databricks.
+
+</Tab>
+</Tabs>

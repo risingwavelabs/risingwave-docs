@@ -1,0 +1,160 @@
+---
+title: "Read from Iceberg tables"
+sidebarTitle: "Read from Iceberg tables"
+description: "Read data from external Apache Iceberg tables in RisingWave for real-time analytics."
+---
+
+This guide shows how to read data from external Apache Iceberg tables in RisingWave. Use it when your Iceberg tables are managed by external systems and you want to treat them as a streaming source for real-time processing.
+
+Create an Iceberg source with the `CREATE SOURCE` statement. In the WITH clause, provide the catalog and object storage settings for the table.
+
+After the source is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
+
+## Prerequisites
+
+*   An existing Apache Iceberg table managed by external systems.
+*   Access credentials for the underlying storage system (e.g., S3 access key and secret key).
+*   Network connectivity between RisingWave and your storage system.
+*   Knowledge of your Iceberg catalog type and configuration.
+
+## Basic connection example
+
+The following example creates a source for a table in S3 using AWS Glue as the catalog:
+
+```sql
+CREATE SOURCE my_iceberg_source
+WITH (
+    connector = 'iceberg',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'analytics',
+    table.name = 'user_events',
+    catalog.type = 'glue',
+    catalog.name = 'my_glue_catalog',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2'
+);
+```
+
+<Note>
+When you read from an external Iceberg table, RisingWave automatically derives column names and data types from the Iceberg table metadata. Use the [DESCRIBE](/sql/commands/sql-describe) statement to view the schema:
+
+```sql
+DESCRIBE my_iceberg_source;
+```
+</Note>
+
+## Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `connector` | Required. For Iceberg sources, it must be `'iceberg'` | `'iceberg'` |
+| `database.name` | Required. The Iceberg database/namespace name. | `'analytics'` |
+| `table.name` | Required. The Iceberg table name. | `'user_events'` |
+| `commit_checkpoint_interval` | Optional. Determines the commit frequency (RisingWave commits every N checkpoints). | `60` |
+
+You also need to specify catalog and object storage parameters in the `CREATE SOURCE` statement. Because these parameters are shared across all Iceberg objects—sources, sinks, and internal Iceberg tables—they are documented separately.
+
+- **Object storage**: [Object storage configuration](/iceberg/object-storage)
+- **Catalogs**: [Catalog configuration](/iceberg/catalogs)
+
+For details on how data types are mapped between RisingWave and Iceberg, see the [Data type mapping guide](/iceberg/data-types).
+
+## Source example
+
+For a REST catalog:
+
+```sql
+CREATE SOURCE rest_iceberg_source
+WITH (
+    connector = 'iceberg',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    catalog.name = 'production',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2'
+);
+```
+
+## What's next?
+
+### Query data
+
+Once created, you can query data from the Iceberg source:
+
+```sql
+-- Basic query
+SELECT * FROM my_iceberg_source
+WHERE event_date >= '2024-01-01'
+LIMIT 100;
+
+-- Aggregations
+SELECT event_type, COUNT(*) as event_count
+FROM my_iceberg_source
+WHERE event_date >= '2024-01-01'
+GROUP BY event_type;
+```
+
+### Query historical snapshots of your Iceberg data
+
+Query historical snapshots of your Iceberg tables:
+
+```sql
+-- Query data as it existed at a specific timestamp
+SELECT * FROM my_iceberg_source 
+FOR SYSTEM_TIME AS OF TIMESTAMPTZ '2024-01-01 12:00:00'
+WHERE user_id = 123;
+
+-- Query a specific snapshot by ID
+SELECT COUNT(*) FROM my_iceberg_source
+FOR SYSTEM_VERSION AS OF 1234567890;
+```
+### Continuous data processing jobs
+
+You can create materialized views that continuously process data from the Iceberg source:
+
+```sql
+-- Create a materialized view for real-time aggregation
+CREATE MATERIALIZED VIEW user_event_summary AS
+SELECT 
+    user_id,
+    event_type,
+    COUNT(*) as event_count,
+    MAX(event_timestamp) as last_event_time
+FROM my_iceberg_source
+GROUP BY user_id, event_type;
+
+-- Create a table that combines Iceberg data with real-time streams
+CREATE MATERIALIZED VIEW enriched_events AS
+SELECT 
+    i.user_id,
+    i.event_type,
+    i.event_timestamp,
+    u.user_name,
+    u.user_tier
+FROM my_iceberg_source i
+JOIN user_profiles u ON i.user_id = u.user_id;
+```
+
+### Inspect Iceberg metadata through system tables
+
+Use system tables to inspect Iceberg metadata:
+
+```sql
+-- View table snapshots
+SELECT * FROM my_iceberg_source$snapshots;
+
+-- View table files
+SELECT * FROM my_iceberg_source$files;
+
+-- View table history
+SELECT * FROM my_iceberg_source$history;
+
+-- View table manifests
+SELECT * FROM my_iceberg_source$manifests;
+```
+
