@@ -25,9 +25,9 @@ WITH (
 | `s3.region_name`        | **Required**. The service region. |
 | `s3.bucket_name`        | **Required**. The name of the bucket where the sink data is stored in. |
 | `s3.path`               | **Required**. The directory where the sink file is located.|
-| `s3.credentials.access` | **Optional**. The access key ID of AWS. |
-| `s3.credentials.secret` | **Optional**. The secret access key of AWS. |
-| `enable_config_load`   | **Optional**. Set to `true` if you need to load warehouse credentials from environment variables. You must also set `DISABLE_DEFAULT_CREDENTIAL=false` as an environment variable on the Meta Node and Streaming Nodes.                                            |
+| `s3.credentials.access` | **Conditional**. Your AWS access key ID. Required if `enable_config_load` is `false` or not set.                                                                                                                                                               |
+| `s3.credentials.secret` | **Conditional**. Your AWS secret access key. Required if `enable_config_load` is `false` or not set.                                                                                                                                                                  |
+| `enable_config_load`   | **Optional**. Set to `true` to use the default AWS credential provider chain for authentication. This is useful for environments where credentials are provided through IAM roles or environment variables. If this is set to `true`, do not provide `s3.credentials.access` and `s3.credentials.secret`. You must also set the `DISABLE_DEFAULT_CREDENTIAL=false` environment variable on the Meta and Streaming Nodes. |
 | `s3.endpoint_url`       | **Optional**. The host URL for an S3-compatible object storage server. This allows users to use a different server instead of the standard S3 server.|
 | `s3.assume_role`        | **Optional**. Specifies the ARN of an IAM role to assume when accessing S3. It allows temporary, secure access to S3 resources without sharing long-term credentials. |
 | `type`                  | **Required**. Defines the type of the sink. The S3 sink only supports `append-only`|
@@ -42,8 +42,8 @@ WITH (
     s3.path = '<test_path>',
     s3.region_name = '<region_name>',
     s3.bucket_name = '<bucket_name>',
-    s3.credentials.account_name = '<account_name>',
-    s3.credentials.account_key = '<account_key>',
+    s3.credentials.access = '<access_key_id>',
+    s3.credentials.secret = '<secret_access_key>',
     s3.endpoint_url = '<endpoint_url>',
     type = 'append-only',
 )FORMAT PLAIN ENCODE PARQUET(force_append_only=true);
