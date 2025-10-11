@@ -1,10 +1,10 @@
 ---
-title: "Write to Iceberg tables"
-sidebarTitle: "Write to Iceberg tables"
-description: "Learn how to write data in RisingWave into external Iceberg tables."
+title: "Deliver data to Iceberg tables"
+sidebarTitle: "Deliver data to Iceberg tables"
+description: "Learn how to deliver data in RisingWave to external Iceberg tables."
 ---
 
-This guide explains how to stream processed data from RisingWave into existing Iceberg tables. Use this when you have Iceberg tables managed by external systems and want RisingWave to deliver processed results into them.
+This guide explains how to deliver processed data from RisingWave into existing Iceberg tables. Use this when you have Iceberg tables managed by external systems and want RisingWave to deliver processed results into them.
 
 ## Prerequisites
 
@@ -51,56 +51,12 @@ For detailed storage and catalog configuration:
 - **Object storage**: [Object storage configuration](/iceberg/object-storage)
 - **Catalogs**: [Catalog configuration](/iceberg/catalogs)
 
-## Advanced features
-
-### Exactly-once delivery
-
-Enable exactly-once delivery semantics for critical data pipelines:
-
-```sql
-CREATE SINK critical_data FROM important_events
-WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'event_id',
-    is_exactly_once = 'true',
-    warehouse.path = 's3://data-lake/warehouse',
-    database.name = 'critical',
-    table.name = 'events',
-    catalog.type = 'glue',
-    s3.access.key = 'your-access-key',
-    s3.secret.key = 'your-secret-key'
-);
-```
-
-<Note>
-Enabling exactly-once delivery provides stronger consistency guarantees but may impact performance due to additional coordination overhead.
-</Note>
-
-### Commit configuration
-
-Control commit frequency and retry behavior:
-
-```sql
-CREATE SINK configurable_sink FROM my_data
-WITH (
-    connector = 'iceberg',
-    type = 'append-only',
-    commit_checkpoint_interval = 10,  -- Commit every 10 checkpoints
-    commit_retry_num = 5,            -- Retry failed commits 5 times
-    warehouse.path = 's3://data-lake/warehouse',
-    database.name = 'analytics',
-    table.name = 'metrics',
-    catalog.type = 'glue',
-    s3.access.key = 'your-access-key',
-    s3.secret.key = 'your-secret-key'
-);
-```
-
-The approximate time to commit is calculated as:
+You can configure `commit_checkpoint_interval` and `commit_retry_num` to manage commit frequency and retry behavior. The approximate time to commit is calculated as:
 ```
 time = barrier_interval_ms × checkpoint_frequency × commit_checkpoint_interval
 ```
+
+For details about `barrier_interval_ms` and `checkpoint_frequency`, see [`ALTER DATABASE`](/sql/commands/sql-alter-database#set).
 
 ## Table maintenance
 
@@ -108,88 +64,7 @@ When you continuously sink data to an Iceberg table, it is important to perform 
 
 RisingWave provides both automatic and manual maintenance options. For complete details, see the [Iceberg table maintenance](/iceberg/maintenance) guide.
 
-## Integration patterns
-
-### Real-time analytics pipeline
-
-Stream aggregated results to analytics tables:
-
-```sql
--- Process real-time events
-CREATE MATERIALIZED VIEW hourly_metrics AS
-SELECT 
-    user_id,
-    date_trunc('hour', event_timestamp) as hour,
-    COUNT(*) as event_count,
-    COUNT(DISTINCT session_id) as session_count
-FROM user_events
-GROUP BY user_id, date_trunc('hour', event_timestamp);
-
--- Sink to data lake for analytics
-CREATE SINK analytics_sink FROM hourly_metrics
-WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'user_id,hour',
-    warehouse.path = 's3://analytics-lake/warehouse',
-    database.name = 'metrics',
-    table.name = 'hourly_user_metrics',
-    catalog.type = 'glue',
-    s3.access.key = 'your-access-key',
-    s3.secret.key = 'your-secret-key'
-);
-```
-
-### Change data capture
-
-Stream database changes to data lake:
-
-```sql
--- CDC from PostgreSQL
-CREATE SOURCE user_changes
-WITH (
-    connector = 'postgres-cdc',
-    hostname = 'postgres',
-    port = '5432',
-    username = 'user',
-    password = 'password',
-    database.name = 'app_db',
-    schema.name = 'public'
-);
-
-CREATE TABLE users (
-    user_id INT PRIMARY KEY,
-    username VARCHAR,
-    email VARCHAR,
-    created_at TIMESTAMPTZ
-)
-FROM user_changes TABLE 'users';
-
--- Stream to data lake
-CREATE SINK user_lake_sink FROM users
-WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'user_id',
-    warehouse.path = 's3://data-lake/warehouse',
-    database.name = 'raw',
-    table.name = 'users',
-    catalog.type = 'glue'
-);
-```
-
-## Best practices
-
-1. **Choose appropriate sink mode**: Use append-only for event logs, upsert for dimensional data.
-2. **Configure commit intervals**: Balance latency vs file size based on your requirements.
-3. **Enable exactly-once for critical data**: Use for financial transactions or other critical data.
-4. **Monitor sink lag**: Track how far behind your sink is from the source data.
-5. **Design proper partitioning**: Ensure target tables are properly partitioned for query performance.
-6. **Handle backpressure**: Monitor sink performance and adjust resources as needed.
-
-## Monitoring and troubleshooting
-
-### Monitor sink performance
+## Monitoring
 
 ```sql
 -- Check sink status
@@ -199,13 +74,3 @@ SHOW SINKS;
 DESCRIBE SINK my_iceberg_sink;
 ```
 
-## Limitations
-
-- **Schema evolution**: Limited support for automatic schema changes.
-- **Concurrent writers**: Coordinate with other systems writing to the same tables.
-
-## Next steps
-
-- **Ingest from Iceberg**: Set up sources with [Ingest from Iceberg](/iceberg/ingest-from-iceberg).
-- **Configure catalogs**: Review [Catalog configuration](/iceberg/catalogs) for your setup.
-- **Storage setup**: Configure your object storage in [Object storage configuration](/iceberg/object-storage).

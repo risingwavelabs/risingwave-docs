@@ -1,231 +1,28 @@
 ---
 title: "Integrate Apache Iceberg with RisingWave"
 sidebarTitle: "Overview"
-description: "Learn how to integrate Apache Iceberg with RisingWave to unify real-time processing and data lake storage. Explore how to connect RisingWave to existing Iceberg tables managed by external systems, as well as how to create and manage Iceberg tables directly within RisingWave."
+description: "Learn how to integrate Apache Iceberg with RisingWave to unify real-time data processing and data lake storage. Explore how to create and manage Iceberg tables in RisingWave, and how to connect RisingWave to Iceberg tables managed by external systems."
 ---
-Apache Iceberg is an open table format that provides reliable, high-performance storage for data lakes.
+RisingWave supports two integration modes with Apache Iceberg: **RisingWave-managed Iceberg tables** (often called internal Iceberg tables in this documentation) and **externally managed Iceberg tables**.
 
-RisingWave integrates with Iceberg to combine real-time computation with open data lake storage.
+In **RisingWave-managed Iceberg tables**, RisingWave manages the entire lifecycle of the Iceberg tables, including the catalog, compaction, and ingestion processes. RisingWave provides a PostgreSQL-compatible interface for accessing Iceberg data and ensures interoperability with all major query engines. This mode offers the simplest way to build a Medallion architecture.
 
-You can work with **external Iceberg tables** managed by other systems or create **internal Iceberg tables** managed directly by RisingWave.
+In **externally managed Iceberg tables**, RisingWave connects to Iceberg tables managed by external systems. RisingWave can both read from and write to these tables, enabling seamless data exchange across different environments.
 
-## External Iceberg tables
+## RisingWave in a medallion architecture
 
-External Iceberg tables are managed outside of RisingWave, such as S3 Tables, Snowflake-managed Iceberg tables, Databricks-managed Iceberg tables, or self-managed Iceberg deployments.
+RisingWave bridges **real-time streaming systems** with **Iceberg-based data lakes**.
 
-RisingWave connects to these tables through their catalogs and treats them as data sources or data sinks.
+It acts as the continuous **ingestion and transformation layer** in a Medallion architecture, where data flows from raw sources into refined, query-ready Iceberg tables through incremental computation and cascading materialized views.
 
-![image.png](/iceberg/images/external-iceberg-tables.png)
-
-### Reading from external Iceberg tables
-
-RisingWave can continuously read data from append-only Iceberg tables.
-
-It monitors snapshots and automatically loads newly appended data, allowing you to consume the table as a live data stream.
-
-**Example**
-
-```sql
-CREATE SOURCE orders_src
-WITH (
-  connector = 'iceberg',
-  warehouse.path = 's3://lakehouse/warehouse',
-  database.name = 'sales',
-  table.name = 'orders',
-  catalog.type = 'glue',
-  s3.region = 'us-west-2'
-);
-
-```
-
-### Ad hoc analytics on Iceberg data
-
-After the source is created, you can query it directly with SQL.
-
-RisingWave retrieves the current snapshot of the Iceberg table at query time.
-
-```sql
--- Inspect recent orders for a specific product
-SELECT order_id, user_id, amount, order_ts
-FROM orders_src
-WHERE product_id = 12345
-ORDER BY order_ts DESC
-LIMIT 20;
-
--- Aggregate daily revenue over the past week
-SELECT date_trunc('day', order_ts) AS day, SUM(amount) AS revenue
-FROM orders_src
-WHERE order_ts >= now() - interval '7 days'
-GROUP BY 1
-ORDER BY day;
-```
-
-These queries run instantly on the latest Iceberg snapshot, making RisingWave useful for interactive analytics without setting up a separate ETL process.
-
-### Continuous analytics with materialized views
-
-For real-time, incremental analytics, create a materialized view on the Iceberg source.
-
-RisingWave automatically keeps the view up to date as new snapshots are committed to the Iceberg table.
-
-```sql
-CREATE MATERIALIZED VIEW mv_daily_sales AS
-SELECT
-  date_trunc('day', order_ts) AS day,
-  SUM(amount) AS total_sales,
-  COUNT(DISTINCT user_id) AS active_users
-FROM orders_src
-GROUP BY 1;
-```
-
-The materialized view keeps results up to date as RisingWave ingests new Iceberg snapshots.
-
-You can query the view directly:
-
-```sql
-SELECT * FROM mv_daily_sales ORDER BY day DESC LIMIT 10;
-
-```
-
-This approach provides low-latency analytics on Iceberg data while maintaining compatibility with the underlying catalog and storage system.
-
-### Writing to external Iceberg tables
-
-RisingWave can also write query results or materialized view outputs to Iceberg tables.
-
-The resulting data remains fully compatible with other Iceberg engines such as Spark, Trino, and DuckDB.
-
-- Supports `append-only`, `upsert`, and `force-append-only` data modes
-- Guarantees exactly-once delivery
-- Can perform optional file compaction for efficiency
-
-**Example**
-
-```sql
-CREATE SINK daily_sales_sink FROM mv_daily_sales
-WITH (
-  connector = 'iceberg',
-  type = 'append-only',
-  warehouse.path = 's3://lakehouse/warehouse',
-  database.name = 'sales',
-  table.name = 'daily_sales',
-  catalog.type = 'rest',
-  catalog.uri = 'http://lakekeeper:8181',
-  enable_compaction = true
-);
-
-```
-
-With this configuration, RisingWave acts as a real-time transformation layer between streaming systems and Iceberg storage.
-
-## Internal Iceberg tables
-
-![image.png](/iceberg/images/internal-iceberg-tables.png)
-
-Internal Iceberg tables are created and managed directly by RisingWave.
-
-They behave like standard RisingWave tables but store their data in Iceberg format on object storage.
-
-This allows you to persist computed or aggregated results in an open format that can be accessed by other query engines.
-
-
-### Creating internal Iceberg tables
-
-You can create internal Iceberg tables using standard SQL syntax.
-
-```sql
-CREATE TABLE fact_orders (
-  order_id BIGINT,
-  user_id BIGINT,
-  amount DOUBLE,
-  ts TIMESTAMP
-) ENGINE = iceberg;
-```
-
-RisingWave automatically manages schema, metadata, and data persistence.
-
-Data is stored in Parquet format and can be queried by any Iceberg-compatible engine such as Spark, Trino, or DuckDB.
-
-You can query, join, and build materialized views on internal tables just like any other RisingWave table.
-
-### Catalog service
-
-RisingWave provides two hosted catalog options for managing Iceberg metadata, schema versions, and table state:
-
-- **JDBC hosted catalog** — backed by RisingWave’s internal PostgreSQL-compatible metastore. See [JDBC hosted catalog](/iceberg/hosted-catalog-jdbc)
-- **REST hosted catalog** — powered by Lakekeeper and compatible with the Iceberg REST catalog API. See [REST hosted catalog](/iceberg/hosted-catalog-rest)
-
-Both options allow external Iceberg engines to read and write RisingWave-managed tables using standard Iceberg protocols.
-
-If you prefer to use an existing metadata system, RisingWave also supports external catalogs such as AWS Glue, Hive Metastore, or Nessie. For details, see [Catalog configuration](/iceberg/catalogs).
-
-### Compaction service
-
-RisingWave provides a built-in **compaction service** that automatically merges small Parquet files, expires outdated snapshots, and maintains efficient file layouts.
-
-This ensures good query performance and stable storage usage during continuous ingestion.
-
-Using RisingWave’s compaction service is optional.
-
-You can also connect an **external compactor** such as Tabular’s Iceberg compactor, Databricks-managed compaction, Amazon EMR, or a self-hosted Spark job.
-
-When using an external compactor, RisingWave writes data in a compaction-friendly format that allows other systems to safely perform maintenance.
-
-Compaction can be enabled or disabled per table or configured globally depending on performance and cost requirements.
-
-
-### Catalog and compaction summary
-
-| Component | Default Option | Alternative Options | Description |
-| --- | --- | --- | --- |
-| **Catalog service** | RisingWave built-in REST catalog | Glue, Hive, Nessie, or custom REST catalogs | Stores metadata and schema information |
-| **Compaction service** | RisingWave built-in compactor | Amazon EMR, or self-hosted Spark | Optimizes file layout and merges small Parquet files |
-
-
-## Typical architecture
-
-```
-[ Kafka / CDC / APIs ]
-          |
-          v
-    RisingWave SQL Engine
-   ├─ Reads from external Iceberg
-   ├─ Performs real-time computation
-   ├─ Builds materialized views
-   └─ Writes results to internal or external Iceberg
-          |
-          v
-[ Iceberg Tables in Object Storage ]
-
-```
-
-RisingWave connects streaming systems with Iceberg-based data lakes.
-
-Use external Iceberg tables to analyze or enrich existing datasets, and internal Iceberg tables to persist computed results in an open, queryable format.
-
-## Summary
-
-| Capability | External Iceberg Tables | Internal Iceberg Tables |
-| --- | --- | --- |
-| Read support | Continuous and ad-hoc queries | Supported |
-| Write support | Append, upsert, or force-append-only | Fully managed by RisingWave |
-| Catalog ownership | External system | RisingWave or external catalog |
-| Compaction | Optional via sink or external compactor | Optional via RisingWave or external compactor |
-| Interoperability | Compatible with other Iceberg engines | Compatible with Iceberg standard |
-| Typical use | Connect to existing Iceberg data | Persist computed or aggregated data |
-
-## Choosing between external and internal tables
-
-- Use **external Iceberg tables** if you already have an Iceberg environment such as S3 Tables, Snowflake, or Databricks, and want RisingWave to process or update that data.
-- Use **internal Iceberg tables** if you want RisingWave to handle both computation and Iceberg data management with its built-in catalog and compaction services.
-- Combine both approaches to build a unified, real-time lakehouse architecture.
+![image](/iceberg/images/rw-lakehouse.png)
 
 ## Next steps
 
-- Read from Iceberg tables
-- Write to Iceberg tables
-- Create and manage internal Iceberg tables
-- Configure catalogs and compaction services
+- Learn more about the [internal Iceberg tables](/iceberg/ov-internal) and [external Iceberg tables](/iceberg/ov-external).
+- [Create and manage internal Iceberg tables](/iceberg/internal-iceberg-tables)
+- [Ingest data from Iceberg tables](/iceberg/read-from-iceberg)
+- [Deliver to Iceberg tables](/iceberg/write-to-iceberg)
 
 
 

@@ -1,0 +1,48 @@
+---
+title: "Internal Iceberg tables"
+sidebarTitle: "Overview"
+description: " "
+---
+
+Internal Iceberg tables are created and managed directly by RisingWave.
+
+They behave like standard RisingWave tables but store their data in the Apache Iceberg format on object storage.
+
+This allows you to persist computed or aggregated results in an open, queryable format that can be accessed by any Iceberg-compatible engine.
+
+RisingWave acts as the ingestion and transformation layer in modern data lakehouse architectures:
+
+- Ingestion can be implemented as ETL or ELT pipelines that continuously write data into Iceberg tables.
+- Transformation is powered by RisingWave’s incremental materialized views, enabling efficient, cascading updates across multiple layers of derived data.
+
+This design makes RisingWave suitable for implementing the Medallion architecture. Users can flexibly use RisingWave to build real-time pipelines, maintain derived datasets, or serve analytical workloads on top of Iceberg.
+
+### Hosted catalog services
+
+RisingWave provides two hosted catalog options for managing Iceberg metadata, schema versions, and table state:
+
+- JDBC hosted catalog — backed by RisingWave’s internal PostgreSQL-compatible metastore. See [JDBC hosted catalog](/iceberg/hosted-catalog-jdbc).
+- REST hosted catalog — powered by Lakekeeper and compatible with the Iceberg REST catalog API. See [REST hosted catalog](/iceberg/hosted-catalog-rest).
+
+Both options allow external Iceberg engines to read and write RisingWave-managed tables using standard Iceberg protocols.
+
+If you prefer to use an existing metadata system, RisingWave also supports external catalogs such as AWS Glue, Hive Metastore, or Nessie. See [Catalog configuration](/iceberg/catalogs) for details.
+
+### Compaction service
+
+RisingWave provides a managed compaction service that helps maintain table health by performing compaction and snapshot expiration.
+
+- **Compaction**: Merges small data files into larger, optimized files to improve read performance.
+- **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
+
+You can enable automatic maintenance to run periodically or trigger it manually using the `VACUUM` command. Using RisingWave's service is optional, and you can also connect an external compactor from providers like Databricks, Tabular, or AWS EMR, or use a self-hosted Spark job.
+
+For complete details on configuration, see the [Iceberg table maintenance](/iceberg/maintenance).
+
+### Catalog and compaction summary
+
+| Component | RisingWave Native Options | Alternative Options | Description |
+| --- | --- | --- | --- |
+| **Catalog service** | RisingWave hosted JDBC and REST catalogs | Glue, Hive, Nessie, or custom REST catalogs | Stores metadata and schema information |
+| **Compaction service** | RisingWave's built-in compaction service | External services (Databricks, Tabular, EMR) or self-hosted Spark | Merges small files and expires old snapshots |
+
