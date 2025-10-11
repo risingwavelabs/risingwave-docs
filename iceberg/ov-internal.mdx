@@ -17,7 +17,15 @@ RisingWave acts as the ingestion and transformation layer in modern data lakehou
 
 This design makes RisingWave suitable for implementing the Medallion architecture. Users can flexibly use RisingWave to build real-time pipelines, maintain derived datasets, or serve analytical workloads on top of Iceberg.
 
-### Hosted catalog services
+![RisingWave in the Medallion architecture](/iceberg/images/rw-lakehouse.png)
+
+For example, you can implement the three layers of the Medallion architecture as follows:
+
+- Use internal Iceberg tables as the Bronze layer for raw data storage.
+- Use materialized views as the Silver layer to filter and transform data.
+- Use cascading materialized views (built on top of the Silver layer MVs) as the Gold layer to aggregate and enrich data for analytics.
+
+## Hosted catalog services
 
 RisingWave provides two hosted catalog options for managing Iceberg metadata, schema versions, and table state:
 
@@ -28,7 +36,7 @@ Both options allow external Iceberg engines to read and write RisingWave-managed
 
 If you prefer to use an existing metadata system, RisingWave also supports external catalogs such as AWS Glue, Hive Metastore, or Nessie. See [Catalog configuration](/iceberg/catalogs) for details.
 
-### Compaction service
+## Compaction service
 
 RisingWave provides a managed compaction service that helps maintain table health by performing compaction and snapshot expiration.
 
@@ -39,10 +47,9 @@ You can enable automatic maintenance to run periodically or trigger it manually 
 
 For complete details on configuration, see the [Iceberg table maintenance](/iceberg/maintenance).
 
-### Catalog and compaction summary
+## Catalog and compaction summary
 
 | Component | RisingWave Native Options | Alternative Options | Description |
 | --- | --- | --- | --- |
 | **Catalog service** | RisingWave hosted JDBC and REST catalogs | Glue, Hive, Nessie, or custom REST catalogs | Stores metadata and schema information |
 | **Compaction service** | RisingWave's built-in compaction service | External services (Databricks, Tabular, EMR) or self-hosted Spark | Merges small files and expires old snapshots |
-
