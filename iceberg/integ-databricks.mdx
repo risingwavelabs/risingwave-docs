@@ -15,6 +15,7 @@ This guide shows how to sink data from RisingWave into an Apache Iceberg table a
 This pattern is ideal when you want to manage your Iceberg tables centrally within the Databricks ecosystem. RisingWave acts as a streaming ETL engine, writing data directly into your Unity Catalog.
 
 **How it works**
+
 RisingWave → Iceberg table on S3 → Databricks Unity Catalog
 
 ### Prerequisites
@@ -25,7 +26,7 @@ RisingWave → Iceberg table on S3 → Databricks Unity Catalog
 
 ### Step 1: Configure Unity Catalog for external access
 
-1. Follow the Databricks documentation to [configure your Unity Catalog metastore](https://docs.databricks.com/aws/en/external-access/admin#external-data-access) to allow external clients like RisingWave to access it.
+1. Follow the Databricks documentation to [configure your Unity Catalog metastore](https://docs.databricks.com/aws/en/external-access/admin#external-data-access) to allow external clients like RisingWave to access it. You can also [configure external managed locations](https://docs.databricks.com/aws/en/connect/unity-catalog/cloud-storage/managed-storage) at the catalog and table levels.
 
 2. [Acquire the necessary credentials](https://docs.databricks.com/aws/en/external-access/iceberg) to connect. You will need the following parameters for your sink:
     - `catalog.uri`: The REST endpoint for your Unity Catalog.
@@ -47,7 +48,7 @@ WITH (
   database.name = '<your-schema-name>',
   table.name = '<your-table-name>',
   s3.region = 'ap-southeast-1',
-  catalog.type = 'rest',
+  catalog.type = 'rest_rust',
   catalog.uri = 'https://<workspace-url>/api/2.1/unity-catalog/iceberg-rest',
   catalog.oauth2_server_uri = 'https://<workspace-url>/oidc/v1/token',
   catalog.credential= '<oauth_client_id>:<oauth_client_secret>',
