@@ -29,13 +29,13 @@ NAME       NAMESPACE  REVISION UPDATED                                  STATUS  
 risingwave default     21       2023-09-20 13:20:58.389424056 +0000 UTC  deployed risingwave-0.1.16 v1.3.0
 ```
 
-1. Update the local cache of available charts (packages) from the configured Helm chart repositories:
+2. Update the local cache of available charts (packages) from the configured Helm chart repositories:
 
 ```bash
 helm repo update
 ```
 
-1. Check for available versions of RisingWave Helm charts:
+3. Check for available versions of RisingWave Helm charts:
 
 ```bash
 helm search repo risingwavelabs/risingwave -l
@@ -48,7 +48,7 @@ risingwavelabs/risingwave          0.1.15        v1.1.2      The distributed str
 risingwavelabs/risingwave          0.1.14        v1.1.1      The distributed streaming database SQL stream p...
 ```
 
-1. Upgrade RisingWave. You can upgrade to the latest version or a particular version.
+4. Upgrade RisingWave. You can upgrade to the latest version or a particular version.
 
 To upgrade to the latest version:
 
@@ -83,13 +83,13 @@ NAME         META STORE   STATE STORE   VERSION   RUNNING   AGE
 risingwave   Etcd         S3            v1.3.0    True      2m20s
 ```
 
-1. Upgrade the image version. Remember to replace `<target-version>` with the target image version.
+2. Upgrade the image version. Remember to replace `<target-version>` with the target image version.
 
 ```bash
 kubectl patch risingwave <risingwave-cluster> --type='merge' -p '{"spec": {"image": "ghcr.io/risingwavelabs/risingwave:<target-version>"}}'
 ```
 
-1. Wait until all pods are recreated and the `Upgrading` condition becomes `False` or empty.
+3. Wait until all pods are recreated and the `Upgrading` condition becomes `False` or empty.
 
 ```bash
 kubectl wait --for=condition=Upgrading=false risingwave/<risingwave-cluster>
