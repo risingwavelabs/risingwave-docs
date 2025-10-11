@@ -1,31 +1,27 @@
 ---
 title: "Create and manage internal Iceberg tables"
-sidebarTitle: "Internal Iceberg tables"
+sidebarTitle: "Create and manage internal Iceberg tables"
 description: "Create and manage internal Iceberg tables in RisingWave. Persist data in an open format that is fully managed by RisingWave and queryable by external tools."
 ---
 
-You can create and manage Apache Iceberg tables directly in RisingWave. When you create an internal Iceberg table, RisingWave handles its lifecycle, while the underlying data is stored in the open Apache Iceberg format in an object store you configure.
-
-This approach allows you to persist data in an open format that is directly queryable by other tools and provides several benefits:
-
-- **Fully managed**: Interact with the table like any other RisingWave table for querying, inserting, and building materialized views.
-- **Open storage**: Data is stored in the standard Iceberg format, ensuring compatibility with external query engines like Spark, Trino, Flink, and Dremio.
-- **Simplified pipelines**: Ingest data from a stream directly into an Iceberg table without a separate `CREATE SINK` step to a different system.
+You can create and manage Apache Iceberg tables directly in RisingWave. When you create an internal Iceberg table (that is, a RisingWave-managed Iceberg table), RisingWave handles its lifecycle, while the underlying data is stored in the open Apache Iceberg format in an object store you configure.
 
 ## Create an internal Iceberg table
 
 Creating and using an internal Iceberg table is a two-step process: first, you define the storage and catalog details in a `CONNECTION` object, and then you create the table itself.
 
-### Step 1: Create a connection
+### Step 1: Create an Iceberg Connection
 
-An Iceberg `CONNECTION` contains the catalog and object storage configuration. The following examples show how to create a connection for different catalog types.
+An Iceberg `CONNECTION` defines the catalog and object storage configuration.
 
-<Note>
-These examples use S3 for object storage. For details on configuring other backends like GCS or Azure Blob Storage, see the [Object storage](/iceberg/object-storage) guide. For enhanced security, you can store credentials as secrets using [CREATE SECRET](/sql/commands/sql-create-secret).
-</Note>
+You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based hosted catalog, set `hosted_catalog` to `true`.
+
+You can also set the optional `commit_checkpoint_interval` parameter to control the commit frequency. For example, setting it to `10` means RisingWave will commit data every 10 checkpoints.
+
+The following tabs show examples for different catalog types. For a complete list of parameters, refer to [Catalog configuration](/iceberg/catalogs).
 
 <Tabs>
-    <Tab title="Hosted catalog (default)">
+    <Tab title="Hosted catalog - JDBC">
     For the simplest setup, use RisingWave's built-in JDBC-based hosted catalog. This requires no external dependencies.
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
@@ -95,11 +91,10 @@ These examples use S3 for object storage. For details on configuring other backe
     </Tab>
 </Tabs>
 
-For complete details on catalog parameters, see [Catalog configuration](/iceberg/catalogs).
 
-### Step 2: Create the table
+### Step 2: Create an internal Iceberg table
 
-Create a table using the `ENGINE = iceberg` clause and associate it with your connection. To simplify creation, you can set a default connection for your session.
+Create an internal Iceberg table using the `ENGINE = iceberg` clause and associate it with your connection. To simplify creation, you can set a default connection for your session.
 
 ```sql
 -- Option 1: Set a default connection for the session
@@ -122,25 +117,51 @@ CREATE TABLE user_events (
   WITH (connection = 'my_iceberg_conn');
 ```
 
+You can also define a partition strategy in the `WITH` clause to optimize query performance.
+
+```sql
+CREATE TABLE partitioned_events (
+    user_id INT,
+    event_type VARCHAR,
+    event_date DATE,
+    PRIMARY KEY (event_date, user_id)
+) WITH (
+    partition_by = 'event_date'
+) ENGINE = iceberg;
+```
+
+Supported partitioning strategies include by column, by multiple columns, and by applying transforms like `bucket(n, column)` or `truncate(n, column)`. The partition key must be a prefix of the primary key.
+
 ## Work with internal tables
 
 Once created, an internal Iceberg table behaves like any other table in RisingWave.
 
-### Writing data
+### Ingest data
 
-You can write data using standard `INSERT` statements or by streaming data from a source using `CREATE SINK ... INTO`.
+You can ingest data using standard `INSERT` statements or by streaming data from a source using `CREATE SINK ... INTO`.
 
-```sql
--- Insert data directly
+```sql 
+-- Manual inserts
 INSERT INTO user_events VALUES (1, 'login', '2024-01-01 10:00:00Z');
 
 -- Stream data from a Kafka source into the table
-CREATE SINK insert_into_iceberg INTO user_events AS
-SELECT user_id, event_type, event_time
-FROM user_activity_stream;
+CREATE SOURCE sales_src (
+  item_id INT,
+  customer_id INT,
+  price DOUBLE,
+  ts TIMESTAMP
+) WITH (
+  connector = 'kafka',
+  topic = 'sales_events',
+  properties.bootstrap.server = 'kafka:9092'
+) FORMAT PLAIN ENCODE JSON;
+
+CREATE SINK to_sales_events INTO sales_events AS
+SELECT item_id, customer_id, price, ts
+FROM sales_src;
 ```
 
-### Querying data
+### Query data
 
 Query the table directly with `SELECT` or use it as a source for a materialized view.
 
@@ -168,39 +189,6 @@ SELECT * FROM user_events FOR SYSTEM_TIME AS OF TIMESTAMPTZ '2024-01-01 12:00:00
 SELECT * FROM user_events FOR SYSTEM_VERSION AS OF 1234567890;
 ```
 
-## Advanced configuration
-
-### Partitioning
-
-Define a partition strategy in the `WITH` clause to optimize query performance.
-
-```sql
-CREATE TABLE partitioned_events (
-    user_id INT,
-    event_type VARCHAR,
-    event_date DATE,
-    PRIMARY KEY (event_date, user_id)
-) WITH (
-    partition_by = 'event_date'
-) ENGINE = iceberg;
-```
-
-Supported partitioning strategies include by column, by multiple columns, and by applying transforms like `bucket(n, column)` or `truncate(n, column)`. The partition key must be a prefix of the primary key.
-
-### Commit interval
-
-Control how frequently data is committed to the Iceberg table by setting `commit_checkpoint_interval` in the `CONNECTION`.
-
-```sql
-CREATE CONNECTION my_iceberg_conn WITH (
-    type = 'iceberg',
-    warehouse.path = 's3://my-bucket/warehouse/',
-    -- ... other properties
-    hosted_catalog = true,
-    commit_checkpoint_interval = 10  -- Commit every 10 checkpoints
-);
-```
-
 ## Table maintenance
 
 To maintain good performance and manage storage costs, internal Iceberg tables require periodic maintenance, including compaction and snapshot expiration.
@@ -218,6 +206,6 @@ spark.sql("SELECT * FROM iceberg_catalog.your_database.user_events")
 
 ## Limitations
 
-- **Limited DDL**: Advanced schema evolution operations are not yet supported.
-- **Single writer**: To ensure data consistency, only RisingWave should write to internal Iceberg tables.
+- Advanced schema evolution operations are not yet supported.
+- To ensure data consistency, only RisingWave should write to internal Iceberg tables.
 
