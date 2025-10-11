@@ -83,9 +83,11 @@ auto_schema_change = true
 ```
 
 
-## Primary keys and Elasticsearch IDs
+## Notes about primary keys and Elasticsearch IDs
 
 The Elasticsearch sink defaults to the `upsert` sink type. It does not support the `append-only` sink type.
+
+The Elasticsearch sink detects column-level changes during upserts and sends only the modified columns, helping reduce the load on Elasticsearch.
 
 If you want to customize your Elasticsearch ID, please specify it via the `primary_key` parameter. RisingWave will combine multiple primary key values into a single string with the delimiter you set, and use it as the Elasticsearch ID.
 
