@@ -26,6 +26,6 @@ Our meta is designed for a multi-node solution. The election at the underlying l
 
 Moreover, we currently only support the behavior of upgrading from follower to leader. Our meta does not support downgrading from leader to follower. If our leader loses leadership, we’re helpless and must actively exit as quickly as possible to prevent inconsistencies brought by two leaders (such as in the case of barrier manager).
 
-Therefore, this behavior heavily relies on the performance of etcd. When etcd is deployed in environments such as mechanical disks, virtual disks, or network disks, if there’s a massive amount of traffic in risingwave leading to high-load writes by meta on etcd, this will cause a large number of timeouts in etcd. This can lead to consecutive failures of election keep alive, thereby leading to our active exit.
+Therefore, this behavior heavily relies on the performance of etcd. When etcd is deployed in environments such as mechanical disks, virtual disks, or network disks, if there’s a massive amount of traffic in RisingWave leading to high-load writes by meta on etcd, this will cause a large number of timeouts in etcd. This can lead to consecutive failures of election keep alive, thereby leading to our active exit.
 
 Therefore, when we only have one Meta Node, this election behavior is actually unnecessary. We can set the election lease to an infinitely large value, even to one whole day as 86400 seconds.
