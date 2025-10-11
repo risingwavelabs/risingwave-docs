@@ -1,0 +1,493 @@
+---
+title: "Sink data from RisingWave to SQL Server"
+sidebarTitle: SQL Server
+---
+
+[Microsoft SQL Server](https://www.microsoft.com/en-us/sql-server) is a relational database management system developed by Microsoft. As a database server, it is a software product with the primary function of storing and retrieving data as requested by other software applications—which may run either on the same computer or on another computer across a network.
+
+The SQL Server sink connector provides:
+- **Real-time data delivery**: Stream data changes directly to SQL Server
+- **Scalable writes**: Handle high-throughput write operations with batch processing
+- **Flexible data mapping**: Map RisingWave columns to SQL Server data types
+- **Transaction support**: ACID-compliant operations with proper transaction handling
+- **Batch processing**: Optimize write performance with configurable batch operations
+- **Error handling**: Robust error handling and retry mechanisms
+
+## Prerequisites
+
+Before sinking data from RisingWave to SQL Server, please ensure the following:
+
+* The SQL Server database you want to sink to is accessible from RisingWave.
+* Ensure you have an upstream materialized view or source in RisingWave that you can sink data from.
+* SQL Server authentication is properly configured (Windows or SQL Server authentication).
+* The target table exists in SQL Server with compatible schema.
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector='sqlserver',
+   connector_parameter = 'value', ...
+);
+```
+
+## Parameters
+
+| Parameter Name | Description | Required | Default |
+| :------------- | :---------- | :------- | :------ |
+| sqlserver.host | **Required**. SQL Server hostname or IP address. | Yes | |
+| sqlserver.port | SQL Server port number. | No | 1433 |
+| sqlserver.user | **Required**. SQL Server username for authentication. | Yes | |
+| sqlserver.password | **Required**. SQL Server password for authentication. | Yes | |
+| sqlserver.database | **Required**. Target database name. | Yes | |
+| sqlserver.table | **Required**. Target table name. | Yes | |
+| sqlserver.schema | Target schema name. | No | dbo |
+| sqlserver.max_batch_rows | Maximum number of rows per batch operation. | No | 1024 |
+| type | **Required**. Sink type: `append-only` or `upsert`. | Yes | |
+| primary_key | **Required for upsert**. Primary key columns, comma-separated. | No (required for upsert) | |
+
+## Configuration examples
+
+### Basic SQL Server sink
+
+```sql
+CREATE SINK sqlserver_basic_sink
+FROM user_activity_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'sqlserver.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'risingwave_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'analytics_db',
+    sqlserver.table = 'user_activity',
+    primary_key = 'user_id,activity_timestamp'
+);
+```
+
+### SQL Server with Windows Authentication
+
+```sql
+CREATE SINK sqlserver_windows_auth_sink
+FROM metrics_mv
+WITH (
+    connector='sqlserver',
+    type = 'append-only',
+    sqlserver.host = 'sqlserver.corp.local',
+    sqlserver.port = '1433',
+    sqlserver.user = 'CORP\\risingwave_service',
+    sqlserver.password = 'service_password',
+    sqlserver.database = 'metrics_db',
+    sqlserver.table = 'application_metrics'
+);
+```
+
+### High-performance batch processing
+
+```sql
+CREATE SINK sqlserver_performance_sink
+FROM high_volume_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'sqlserver-cluster.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'analytics_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'high_volume_db',
+    sqlserver.table = 'performance_metrics',
+    sqlserver.max_batch_rows = '2048',
+    primary_key = 'metric_id,timestamp'
+);
+```
+
+### Cross-database schema configuration
+
+```sql
+CREATE SINK sqlserver_cross_db_sink
+FROM analytics_data_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'analytics-server.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'analytics_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'analytics_db',
+    sqlserver.schema = 'reporting',
+    sqlserver.table = 'daily_analytics',
+    primary_key = 'report_date,metric_name'
+);
+```
+
+## Write modes
+
+### Append-only mode
+
+```sql
+CREATE SINK sqlserver_append_sink
+FROM events_mv
+WITH (
+    connector='sqlserver',
+    type = 'append-only',
+    sqlserver.host = 'sqlserver.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'events_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'events_db',
+    sqlserver.table = 'event_log'
+);
+```
+
+### Upsert mode with composite key
+
+```sql
+CREATE SINK sqlserver_upsert_composite_sink
+FROM user_profiles_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'sqlserver.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'profiles_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'users_db',
+    sqlserver.table = 'user_profiles',
+    primary_key = 'user_id,profile_version'
+);
+```
+
+## Advanced configurations
+
+### Connection with retry configuration
+
+```sql
+CREATE SINK sqlserver_retry_sink
+FROM critical_data_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'critical-db.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'critical_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'critical_db',
+    sqlserver.table = 'critical_metrics',
+    primary_key = 'metric_id'
+);
+```
+
+### SQL Server Always On availability group
+
+```sql
+CREATE SINK sqlserver_alwayson_sink
+FROM disaster_recovery_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'ag-listener.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'ag_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'ag_db',
+    sqlserver.table = 'disaster_recovery_data',
+    primary_key = 'data_id,timestamp'
+);
+```
+
+### Azure SQL Database configuration
+
+```sql
+CREATE SINK azure_sql_sink
+FROM cloud_analytics_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'myazureserver.database.windows.net',
+    sqlserver.port = '1433',
+    sqlserver.user = 'azure_user@myazureserver',
+    sqlserver.password = 'password',
+    sqlserver.database = 'azure_analytics_db',
+    sqlserver.table = 'cloud_metrics',
+    primary_key = 'metric_id,date'
+);
+```
+
+## Data type mapping
+
+| SQL Server Type | RisingWave Type | Notes |
+| :-------------- | :-------------- | :---- |
+| bit | BOOLEAN | |
+| tinyint | SMALLINT | |
+| smallint | SMALLINT | |
+| int | INTEGER | |
+| bigint | BIGINT | |
+| float | REAL | |
+| real | REAL | |
+| decimal/numeric | DECIMAL | |
+| money | DECIMAL | |
+| smallmoney | DECIMAL | |
+| char | VARCHAR | |
+| varchar | VARCHAR | |
+| text | VARCHAR | |
+| nchar | VARCHAR | Unicode support |
+| nvarchar | VARCHAR | Unicode support |
+| ntext | VARCHAR | Unicode support |
+| date | DATE | |
+| time | TIME | |
+| datetime | TIMESTAMP | |
+| datetime2 | TIMESTAMP | |
+| smalldatetime | TIMESTAMP | |
+| datetimeoffset | TIMESTAMPTZ | |
+| binary | BYTEA | |
+| varbinary | BYTEA | |
+| image | BYTEA | |
+| uniqueidentifier | VARCHAR | UUID as string |
+
+**Note**: Interval, JSONB, Struct, List, Serial, Int256, Map, and Vector types are not supported in SQL Server sink.
+
+## Monitoring and troubleshooting
+
+### Monitor sink performance
+
+```sql
+-- Check sink status
+SELECT * FROM rw_sinks WHERE name = 'sqlserver_sink_name';
+
+-- Monitor sink metrics
+SELECT * FROM rw_sink_metrics WHERE sink_id = 'your_sink_id';
+```
+
+### SQL Server monitoring
+
+```sql
+-- Check table statistics
+SELECT 
+    t.name AS table_name,
+    p.rows AS row_count,
+    SUM(a.total_pages) * 8 AS total_space_kb
+FROM sys.tables t
+JOIN sys.indexes i ON t.object_id = i.object_id
+JOIN sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id
+JOIN sys.allocation_units a ON p.partition_id = a.container_id
+WHERE t.name = 'your_table_name'
+GROUP BY t.name, p.rows;
+
+-- Monitor active connections
+SELECT 
+    DB_NAME(dbid) as database_name,
+    COUNT(dbid) as connection_count,
+    loginame as login_name
+FROM sys.sysprocesses
+WHERE dbid > 0
+GROUP BY dbid, loginame;
+
+-- Check for blocking
+SELECT 
+    blocking_session_id,
+    session_id,
+    wait_type,
+    wait_time,
+    wait_resource
+FROM sys.dm_exec_requests
+WHERE blocking_session_id <> 0;
+```
+
+### Common issues and solutions
+
+1. **Connection timeouts**: Check network connectivity and SQL Server configuration
+2. **Authentication failures**: Verify credentials and authentication mode
+3. **Table lock conflicts**: Monitor for long-running transactions
+4. **Memory issues**: Check SQL Server memory settings
+5. **Disk space issues**: Monitor database file growth
+6. **Network latency**: Performance depends on network connectivity
+
+### Performance optimization
+
+- **Batch size**: Use optimal batch size (1024-2048 recommended)
+- **Indexes**: Ensure proper indexes on target tables
+- **Connection pooling**: Configure appropriate connection settings
+- **Statistics**: Keep statistics updated for optimal query plans
+- **Maintenance**: Regular database maintenance (index rebuilds, statistics updates)
+
+## Security best practices
+
+### Authentication and authorization
+
+```sql
+CREATE SINK sqlserver_secure_sink
+FROM secure_data_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'secure-sqlserver.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'secure_service_account',
+    sqlserver.password = 'strong_password',
+    sqlserver.database = 'secure_db',
+    sqlserver.table = 'secure_metrics',
+    primary_key = 'metric_id'
+);
+```
+
+### Network security
+
+```sql
+CREATE SINK sqlserver_network_secure_sink
+FROM protected_data_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'sqlserver.internal.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'internal_user',
+    sqlserver.password = 'internal_password',
+    sqlserver.database = 'internal_db',
+    sqlserver.table = 'protected_table'
+);
+```
+
+### Encryption
+
+SQL Server supports encryption at the connection level. Configure SSL/TLS in your SQL Server instance and RisingWave will use encrypted connections automatically when available.
+
+## Limitations
+
+- **Data types**: Some RisingWave data types (Interval, JSONB, Struct, List, Serial, Int256, Map, Vector) are not supported
+- **Transaction size**: Large transactions may impact performance
+- **Connection limits**: Subject to SQL Server connection limits
+- **Lock contention**: Concurrent writes may cause lock conflicts
+- **Network latency**: Performance depends on network connectivity
+- **Schema changes**: Limited support for automatic schema migration
+
+## Integration examples
+
+### Real-time analytics warehouse
+
+```sql
+-- Create materialized view for real-time analytics
+CREATE MATERIALIZED VIEW user_analytics_mv AS
+SELECT
+    user_id,
+    COUNT(*) as event_count,
+    MAX(event_time) as last_event_time,
+    JSONB_OBJECT_AGG(event_type, COUNT(*)) as event_breakdown
+FROM user_events
+GROUP BY user_id;
+
+-- Sink to SQL Server for analytics warehouse
+CREATE SINK user_analytics_sqlserver_sink
+FROM user_analytics_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'analytics-warehouse.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'analytics_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'analytics_warehouse',
+    sqlserver.table = 'user_analytics',
+    primary_key = 'user_id'
+);
+```
+
+### E-commerce order processing
+
+```sql
+-- Process e-commerce orders
+CREATE MATERIALIZED VIEW order_summary_mv AS
+SELECT
+    order_id,
+    customer_id,
+    SUM(order_total) as total_amount,
+    JSONB_OBJECT_AGG('items', order_items) as order_details,
+    MAX(order_date) as order_timestamp,
+    order_status
+FROM orders
+GROUP BY order_id, customer_id, order_status;
+
+-- Sink to SQL Server for order management
+CREATE SINK order_summary_sqlserver_sink
+FROM order_summary_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'ecommerce-db.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'ecommerce_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'ecommerce_db',
+    sqlserver.table = 'order_summaries',
+    primary_key = 'order_id'
+);
+```
+
+### Financial data processing
+
+```sql
+-- Process financial transactions
+CREATE MATERIALIZED VIEW transaction_summary_mv AS
+SELECT
+    transaction_id,
+    account_id,
+    transaction_type,
+    SUM(amount) as total_amount,
+    COUNT(*) as transaction_count,
+    MAX(transaction_date) as last_transaction_date
+FROM financial_transactions
+GROUP BY transaction_id, account_id, transaction_type;
+
+-- Sink to SQL Server for financial reporting
+CREATE SINK financial_sqlserver_sink
+FROM transaction_summary_mv
+WITH (
+    connector='sqlserver',
+    type = 'upsert',
+    sqlserver.host = 'financial-db.example.com',
+    sqlserver.port = '1433',
+    sqlserver.user = 'financial_user',
+    sqlserver.password = 'password',
+    sqlserver.database = 'financial_db',
+    sqlserver.table = 'transaction_summaries',
+    primary_key = 'transaction_id'
+);
+```
+
+## What's next?
+
+- [Monitor sink progress](/operate/monitor-statement-progress)
+- [Sink performance tuning](/performance/best-practices)
+- [SQL Server best practices](https://docs.microsoft.com/en-us/sql/relational-databases/policy-based-management/apply-best-practice-rules)
+- [SQL Server performance optimization](https://docs.microsoft.com/en-us/sql/relational-databases/performance/performance-center-for-sql-server-database-engine-and-azure-sql-database)
+- [RisingWave sink overview](/delivery/overview)
+
+## Related connectors
+
+- [PostgreSQL](/integrations/destinations/postgresql)
+- [MySQL](/integrations/destinations/mysql)
+- [Amazon DynamoDB](/integrations/destinations/amazon-dynamodb)
+- [MongoDB](/integrations/destinations/mongodb)
+- [Redis](/integrations/destinations/redis)
+
+<Note>
+SQL Server has specific limits and performance characteristics. Monitor your database performance and configure appropriate resources for your workload.
+</Note>
+
+<Tip>
+Use appropriate batch sizes, indexes, and connection pooling for optimal performance. Regular maintenance (statistics updates, index maintenance) is important for long-running systems.
+</Tip>
+
+<Warning>
+Ensure proper authentication and network security. Use encrypted connections for production deployments and implement proper access controls and monitoring.
+</Warning>
+
+## Reference
+
+- [SQL Server documentation](https://docs.microsoft.com/en-us/sql/)
+- [SQL Server connection strings](https://docs.microsoft.com/en-us/sql/relational-databases/native-client/applications/using-connection-string-keywords-with-sql-server-native-client)
+- [SQL Server data types](https://docs.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql)
+- [RisingWave sink configuration](/delivery/overview)
+- [SQL Server performance guidelines](https://docs.microsoft.com/en-us/sql/relational-databases/performance/performance-center-for-sql-server-database-engine-and-azure-sql-database)
