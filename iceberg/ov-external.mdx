@@ -1,0 +1,122 @@
+---
+title: "Externally managed Iceberg tables"
+sidebarTitle: "Overview"
+description:
+---
+External Iceberg tables are managed outside of RisingWave, such as S3 Tables, Snowflake-managed Iceberg tables, Databricks-managed Iceberg tables, or self-managed Iceberg deployments.
+
+RisingWave connects to these tables through their catalogs and treats them as data sources or data sinks.
+
+![image.png](/iceberg/images/external-iceberg-tables.png)
+
+## Ingest data from external Iceberg tables
+
+RisingWave can continuously ingest data from append-only Iceberg tables.
+
+It monitors snapshots and automatically loads newly appended data, allowing you to consume the table as a live data stream.
+
+For details, see [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg).
+
+**Example**
+
+```sql
+CREATE SOURCE orders_src
+WITH (
+  connector = 'iceberg',
+  warehouse.path = 's3://lakehouse/warehouse',
+  database.name = 'sales',
+  table.name = 'orders',
+  catalog.type = 'glue',
+  s3.region = 'us-west-2'
+);
+
+```
+
+## Ad hoc analytics on Iceberg data
+
+After the source is created, you can query it directly with SQL.
+
+RisingWave retrieves the current snapshot of the Iceberg table at query time.
+
+```sql
+-- Inspect recent orders for a specific product
+SELECT order_id, user_id, amount, order_ts
+FROM orders_src
+WHERE product_id = 12345
+ORDER BY order_ts DESC
+LIMIT 20;
+
+-- Aggregate daily revenue over the past week
+SELECT date_trunc('day', order_ts) AS day, SUM(amount) AS revenue
+FROM orders_src
+WHERE order_ts >= now() - interval '7 days'
+GROUP BY 1
+ORDER BY day;
+```
+
+These queries run instantly on the latest Iceberg snapshot, making RisingWave useful for interactive analytics without setting up a separate ETL process.
+
+## Continuous analytics with materialized views
+
+For real-time, incremental analytics, create a materialized view on the Iceberg source.
+
+RisingWave automatically keeps the view up to date as new snapshots are committed to the Iceberg table.
+
+```sql
+CREATE MATERIALIZED VIEW mv_daily_sales AS
+SELECT
+  date_trunc('day', order_ts) AS day,
+  SUM(amount) AS total_sales,
+  COUNT(DISTINCT user_id) AS active_users
+FROM orders_src
+GROUP BY 1;
+```
+
+The materialized view keeps results up to date as RisingWave ingests new Iceberg snapshots.
+
+
+This approach provides low-latency analytics on Iceberg data while maintaining compatibility with the underlying catalog and storage system.
+
+## Deliver data to external Iceberg tables
+
+RisingWave can deliver query results or materialized view outputs to Iceberg tables.
+
+The delivered data remains fully compatible with other Iceberg engines such as Spark, Trino, and DuckDB.
+
+- Supports `append-only`, `upsert`, and `force-append-only` sink modes
+- Guarantees exactly-once delivery
+- Optional file compaction for efficiency
+
+For details, see [Deliver data to Iceberg tables](/iceberg/deliver-to-iceberg).
+
+**Example**
+
+```sql
+CREATE SINK daily_sales_sink FROM mv_daily_sales
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+  warehouse.path = 's3://lakehouse/warehouse',
+  database.name = 'sales',
+  table.name = 'daily_sales',
+  catalog.type = 'rest',
+  catalog.uri = 'http://lakekeeper:8181',
+  s3.region = 'us-west-2',
+  s3.access.key = '...',
+  s3.secret.key = '...',
+  enable_compaction = true
+);
+
+```
+
+With this configuration, RisingWave acts as a real-time transformation layer between streaming systems and Iceberg storage.
+
+## Loading modes support
+
+Use this matrix to understand current support for ingesting from and delivering to external Iceberg tables.
+
+| Loading mode | Append-only | Mutable |
+| --- | --- | --- |
+| One-time loading | Supported | Supported (both equality and position deletes) |
+| Periodic loading | Planned for a future release (v2.7) | Planned for a future release (v2.7) |
+| Continuous loading | Supported | No support (Iceberg CDC is immature) |
