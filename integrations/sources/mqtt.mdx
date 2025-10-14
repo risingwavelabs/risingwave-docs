@@ -21,6 +21,24 @@ Before ingesting data from MQTT into RisingWave, please ensure the following:
 
 For example, we create a topic named `iot_data` with the data from various IoT devices at a given timestamp, including temperature, humidity readings, and a status field indicating whether the device is in a normal or abnormal state. For more information to learn about MQTT and get started with it, refer to the [MQTT guide](https://mqtt.org/getting-started/).
 
+<Note>
+**Connecting to RabbitMQ with MQTT**
+
+To connect RisingWave to a RabbitMQ instance using the MQTT protocol, you need to enable and configure RabbitMQ's MQTT plugin on the broker side:
+
+1. Enable the MQTT plugin:
+   ```bash
+   rabbitmq-plugins enable rabbitmq_mqtt
+   ```
+
+2. Set the MQTT v5 feature flag:
+   ```bash
+   rabbitmqctl enable_feature_flag mqtt_v5
+   ```
+
+3. Once configured, you can connect to RabbitMQ using the MQTT connector as described below.
+</Note>
+
 ## Ingest data into RisingWave
 
 When creating a source, we have the option to either persist the data in RisingWave using `CREATE TABLE` or use `CREATE SOURCE` while specifying the connection settings and data format.
