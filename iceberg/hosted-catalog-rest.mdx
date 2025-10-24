@@ -35,21 +35,49 @@ You can deploy this configuration using one of two methods:
 
 ### Steps
 
-1. Create an Iceberg connection.
-   ```sql
-   CREATE CONNECTION lakekeeper_catalog_conn
-   WITH (
-       type = 'iceberg',
-       catalog.type = 'rest',
-       catalog.uri = 'http://lakekeeper:8181/catalog/',
-       warehouse.path = 'risingwave-warehouse',
-       s3.access.key = 'hummockadmin',
-       s3.secret.key = 'hummockadmin',
-       s3.path.style.access = 'true',
-       s3.endpoint = 'http://minio-0:9301',
-       s3.region = 'us-east-1'
-   );
-   ```
+1. Create an Iceberg connection. You can authenticate using two methods: S3 access keys or credential vending.
+
+   <Tabs>
+   <Tab title="Using S3 access keys">
+      For this method, simply provide your S3 access and secret keys in the connection string.
+
+         ```sql
+         CREATE CONNECTION lakekeeper_catalog_conn
+         WITH (
+            type = 'iceberg',
+            catalog.type = 'rest',
+            catalog.uri = 'http://lakekeeper:8181/catalog/',
+            warehouse.path = 'risingwave-warehouse',
+            s3.access.key = 'hummockadmin',
+            s3.secret.key = 'hummockadmin',
+            s3.path.style.access = 'true',
+            s3.endpoint = 'http://minio-0:9301',
+            s3.region = 'us-east-1'
+         );
+         ```
+   </Tab>
+   <Tab title="Using Credential Vending (AWS STS Role)">
+      For this method, you need to:
+      1. Prepare an AWS S3 bucket and an IAM Role with permissions to access that S3 bucket.
+      2. In Lakekeeper, add a warehouse by configuring the corresponding S3 bucket and enabling STS with the associated STS Role ARN.
+         <Columns cols={3}>
+            <Frame><img src="/images/lakekeeper_warehouses.png" /></Frame>
+            <Frame><img src="/images/lakekeeper_add_warehouse.png" /></Frame>
+            <Frame><img src="/images/lakekeeper_enable_sts.png" /></Frame>
+         </Columns>
+      3. Create the connection in RisingWave using the following configuration.
+         ```sql Using credential vending
+         CREATE CONNECTION lakekeeper_catalog_conn
+         WITH (
+            type = ‘iceberg’,
+            catalog.type = ‘rest_rust’,
+            catalog.uri = ‘http://lakekeeper:8181/catalog/’,
+            catalog.header=‘X-Iceberg-Access-Delegation=vended-credentials’,
+            warehouse.path = ‘<your_warehouse_name>’,
+         );
+         ```
+   </Tab>
+   </Tabs>
 
 2. Set the connection as the default for your session.
    ```sql
@@ -144,20 +172,54 @@ Ensure your Kubernetes environment is configured with Helm by following the [ins
    ```bash Connect to RisingWave
    psql -h localhost -p 4567 -d dev -U root
    ```
-   ```sql Run SQL
-   create connection lakekeeper_catalog_conn
-   with (
-       type = 'iceberg',
-       catalog.type = 'rest',
-       catalog.uri = 'http://my-lakekeeper:8181/catalog/',
-       warehouse.path = 'abc',       -- replace with your warehouse name
-       s3.access.key = 'root',
-       s3.secret.key = 'K9xXOGgEHx', -- replace with your MinIO secret key
-       s3.path.style.access = 'true',
-       s3.endpoint = 'http://risingwave-minio:9000',
-       s3.region = 'us-east-1'
-   );
 
+   Next, create an Iceberg connection using one of the following methods: S3 access keys or credential vending.
+
+   <Tabs>
+   <Tab title="Using S3 access keys">
+      For this method, simply provide your S3 access and secret keys in the connection string.
+
+         ```sql
+         CREATE CONNECTION lakekeeper_catalog_conn
+         WITH (
+            type = 'iceberg',
+            catalog.type = 'rest',
+            catalog.uri = 'http://lakekeeper:8181/catalog/',
+            warehouse.path = 'risingwave-warehouse',
+            s3.access.key = 'hummockadmin',
+            s3.secret.key = 'hummockadmin',
+            s3.path.style.access = 'true',
+            s3.endpoint = 'http://minio-0:9301',
+            s3.region = 'us-east-1'
+         );
+         ```
+   </Tab>
+   <Tab title="Using Credential Vending (AWS STS Role)">
+      For this method, you need to:
+      1. Prepare an AWS S3 bucket and an IAM Role with permissions to access that S3 bucket.
+      2. In Lakekeeper, add a warehouse by configuring the corresponding S3 bucket and enabling STS with the associated STS Role ARN.
+         <Columns cols={3}>
+            <Frame><img src="/images/lakekeeper_warehouses.png" /></Frame>
+            <Frame><img src="/images/lakekeeper_add_warehouse.png" /></Frame>
+            <Frame><img src="/images/lakekeeper_enable_sts.png" /></Frame>
+         </Columns>
+      3. Create the connection in RisingWave using the following configuration.
+         ```sql Using credential vending
+         CREATE CONNECTION lakekeeper_catalog_conn
+         WITH (
+            type = ‘iceberg’,
+            catalog.type = ‘rest_rust’,
+            catalog.uri = ‘http://lakekeeper:8181/catalog/’,
+            catalog.header=‘X-Iceberg-Access-Delegation=vended-credentials’,
+            warehouse.path = ‘<your_warehouse_name>’,
+         );
+         ```
+   </Tab>
+   </Tabs>
+
+   You can then run the SQL test queries:
+
+   ```sql
    set iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
 
    create table t_lakekeeper_basic(id int primary key, name varchar, v bigint)
