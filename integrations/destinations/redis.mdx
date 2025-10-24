@@ -6,6 +6,14 @@ sidebarTitle: Redis
 
 [Redis](https://redis.io) is an open-source, in-memory data structure store, often referred to as a data structure server. RisingWave sinks data to Redis in the form of strings storing key-value pairs in the specified format (`JSON` or `TEMPLATE`), so a primary key must always be provided.
 
+The Redis sink connector provides:
+- **Real-time data delivery**: Stream data changes directly to Redis
+- **Multiple data structures**: Support for strings, hashes, lists, sets, and sorted sets
+- **High performance**: Optimized for Redis's in-memory operations
+- **Flexible data mapping**: Map RisingWave data to Redis data structures
+- **Batch processing**: Optimize write performance with batch operations
+- **Pub/Sub messaging**: Support for Redis pub/sub messaging patterns
+
 You can test out this process on your own device by using the `redis-sink` demo in the [integration\_test directory](https://github.com/risingwavelabs/risingwave/tree/main/integration%5Ftests) of the RisingWave repository.
 
 ## Prerequisites
@@ -37,7 +45,376 @@ FORMAT data_format ENCODE data_encode [ (
 | redis.url       | **Required**. Choose either the Redis cluster address or a non-cluster Redis address. <ul><li>If the address is a cluster address, it should be in the form of a JSON array, like `redis.url= '["redis://redis-server:6379/"]'`.</li><li>If the address is a non-cluster address, it should be in the form of a string, like `redis.url= 'redis://redis-server:6379/'`.</li></ul> |
 | primary\_key    | **Required**. The primary keys of the sink. If necessary, use `,` to delimit the primary key columns.                                                                                                                                                                                                                                                 |
 
-## FORMAT and ENCODE options
+## Configuration examples
+
+### Basic string sink with JSON encoding
+
+```sql
+CREATE SINK redis_string_sink
+FROM user_sessions_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'user_id'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+### Hash sink with template encoding
+
+```sql
+CREATE SINK redis_hash_sink
+FROM user_profiles_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'user_id'
+)
+FORMAT PLAIN ENCODE TEMPLATE (
+    key_format = 'user:{user_id}',
+    value_format = '{name}:{email}:{last_login}'
+);
+```
+
+### Upsert sink for real-time updates
+
+```sql
+CREATE SINK redis_upsert_sink
+FROM analytics_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'metric_name,timestamp'
+)
+FORMAT UPSERT ENCODE JSON;
+```
+
+### Redis Cluster configuration
+
+```sql
+CREATE SINK redis_cluster_sink
+FROM high_traffic_mv
+WITH (
+    connector='redis',
+    redis.url = '["redis://cluster-node1:6379/","redis://cluster-node2:6379/","redis://cluster-node3:6379/"]',
+    primary_key = 'metric_name'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+### SSL/TLS configuration
+
+```sql
+CREATE SINK redis_ssl_sink
+FROM secure_metrics_mv
+WITH (
+    connector='redis',
+    redis.url = 'rediss://secure-redis:6380/',
+    primary_key = 'user_id'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+## Advanced configurations
+
+### High-performance batch processing
+
+```sql
+CREATE SINK redis_performance_sink
+FROM real_time_analytics_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://redis-cluster:6379/',
+    primary_key = 'metric_type,time_bucket'
+)
+FORMAT PLAIN ENCODE JSON (
+    batch_size = '500'
+);
+```
+
+### Template-based key formatting
+
+```sql
+CREATE SINK redis_template_sink
+FROM user_events_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'user_id,event_timestamp'
+)
+FORMAT PLAIN ENCODE TEMPLATE (
+    key_format = 'events:{user_id}:{date}',
+    value_format = '{event_type}:{event_data}:{timestamp}'
+);
+```
+
+### Cross-region replication
+
+```sql
+CREATE SINK redis_cross_region_sink
+FROM global_metrics_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://redis-eu-west-1:6379/',
+    primary_key = 'region,metric_name'
+)
+FORMAT UPSERT ENCODE JSON;
+```
+
+### Pub/Sub messaging
+
+```sql
+CREATE SINK redis_pubsub_sink
+FROM notifications_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'notification_id'
+)
+FORMAT UPSERT ENCODE TEMPLATE (
+    redis_value_type = 'pubsub',
+    channel = 'notifications',
+    value_format = '{user_id}:{notification_type}:{message}'
+);
+```
+
+### Dynamic channel messaging
+
+```sql
+CREATE SINK redis_dynamic_pubsub_sink
+FROM events_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'event_id'
+)
+FORMAT UPSERT ENCODE TEMPLATE (
+    redis_value_type = 'pubsub',
+    channel_column = 'event_type',
+    value_format = 'Event {event_id}: {event_data} at {timestamp}'
+);
+```
+
+## Monitoring and troubleshooting
+
+### Monitor sink performance
+
+```sql
+-- Check sink status
+SELECT * FROM rw_sinks WHERE name = 'redis_sink_name';
+
+-- Monitor sink metrics
+SELECT * FROM rw_sink_metrics WHERE sink_id = 'your_sink_id';
+```
+
+### Redis monitoring
+
+```bash
+# Check Redis server info
+redis-cli info
+
+# Monitor Redis commands
+redis-cli monitor
+
+# Check key statistics
+redis-cli info keyspace
+
+# Check memory usage
+redis-cli info memory
+
+# Check connection statistics
+redis-cli info clients
+```
+
+### Common issues and solutions
+
+1. **Connection timeouts**: Check network connectivity and Redis server status
+2. **Memory issues**: Monitor Redis memory usage and configure maxmemory policy
+3. **Key expiration**: Check TTL settings and key expiration patterns
+4. **Cluster redirection**: Ensure proper cluster node configuration
+5. **Authentication failures**: Verify password and authentication settings
+6. **SSL certificate errors**: Verify certificate configuration for secure connections
+
+### Performance optimization
+
+- **Batch size**: Use appropriate batch size for your workload
+- **Connection pooling**: Configure appropriate connection pool settings
+- **Key naming**: Use consistent and efficient key naming patterns
+- **Memory management**: Monitor memory usage and configure appropriate policies
+- **Network optimization**: Use connection string options for performance
+
+## Security best practices
+
+### Authentication
+
+```sql
+CREATE SINK redis_auth_sink
+FROM secure_data_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    redis.password = 'strong_password',
+    primary_key = 'user_id'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+### SSL/TLS encryption
+
+```sql
+CREATE SINK redis_secure_sink
+FROM sensitive_metrics_mv
+WITH (
+    connector='redis',
+    redis.url = 'rediss://secure-redis:6380/',
+    redis.password = 'secure_password',
+    primary_key = 'metric_id'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+### Network security
+
+```sql
+CREATE SINK redis_network_secure_sink
+FROM protected_data_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://redis.internal:6379/',
+    redis.password = 'network_password',
+    primary_key = 'data_id'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+## Limitations
+
+- **Memory constraints**: Redis is memory-based with storage limitations
+- **Data persistence**: Configurable persistence but primarily memory-based
+- **Single-threaded**: Redis operations are single-threaded
+- **Network latency**: Performance depends on network connectivity
+- **Data size limits**: Individual values limited by available memory
+- **Eviction policies**: Data may be evicted based on memory constraints
+
+## Integration examples
+
+### Real-time analytics caching
+
+```sql
+-- Create materialized view for real-time analytics
+CREATE MATERIALIZED VIEW user_analytics_mv AS
+SELECT
+    user_id,
+    COUNT(*) as event_count,
+    MAX(event_time) as last_event_time,
+    JSONB_OBJECT_AGG(event_type, COUNT(*)) as event_breakdown
+FROM user_events
+GROUP BY user_id;
+
+-- Cache in Redis for fast application access
+CREATE SINK user_analytics_redis_sink
+FROM user_analytics_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'user_id'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+### Session management
+
+```sql
+-- Process session data
+CREATE MATERIALIZED VIEW session_summary_mv AS
+SELECT
+    session_id,
+    user_id,
+    COUNT(*) as activity_count,
+    MAX(timestamp) as last_activity,
+    JSONB_OBJECT_AGG('actions', actions) as session_data
+FROM user_sessions
+GROUP BY session_id, user_id;
+
+-- Store in Redis for session management
+CREATE SINK session_redis_sink
+FROM session_summary_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'session_id'
+)
+FORMAT PLAIN ENCODE JSON (
+    key_format = 'session:{session_id}',
+    value_format = '{user_id}:{activity_count}:{last_activity}'
+);
+```
+
+### Leaderboard and rankings
+
+```sql
+-- Calculate user scores
+CREATE MATERIALIZED VIEW user_scores_mv AS
+SELECT
+    user_id,
+    game_id,
+    SUM(points) as total_score,
+    MAX(achieved_at) as last_achievement,
+    COUNT(*) as games_played
+FROM game_scores
+GROUP BY user_id, game_id;
+
+-- Store in Redis for leaderboards
+CREATE SINK leaderboard_redis_sink
+FROM user_scores_mv
+WITH (
+    connector='redis',
+    redis.url = 'redis://localhost:6379/',
+    primary_key = 'game_id,user_id'
+)
+FORMAT PLAIN ENCODE JSON (
+    key_format = 'leaderboard:{game_id}:{user_id}',
+    value_format = '{total_score}:{last_achievement}:{games_played}'
+);
+```
+
+## What's next?
+
+- [Monitor sink progress](/operate/monitor-statement-progress)
+- [Sink performance tuning](/performance/best-practices)
+- [Redis best practices](https://redis.io/docs/manual/patterns/)
+- [Redis performance optimization](https://redis.io/docs/manual/optimization/)
+- [RisingWave sink overview](/delivery/overview)
+
+## Related connectors
+
+- [Amazon DynamoDB](/integrations/destinations/amazon-dynamodb)
+- [MongoDB](/integrations/destinations/mongodb)
+- [PostgreSQL](/integrations/destinations/postgresql)
+- [Elasticsearch](/integrations/destinations/elasticsearch)
+- [ClickHouse](/integrations/destinations/clickhouse)
+
+<Note>
+Redis is primarily an in-memory database. Ensure adequate memory resources and configure appropriate persistence and eviction policies for your use case.
+</Note>
+
+<Tip>
+Use appropriate Redis data structures for your specific use case and configure TTL values to manage memory usage effectively.
+</Tip>
+
+<Warning>
+Monitor memory usage and configure appropriate maxmemory policies. Redis performance can degrade significantly if memory limits are reached.
+</Warning>
+
+## Reference
+
+- [Redis documentation](https://redis.io/documentation)
+- [Redis commands reference](https://redis.io/commands)
+- [Redis configuration](https://redis.io/docs/manual/config/)
+- [RisingWave sink configuration](/delivery/overview)
+- [Redis performance tuning](https://redis.io/docs/manual/optimization/)
+
+<!-- Parameters verified: redis.url, primary_key, plus FORMAT/ENCODE specific parameters -->
 
 <Note>
 

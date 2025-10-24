@@ -1,0 +1,573 @@
+---
+title: "Ingest data from WebHDFS"
+description: "Connect RisingWave to Hadoop WebHDFS for ingesting data from Hadoop Distributed File System."
+sidebarTitle: WebHDFS
+---
+
+RisingWave supports ingesting data from WebHDFS (Hadoop WebHDFS), which provides HTTP access to HDFS (Hadoop Distributed File System). This connector enables reading data stored in Hadoop clusters directly into RisingWave for real-time analytics.
+
+## Prerequisites
+
+- Hadoop cluster with WebHDFS enabled
+- Network connectivity between RisingWave and Hadoop NameNode/DataNodes
+- HDFS user permissions for reading target files
+- Knowledge of HDFS file paths and formats
+
+## Enable WebHDFS
+
+Ensure WebHDFS is enabled in your Hadoop cluster:
+
+1. **Enable WebHDFS in hdfs-site.xml:**
+```xml
+<configuration>
+  <property>
+    <name>dfs.webhdfs.enabled</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>dfs.namenode.http-address</name>
+    <value>0.0.0.0:50070</value>
+  </property>
+  <property>
+    <name>dfs.datanode.http.address</name>
+    <value>0.0.0.0:50075</value>
+  </property>
+</configuration>
+```
+
+2. **Restart Hadoop services:**
+```bash
+# Restart NameNode and DataNodes
+stop-dfs.sh
+start-dfs.sh
+```
+
+3. **Verify WebHDFS is accessible:**
+```bash
+# Test WebHDFS endpoint
+curl -i "http://namenode:50070/webhdfs/v1/?op=GETFILESTATUS"
+```
+
+## Create a source from WebHDFS
+
+You can create a source or table that reads data from WebHDFS using the `CREATE SOURCE` or `CREATE TABLE` statement.
+
+## Syntax
+
+```sql
+CREATE SOURCE [ IF NOT EXISTS ] source_name (
+    column_name data_type,
+    ...
+)
+WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/data/path',
+    webhdfs.user = 'hdfs',
+    [ webhdfs.auth = 'simple' ],
+    [ refresh.interval.sec = 10 ]
+)
+FORMAT [ PLAIN | CSV | JSON | PARQUET ]
+ENCODE [ JSON | CSV | AVRO | PARQUET ];
+```
+
+## Connector parameters
+
+### Basic Parameters
+
+| Parameter | Description | Required |
+| :-------- | :---------- | :------- |
+| connector | Must be set to 'webhdfs' | Yes |
+| webhdfs.endpoint | WebHDFS endpoint URL (e.g., http://namenode:50070) | Yes |
+| webhdfs.path | HDFS directory path to read from | Yes |
+| webhdfs.user | HDFS username for authentication | Yes |
+| webhdfs.auth | Authentication type: simple or kerberos | No |
+| refresh.interval.sec | Directory refresh interval in seconds | No |
+| match_pattern | Glob pattern to match files | No |
+
+### Authentication Parameters
+
+| Parameter | Description | Required |
+| :-------- | :---------- | :------- |
+| webhdfs.auth | Authentication type: 'simple' or 'kerberos' | No |
+| webhdfs.kerberos.principal | Kerberos principal for authentication | No |
+| webhdfs.kerberos.keytab | Path to Kerberos keytab file | No |
+
+### SSL/TLS Parameters
+
+| Parameter | Description | Required |
+| :-------- | :---------- | :------- |
+| webhdfs.ssl.enabled | Enable SSL/TLS encryption | No |
+| webhdfs.ssl.verify | Verify SSL certificates | No |
+| webhdfs.ssl.ca.location | Path to CA certificate file | No |
+
+## Supported file formats
+
+WebHDFS connector supports multiple file formats:
+
+### JSON Format
+```sql
+CREATE SOURCE webhdfs_json_source (
+    user_id INT,
+    event_type VARCHAR,
+    timestamp TIMESTAMP,
+    data JSONB
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/data/events',
+    webhdfs.user = 'hdfs'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### CSV Format
+```sql
+CREATE SOURCE webhdfs_csv_source (
+    customer_id INT,
+    name VARCHAR,
+    email VARCHAR,
+    registration_date DATE
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/data/customers',
+    webhdfs.user = 'hdfs'
+) FORMAT PLAIN ENCODE CSV (
+    without_header = 'true',
+    delimiter = ','
+);
+```
+
+### Parquet Format
+```sql
+CREATE SOURCE webhdfs_parquet_source (
+    sensor_id INT,
+    temperature DOUBLE,
+    humidity DOUBLE,
+    reading_time TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/data/sensors',
+    webhdfs.user = 'hdfs'
+) FORMAT PLAIN ENCODE PARQUET;
+```
+
+## Directory monitoring
+
+WebHDFS connector can monitor directories for new files:
+
+```sql
+CREATE SOURCE webhdfs_monitoring (
+    log_level VARCHAR,
+    message VARCHAR,
+    timestamp TIMESTAMP,
+    service_name VARCHAR
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/logs/applications',
+    webhdfs.user = 'hdfs',
+    refresh.interval.sec = '30',
+    match_pattern = '*.log'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Authentication examples
+
+### Simple Authentication
+```sql
+CREATE SOURCE webhdfs_simple_auth (
+    data_field VARCHAR,
+    value DOUBLE,
+    timestamp TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/data/metrics',
+    webhdfs.user = 'hdfs',
+    webhdfs.auth = 'simple'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Kerberos Authentication
+```sql
+CREATE SOURCE webhdfs_kerberos_auth (
+    field1 VARCHAR,
+    field2 INT,
+    field3 TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/secure/data',
+    webhdfs.user = 'hdfs',
+    webhdfs.auth = 'kerberos',
+    webhdfs.kerberos.principal = 'hdfs@EXAMPLE.COM',
+    webhdfs.kerberos.keytab = '/path/to/hdfs.keytab'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## SSL/TLS Configuration
+
+For secure WebHDFS connections:
+
+```sql
+CREATE SOURCE webhdfs_ssl (
+    secure_data VARCHAR,
+    timestamp TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'https://namenode:50470',
+    webhdfs.path = '/secure/data',
+    webhdfs.user = 'hdfs',
+    webhdfs.ssl.enabled = 'true',
+    webhdfs.ssl.verify = 'true',
+    webhdfs.ssl.ca.location = '/path/to/ca-cert.pem'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Performance tuning
+
+### Batch Processing
+```sql
+CREATE SOURCE webhdfs_optimized (
+    id BIGINT,
+    data JSONB,
+    processed_at TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://namenode:50070',
+    webhdfs.path = '/large/dataset',
+    webhdfs.user = 'hdfs',
+    refresh.interval.sec = '60',
+    match_pattern = 'part-*.parquet'
+) FORMAT PLAIN ENCODE PARQUET;
+```
+
+### Parallel Processing
+For large datasets, organize files to enable parallel processing:
+```
+/large/dataset/
+├── part-00000.parquet
+├── part-00001.parquet
+├── part-00002.parquet
+└── ...
+```
+
+## Monitoring and troubleshooting
+
+### Check WebHDFS status
+```bash
+# Check NameNode status
+curl -i "http://namenode:50070/jmx?qry=Hadoop:service=NameNode,name=FSNamesystemState"
+
+# Check DataNode status
+curl -i "http://datanode:50075/jmx?qry=Hadoop:service=DataNode,name=DataNodeInfo"
+```
+
+### Monitor file access
+```bash
+# List files in HDFS directory
+curl -i "http://namenode:50070/webhdfs/v1/data/path?op=LISTSTATUS"
+
+# Check file status
+curl -i "http://namenode:50070/webhdfs/v1/data/path/file.txt?op=GETFILESTATUS"
+```
+
+### Common issues
+
+1. **Permission denied**: Ensure HDFS user has read permissions
+2. **File not found**: Verify file paths and existence
+3. **Network connectivity**: Check firewall rules and network access
+4. **Authentication failures**: Verify Kerberos configuration if using Kerberos auth
+5. **SSL certificate issues**: Check certificate validity and CA configuration
+
+## File organization best practices
+
+### Directory Structure
+```
+/data/
+├── raw/
+│   ├── events/
+│   │   ├── 2024-01-01/
+│   │   ├── 2024-01-02/
+│   │   └── ...
+│   └── logs/
+├── processed/
+└── archived/
+```
+
+### File Naming
+- Use consistent naming patterns
+- Include timestamps in filenames
+- Use appropriate file extensions
+- Consider partitioning by date/time
+
+### Data Format Considerations
+- **JSON**: Good for flexible schemas
+- **CSV**: Simple and widely supported
+- **Parquet**: Efficient for analytical workloads
+- **Avro**: Good for schema evolution
+
+## Limitations
+
+- **Large files**: Performance may degrade with very large files
+- **Real-time**: Not suitable for real-time streaming data
+- **File locking**: Cannot read files that are being written
+- **Network latency**: Performance depends on network connectivity
+- **Kerberos complexity**: Kerberos authentication requires proper configuration
+
+## Security considerations
+
+- Always use SSL/TLS for production deployments
+- Implement proper Kerberos authentication for secure clusters
+- Restrict WebHDFS access to trusted networks
+- Monitor access logs for suspicious activity
+- Use dedicated service accounts for RisingWave access
+
+## What's next?
+
+- [File format configuration](/ingestion/formats-and-encoding-options)
+- [Create source vs create table](/ingestion/create-source-vs-create-table)
+- [Monitor source progress](/ingestion/monitor-cdc-progress)
+- [Hadoop integration best practices](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/ClusterSetup.html)
+
+## Related connectors
+
+- [Amazon S3](/integrations/sources/s3)
+- [Google Cloud Storage](/integrations/sources/google-cloud-storage)
+- [Azure Blob Storage](/integrations/sources/azure-blob)
+- [Local filesystem](/integrations/sources/filesystem) (for development and testing)
+
+## Reference
+
+- [WebHDFS REST API documentation](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/WebHDFS.html)
+- [Hadoop HDFS architecture](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html)
+- [RisingWave file format documentation](/ingestion/formats-and-encoding-options)
+- [RisingWave connector development guide](/docs/dev/src/connector/intro.md)
+
+<Note>
+This connector is designed for batch ingestion from HDFS. For real-time streaming data, consider using Kafka or other streaming connectors.
+</Note>
+
+<Tip>
+For large-scale deployments, consider using dedicated HDFS client nodes or edge nodes to reduce network latency and improve performance.
+</Tip>
+
+<Warning>
+Ensure proper HDFS permissions are configured for the RisingWave user. Insufficient permissions will result in access denied errors.
+</Warning>
+
+## Examples
+
+### Basic WebHDFS connection
+```sql
+CREATE SOURCE webhdfs_basic (
+    user_id INT,
+    activity VARCHAR,
+    timestamp TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/user/data/activities',
+    webhdfs.user = 'hdfs'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Pattern-based file selection
+```sql
+CREATE SOURCE webhdfs_pattern (
+    sensor_id INT,
+    reading DOUBLE,
+    location VARCHAR,
+    reading_time TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/sensors/iot',
+    webhdfs.user = 'sensor_user',
+    match_pattern = 'sensor_*.json',
+    refresh.interval.sec = '300'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Secure connection with Kerberos
+```sql
+CREATE SOURCE webhdfs_secure (
+    financial_data VARCHAR,
+    amount DECIMAL(15,2),
+    transaction_time TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'https://secure-hadoop:50470',
+    webhdfs.path = '/secure/financial',
+    webhdfs.user = 'finance_user',
+    webhdfs.auth = 'kerberos',
+    webhdfs.kerberos.principal = 'finance@COMPANY.COM',
+    webhdfs.kerberos.keytab = '/etc/security/keytabs/finance.keytab',
+    webhdfs.ssl.enabled = 'true'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### CSV with custom delimiter
+```sql
+CREATE SOURCE webhdfs_csv_custom (
+    product_id INT,
+    product_name VARCHAR,
+    category VARCHAR,
+    price DECIMAL(10,2),
+    stock_quantity INT
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/products/inventory',
+    webhdfs.user = 'inventory_user'
+) FORMAT PLAIN ENCODE CSV (
+    without_header = 'false',
+    delimiter = '|',
+    quote = '"'
+);
+```
+
+### Parquet for analytics
+```sql
+CREATE SOURCE webhdfs_analytics (
+    event_id BIGINT,
+    user_id INT,
+    event_type VARCHAR,
+    properties JSONB,
+    occurred_at TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/analytics/events',
+    webhdfs.user = 'analytics_user',
+    match_pattern = '*.parquet'
+) FORMAT PLAIN ENCODE PARQUET;
+```
+
+### Time-based directory structure
+```sql
+CREATE SOURCE webhdfs_time_based (
+    metric_name VARCHAR,
+    metric_value DOUBLE,
+    host VARCHAR,
+    collected_at TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/metrics/2024/01',
+    webhdfs.user = 'metrics_user',
+    refresh.interval.sec = '60',
+    match_pattern = 'metrics_*.json'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Multi-format support
+```sql
+-- JSON format for events
+CREATE SOURCE webhdfs_events_json (
+    event_id BIGINT,
+    event_data JSONB,
+    created_at TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/events/json',
+    webhdfs.user = 'events_user'
+) FORMAT PLAIN ENCODE JSON;
+
+-- Parquet format for analytics
+CREATE SOURCE webhdfs_analytics_parquet (
+    session_id VARCHAR,
+    page_views INT,
+    duration_seconds INT,
+    bounce_rate DOUBLE,
+    analysis_date DATE
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/analytics/sessions',
+    webhdfs.user = 'analytics_user'
+) FORMAT PLAIN ENCODE PARQUET;
+```
+
+### Error handling and retries
+```sql
+CREATE SOURCE webhdfs_robust (
+    critical_data VARCHAR,
+    processing_timestamp TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/critical/data',
+    webhdfs.user = 'critical_user',
+    refresh.interval.sec = '30',
+    -- Built-in retry mechanisms handle temporary failures
+    webhdfs.retry.max_attempts = '3',
+    webhdfs.retry.delay_ms = '1000'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Integration with existing Hadoop ecosystem
+```sql
+-- Read from Hive-managed tables
+CREATE SOURCE webhdfs_hive_table (
+    customer_id INT,
+    order_total DECIMAL(12,2),
+    order_date DATE,
+    shipping_address VARCHAR
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/user/hive/warehouse/orders_table',
+    webhdfs.user = 'hive_user'
+) FORMAT PLAIN ENCODE PARQUET;
+
+-- Process Spark output
+CREATE SOURCE webhdfs_spark_output (
+    aggregated_metric VARCHAR,
+    calculated_value DOUBLE,
+    aggregation_window TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/spark/output/daily_aggregates',
+    webhdfs.user = 'spark_user'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Performance optimization
+```sql
+-- Optimized for large files with parallel processing
+CREATE SOURCE webhdfs_optimized_large (
+    user_behavior JSONB,
+    session_duration INT,
+    conversion_events ARRAY<VARCHAR>
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/large/datasets/user_behavior',
+    webhdfs.user = 'data_scientist',
+    -- Optimize for large file processing
+    refresh.interval.sec = '300',
+    match_pattern = 'part-*-*.parquet'
+) FORMAT PLAIN ENCODE PARQUET;
+```
+
+### Data validation and quality checks
+```sql
+CREATE SOURCE webhdfs_quality_checked (
+    validated_field VARCHAR,
+    quality_score DOUBLE,
+    validation_timestamp TIMESTAMP
+) WITH (
+    connector = 'webhdfs',
+    webhdfs.endpoint = 'http://hadoop-namenode:50070',
+    webhdfs.path = '/quality/validated',
+    webhdfs.user = 'quality_team',
+    -- Regular monitoring for data quality files
+    refresh.interval.sec = '120',
+    match_pattern = 'validated_*.json'
+) FORMAT PLAIN ENCODE JSON;
+```
