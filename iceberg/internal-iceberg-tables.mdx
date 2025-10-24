@@ -189,6 +189,27 @@ SELECT * FROM user_events FOR SYSTEM_TIME AS OF TIMESTAMPTZ '2024-01-01 12:00:00
 SELECT * FROM user_events FOR SYSTEM_VERSION AS OF 1234567890;
 ```
 
+### Partition strategy
+
+RisingWave’s Iceberg table engine supports table partitioning using the `partition_by` option. Partitioning helps organize data for efficient storage and query performance. You can partition by one or multiple columns, separated by commas, and optionally apply a Transform function to each column to customize partitioning.
+
+Supported transformations include `identity`, `truncate(n)`, `bucket(n)`, `year`, `month`, `day`, `hour`, and `void`. For more details on Iceberg partitioning, see [Partition transforms](https://iceberg.apache.org/spec/#partition-transforms).
+
+```sql
+CREATE TABLE t_partition (
+    v1 INT,
+    v2 INT,
+    v3 TIMESTAMP,
+    v4 TIMESTAMP,
+    PRIMARY KEY (v1, v2, v3, v4)
+)
+WITH (
+    commit_checkpoint_interval = 1,
+    partition_by = 'truncate(4,v2),bucket(5,v1)'
+)
+ENGINE = ICEBERG;
+```
+
 ## Table maintenance
 
 To maintain good performance and manage storage costs, internal Iceberg tables require periodic maintenance, including compaction and snapshot expiration.
