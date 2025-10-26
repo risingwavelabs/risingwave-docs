@@ -15,18 +15,13 @@ Get Started
 
 ## Unified platform for streaming data
 
-RisingWave delivers a full **end-to-end streaming data platform** — combining real-time processing with built-in storage and open-format persistence.
+RisingWave delivers a unified streaming data platform that combines **ultra-low-latency stream processing** and **Iceberg-native data management**.
 
-It supports:
+### Streaming analytics
+RisingWave integrates real-time stream processing and low-latency serving in a single system. It [continuously ingests data](/ingestion/overview) from streaming and batch sources, [performs incremental computations](/processing/overview) across streams and tables with end-to-end freshness under 100 ms. Materialized views can be [served](/serve/overview) directly within RisingWave with 10–20 ms p99 query latency, or [delivered to downstream systems](/delivery/overview).
 
-* **[Ingestion](/ingestion/overview):** Ingest millions of events per second from streaming and batch sources.
-* **[Stream processing](/processing/overview):** Perform real-time incremental processing to join and analyze live data with historical tables.
-* **[Delivery](/delivery/overview):** Deliver fresh, consistent results to data lakes (e.g., Apache Iceberg) or any destination.
-
-What sets RisingWave apart is its integrated storage engine:
-
-* **[Online serving](/serve/overview):** Row-based storage for ad-hoc point/range queries with single-digit millisecond latency.
-* **[Offline persistence](/store/overview):** Built-in [Apache Iceberg™](https://iceberg.apache.org/) integration for low-cost, durable storage with open access for external query engines.
+### Iceberg-based lakehouse ingestion and management
+RisingWave treats Apache Iceberg™ as a [first-class citizen](/iceberg/overview). It continuously transforms and writes streaming data into Iceberg tables, and automates key management tasks such as compaction, small-file optimization, and schema evolution. RisingWave also supports incremental materialized views on Iceberg tables, enabling continuous view maintenance and consistent updates without external pipelines. Through a PostgreSQL-compatible interface, users can ingest, transform, query, and manage Iceberg data seamlessly within one system.
 
 ## Key design decisions
 
@@ -36,13 +31,12 @@ RisingWave is built for ease of use and cost efficiency.
 
 RisingWave is wire-compatible with PostgreSQL, enabling:  
 - **[Expressive SQL](/sql/overview):** Supports structured, semi-structured, and unstructured data with a familiar SQL dialect.  
-- **Seamless integration:** Works with psql, JDBC, and any PostgreSQL-compatible tool via the PostgreSQL wire protocol.  
-- **No manual state tuning:** Eliminates the need for complex state management configurations.  
+- **Seamless integration:** Works with psql, JDBC, and any PostgreSQL-compatible tool via the PostgreSQL wire protocol.
 
 ### Object storage as primary storage  
 
 RisingWave stores tables, materialized views, and internal states of stream processing jobs in object storage (e.g., S3, GCS, MinIO), providing:  
-- **High performance:** Optimized for complex queries, including joins and time windowing.  
+- **High performance:** Optimized for complex queries, including joins and time windowing, without the need for complex state management.  
 - **Fast recovery:** Restores from system failures within seconds.  
 - **[Dynamic scaling](/deploy/k8s-cluster-scaling):** Instantly adjusts resources to handle workload spikes.  
 
