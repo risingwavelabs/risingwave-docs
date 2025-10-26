@@ -21,7 +21,7 @@ RisingWave delivers a unified streaming data platform that combines **ultra-low-
 RisingWave integrates real-time stream processing and low-latency serving in a single system. It [continuously ingests data](/ingestion/overview) from streaming and batch sources, [performs incremental computations](/processing/overview) across streams and tables with end-to-end freshness under 100 ms. Materialized views can be [served](/serve/overview) directly within RisingWave with 10–20 ms p99 query latency, or [delivered to downstream systems](/delivery/overview).
 
 ### Iceberg-based lakehouse ingestion and management
-RisingWave treats Apache Iceberg™ as a [first-class citizen](/iceberg/overview). It continuously transforms and writes streaming data into Iceberg tables, and automates key management tasks such as compaction, small-file optimization, and schema evolution. RisingWave also supports incremental materialized views on Iceberg tables, enabling continuous view maintenance and consistent updates without external pipelines. Through a PostgreSQL-compatible interface, users can ingest, transform, query, and manage Iceberg data seamlessly within one system.
+RisingWave treats Apache Iceberg™ as a [first-class citizen](/iceberg/overview). It directly hosts and manages the Iceberg REST catalog, allowing users to create and operate Iceberg tables through a [PostgreSQL-compatible interface](/iceberg/ov-internal). RisingWave supports [two write modes](/iceberg/write-modes): Merge-on-Read (MoR) and Copy-on-Write (CoW), to suit different ingestion and query patterns. It also provides [built-in table maintenance](/iceberg/maintenance) capabilities, including compaction, small-file optimization, vacuum, and snapshot cleanup, ensuring efficient and consistent data management without external tools or pipelines.
 
 ## Key design decisions
 
@@ -39,8 +39,6 @@ RisingWave stores tables, materialized views, and internal states of stream proc
 - **High performance:** Optimized for complex queries, including joins and time windowing, without the need for complex state management.  
 - **Fast recovery:** Restores from system failures within seconds.  
 - **[Dynamic scaling](/deploy/k8s-cluster-scaling):** Instantly adjusts resources to handle workload spikes.  
-
-### Elastic disk cache
 
 Beyond caching hot data in memory, RisingWave supports [**elastic disk cache**](/get-started/disk-cache), a powerful performance optimization that uses local disks or EBS for efficient data caching. This minimizes access to object storage like S3, lowering processing latency and cutting object store access costs.
 
