@@ -1,0 +1,153 @@
+---
+title: "Quick start: Build a streaming lakehouse"
+sidebarTitle: "Quick start"
+description: "Build a streaming lakehouse with RisingWave and Apache Iceberg. This quick start guides you through streaming data from RisingWave into an Iceberg table and querying it from DuckDB using a REST catalog."
+---
+This tutorial is based on the [RisingWave, Lakekeeper, Iceberg, and DuckDB demo](https://github.com/risingwavelabs/awesome-stream-processing/tree/main/07-iceberg-demos/risingwave_lakekeeper_iceberg_duckdb) from our `awesome-stream-processing` repository. For more details, please refer to the original demo.
+
+## Prerequisites
+
+Before you start, ensure you have the following tools installed:
+
+*   **Docker** and **Docker Compose**: For running the services.
+*   **psql**: The PostgreSQL interactive terminal for connecting to RisingWave.
+
+## Start the stack
+
+First, clone the demo repository and start the services using Docker Compose.
+
+```bash
+git clone https://github.com/risingwavelabs/awesome-stream-processing.git
+cd awesome-stream-processing/07-iceberg-demos/risingwave_lakekeeper_iceberg_duckdb
+
+# Launch demo stack
+docker compose up -d
+```
+
+This will start RisingWave, Lakekeeper, and MinIO.
+
+## Connect to RisingWave and stream to Iceberg
+
+Connect to RisingWave using `psql`:
+
+```bash
+psql -h localhost -p 4566 -d dev -U root
+```
+
+Create a REST catalog connection to Lakekeeper and MinIO:
+
+```sql
+CREATE CONNECTION lakekeeper_catalog_conn
+WITH (
+    type = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://lakekeeper:8181/catalog/',
+    warehouse.path = 'risingwave-warehouse',
+    s3.access.key = 'hummockadmin',
+    s3.secret.key = 'hummockadmin',
+    s3.path.style.access = 'true',
+    s3.endpoint = 'http://minio-0:9301',
+    s3.region = 'us-east-1'
+);
+```
+
+This command registers the Lakekeeper REST catalog and the MinIO object storage as a connection in RisingWave, allowing it to manage Iceberg tables.
+
+Set it as the default Iceberg connection:
+
+```sql
+SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+```
+
+Create an Iceberg-native table in RisingWave:
+
+```sql
+CREATE TABLE customer_profile (
+  customer_id INT PRIMARY KEY,
+  full_name   VARCHAR,
+  email       VARCHAR,
+  phone       VARCHAR,
+  status      VARCHAR,
+  city        VARCHAR,
+  created_at  TIMESTAMPTZ,
+  updated_at  TIMESTAMPTZ
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+
+You've now created an Iceberg-native table directly in RisingWave. Any data streamed into this table will be committed to the Iceberg format in MinIO.
+
+Insert some data into the table:
+
+```sql
+INSERT INTO customer_profile (
+  customer_id, full_name, email, phone, status, city, created_at, updated_at)
+VALUES
+  (1, 'Alex Johnson', 'alex.johnson@example.com', '+1-212-555-0101', 'active', 'New York','2025-08-15 09:12:00-04','2025-08-18 14:30:00-04'),
+  (2, 'Maria Garcia', 'maria.garcia@example.com', '+1-415-555-0102', 'active', 'San Francisco','2025-08-16 08:05:00-07','2025-08-19 10:45:00-07'),
+  (3, 'Ethan Brown',  'ethan.brown@example.com',  '+1-312-555-0103', 'suspended','Chicago','2025-08-17 11:10:00-05','2025-08-17 11:10:00-05');
+```
+
+Verify that the data has been inserted:
+
+```sql
+SELECT * FROM customer_profile;
+```
+
+At this point, the data is not only available for querying within RisingWave but is also persisted in the Iceberg format in your MinIO storage.
+
+## Query the Iceberg table from DuckDB
+
+Now, let's query the `customer_profile` table from DuckDB.
+
+First, install the DuckDB CLI:
+
+```bash
+curl https://install.duckdb.org | sh
+```
+
+For DuckDB to reach MinIO, map `minio-0` to `127.0.0.1` in your `/etc/hosts` file:
+
+```bash
+echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
+```
+
+Launch DuckDB:
+
+```bash
+~/.duckdb/cli/latest/duckdb
+```
+
+Install the required extensions:
+
+```sql
+INSTALL aws;
+INSTALL httpfs;
+INSTALL iceberg;
+```
+
+Configure DuckDB to connect to MinIO:
+
+```sql
+SET s3_region = 'us-east-1';
+SET s3_endpoint = 'http://minio-0:9301';
+SET s3_access_key_id = 'hummockadmin';
+SET s3_secret_access_key = 'hummockadmin';
+SET s3_url_style = 'path';
+SET s3_use_ssl = false;
+```
+
+Attach the Lakekeeper REST catalog and query the table:
+
+```sql
+ATTACH 'risingwave-warehouse' AS lakekeeper_catalog (
+  TYPE ICEBERG,
+  ENDPOINT 'http://127.0.0.1:8181/catalog/',
+  AUTHORIZATION_TYPE 'none'
+);
+
+SELECT * FROM lakekeeper_catalog.public.customer_profile;
+```
+
+You are now querying the exact same Iceberg table from a different query engine, without any data duplication. This demonstrates the open and interoperable nature of the streaming lakehouse you've just built with RisingWave!
