@@ -80,15 +80,64 @@ During the backfilling process of the "MV on MV" or "MV on SINK INTO TABLE", the
 
 #### MV on MV
 
-Suppose we create a table `t` using `create table t(v1 int, v2 varchar, v3 timestamp);`. This table contains a large amount of historical data. When creating a new MV on top of this table, it requires backfilling all the historical data, which can be a time-consuming process. Then we create an MV called `m` using `create materialized view m as select v1, sum(v2) from t group by v1;`. The challenge during backfilling is that when reading data from table `t` to build the MV `m`, the order of the `v1` values may be random. This randomness can lead to poor cache locality and trigger remote I/O, ultimately decreasing performance.
+When building a downstream MV, ensure that the ordering key of the upstream table aligns with the grouping key of the downstream MV. This helps RisingWave read data in order and reduces random I/O during backfilling.
 
-However, if we use `create table t(v1 int primary key, v2 varchar);` instead to create a table, or define an intermediate mv like `create materialized view tmp as select * from t order by v1;`. The storage of RisingWave will order rows by `v1`, which means that rows with same `v1` will be read consecutively. This adjustment enhances cache locality and thereby improves performance.
+For example, if table `t` is unordered, rows with the same `v1` may be scattered, resulting in poor cache locality:
+
+```sql Example - MV on MV
+CREATE TABLE t (v1 INT, v2 VARCHAR, v3 TIMESTAMP);
+CREATE MATERIALIZED VIEW m AS SELECT v1, SUM(v2) FROM t GROUP BY v1;
+```
+
+To improve performance, define `t` with an order key or build an intermediate MV:
+
+```sql
+CREATE TABLE t (v1 INT PRIMARY KEY, v2 VARCHAR);
+-- or
+CREATE MATERIALIZED VIEW tmp AS SELECT * FROM t ORDER BY v1;
+```
+
+Rows with the same `v1` will then be stored consecutively to improve scan efficiency.
 
 #### MV on SINK INTO TABLE
 
 When building the MV on a table populated via SINK (SINK INTO TABLE), backfilling performance can be improved by ensuring the sink writes data in an order that matches the MV’s partitioning or ordering keys.
 
-For example, if the MV uses `ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY updated_at DESC)`, writing sink data ordered by `order_id`, `updated_at` helps store related rows consecutively. This improves data locality and allows the MV to backfill more efficiently by reducing random I/O and increasing cache hit rates.
+For example, if the MV uses a window function such as:
+
+```sql
+ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY updated_at DESC)
+```
+then write sink data ordered by `order_id`, `updated_at` to ensure related rows are stored consecutively. This improves data locality and allows the MV to backfill more efficiently by reducing random I/O and increasing cache hit rates.
+
+#### Index selection
+
+When backfilling large MVs, RisingWave can automatically choose the best index to scan data in a more efficient order. This ensures that data is read in the same order as the grouping, join, or partition keys.
+
+Index selection is controlled by the session variable `enable_index_selection` (enabled by default).
+
+```sql Example
+CREATE TABLE t (a INT, b INT, c INT);
+CREATE INDEX idx_a ON t(a);
+CREATE INDEX idx_bc ON t(b, c DESC);
+
+-- The optimizer automatically selects the index that matches the grouping key
+SELECT COUNT(*) FROM t GROUP BY b;
+```
+
+In this example, since the query groups by column `b`, RisingWave’s optimizer can automatically use the index `idx_bc(b, c DESC)` to scan data in a locality-friendly order, improving cache utilization and backfilling speed.
+
+#### Locality backfill
+
+While index selection improves data reading order at the table scan level, locality backfill extends this optimization to the entire backfill pipeline. It makes joins and aggregations process data in a locality-aware order, reducing data shuffling and improving overall performance.
+
+Locality backfill is controlled by the session variable `enable_locality_backfill` (disabled by default).
+
+```sql
+SET enable_locality_backfill = true;
+```
+
+Once enabled, the optimizer automatically inserts `LocalityProvider` operators into the query plan to maintain data locality across joins and aggregations.
 
 ## Using materialized views
 
