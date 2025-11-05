@@ -112,6 +112,10 @@ then write sink data ordered by `order_id`, `updated_at` to ensure related rows 
 
 #### Index selection
 
+<Note>
+Added in v2.7.0.
+</Note>
+
 When backfilling large MVs, RisingWave can automatically choose the best index to scan data in a more efficient order. This ensures that data is read in the same order as the grouping, join, or partition keys.
 
 Index selection is controlled by the session variable `enable_index_selection` (enabled by default).
@@ -119,17 +123,21 @@ Index selection is controlled by the session variable `enable_index_selection` (
 ```sql Example
 CREATE TABLE t (a INT, b INT, c INT);
 CREATE INDEX idx_a ON t(a);
-CREATE INDEX idx_bc ON t(b, c DESC);
+CREATE INDEX idx_b ON t(b);
 
 -- The optimizer automatically selects the index that matches the grouping key
 SELECT COUNT(*) FROM t GROUP BY b;
 ```
 
-In this example, since the query groups by column `b`, RisingWave’s optimizer can automatically use the index `idx_bc(b, c DESC)` to scan data in a locality-friendly order, improving cache utilization and backfilling speed.
+In this example, since the query groups by column `b`, RisingWave’s optimizer can automatically use the index `idx_b ON t(b)` to scan data in a locality-friendly order, improving cache utilization and backfilling speed.
 
 #### Locality backfill
 
-While index selection improves data reading order at the table scan level, locality backfill extends this optimization to the entire backfill pipeline. It makes joins and aggregations process data in a locality-aware order, reducing data shuffling and improving overall performance.
+<Note>
+Added in v2.7.0.
+</Note>
+
+While index selection improves data reading order at the table scan level, locality backfill extends this optimization to the entire backfill pipeline. It enables joins, aggregations, and other operators that benefit from data locality—such as Group TopN and window functions—to process data more efficiently, reducing data shuffling and improving overall performance.
 
 Locality backfill is controlled by the session variable `enable_locality_backfill` (disabled by default).
 
@@ -138,6 +146,12 @@ SET enable_locality_backfill = true;
 ```
 
 Once enabled, the optimizer automatically inserts `LocalityProvider` operators into the query plan to maintain data locality across joins and aggregations.
+
+<Tip>
+**PREMIUM FEATURE**
+
+Locality backfill is a premium feature for complex queries. A query plan that uses more than five `LocalityProvider` operators is considered a complex query. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
 
 ## Using materialized views
 
