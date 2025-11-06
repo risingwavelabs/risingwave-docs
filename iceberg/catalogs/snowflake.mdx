@@ -1,0 +1,31 @@
+---
+title: "Snowflake catalog"
+sidebarTitle: "Snowflake catalog"
+description: "Ingest data from Snowflake-managed Iceberg tables into RisingWave."
+---
+
+You can ingest data from Apache Iceberg tables managed by Snowflake. To do this, configure RisingWave to use Snowflake's built-in catalog.
+
+Note that the Snowflake catalog can only be used for creating Iceberg sources.
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Example
+
+To create a source that reads from a Snowflake-managed Iceberg table, set `catalog.type` to `'snowflake'` and provide your Snowflake connection details.
+
+```sql
+CREATE SOURCE my_snowflake_source
+WITH (
+    connector = 'iceberg',
+    catalog.type = 'snowflake',
+    catalog.uri = 'jdbc:snowflake://<account_identifier>.snowflakecomputing.com/',
+    catalog.jdbc.user = '<your_username>',
+    catalog.jdbc.password = '<your_password>',
+    warehouse.path = '<warehouse_path>',
+    database.name = '<your_database>',
+    table.name = '<your_table>'
+);
+```

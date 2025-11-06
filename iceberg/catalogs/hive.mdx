@@ -1,0 +1,31 @@
+---
+title: "Hive Metastore catalog"
+sidebarTitle: "Hive catalog"
+description: "Connect RisingWave to an Apache Hive Metastore for Apache Iceberg."
+---
+
+You can use an Apache Hive Metastore as the catalog for your Iceberg tables. You can use this catalog with RisingWave when creating an Iceberg `SOURCE`, `SINK`, or `CONNECTION` (for internal Iceberg tables).
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Example
+
+To create a sink that uses a Hive Metastore catalog, set `catalog.type` to `'hive'` and provide the `catalog.uri` for your metastore service.
+
+```sql
+CREATE SINK my_hive_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'hive',
+    catalog.uri = 'thrift://hive-metastore:9083',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```

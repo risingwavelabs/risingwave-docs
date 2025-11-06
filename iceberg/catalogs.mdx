@@ -1,12 +1,54 @@
 ---
-title: "Catalog configuration"
-sidebarTitle: "Catalogs"
+title: "Iceberg catalog configuration"
+sidebarTitle: "Overview"
 description: "Configure the catalog for your Apache Iceberg sources, sinks, and internal tables in RisingWave."
 ---
 
 When creating an Iceberg source, sink, or internal table, you must configure a catalog. The catalog is responsible for managing the table's metadata, including its schema, partitioning strategy, and data file locations.
 
-RisingWave supports two main types of catalogs: **hosted catalogs**, which are managed by RisingWave, and **external catalogs**, which you manage.
+RisingWave supports two main types of catalogs: a **built-in catalog** which is managed by RisingWave, and **external catalogs**, which you manage.
+
+## Built-in catalog
+
+The built-in catalog is a service managed by RisingWave that simplifies the setup for internal Iceberg tables by removing the need to manage an external catalog. This is the recommended approach for getting started.
+
+<CardGroup>
+  <Card title="Built-in catalog" href="/iceberg/catalogs/internal">
+    Use RisingWave’s internal metastore as a JDBC-compliant catalog.
+  </Card>
+</CardGroup>
+
+
+## External catalogs
+
+External catalogs are required when you need to connect to Iceberg tables that are managed by other systems. RisingWave supports several types of external catalogs.
+
+<CardGroup>
+  <Card title="AWS Glue" href="/iceberg/catalogs/glue">
+    Integrate with AWS Glue Data Catalog.
+  </Card>
+  <Card title="JDBC" href="/iceberg/catalogs/jdbc">
+    Stores metadata in a relational database like PostgreSQL.
+  </Card>
+  <Card title="REST" href="/iceberg/catalogs/rest">
+    Uses a RESTful API to manage table metadata.
+  </Card>
+  <Card title="Lakekeeper" href="/iceberg/catalogs/lakekeeper">
+    Deploy a self-hosted REST catalog with Lakekeeper.
+  </Card>
+  <Card title="Amazon S3 Tables" href="/iceberg/catalogs/s3-tables">
+    An AWS-native REST-based catalog with SigV4 authentication.
+  </Card>
+  <Card title="Hive Metastore" href="/iceberg/catalogs/hive">
+    Stores metadata using a Hive Metastore backend.
+  </Card>
+  <Card title="Snowflake" href="/iceberg/catalogs/snowflake">
+    Uses Snowflake's built-in Iceberg catalog functionality.
+  </Card>
+   <Card title="Databricks Unity Catalog" href="/iceberg/catalogs/unity">
+    Connect to Databricks-managed tables using Unity Catalog.
+  </Card>
+</CardGroup>
 
 ## Catalog parameters
 
@@ -14,157 +56,16 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 
 | Parameter | Description |
 |---|---|
-| `catalog.type` | The type of catalog. Supported values: `'storage'`, `'rest'`, `'hive'`, `'jdbc'`, `'glue'`, and `'snowflake'`. Defaults to `'storage'` if not specified. |
+| `catalog.type` | The type of catalog. Supported values: `'storage'`, `'rest'`, `'rest_rust'`, `'hive'`, `'jdbc'`, `'glue'`, and `'snowflake'`. Defaults to `'storage'` if not specified. |
 | `catalog.uri` | The URI for the catalog service. Required for `rest`, `hive`, `jdbc`, and `snowflake` catalog types. |
 | `catalog.name` | A user-defined name for the catalog. Required for all types except `storage`. |
-| `hosted_catalog` | Set to `true` when using a hosted catalog with an internal Iceberg table. See [Hosted Iceberg catalogs](/iceberg/hosted-iceberg-catalog). |
+| `hosted_catalog` | Set to `true` when using the [Built-in catalog](/iceberg/catalogs/internal). |
 | `catalog.jdbc.user` | Username for the JDBC catalog. |
 | `catalog.jdbc.password` | Password for the JDBC catalog. |
-| `catalog.credential` | Credentials for the REST catalog's OAuth2 flow. |
-| `catalog.token` | A bearer token for the REST catalog. |
-| `catalog.oauth2_server_uri` | The token endpoint URI for the REST catalog's OAuth2 flow. |
-| `catalog.scope` | The OAuth2 scope for the REST catalog. |
-
-## Hosted catalogs
-
-A hosted catalog is a built-in service managed by RisingWave that simplifies the setup for internal Iceberg tables by removing the need to manage an external catalog. This is the recommended approach for getting started.
-
-For a complete guide, see [Hosted Iceberg catalogs](/iceberg/hosted-iceberg-catalog).
-
-## External catalogs
-
-External catalogs are required when you need to connect to Iceberg tables that are managed by other systems. RisingWave supports several types of external catalogs.
-
-### Glue catalog
-
-Integrates with AWS Glue Data Catalog.
-
-```sql
-CREATE SINK my_glue_sink FROM my_mv WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
-    catalog.type = 'glue',
-    warehouse.path = 's3://my-bucket/warehouse/',
-    s3.region = 'us-west-2',
-    s3.access.key = '...',
-    s3.secret.key = '...',
-    database.name = 'my_db',
-    table.name = 'my_table'
-);
-```
-
-### JDBC catalog
-
-Stores metadata in a relational database like PostgreSQL.
-
-```sql
-CREATE SINK my_jdbc_sink FROM my_mv WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
-    catalog.type = 'jdbc',
-    catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg_db',
-    catalog.jdbc.user = 'user',
-    catalog.jdbc.password = 'password',
-    warehouse.path = 's3://my-bucket/warehouse/',
-    s3.region = 'us-west-2',
-    s3.access.key = '...',
-    s3.secret.key = '...',
-    database.name = 'my_db',
-    table.name = 'my_table'
-);
-```
-
-### REST catalog
-
-Uses a RESTful API to manage table metadata.
-
-```sql
-CREATE SINK my_rest_sink FROM my_mv WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
-    catalog.type = 'rest',
-    catalog.uri = 'http://rest-catalog:8181',
-    warehouse.path = 's3://my-bucket/warehouse/',
-    s3.region = 'us-west-2',
-    s3.access.key = '...',
-    s3.secret.key = '...',
-    database.name = 'my_db',
-    table.name = 'my_table'
-);
-```
-
-#### Amazon S3 Tables
-
-Amazon S3 Tables is an AWS-native Iceberg catalog service that uses the REST protocol with AWS SigV4 authentication. To connect, you use `catalog.type = 'rest'` and provide additional parameters for authentication.
-
-**Required REST parameters for S3 Tables:**
-
-| Parameter | Description | Value for S3 Tables |
-|---|---|---|
-| `catalog.uri` | The S3 Tables REST endpoint for your region. | `https://s3tables.<your-region>.amazonaws.com/iceberg` |
-| `catalog.rest.signing_region` | The AWS region for signing requests. | e.g., `us-east-1` |
-| `catalog.rest.signing_name` | The service name for signing requests. | `s3tables` |
-| `catalog.rest.sigv4_enabled` | Enables SigV4 signing. Must be `true`. | `true` |
-
-**Example `CREATE SINK` with S3 Tables:**
-```sql
-CREATE SINK my_s3_tables_sink FROM my_mv
-WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
-    warehouse.path = 'arn:aws:s3tables:<your-region>:<account-id>:bucket/<bucket-name>',
-    s3.access.key = '...',
-    s3.secret.key = '...',
-    s3.region = '<your-region>',
-    catalog.type = 'rest',
-    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
-    catalog.rest.signing_region = '<your-region>',
-    catalog.rest.sigv4_enabled = true,
-    catalog.rest.signing_name = 's3tables',
-    database.name = '<your-database-name>',
-    table.name = '<your-table-name>'
-);
-```
-
-### Hive Metastore catalog
-
-Stores metadata using a Hive Metastore backend.
-
-```sql
-CREATE SINK my_hive_sink FROM my_mv WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
-    catalog.type = 'hive',
-    catalog.uri = 'thrift://hive-metastore:9083',
-    warehouse.path = 's3://my-bucket/warehouse/',
-    s3.region = 'us-west-2',
-    s3.access.key = '...',
-    s3.secret.key = '...',
-    database.name = 'my_db',
-    table.name = 'my_table'
-);
-```
-
-### Snowflake catalog
-
-Uses Snowflake's built-in Iceberg catalog functionality.
-
-```sql
-CREATE SINK my_snowflake_sink FROM my_mv WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
-    catalog.type = 'snowflake',
-    catalog.uri = 'jdbc:snowflake://<account_identifier>.snowflakecomputing.com/',
-    catalog.jdbc.user = '<your_username>',
-    catalog.jdbc.password = '<your_password>',
-    warehouse.path = '<warehouse_path>',
-    database.name = '<your_database>',
-    table.name = '<your_table>'
-);
-```
+| `catalog.credential` | Credentials for a REST catalog's OAuth2 flow. |
+| `catalog.token` | A bearer token for a REST catalog. |
+| `catalog.oauth2_server_uri` | The token endpoint URI for a REST catalog's OAuth2 flow. |
+| `catalog.scope` | The OAuth2 scope for a REST catalog. |
+| `catalog.rest.signing_region` | For Amazon S3 Tables: the AWS region for signing requests. |
+| `catalog.rest.signing_name` | For Amazon S3 Tables: the service name for signing requests. |
+| `catalog.rest.sigv4_enabled` | For Amazon S3 Tables: enables SigV4 signing. Must be `true`. |
