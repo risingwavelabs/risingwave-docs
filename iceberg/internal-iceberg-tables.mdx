@@ -14,7 +14,7 @@ Creating and using an internal Iceberg table is a two-step process: first, you d
 
 An Iceberg `CONNECTION` defines the catalog and object storage configuration.
 
-You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based hosted catalog, set `hosted_catalog` to `true`.
+You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based built-in catalog, set `hosted_catalog` to `true`.
 
 You can also set the optional `commit_checkpoint_interval` parameter to control the commit frequency. For example, setting it to `10` means RisingWave will commit data every 10 checkpoints.
 
@@ -23,8 +23,8 @@ When you create a `CONNECTION`, you specify the object storage backend where the
 For more details on the available catalog options, see [Iceberg catalog configuration](/iceberg/catalogs).
 
 <Tabs>
-    <Tab title="Hosted catalog - JDBC">
-    For the simplest setup, use RisingWave's built-in JDBC-based hosted catalog. This requires no external dependencies.
+    <Tab title="Built-in catalog">
+    For the simplest setup, use RisingWave's built-in JDBC-based catalog. This requires no external dependencies.
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
         type = 'iceberg',
@@ -35,9 +35,10 @@ For more details on the available catalog options, see [Iceberg catalog configur
         hosted_catalog = true
     );
     ```
-    For more details, see [Hosted Iceberg catalog](/iceberg/hosted-iceberg-catalog).
+    For more details, see [Built-in catalog](/iceberg/catalogs/internal).
     </Tab>
     <Tab title="JDBC catalog">
+    To connect to an external JDBC catalog like PostgreSQL:
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
         type = 'iceberg',
