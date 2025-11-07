@@ -29,8 +29,10 @@ For example, you can implement the three layers of the Medallion architecture as
 
 RisingWave provides two hosted catalog options for managing Iceberg metadata, schema versions, and table state:
 
-- JDBC hosted catalog — backed by RisingWave’s internal PostgreSQL-compatible metastore. See [JDBC hosted catalog](/iceberg/hosted-catalog-jdbc).
-- REST hosted catalog — powered by Lakekeeper and compatible with the Iceberg REST catalog API. See [REST hosted catalog](/iceberg/hosted-catalog-rest).
+- **Built-in catalog**: Uses RisingWave’s internal PostgreSQL-compatible metastore as a JDBC-compliant catalog. See [Built-in catalog](/iceberg/catalogs/internal).
+- **Self-hosted REST catalog**: You can deploy a standalone REST catalog service like [Lakekeeper](/iceberg/catalogs/lakekeeper).
+
+### External query engine access
 
 Both options allow external Iceberg engines to read and write RisingWave-managed tables using standard Iceberg protocols.
 
@@ -51,5 +53,5 @@ For complete details on configuration, see the [Iceberg table maintenance](/iceb
 
 | Component | RisingWave Native Options | Alternative Options | Description |
 | --- | --- | --- | --- |
-| **Catalog service** | RisingWave hosted JDBC and REST catalogs | Glue, Hive, Nessie, or custom REST catalogs | Stores metadata and schema information |
+| **Catalog service** | Built-in catalog (JDBC) or a self-hosted REST catalog (Lakekeeper) | Glue, Hive, Nessie, or custom REST catalogs | Stores metadata and schema information |
 | **Compaction service** | RisingWave's built-in compaction service | External services (Aamazon EMR) or self-hosted Spark | Merges small files and expires old snapshots |
