@@ -4,10 +4,23 @@ sidebarTitle: Delta Lake
 description: "This guide describes how to sink data from RisingWave to Delta Lake. Delta Lake is an open-source storage framework designed to allow you to build a lakehouse architecture with another compute engine. For more information, see [Delta Lake](https://delta.io)."
 ---
 
+[Delta Lake](https://delta.io) is an open-source storage framework that enables building a lakehouse architecture with compute engines including Spark, PrestoDB, Flink, Trino, and others. It provides ACID transactions, scalable metadata handling, and unifies streaming and batch data processing.
+
+The Delta Lake sink connector provides:
+- **Real-time data delivery**: Stream data changes directly to Delta Lake tables
+- **Append-only operations**: Optimized for high-throughput append operations
+- **Multi-storage support**: Works with S3, GCS, Azure Blob, and local file systems
+- **Schema validation**: Automatic validation of RisingWave and Delta Lake schema compatibility
+- **Checkpoint-based committing**: Configurable commit intervals for optimal performance
+- **Coordinated sink**: Ensures consistency with coordinated commit mechanism
+- **Secret management**: Secure credential handling through RisingWave secrets
+
 ## Prerequisites
 
 * Ensure you already have a Delta Lake table that you can sink data to. For additional guidance on creating a table and setting up Delta Lake, refer to this [quickstart guide](https://docs.delta.io/latest/quick-start.html#create-a-table).
 * Ensure you have an upstream materialized view or source that you can sink data from.
+* The Delta Lake table must exist before creating the sink (auto-creation is not supported).
+* Appropriate storage credentials are configured (AWS, GCS, Azure, etc.).
 
 ## Spark compatibility
 
