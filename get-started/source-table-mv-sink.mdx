@@ -146,7 +146,9 @@ If you want to write results back into an internal RisingWave table, you can use
 
 ## Summary
 
-A Table is the storage layer; it is mandatory for CDC. A Source is a lightweight ingress; non-CDC Sources can be queried directly, while CDC Sources must be materialized into a Table. An MV is the result table of real-time computation and is the recommended upstream for a Sink. A Sink is the output layer, with three creation syntaxes: FROM, AS SELECT, and INTO. A shared source ensures cross-table consistency in CDC scenarios and avoids redundant consumption in Kafka scenarios. Iceberg supports Time Travel and system tables, while S3 guarantees completeness but not order.
-In one sentence:
-Source defines a data entry point → Table stores the state of the data → MV maintains the results of real-time computations → Sink delivers the results to downstream systems.
-Remember to use a Table for CDC scenarios and consider a shared source when you need multi-table consistency or want to reduce redundant data consumption.
+Here's a quick recap of the four core objects in RisingWave:
+
+- **Table**: The storage layer. Mandatory for CDC scenarios. Stores the current state of data.
+- **Source**: A lightweight ingress point. Non-CDC Sources can be queried directly, while CDC Sources must be materialized into a Table.
+- **MV**: The result table of real-time computation. Recommended as the upstream for a Sink.
+- **Sink**: The output layer. Supports three creation syntaxes: `FROM`, `AS SELECT`, and `INTO`.
