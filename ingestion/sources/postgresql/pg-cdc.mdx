@@ -10,7 +10,7 @@ RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-complian
 
 ## Prerequisites
 
-Before connecting to RisingWave, you must enable logical replication on your upstream database. The specific steps depend on your provider. Select your platform below for detailed setup instructions:
+Before using the native MySQL CDC connector in RisingWave, you need to configure your MySQL database properly.
 
 *   **[Set up a self-hosted PostgreSQL database](/ingestion/sources/postgresql/self-hosted)**
 *   **[Set up AWS RDS or Aurora PostgreSQL](/ingestion/sources/postgresql/aws-rds)**
@@ -19,73 +19,42 @@ Before connecting to RisingWave, you must enable logical replication on your ups
 
 Once setup is complete, return to this guide to connect RisingWave.
 
-## User permissions
-
-Before connecting to PostgreSQL CDC, you need to set up proper user permissions. The PostgreSQL user used for CDC must have specific privileges to perform logical replication.
-
-### Required user permissions
-
-The replication user needs the following permissions:
-
-* `REPLICATION` privilege
-* `CONNECT` privilege on the target database
-* `SELECT` privilege on the tables to be replicated
-* Permission to create publications (if `publication.create.enable` is enabled)
-
-### Publication permissions
-
-If you don't make any special settings, RisingWave will automatically help you create publications. In this case, the user needs:
-
-* **CREATE PUBLICATION permission**: The user must be the database owner, have SUPERUSER privileges, or have CREATE privileges on the database
-* **ALTER PUBLICATION ADD TABLE permission**: The user must be the table owner or have SUPERUSER privileges
-
-If you set `publication.create.enable = 'false'`, the user only needs SELECT privileges on the tables, and you must manually create the publication. This approach reduces permission requirements since you don't need to be the table owner.
-
-### Setting up permissions
-
-For basic user creation and privilege granting, see the setup instructions for your specific PostgreSQL deployment:
-
-* **[Self-hosted PostgreSQL](/ingestion/sources/postgresql/self-hosted)**
-* **[AWS RDS PostgreSQL](/ingestion/sources/postgresql/aws-rds)**
-* **[Neon PostgreSQL](/ingestion/sources/postgresql/neon)**
-* **[Supabase PostgreSQL](/ingestion/sources/postgresql/supabase)**
-
 ## Connect to PostgreSQL
 
-RisingWave uses the `CREATE SOURCE` or `CREATE TABLE ... FROM source` syntax to connect to PostgreSQL CDC. You'll use `CREATE SOURCE` to create a shared source, and then create multiple tables from it, each representing a table in the upstream PostgreSQL database.
+To ingest CDC data from PostgreSQL, you first create a shared source using the `CREATE SOURCE` statement. This source establishes the connection to the PostgreSQL database. Then, for each upstream table you want to ingest, you define a corresponding table in RisingWave using the `CREATE TABLE FROM SOURCE` statement.
 
-### `CREATE SOURCE`
+### Create a shared source
 
-Use the `CREATE SOURCE` statement to define the source with connection parameters.
+Use the `CREATE SOURCE` statement to create a shared source.
 
 ```sql
-CREATE SOURCE [ IF NOT EXISTS ] source_name WITH (
+CREATE SOURCE [ IF NOT EXISTS ] <shared_source_name> WITH (
     connector='postgres-cdc',
     <field>=<value>, ...
 );
 ```
 
-### `CREATE TABLE ... FROM source` (per-table definition)
+### Create a table from the shared source
 
-Create a table on top of the defined source. Note that a primary key is required and must be consistent with the upstream table. We must also specify the Postgres table name (`pg_table_name`) which we are selecting from.
+Next, create a table from the shared source to ingest data from a specific upstream PostgreSQL table. When defining this table in RisingWave, you must specify a primary key that matches the primary key of the upstream table. You also need to provide the name of the upstream table.
 
 ```sql
-CREATE TABLE [ IF NOT EXISTS ] table_name (
-    column_name data_type PRIMARY KEY , ...
-    PRIMARY KEY ( column_name, ... )
+CREATE TABLE [ IF NOT EXISTS ] <rw_table_name> (
+    <column_name> <data_type> PRIMARY KEY , ...
+    PRIMARY KEY ( <column_name>, ... )
 )
-[ INCLUDE timestamp AS column_name ]
+[ INCLUDE timestamp AS <column_name> ]
 WITH (
     snapshot='true'
 )
-FROM source TABLE pg_table_name;
+FROM <shared_source_name> TABLE <upstream_table_name>;
 ```
 
 ### Basic connection example
 
 ```sql
 -- Create a shared CDC source
-CREATE SOURCE pg_source WITH (
+CREATE SOURCE shared_source WITH (
     connector='postgres-cdc',
     hostname='localhost',
     port='5432',
@@ -100,14 +69,10 @@ CREATE TABLE my_table (
     id INT PRIMARY KEY,
     name VARCHAR
 )
-FROM pg_source TABLE 'public.my_upstream_table';
+FROM shared_source TABLE 'public.my_upstream_table';
 ```
 
-## Configuration Parameters
-
-This section contains a complete reference for all parameters used when creating a PostgreSQL CDC source.
-
-### Connector parameters
+## Parameters
 
 These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 
@@ -128,8 +93,6 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 | `ssl.root.cert`       | The PEM-encoded root certificate for `verify-ca` or `verify-full` mode. Use a [secret](/operate/manage-secrets).                                                                                                          | No       |
 | `transactional`       | Ensures that changes from a single upstream transaction are processed atomically. Defaults to `true` for shared sources.                                                   | No       |
 
-### Per-table parameters
-
 These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
 
 | Parameter        | Description           |
@@ -141,7 +104,7 @@ These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM sourc
 | backfill_num_rows_per_split | **Optional**. Specifies number of rows per split for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `100000`.                                                                                                  |
 | backfill_as_even_splits | **Optional**. Whether to create even splits for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `true`.                                                                                             |
 
-Create a CDC table with parallelized backfill enabled for better performance on large tables:
+For large tables, you can significantly speed up the initial data load by enabling parallelized backfill. Configure this feature using the `backfill.parallelism`, `backfill_num_rows_per_split`, and `backfill_as_even_splits` parameters.
 
 ```sql
 CREATE TABLE large_table (
