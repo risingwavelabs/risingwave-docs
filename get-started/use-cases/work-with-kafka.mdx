@@ -1,0 +1,284 @@
+---
+title: "Work with Kafka"
+description: "Learn how to ingest data from Kafka topics, process streaming events, and build real-time analytics pipelines with RisingWave."
+---
+
+Kafka is one of the most common data sources for RisingWave. This guide shows you how to ingest data from Kafka topics, query streaming data, and build real-time analytics pipelines.
+
+## Overview
+
+RisingWave supports Kafka as a streaming data source, enabling you to:
+
+- **Ingest streaming events** from Kafka topics in real-time
+- **Query Kafka sources directly** for ad-hoc exploration
+- **Create materialized views** for real-time processing
+- **Build streaming pipelines** that process events as they arrive
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- A Kafka cluster running and accessible
+- Kafka topics with data
+- RisingWave running and accessible
+- Network connectivity between RisingWave and Kafka
+
+## Step 1: Create a Kafka source
+
+Connect RisingWave to your Kafka topic:
+
+```sql
+CREATE SOURCE kafka_events (
+  user_id VARCHAR,
+  event_type VARCHAR,
+  event_data JSONB,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'user_events',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+**Key parameters:**
+- `topic`: The Kafka topic name
+- `properties.bootstrap.server`: Kafka broker address
+- `scan.startup.mode`: `earliest` (from beginning) or `latest` (from now)
+- `FORMAT PLAIN ENCODE JSON`: Data format (JSON, Avro, Protobuf, etc.)
+
+## Step 2: Query Kafka source directly
+
+You can query Kafka sources directly for ad-hoc exploration:
+
+```sql
+-- Query recent events
+SELECT * FROM kafka_events LIMIT 10;
+
+-- Filter events
+SELECT * FROM kafka_events 
+WHERE event_type = 'purchase' 
+ORDER BY timestamp DESC 
+LIMIT 20;
+
+-- Aggregate events
+SELECT 
+  event_type,
+  COUNT(*) AS event_count
+FROM kafka_events
+GROUP BY event_type;
+```
+
+**Note:** Direct queries on sources read from the current offset. For historical data, use `scan.startup.mode = 'earliest'`.
+
+## Step 3: Create a table from Kafka
+
+For persistent storage and better performance, create a table from Kafka:
+
+```sql
+CREATE TABLE events (
+  user_id VARCHAR,
+  event_type VARCHAR,
+  event_data JSONB,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'user_events',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+Tables store data within RisingWave and maintain offsets for fault tolerance.
+
+## Step 4: Build real-time analytics
+
+Create materialized views that process streaming events in real-time:
+
+```sql
+-- Real-time event counts by type
+CREATE MATERIALIZED VIEW event_counts AS
+SELECT
+  event_type,
+  COUNT(*) AS total_events,
+  COUNT(DISTINCT user_id) AS unique_users
+FROM events
+GROUP BY event_type;
+
+-- Query the materialized view
+SELECT * FROM event_counts;
+```
+
+## Step 5: Time-window aggregations
+
+Use time windows to aggregate events over time:
+
+```sql
+-- Hourly event statistics
+CREATE MATERIALIZED VIEW hourly_stats AS
+SELECT
+  window_start,
+  window_end,
+  event_type,
+  COUNT(*) AS event_count,
+  COUNT(DISTINCT user_id) AS unique_users
+FROM TUMBLE(events, timestamp, INTERVAL '1 HOUR')
+GROUP BY window_start, window_end, event_type;
+
+-- Query hourly stats
+SELECT * FROM hourly_stats 
+ORDER BY window_end DESC 
+LIMIT 24;
+```
+
+## Step 6: Deliver results to Kafka
+
+Send processed results back to Kafka:
+
+```sql
+-- Create a materialized view with processed data
+CREATE MATERIALIZED VIEW processed_events AS
+SELECT
+  user_id,
+  event_type,
+  event_data,
+  timestamp,
+  EXTRACT(HOUR FROM timestamp) AS hour_of_day
+FROM events
+WHERE event_type IN ('purchase', 'click', 'view');
+
+-- Deliver to Kafka
+CREATE SINK processed_events_sink FROM processed_events
+WITH (
+  connector = 'kafka',
+  topic = 'processed_events',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Example: Real-time user activity dashboard
+
+Build a complete real-time analytics pipeline:
+
+```sql
+-- 1. Create source
+CREATE SOURCE user_activity (
+  user_id VARCHAR,
+  action VARCHAR,
+  page_url VARCHAR,
+  session_id VARCHAR,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'user_activity',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+
+-- 2. Create real-time analytics
+CREATE MATERIALIZED VIEW active_users AS
+SELECT
+  window_start,
+  window_end,
+  COUNT(DISTINCT user_id) AS active_users,
+  COUNT(DISTINCT session_id) AS active_sessions,
+  COUNT(*) AS total_actions
+FROM TUMBLE(user_activity, timestamp, INTERVAL '1 MINUTE')
+GROUP BY window_start, window_end;
+
+-- 3. Top pages by views
+CREATE MATERIALIZED VIEW top_pages AS
+SELECT
+  page_url,
+  COUNT(*) AS view_count,
+  COUNT(DISTINCT user_id) AS unique_visitors
+FROM user_activity
+WHERE action = 'pageview'
+GROUP BY page_url
+ORDER BY view_count DESC
+LIMIT 10;
+
+-- 4. Query real-time results
+SELECT * FROM active_users ORDER BY window_end DESC LIMIT 10;
+SELECT * FROM top_pages;
+```
+
+## Handling different data formats
+
+RisingWave supports multiple Kafka data formats:
+
+### JSON
+
+```sql
+CREATE SOURCE json_events (
+  id INTEGER,
+  name VARCHAR,
+  value DOUBLE
+) WITH (
+  connector = 'kafka',
+  topic = 'json_topic',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Avro (with Schema Registry)
+
+```sql
+CREATE SOURCE avro_events (
+  id INTEGER,
+  name VARCHAR,
+  value DOUBLE
+) WITH (
+  connector = 'kafka',
+  topic = 'avro_topic',
+  properties.bootstrap.server = 'localhost:9092',
+  schema.registry = 'http://localhost:8081'
+) FORMAT PLAIN ENCODE AVRO;
+```
+
+### Protobuf
+
+```sql
+CREATE SOURCE protobuf_events (
+  id INTEGER,
+  name VARCHAR,
+  value DOUBLE
+) WITH (
+  connector = 'kafka',
+  topic = 'protobuf_topic',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE PROTOBUF MESSAGE '.UserEvent';
+```
+
+## Best practices
+
+1. **Choose the right startup mode**: Use `earliest` for full history, `latest` for new events only
+2. **Use tables for persistence**: Tables maintain offsets and provide better fault tolerance
+3. **Optimize materialized views**: Pre-aggregate data in materialized views for better query performance
+4. **Monitor Kafka lag**: Track how far behind RisingWave is from the latest Kafka offset
+5. **Handle schema evolution**: Update RisingWave schemas when Kafka message schemas change
+
+## Troubleshooting
+
+**Connection issues:**
+- Verify Kafka is accessible from RisingWave
+- Check broker addresses are correct
+- Ensure network connectivity
+
+**No data appearing:**
+- Check `scan.startup.mode` (use `earliest` to read from beginning)
+- Verify topic name is correct
+- Ensure Kafka topic has data
+
+**Schema mismatches:**
+- Ensure RisingWave schema matches Kafka message schema
+- For Avro, verify Schema Registry is accessible
+- For Protobuf, ensure message definitions match
+
+## Related resources
+
+- [Kafka connector documentation](/ingestion/sources/kafka)
+- [Materialized views](/processing/overview)
+- [Time windows](/processing/sql/time-windows)
+- [Sinks](/delivery/overview)
+

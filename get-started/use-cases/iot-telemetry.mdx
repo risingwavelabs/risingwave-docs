@@ -1,0 +1,227 @@
+---
+title: "IoT and telemetry pipelines"
+description: "Process high-velocity IoT and telemetry data streams in real-time. Aggregate sensor data, detect anomalies, and track device states."
+---
+
+IoT and telemetry systems generate massive volumes of time-series data from sensors, devices, and monitoring systems. RisingWave enables you to process these high-velocity streams in real-time, aggregating sensor data, detecting anomalies, and tracking device states with ultra-low latency.
+
+## Use case overview
+
+IoT and telemetry pipelines typically need to:
+
+- **Ingest high-throughput data** from MQTT, Kafka, and other messaging systems
+- **Aggregate sensor readings** over time windows (e.g., average temperature per minute)
+- **Detect anomalies** in sensor values (e.g., temperature spikes, pressure drops)
+- **Track device states** and trigger alerts when devices go offline
+- **Store aggregated data** for historical analysis
+
+RisingWave excels in these scenarios by providing:
+
+- High-throughput ingestion from MQTT, Kafka, and other connectors
+- Efficient time-window aggregations for sensor data
+- Real-time anomaly detection using materialized views
+- Support for complex time-series operations
+
+## Architecture
+
+```
+IoT Devices → MQTT/Kafka → RisingWave → Aggregations → Alerts/Storage
+  (Sensors)    (Broker)     (Processing)  (MVs)        (Sinks)
+```
+
+1. **Ingest telemetry**: Connect to MQTT, Kafka, or other messaging systems
+2. **Process in real-time**: Aggregate and analyze sensor data using materialized views
+3. **Detect anomalies**: Identify outliers and abnormal patterns
+4. **Store and alert**: Deliver results to storage systems and alerting services
+
+## Example: Smart building monitoring
+
+Monitor temperature, humidity, and energy consumption across multiple sensors in a smart building.
+
+### Step 1: Ingest sensor data
+
+Connect to MQTT broker to receive sensor readings:
+
+```sql
+CREATE SOURCE sensor_readings (
+  sensor_id VARCHAR,
+  sensor_type VARCHAR,
+  reading_value DOUBLE,
+  unit VARCHAR,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'mqtt',
+  broker = 'tcp://localhost:1883',
+  topic = 'sensors/+/readings',
+  qos = 1
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Step 2: Aggregate sensor data
+
+Create materialized views to aggregate readings by sensor type and time window:
+
+```sql
+-- Average temperature per room per minute
+CREATE MATERIALIZED VIEW room_temperature_avg AS
+SELECT
+  sensor_id,
+  window_start,
+  window_end,
+  AVG(reading_value) AS avg_temperature,
+  MIN(reading_value) AS min_temperature,
+  MAX(reading_value) AS max_temperature,
+  COUNT(*) AS reading_count
+FROM TUMBLE(sensor_readings, timestamp, INTERVAL '1 MINUTE')
+WHERE sensor_type = 'temperature'
+GROUP BY sensor_id, window_start, window_end;
+
+-- Energy consumption per hour
+CREATE MATERIALIZED VIEW hourly_energy_consumption AS
+SELECT
+  sensor_id,
+  window_start,
+  window_end,
+  SUM(reading_value) AS total_energy_kwh,
+  AVG(reading_value) AS avg_power_watts
+FROM TUMBLE(sensor_readings, timestamp, INTERVAL '1 HOUR')
+WHERE sensor_type = 'energy'
+GROUP BY sensor_id, window_start, window_end;
+```
+
+### Step 3: Detect anomalies
+
+Identify sensors with abnormal readings:
+
+```sql
+CREATE MATERIALIZED VIEW temperature_anomalies AS
+SELECT
+  sensor_id,
+  window_start,
+  window_end,
+  avg_temperature,
+  CASE
+    WHEN avg_temperature > 30 THEN 'too_hot'
+    WHEN avg_temperature < 15 THEN 'too_cold'
+    ELSE 'normal'
+  END AS status
+FROM room_temperature_avg
+WHERE avg_temperature > 30 OR avg_temperature < 15;
+```
+
+### Step 4: Track device health
+
+Monitor sensor availability and detect offline devices:
+
+```sql
+CREATE MATERIALIZED VIEW device_health AS
+SELECT
+  sensor_id,
+  MAX(timestamp) AS last_seen,
+  NOW() - MAX(timestamp) AS time_since_last_reading,
+  CASE
+    WHEN NOW() - MAX(timestamp) > INTERVAL '5 MINUTES' THEN 'offline'
+    ELSE 'online'
+  END AS status
+FROM sensor_readings
+GROUP BY sensor_id;
+
+-- Alert on offline devices
+CREATE MATERIALIZED VIEW offline_alerts AS
+SELECT
+  sensor_id,
+  last_seen,
+  time_since_last_reading
+FROM device_health
+WHERE status = 'offline';
+```
+
+### Step 5: Deliver results
+
+Send aggregated data and alerts to downstream systems:
+
+```sql
+-- Store aggregated data
+CREATE SINK temperature_metrics FROM room_temperature_avg
+WITH (
+  connector = 'kafka',
+  topic = 'temperature_metrics',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+
+-- Send alerts
+CREATE SINK anomaly_alerts FROM temperature_anomalies
+WITH (
+  connector = 'kafka',
+  topic = 'anomaly_alerts',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Example: Fleet telemetry
+
+Monitor vehicle location, speed, and engine health for a fleet of vehicles:
+
+```sql
+-- Ingest vehicle telemetry
+CREATE SOURCE vehicle_telemetry (
+  vehicle_id VARCHAR,
+  latitude DOUBLE,
+  longitude DOUBLE,
+  speed_kmh DOUBLE,
+  engine_temp DOUBLE,
+  fuel_level DOUBLE,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'vehicle_telemetry',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+
+-- Track vehicle locations in real-time
+CREATE MATERIALIZED VIEW vehicle_locations AS
+SELECT
+  vehicle_id,
+  latitude,
+  longitude,
+  speed_kmh,
+  timestamp
+FROM vehicle_telemetry;
+
+-- Detect speeding vehicles
+CREATE MATERIALIZED VIEW speeding_vehicles AS
+SELECT
+  vehicle_id,
+  speed_kmh,
+  latitude,
+  longitude,
+  timestamp
+FROM vehicle_telemetry
+WHERE speed_kmh > 120;  -- Speed limit exceeded
+
+-- Monitor engine health
+CREATE MATERIALIZED VIEW engine_alerts AS
+SELECT
+  vehicle_id,
+  engine_temp,
+  fuel_level,
+  timestamp
+FROM vehicle_telemetry
+WHERE engine_temp > 100 OR fuel_level < 10;
+```
+
+## Best practices
+
+1. **Use appropriate window sizes**: Balance between latency and accuracy for aggregations
+2. **Filter early**: Use WHERE clauses to reduce processing overhead
+3. **Handle missing data**: Use COALESCE or default values for sensors that may miss readings
+4. **Monitor ingestion rate**: Track the volume of incoming telemetry data
+5. **Optimize storage**: Use Sinks to store only necessary aggregated data, not raw readings
+
+## Related resources
+
+- [MQTT connector](/ingestion/sources/mqtt)
+- [Kafka connector](/ingestion/sources/kafka)
+- [Time windows](/processing/sql/time-windows)
+- [Aggregate functions](/sql/functions/aggregate)
+

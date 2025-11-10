@@ -1,0 +1,248 @@
+---
+title: "Streaming lakehouse"
+description: "Build real-time lakehouse architectures with RisingWave and Apache Iceberg. Continuously ingest and transform streaming data into open table formats."
+---
+
+A streaming lakehouse combines the benefits of real-time stream processing with open table formats like Apache Iceberg™. RisingWave enables you to continuously ingest streaming data, perform real-time transformations, and write results directly to Iceberg tables, creating a unified platform for both real-time and batch analytics.
+
+## Use case overview
+
+Streaming lakehouse architectures are ideal when you need to:
+
+- **Unify real-time and batch analytics** using a single storage format
+- **Enable data sharing** across different query engines (Spark, Trino, etc.)
+- **Maintain data freshness** while ensuring long-term storage efficiency
+- **Support time travel queries** on historical data
+- **Reduce operational complexity** by eliminating separate batch pipelines
+
+RisingWave provides first-class support for Apache Iceberg™, enabling:
+
+- **Continuous ingestion** into Iceberg tables from streaming sources
+- **Real-time transformations** before writing to storage
+- **Automatic table maintenance** (compaction, vacuum, snapshot cleanup)
+- **Support for both MoR and CoW** write modes
+- **Native Iceberg catalog** management
+
+## Architecture
+
+```
+Streaming Sources → RisingWave → Transformations → Iceberg Tables → Query Engines
+   (Kafka/CDC)      (Processing)    (MVs)         (S3/GCS)        (Spark/Trino)
+```
+
+1. **Ingest streams**: Connect to real-time data sources (Kafka, CDC)
+2. **Transform in real-time**: Apply transformations using materialized views
+3. **Write to Iceberg**: Continuously write results to Iceberg tables
+4. **Query with any engine**: Access data using Spark, Trino, or other engines
+
+## Example: Real-time analytics lakehouse
+
+Build a lakehouse that ingests clickstream data, enriches it, and writes to Iceberg for unified analytics.
+
+### Step 1: Ingest clickstream data
+
+Connect to clickstream events from Kafka:
+
+```sql
+CREATE SOURCE clickstream_events (
+  user_id VARCHAR,
+  session_id VARCHAR,
+  page_url VARCHAR,
+  product_id VARCHAR,
+  event_type VARCHAR,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'clickstream',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Step 2: Transform and aggregate
+
+Create materialized views to transform and aggregate data:
+
+```sql
+-- Aggregate page views per user per hour
+CREATE MATERIALIZED VIEW user_pageviews_hourly AS
+SELECT
+  user_id,
+  window_start AS hour,
+  COUNT(*) AS pageview_count,
+  COUNT(DISTINCT page_url) AS unique_pages,
+  COUNT(DISTINCT product_id) AS products_viewed
+FROM TUMBLE(clickstream_events, timestamp, INTERVAL '1 HOUR')
+WHERE event_type = 'pageview'
+GROUP BY user_id, window_start;
+
+-- Session-level aggregations
+CREATE MATERIALIZED VIEW session_summary AS
+SELECT
+  session_id,
+  user_id,
+  MIN(timestamp) AS session_start,
+  MAX(timestamp) AS session_end,
+  COUNT(*) AS event_count,
+  COUNT(DISTINCT page_url) AS pages_visited,
+  COUNT(DISTINCT product_id) AS products_viewed
+FROM clickstream_events
+GROUP BY session_id, user_id;
+```
+
+### Step 3: Write to Iceberg
+
+Write aggregated data to Iceberg tables:
+
+```sql
+-- Write hourly aggregations to Iceberg
+CREATE SINK user_analytics_iceberg FROM user_pageviews_hourly
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+  warehouse.path = 's3://warehouse/analytics',
+  database.name = 'analytics',
+  table.name = 'user_pageviews_hourly',
+  catalog.type = 'glue'
+);
+
+-- Write session summaries to Iceberg
+CREATE SINK session_analytics_iceberg FROM session_summary
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+  warehouse.path = 's3://warehouse/analytics',
+  database.name = 'analytics',
+  table.name = 'session_summary',
+  catalog.type = 'glue'
+);
+```
+
+### Step 4: Query with any engine
+
+Once data is in Iceberg, you can query it with Spark, Trino, or any Iceberg-compatible engine:
+
+```python
+# Using PySpark
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName("Analytics").getOrCreate()
+df = spark.read.format("iceberg").load("s3://warehouse/analytics/analytics.user_pageviews_hourly")
+df.show()
+```
+
+## Example: CDC to Iceberg pipeline
+
+Ingest database changes via CDC and write to Iceberg for analytics:
+
+```sql
+-- Ingest from PostgreSQL CDC
+CREATE SOURCE orders_db WITH (
+  connector = 'postgres-cdc',
+  hostname = '127.0.0.1',
+  port = '5432',
+  username = 'user',
+  password = 'password',
+  database.name = 'ecommerce',
+  slot.name = 'rw_slot'
+);
+
+CREATE TABLE orders (
+  order_id VARCHAR PRIMARY KEY,
+  user_id VARCHAR,
+  product_id VARCHAR,
+  quantity INTEGER,
+  price DECIMAL,
+  order_date DATE,
+  status VARCHAR
+) FROM orders_db TABLE 'public.orders';
+
+-- Transform and enrich orders
+CREATE MATERIALIZED VIEW enriched_orders AS
+SELECT
+  order_id,
+  user_id,
+  product_id,
+  quantity,
+  price,
+  quantity * price AS total_amount,
+  order_date,
+  status,
+  CASE
+    WHEN quantity * price > 1000 THEN 'high_value'
+    WHEN quantity * price > 500 THEN 'medium_value'
+    ELSE 'low_value'
+  END AS order_tier
+FROM orders
+WHERE status = 'completed';
+
+-- Write to Iceberg
+CREATE SINK orders_iceberg FROM enriched_orders
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+  warehouse.path = 's3://warehouse/ecommerce',
+  database.name = 'ecommerce',
+  table.name = 'orders',
+  catalog.type = 'glue'
+);
+```
+
+## Iceberg write modes
+
+RisingWave supports two Iceberg write modes:
+
+### Merge-on-Read (MoR)
+
+Appends new data files and uses metadata to merge on read. Best for:
+- High write throughput
+- Frequent small writes
+- When read performance can tolerate merge overhead
+
+```sql
+CREATE SINK my_sink FROM my_mv
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',  -- MoR mode
+  warehouse.path = 's3://warehouse/mydb',
+  database.name = 'mydb',
+  table.name = 'mytable',
+  catalog.type = 'glue'
+);
+```
+
+### Copy-on-Write (CoW)
+
+Merges data during write. Best for:
+- Read-heavy workloads
+- When you need consistent read performance
+- When write frequency is lower
+
+```sql
+CREATE SINK my_sink FROM my_mv
+WITH (
+  connector = 'iceberg',
+  type = 'upsert',  -- CoW mode
+  warehouse.path = 's3://warehouse/mydb',
+  database.name = 'mydb',
+  table.name = 'mytable',
+  catalog.type = 'glue',
+  primary.key = 'id'
+);
+```
+
+## Best practices
+
+1. **Choose the right write mode**: Use MoR for high write throughput, CoW for read performance
+2. **Partition strategically**: Partition Iceberg tables by time or key columns for better query performance
+3. **Enable automatic compaction**: Let RisingWave handle table maintenance automatically
+4. **Monitor write latency**: Track how long it takes to write to Iceberg
+5. **Use materialized views**: Pre-aggregate data before writing to reduce storage costs
+
+## Related resources
+
+- [Apache Iceberg overview](/iceberg/overview)
+- [Iceberg write modes](/iceberg/write-modes)
+- [Iceberg table maintenance](/iceberg/maintenance)
+- [Iceberg catalogs](/iceberg/catalogs)
+

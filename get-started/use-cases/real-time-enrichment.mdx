@@ -1,0 +1,200 @@
+---
+title: "Real-time data enrichment"
+description: "Enrich streaming data with contextual information in real-time. Combine real-time streams with historical data for enhanced decision-making."
+---
+
+Real-time data enrichment is the process of augmenting raw data streams with additional context, historical data, or reference information as events flow through your system. This enables more informed decision-making and personalized experiences.
+
+## Use case overview
+
+Data enrichment is essential when:
+
+- **Personalization**: Enhancing user events with historical behavior data
+- **Contextualization**: Adding reference data (product catalogs, user profiles) to transactions
+- **Validation**: Enriching events with validation rules or business logic
+- **Feature engineering**: Combining multiple data sources to create ML features
+
+RisingWave enables real-time enrichment through:
+
+- **Low-latency joins** between streaming and batch data
+- **Continuous materialized views** that maintain enriched state
+- **Support for complex enrichment logic** using SQL
+- **Seamless integration** with external data sources via CDC or connectors
+
+## Architecture
+
+```
+Streaming Data → RisingWave → Enriched Stream → Downstream Systems
+Historical Data ↗  (Join/Enrich)     (Sink)
+```
+
+1. **Ingest streams**: Connect to real-time data sources (Kafka, CDC)
+2. **Load reference data**: Ingest historical or reference data (PostgreSQL, MySQL)
+3. **Enrich in real-time**: Join streams with reference data using materialized views
+4. **Deliver enriched data**: Send to downstream systems via Sinks
+
+## Example: E-commerce personalization
+
+Enrich customer clickstream data with purchase history to provide real-time personalized recommendations.
+
+### Step 1: Ingest real-time clickstream
+
+Connect to clickstream events from Kafka:
+
+```sql
+CREATE SOURCE clickstream (
+  user_id VARCHAR,
+  session_id VARCHAR,
+  page_url VARCHAR,
+  product_id VARCHAR,
+  event_time TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'clickstream_events',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Step 2: Load customer purchase history
+
+Ingest historical purchase data from PostgreSQL using CDC:
+
+```sql
+CREATE SOURCE customer_db WITH (
+  connector = 'postgres-cdc',
+  hostname = '127.0.0.1',
+  port = '5432',
+  username = 'user',
+  password = 'password',
+  database.name = 'ecommerce',
+  slot.name = 'rw_slot'
+);
+
+CREATE TABLE purchase_history (
+  user_id VARCHAR PRIMARY KEY,
+  total_purchases INTEGER,
+  favorite_category VARCHAR,
+  avg_order_value DECIMAL,
+  last_purchase_date DATE
+) FROM customer_db TABLE 'public.customer_stats';
+```
+
+### Step 3: Enrich clickstream with purchase history
+
+Create a materialized view that joins real-time events with historical data:
+
+```sql
+CREATE MATERIALIZED VIEW enriched_clickstream AS
+SELECT
+  c.user_id,
+  c.session_id,
+  c.page_url,
+  c.product_id,
+  c.event_time,
+  p.total_purchases,
+  p.favorite_category,
+  p.avg_order_value,
+  p.last_purchase_date,
+  -- Generate personalized recommendation score
+  CASE 
+    WHEN p.favorite_category = 'electronics' AND c.page_url LIKE '%electronics%' THEN 0.9
+    WHEN p.avg_order_value > 100 THEN 0.7
+    ELSE 0.5
+  END AS recommendation_score
+FROM clickstream c
+LEFT JOIN purchase_history p ON c.user_id = p.user_id
+WHERE c.page_url LIKE '%product%';
+```
+
+### Step 4: Deliver enriched data
+
+Send enriched events to a recommendation service:
+
+```sql
+CREATE SINK recommendations FROM enriched_clickstream
+WITH (
+  connector = 'kafka',
+  topic = 'personalized_recommendations',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Example: Transaction enrichment
+
+Enrich financial transactions with account information and risk scores:
+
+```sql
+-- Ingest transactions
+CREATE SOURCE transactions (
+  transaction_id VARCHAR,
+  account_id VARCHAR,
+  amount DECIMAL,
+  merchant_id VARCHAR,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'transactions',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+
+-- Load account reference data
+CREATE SOURCE accounts_db WITH (
+  connector = 'postgres-cdc',
+  hostname = '127.0.0.1',
+  port = '5432',
+  username = 'user',
+  password = 'password',
+  database.name = 'banking',
+  slot.name = 'rw_slot'
+);
+
+CREATE TABLE accounts (
+  account_id VARCHAR PRIMARY KEY,
+  account_type VARCHAR,
+  credit_limit DECIMAL,
+  risk_score DECIMAL,
+  customer_tier VARCHAR
+) FROM accounts_db TABLE 'public.accounts';
+
+-- Enrich transactions
+CREATE MATERIALIZED VIEW enriched_transactions AS
+SELECT
+  t.transaction_id,
+  t.account_id,
+  t.amount,
+  t.merchant_id,
+  t.timestamp,
+  a.account_type,
+  a.credit_limit,
+  a.risk_score,
+  a.customer_tier,
+  -- Calculate risk-adjusted amount
+  t.amount * (1 + a.risk_score / 100) AS risk_adjusted_amount
+FROM transactions t
+LEFT JOIN accounts a ON t.account_id = a.account_id;
+
+-- Deliver to fraud detection system
+CREATE SINK fraud_input FROM enriched_transactions
+WITH (
+  connector = 'kafka',
+  topic = 'fraud_detection_input',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Best practices
+
+1. **Use CDC for reference data**: Keep reference tables up-to-date automatically
+2. **Optimize joins**: Use primary keys for efficient join operations
+3. **Cache frequently accessed data**: Materialized views automatically cache join results
+4. **Handle missing data**: Use LEFT JOIN to handle cases where enrichment data is unavailable
+5. **Monitor enrichment latency**: Track how long enrichment takes to ensure real-time requirements
+
+## Related resources
+
+- [PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc)
+- [Joins](/processing/sql/joins)
+- [Materialized views](/processing/overview)
+- [Sinks](/delivery/overview)
+

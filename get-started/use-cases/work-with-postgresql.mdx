@@ -1,0 +1,209 @@
+---
+title: "Work with PostgreSQL"
+description: "Learn how to ingest data from PostgreSQL using CDC, create tables, and build real-time pipelines with RisingWave."
+---
+
+PostgreSQL is one of the most common data sources for RisingWave. This guide shows you how to ingest data from PostgreSQL using Change Data Capture (CDC) and build real-time pipelines.
+
+## Overview
+
+RisingWave supports PostgreSQL CDC, which captures changes (inserts, updates, deletes) from PostgreSQL databases in real-time. This enables you to:
+
+- **Replicate database changes** to RisingWave in real-time
+- **Build real-time analytics** on top of your PostgreSQL data
+- **Create materialized views** that automatically update as data changes
+- **Maintain transactional consistency** across multiple tables
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- A PostgreSQL database (version 10 or later)
+- PostgreSQL configured with logical replication (wal_level = logical)
+- A replication slot created for RisingWave
+- RisingWave running and accessible
+
+## Step 1: Configure PostgreSQL
+
+Enable logical replication in PostgreSQL:
+
+```sql
+-- Set wal_level to logical
+ALTER SYSTEM SET wal_level = logical;
+-- Restart PostgreSQL for changes to take effect
+```
+
+Create a replication slot:
+
+```sql
+SELECT pg_create_logical_replication_slot('risingwave_slot', 'pgoutput');
+```
+
+## Step 2: Create a PostgreSQL source
+
+Connect RisingWave to your PostgreSQL database:
+
+```sql
+CREATE SOURCE postgres_source WITH (
+  connector = 'postgres-cdc',
+  hostname = 'localhost',
+  port = '5432',
+  username = 'postgres',
+  password = 'password',
+  database.name = 'mydb',
+  slot.name = 'risingwave_slot'
+);
+```
+
+This creates a source that connects to your PostgreSQL database and captures changes in real-time.
+
+## Step 3: Create tables from PostgreSQL
+
+Create tables in RisingWave that mirror your PostgreSQL tables:
+
+```sql
+-- Create a table from PostgreSQL
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR,
+  email VARCHAR,
+  created_at TIMESTAMPTZ
+) FROM postgres_source TABLE 'public.users';
+
+-- Create another table
+CREATE TABLE orders (
+  order_id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  product_id INTEGER,
+  quantity INTEGER,
+  price DECIMAL,
+  order_date TIMESTAMPTZ
+) FROM postgres_source TABLE 'public.orders';
+```
+
+**Important notes:**
+- Tables must have a **primary key** defined
+- Use the `FROM source TABLE 'schema.table'` syntax
+- Changes in PostgreSQL are automatically replicated to RisingWave
+
+## Step 4: Query your data
+
+Query the tables just like any other RisingWave table:
+
+```sql
+-- Query users
+SELECT * FROM users LIMIT 10;
+
+-- Query orders
+SELECT * FROM orders WHERE order_date > NOW() - INTERVAL '1 day';
+```
+
+## Step 5: Build real-time analytics
+
+Create materialized views that automatically update as PostgreSQL data changes:
+
+```sql
+-- Real-time user statistics
+CREATE MATERIALIZED VIEW user_stats AS
+SELECT
+  u.id,
+  u.name,
+  u.email,
+  COUNT(o.order_id) AS total_orders,
+  SUM(o.price * o.quantity) AS total_spent,
+  MAX(o.order_date) AS last_order_date
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+GROUP BY u.id, u.name, u.email;
+
+-- Query the materialized view
+SELECT * FROM user_stats WHERE total_orders > 10;
+```
+
+This view automatically updates whenever users or orders change in PostgreSQL.
+
+## Step 6: Handle updates and deletes
+
+RisingWave automatically handles PostgreSQL updates and deletes:
+
+- **Updates**: When a row is updated in PostgreSQL, RisingWave applies the change to the corresponding row
+- **Deletes**: When a row is deleted in PostgreSQL, RisingWave removes it from the table
+- **Inserts**: New rows are automatically added to RisingWave tables
+
+```sql
+-- Example: Update a user in PostgreSQL
+-- UPDATE users SET email = 'newemail@example.com' WHERE id = 1;
+-- This change is automatically reflected in RisingWave
+
+-- Example: Delete an order in PostgreSQL
+-- DELETE FROM orders WHERE order_id = 100;
+-- This deletion is automatically reflected in RisingWave
+```
+
+## Example: Real-time order analytics
+
+Build a complete real-time analytics pipeline:
+
+```sql
+-- 1. Create source (already done above)
+
+-- 2. Create tables
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR,
+  email VARCHAR
+) FROM postgres_source TABLE 'public.users';
+
+CREATE TABLE orders (
+  order_id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  product_id INTEGER,
+  quantity INTEGER,
+  price DECIMAL,
+  order_date TIMESTAMPTZ
+) FROM postgres_source TABLE 'public.orders';
+
+-- 3. Create real-time analytics
+CREATE MATERIALIZED VIEW daily_sales AS
+SELECT
+  DATE_TRUNC('day', order_date) AS sale_date,
+  COUNT(*) AS order_count,
+  SUM(price * quantity) AS total_revenue,
+  AVG(price * quantity) AS avg_order_value
+FROM orders
+GROUP BY DATE_TRUNC('day', order_date);
+
+-- 4. Query real-time results
+SELECT * FROM daily_sales ORDER BY sale_date DESC LIMIT 7;
+```
+
+## Best practices
+
+1. **Use primary keys**: All CDC tables must have a primary key
+2. **Monitor replication lag**: Check replication slot status regularly
+3. **Handle schema changes**: Update RisingWave tables when PostgreSQL schemas change
+4. **Use shared sources**: Create one source and derive multiple tables from it for consistency
+5. **Optimize queries**: Use materialized views for frequently accessed aggregations
+
+## Troubleshooting
+
+**Connection issues:**
+- Verify PostgreSQL is accessible from RisingWave
+- Check username and password are correct
+- Ensure replication slot exists
+
+**Replication lag:**
+- Check replication slot status: `SELECT * FROM pg_replication_slots;`
+- Monitor WAL size: `SELECT pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) FROM pg_replication_slots WHERE slot_name = 'risingwave_slot';`
+
+**Schema mismatches:**
+- Ensure RisingWave table schema matches PostgreSQL table schema
+- Primary keys must match exactly
+
+## Related resources
+
+- [PostgreSQL CDC documentation](/ingestion/sources/postgresql/pg-cdc)
+- [Shared sources](/get-started/source-table-mv-sink#shared-sources-and-consistency)
+- [Materialized views](/processing/overview)
+- [CDC overview](/ingestion/cdc-with-risingwave)
+

@@ -1,0 +1,155 @@
+---
+title: "Monitoring and alerting"
+description: "Build real-time monitoring and alerting systems with RisingWave. Detect anomalies, fraud, and critical events with sub-second latency."
+---
+
+Monitoring and alerting systems are critical for maintaining the health and security of modern applications. RisingWave enables you to build sophisticated real-time monitoring systems that detect anomalies, fraud, and critical events as they happen, with end-to-end freshness under 100 ms.
+
+## Use case overview
+
+Real-time monitoring and alerting systems need to:
+
+- **Process high-velocity event streams** from various sources (APIs, databases, message queues)
+- **Detect patterns and anomalies** in real-time using continuous aggregation
+- **Trigger alerts** based on configurable thresholds and rules
+- **Maintain state** across time windows for accurate detection
+- **Scale dynamically** to handle traffic spikes
+
+RisingWave excels in these scenarios by providing:
+
+- Ultra-low latency stream processing (under 100 ms end-to-end)
+- Continuous materialized views that automatically update as events arrive
+- Support for complex windowing and aggregation operations
+- Seamless integration with downstream alerting systems
+
+## Architecture
+
+```
+Event Sources → RisingWave → Materialized Views → Alert System
+     (Kafka)      (Processing)    (Detection)      (Kafka/API)
+```
+
+1. **Ingest events**: Connect to event sources (Kafka, CDC, APIs)
+2. **Process in real-time**: Define detection logic in materialized views
+3. **Trigger alerts**: Deliver results to alerting systems via Sinks
+
+## Example: Fraud detection system
+
+Let's build a fraud detection system that monitors credit card transactions and triggers alerts when suspicious activity is detected.
+
+### Step 1: Ingest transaction data
+
+Connect RisingWave to your transaction stream from Kafka:
+
+```sql
+CREATE SOURCE transactions (
+  card_number VARCHAR,
+  purchase_amount DECIMAL,
+  merchant_id VARCHAR,
+  purchase_time TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'credit_card_transactions',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Step 2: Define detection logic
+
+Create a materialized view that detects suspicious patterns:
+
+```sql
+CREATE MATERIALIZED VIEW suspicious_transactions AS
+SELECT
+  card_number,
+  window_start,
+  window_end,
+  COUNT(*) AS transaction_count,
+  SUM(purchase_amount) AS total_spent,
+  COUNT(DISTINCT merchant_id) AS unique_merchants
+FROM TUMBLE(transactions, purchase_time, INTERVAL '5 MINUTES')
+GROUP BY card_number, window_start, window_end
+HAVING 
+  COUNT(*) > 5 OR  -- More than 5 transactions in 5 minutes
+  SUM(purchase_amount) > 5000 OR  -- Total spend exceeds $5000
+  COUNT(DISTINCT merchant_id) > 3;  -- Transactions at more than 3 merchants
+```
+
+This view continuously monitors transactions in 5-minute windows and identifies cards with suspicious activity patterns.
+
+### Step 3: Deliver alerts
+
+Send alerts to a Kafka topic for downstream processing:
+
+```sql
+CREATE SINK fraud_alerts FROM suspicious_transactions
+WITH (
+  connector = 'kafka',
+  topic = 'fraud_alerts',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### Step 4: Query real-time results
+
+Query the materialized view to get current alerts:
+
+```sql
+SELECT * FROM suspicious_transactions 
+ORDER BY window_end DESC 
+LIMIT 10;
+```
+
+## Example: System health monitoring
+
+Monitor application metrics and trigger alerts when thresholds are exceeded:
+
+```sql
+-- Ingest metrics from Kafka
+CREATE SOURCE metrics (
+  service_name VARCHAR,
+  metric_name VARCHAR,
+  metric_value DOUBLE,
+  timestamp TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'application_metrics',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+
+-- Detect anomalies (e.g., error rate > 5%)
+CREATE MATERIALIZED VIEW error_rate_alerts AS
+SELECT
+  service_name,
+  window_start,
+  window_end,
+  COUNT(*) FILTER (WHERE metric_name = 'error') * 100.0 / COUNT(*) AS error_rate
+FROM TUMBLE(metrics, timestamp, INTERVAL '1 MINUTE')
+GROUP BY service_name, window_start, window_end
+HAVING COUNT(*) FILTER (WHERE metric_name = 'error') * 100.0 / COUNT(*) > 5;
+
+-- Send alerts
+CREATE SINK health_alerts FROM error_rate_alerts
+WITH (
+  connector = 'kafka',
+  topic = 'health_alerts',
+  properties.bootstrap.server = 'localhost:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+## Best practices
+
+1. **Use appropriate window sizes**: Balance between detection latency and accuracy
+2. **Leverage materialized views**: They automatically maintain state and update in real-time
+3. **Filter early**: Use WHERE clauses to reduce processing overhead
+4. **Monitor your monitoring**: Track the health of your alerting system itself
+5. **Use Sinks for delivery**: Decouple alert generation from alert delivery
+
+## Related resources
+
+- [Materialized views](/processing/overview)
+- [Time windows](/processing/sql/time-windows)
+- [Sinks](/delivery/overview)
+- [Kafka connector](/ingestion/sources/kafka)
+
