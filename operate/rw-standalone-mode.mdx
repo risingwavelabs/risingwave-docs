@@ -14,7 +14,52 @@ By default, the RisingWave standalone mode will store its data in `~/.risingwave
 
 For a batteries-included setup, with `monitoring` tools and external services like `kafka` fully included, you can use [Docker Compose](/deploy/risingwave-docker-compose) instead. If you would like to set up these external services manually, you may check out RisingWave's [Docker Compose](https://github.com/risingwavelabs/risingwave/blob/main/docker/docker-compose.yml), and run these services using the same configurations.
 
-### Configure RisingWave standalone mode
+## Install RisingWave
+
+You can install RisingWave standalone mode using one of the following methods:
+
+### Script installation
+
+Open a terminal and run the following `curl` command:
+
+```bash
+curl -L https://risingwave.com/sh | sh
+```
+
+### Docker
+
+Ensure [Docker Desktop](https://docs.docker.com/get-docker/) is installed and running in your environment.
+
+```bash
+docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:latest single_node
+```
+
+Ensure your hardware supports the required SIMD extensions (AVX2 for x86_64, NEON for ARM64). See [SIMD requirements for Docker images](/deploy/hardware-requirements#supported-architectures) for details.
+
+### Homebrew
+
+Ensure [Homebrew](https://brew.sh/) is installed, and run the following commands:
+
+```bash
+brew tap risingwavelabs/risingwave
+brew install risingwave
+```
+
+## Start RisingWave
+
+After installation, start RisingWave using one of the following methods:
+
+**For Script and Homebrew installations:**
+
+```bash
+risingwave
+```
+
+**For Docker:**
+
+The Docker command above starts RisingWave automatically. No additional command is needed.
+
+## Configure RisingWave standalone mode
 
 The instance of RisingWave standalone mode can run without any configuration. However, there are some options available to customize the instance.
 
@@ -39,7 +84,7 @@ You can view other options with:
 risingwave single --help
 ```
 
-### Monitor RisingWave standalone mode with Grafana and Prometheus
+## Monitor RisingWave standalone mode with Grafana and Prometheus
 
 To monitor your standalone cluster, you may wish to integrate metrics monitoring with Grafana and Prometheus.
 
