@@ -25,15 +25,15 @@ We can see that both Tables and MVs store data within RisingWave. The key differ
 
 Users often ask: "Can I query this Source directly? Do I need to create a Table for CDC connectors?" The matrix below shows which connectors support direct Source queries and which require creating a Table.
 
-| Connector Type | Directly Query Source? | Directly Create Table? | Primary Key Required? | Can Create MV? | Can Be Sink Input? |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| Kafka / Pulsar / Kinesis / NATS / MQTT / PubSub | ✅ | ✅ | ❌ | ✅ | ✅ |
-| S3 / GCS / Azure Blob | ✅ | ✅ | ❌ | ✅ | ✅ |
-| PostgreSQL CDC | ❌ | ❌ (Must create Source before creating Table) | ✅ | ✅ | ✅ |
-| MySQL CDC | ❌ | ❌ (Must create Source before creating Table) | ✅ | ✅ | ✅ |
-| SQL Server CDC | ❌ | ❌ (Must create Source before creating Table) | ✅ | ✅ | ✅ |
-| MongoDB CDC | ❌ | ❌ (Must create Source before creating Table) | ✅ | ✅ | ✅ |
-| Iceberg | ✅ | ✅ | ❌ (Unless declared for writes) | ✅ | ✅ |
+| Connector Type | Directly Query Source? | Primary Key Required? |
+| :--- | :--- | :--- |
+| Kafka / Pulsar / Kinesis / NATS / MQTT / PubSub | ✅ | ❌ |
+| S3 / GCS / Azure Blob | ✅ | ❌ |
+| PostgreSQL CDC | ❌ | ✅ |
+| MySQL CDC | ❌ | ✅ |
+| SQL Server CDC | ❌ | ✅ |
+| MongoDB CDC | ❌ | ✅ |
+| Iceberg | ✅ | ❌ (Unless declared for writes) |
 
 Sources like Kafka, S3, and Iceberg can be queried directly, while CDC Sources must be materialized into a Table. CDC Tables must have a primary key defined, whereas Kafka/S3 Tables do not.
 
@@ -97,7 +97,7 @@ Therefore, for CDC, you must create a table. You can either create a CDC table d
 
 ### Shared Sources and consistency
 
-For CDC scenarios, RisingWave provides a shared source mechanism. A user can create a single CDC Source and then derive multiple Tables from it:
+For PostgreSQL CDC, MySQL CDC, and SQL Server CDC scenarios, RisingWave provides a shared source mechanism. A user can create a single CDC Source and then derive multiple Tables from it:
 
 ```sql
 CREATE SOURCE pg_src WITH (
