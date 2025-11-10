@@ -36,7 +36,7 @@ Vended credentials allow the REST catalog server to provide temporary credential
 
 To enable vended credentials, set `vended_credentials = true` along with `catalog.type = 'rest'`:
 
-```sql Example
+```sql Example: Sink
 CREATE SINK vended_creds_sink FROM my_mv WITH (
     connector = 'iceberg',
     type = 'append-only',
@@ -51,6 +51,22 @@ CREATE SINK vended_creds_sink FROM my_mv WITH (
     database.name = 'my_db',
     table.name = 'my_table',
     commit_checkpoint_interval = 1
+);
+```
+
+```sql Example: Source
+CREATE SOURCE iceberg_source
+WITH (
+    connector = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181/catalog',
+    vended_credentials = true,
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.path.style.access = 'true',
+    warehouse.path = 'warehouse_name',
+    database.name = 'my_db',
+    table.name = 'my_table'
 );
 ```
 
