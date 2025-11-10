@@ -8,14 +8,14 @@ To build real-time data applications in RisingWave, you must understand four cor
 
 ## High-level comparison
 
-To quickly grasp the differences, the following table illustrates how these four objects vary in terms of storage, queryability, updates, and typical use cases.
+To quickly grasp the differences, the following table illustrates how these four objects vary in terms of storage, queryability, and typical use cases.
 
-| Object | Stores Data | Directly Queryable | Continuously Updated | Typical Use Case |
-| :--- | :--- | :--- | :--- | :--- |
-| **Table** | ✅ Stored within RisingWave | ✅ Directly queryable | Supports updates (from inserts or external sources) | Persisting data, querying, serving as input for MVs or Sinks |
-| **Source** | ❌ Does not store; only connects to external systems | Depends on the connector (Kafka/S3/Iceberg are queryable, CDC is not) | Reads from upstream in real-time | Data ingress, ad-hoc exploration, building Tables or MVs |
-| **Materialized View (MV)** | ✅ Stores query results | ✅ Directly queryable | Refreshes automatically | Real-time aggregation, cleaning, analysis; recommended as Sink input |
-| **Sink** | ❌ Does not store; writes results to external systems | ❌ Not directly queryable | Outputs automatically | Writing results back to Kafka, databases, or object storage |
+| Object | Persist Data? | Queryable? | When To Use? |
+| :-- | :-- | :--- | :--- |
+| **Table** | ✅ | ✅ | Persisting data, querying, serving as input for MVs or Sinks |
+| **Source** | ❌ | Depends on the connector (see below) | Data ingress, ad-hoc exploration, building Tables or MVs |
+| **MV** | ✅ | ✅ | Real-time aggregation, transformation, analysis |
+| **Sink** | ❌ | ❌ | Writing results back to Kafka, databases, or object storage |
 
 We can see that both Tables and MVs store data within RisingWave. The key difference is that a **Table** holds the current state of the data (which can be populated internally or from an external source), whereas an **MV** is the persisted result of a computation. A **Source** acts as a data entry point and does not store data, making it suitable for exploration and validation. A **Sink** does not retain data inside RisingWave but continuously outputs results.
 
