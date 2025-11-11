@@ -80,9 +80,9 @@ Here are examples of connecting RisingWave to an S3 source to read data from ind
   <Tab title="CSV">
 ```sql
 CREATE TABLE s(
-    id int,
-    name varchar,
-    age int
+    "id" int,
+    "name" varchar,
+    "age" int
 )
 WITH (
     connector = 's3',
@@ -100,10 +100,10 @@ WITH (
   <Tab title=" JSON">
 ```sql
 CREATE TABLE s3(
-    id int,
-    name TEXT,
-    age int,
-    mark int,
+    "id" int,
+    "name" TEXT,
+    "age" int,
+    "mark" int,
 )
 INCLUDE file as file_name
 INCLUDE offset -- default column name is `_rw_s3_offset`
@@ -122,7 +122,10 @@ WITH (
 Use the `payload` keyword to ingest JSON data when you are unsure of the exact schema beforehand. Instead of defining specific column names and types at the very beginning, you can load all JSON data first and then prune and filter the data during runtime. Check the example below:
 
 ```sql
-CREATE TABLE table_include_payload (v1 int, v2 varchar)
+CREATE TABLE table_include_payload(
+    "v1" int,
+    "v2" varchar
+)
 INCLUDE payload
 WITH (
     connector = 's3',
@@ -136,9 +139,9 @@ WITH (
    <Tab title="PARQUET">
 ```sql
 CREATE TABLE s(
-    id int,
-    name varchar,
-    age int
+    "id" int,
+    "name" varchar,
+    "age" int
 )
 WITH (
     connector = 's3_v2',
@@ -182,12 +185,16 @@ CREATE TABLE s3_table ( ... ) WITH ( connector = 's3', ... );
 SELECT count(*) from s3_source;
 ```
 
-### Read Parquet files from S3[](#read-parquet-files-from-s3 "Direct link to Read Parquet files from S3")
+<Note>
+Column names and types are not inferred automatically from the Source. You must explicitly define them when creating the Table or Materialized View.
+</Note>
+
+### Read Parquet files from S3
 
 You can use the table function `file_scan()` to read Parquet files from S3, either a single file or a directory of Parquet files.
 
 ```sql Function signature
-file_scan(file_format, storage_type, s3_region, s3_access_key, s3_secret_key, file_location_or_directory)
+file_scan('parquet', 's3', s3_region, s3_access_key, s3_secret_key, file_location_or_directory)
 ```
 
 <Note>
@@ -207,10 +214,10 @@ Read a single Parquet file
 
 ```sql
 SELECT
-  product_id,
-  sales_date,
-  quantity,
-  revenue
+  "product_id",
+  "sales_date",
+  "quantity",
+  "revenue"
 FROM file_scan(
   'parquet',
   's3',
@@ -235,10 +242,10 @@ Read a directory of Parquet files
 
 ```sql
 SELECT
-  product_id,
-  sales_date,
-  quantity,
-  revenue
+  "product_id",
+  "sales_date",
+  "quantity",
+  "revenue"
 FROM file_scan(
   'parquet',
   's3',
