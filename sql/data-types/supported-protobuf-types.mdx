@@ -68,6 +68,71 @@ ENCODE PROTOBUF (
 );
 ```
 
+## Field presence
+
+RisingWave correctly handles [protobuf field presence](https://protobuf.dev/programming-guides/field_presence/) to distinguish between missing fields and fields explicitly set to their default values. The handling depends on the field type:
+
+### Regular primitive fields
+
+Regular primitive fields (without the `optional` keyword) receive their default values when absent from the protobuf message:
+- `int32`, `int64`, `uint32`, `uint64`, `sint32`, `sint64`, `fixed32`, `fixed64`, `sfixed32`, `sfixed64`: `0`
+- `float`, `double`: `0.0`
+- `bool`: `false`
+- `string`: empty string (`""`)
+- `bytes`: empty bytes
+- `enum`: first defined enum value (default)
+
+```protobuf Example schema
+syntax = "proto3";
+message Example {
+  int32 regular_int = 1;      // Gets 0 if missing
+  string regular_string = 2;  // Gets "" if missing
+  bool regular_bool = 3;      // Gets false if missing
+}
+```
+
+### Optional fields
+
+Fields marked with the `optional` keyword are set to `NULL` when absent:
+
+```protobuf Example schema
+syntax = "proto3";
+message Example {
+  optional int32 optional_int = 1;      // Gets NULL if missing
+  optional string optional_string = 2;  // Gets NULL if missing
+}
+```
+
+### Message fields
+
+Message fields (nested messages) are set to `NULL` when absent:
+
+```protobuf Example schema
+syntax = "proto3";
+message InnerMessage {
+  string content = 1;
+}
+message Example {
+  InnerMessage inner = 1;  // Gets NULL if missing
+}
+```
+
+### Oneof fields
+
+Fields within a `oneof` group are set to `NULL` when the `oneof` is not set or a different field in the group is set:
+
+```protobuf Example schema
+syntax = "proto3";
+message Example {
+  oneof test_oneof {
+    string oneof_string = 1;  // NULL if oneof_int is set or if oneof is not set
+    int32 oneof_int = 2;      // NULL if oneof_string is set or if oneof is not set
+  }
+}
+```
+
+Only one field within a `oneof` can be non-NULL at a time.
+
 ## Related topics
 
 * [CREATE SOURCE](/sql/commands/sql-create-source/)
