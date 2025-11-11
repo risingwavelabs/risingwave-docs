@@ -38,6 +38,10 @@ WITH (
 | gcs.service.account          | Required for GCS. Specifies the service account JSON file as a string.                                                                                                                                                                                                                                                                                                                                                                                  |
 | commit\_checkpoint\_interval | **Optional**. Commit every N checkpoints (N > 0). Default value is 10. <br/>The behavior of this field also depends on the `sink_decouple` setting:<ul><li>If `sink_decouple` is true (the default), the default value of `commit_checkpoint_interval` is 10.</li> <li>If `sink_decouple` is set to false, the default value of `commit_checkpoint_interval` is 1.</li> <li>If `sink_decouple` is set to false and `commit_checkpoint_interval` is set to larger than 1, an error will occur.</li></ul> |
 
+<Note>
+In RisingWave Cloud, AWS credentials (`s3.access.key`, `s3.secret.key`) are required and cannot be omitted. In self-hosted deployments, you may omit them to rely on the AWS SDK default credential chain (for example, EC2 instance profile or environment variables).
+</Note>
+
 ## Example
 
 Here is a step-by-step example on how you can sink data from RisingWave to Delta Lake.
