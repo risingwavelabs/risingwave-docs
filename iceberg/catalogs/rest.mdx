@@ -1,0 +1,38 @@
+---
+title: "REST catalog"
+sidebarTitle: "REST catalog"
+description: "Connect RisingWave to a REST-compliant catalog for Apache Iceberg."
+---
+
+A REST catalog uses a RESTful API to manage Iceberg table metadata. You can use a REST catalog with RisingWave when creating an Iceberg `SOURCE`, `SINK`, or `CONNECTION` (for internal Iceberg tables).
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Example
+
+To create a sink that uses a REST catalog, set `catalog.type` to `'rest'` and provide the `catalog.uri` for your REST catalog service.
+
+```sql
+CREATE SINK my_rest_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```
+
+<Card
+  title="Deploying a Lakekeeper REST catalog"
+  href="/iceberg/catalogs/lakekeeper"
+>
+  For a complete, step-by-step guide to deploying a self-hosted REST catalog with Lakekeeper, see this topic.
+</Card>

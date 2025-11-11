@@ -1,0 +1,30 @@
+---
+title: "AWS Glue catalog"
+sidebarTitle: "AWS Glue catalog"
+description: "Connect RisingWave to an AWS Glue Data Catalog for Apache Iceberg."
+---
+
+You can connect RisingWave to an AWS Glue Data Catalog to manage metadata for your Iceberg tables. This allows you to use Glue as a central metastore when creating an Iceberg `SOURCE`, `SINK`, or `CONNECTION` (for internal Iceberg tables).
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Example
+
+To create a sink that uses an AWS Glue catalog, set `catalog.type` to `'glue'` and provide your S3 warehouse path and AWS credentials.
+
+```sql
+CREATE SINK my_glue_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'glue',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```

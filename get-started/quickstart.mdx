@@ -4,17 +4,15 @@ description: "This guide aims to provide a quick and easy way to get started wit
 
 ---
 
+<Tip>
+**Try our SQL generator tool!** We've built an interactive [SQL Assistant](https://sql.risingwave.com/) to help you generate SQL statements for creating sources, tables, sinks, and Iceberg tables. Check it out!
+</Tip>
+
 ## Step 1: Start RisingWave
 
-The following options start RisingWave in the standalone mode. In this mode, data is stored in the file system and the metadata is stored in the embedded SQLite database. See [RisingWave standalone mode](/operate/rw-standalone-mode) for more details.
+RisingWave supports multiple deployment modes. For a comparison of all options, see [Deployment modes overview](/deploy/deployment-modes-overview).
 
-For extensive testing or single-machine deployment, consider [starting RisingWave via Docker Compose](/deploy/risingwave-docker-compose). For production environments, consider [RisingWave Cloud](/deploy/risingwave-cloud), our fully managed service, or [deployment on Kubernetes using the Operator](/deploy/risingwave-kubernetes) or [Helm Chart](/deploy/risingwave-k8s-helm).
-
-<Note>
-**Security reminder**
-
-When using RisingWave in a production environment, make sure to change the default passwords for all [superuser](/operate/access-control#users) accounts (`root`, `postgres`, and `rwadmin`). Leaving default passwords unchanged poses a serious security risk.
-</Note>
+For convenience, this quick start guide uses the standalone deployment mode.
 
 ### Script installation
 
@@ -38,8 +36,6 @@ Ensure [Docker Desktop](https://docs.docker.com/get-docker/) is installed and ru
 docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:latest single_node
 ```
 
-Ensure your hardware supports the required SIMD extensions (AVX2 for x86_64, NEON for ARM64). See [SIMD requirements for Docker images](/deploy/hardware-requirements#supported-architectures) for details.
-
 ### Homebrew
 
 Ensure [Homebrew](https://brew.sh/) is installed, and run the following commands:
@@ -59,8 +55,6 @@ Open a new terminal window and run:
 ```bash
 psql -h localhost -p 4566 -d dev -U root
 ```
-
-**Alternative: Use RisingWave Console**
 
 Instead of using the command line, you can also use the [RisingWave Console](/risingwave-console/introduction), a web-based interface for managing and querying your RisingWave cluster. The console provides a visual way to run SQL queries, monitor cluster health, explore database schemas, and execute operational commands through an intuitive web interface.
 

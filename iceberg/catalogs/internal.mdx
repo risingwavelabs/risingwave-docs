@@ -1,10 +1,16 @@
 ---
-title: "JDBC Hosted Catalog"
-sidebarTitle: "JDBC"
-description: "Use RisingWave's built-in JDBC hosted catalog to create and manage internal Iceberg tables with zero external dependencies."
+title: "Built-in catalog"
+sidebarTitle: "Built-in catalog"
+description: "Use RisingWave's built-in catalog to create and manage internal Iceberg tables with zero external dependencies."
 ---
 
-The JDBC hosted catalog is the simplest way to get started with internal Iceberg tables in RisingWave. It utilizes RisingWave’s internal PostgreSQL-compatible metastore to serve as a standard Iceberg JDBC catalog, removing the need for you to deploy or manage any external catalog services.
+RisingWave includes a built-in Iceberg catalog that simplifies the creation and management of internal Iceberg tables. It utilizes RisingWave’s internal PostgreSQL-compatible metastore to serve as a standard Iceberg JDBC catalog, removing the need for you to deploy or manage any external catalog services.
+
+This is the simplest way to get started with internal Iceberg tables in RisingWave.
+
+<Note>
+You can use this catalog configuration when creating a `CONNECTION` for managing internal Iceberg tables.
+</Note>
 
 ## How it works
 
@@ -15,14 +21,14 @@ When you create an internal Iceberg table using a connection with `hosted_catalo
 
 ## Create and test your table
 
-To use the JDBC hosted catalog, you create a `CONNECTION` with `hosted_catalog = true` and then create an internal Iceberg table.
+To use the built-in catalog, you create a `CONNECTION` with `hosted_catalog = true` and then create an internal Iceberg table.
 
 ### 1. Create a connection
 
 Define a connection that specifies your object storage backend. This example uses AWS S3.
 
 ```sql
-CREATE CONNECTION hosted_catalog_conn WITH (
+CREATE CONNECTION built_in_catalog_conn WITH (
     type = 'iceberg',
     warehouse.path = 's3://my-bucket/warehouse/',
     s3.region = 'us-west-2',
@@ -39,7 +45,7 @@ For details on configuring other storage backends, see [Object storage configura
 Set the default connection for your session to simplify table creation.
 
 ```sql
-SET iceberg_engine_connection = 'public.hosted_catalog_conn';
+SET iceberg_engine_connection = 'public.built_in_catalog_conn';
 ```
 
 ### 3. Create and query the table

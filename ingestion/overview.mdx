@@ -4,6 +4,10 @@ sidebarTitle: "Overview"
 description: "Learn about the different ways to ingest data into RisingWave, including continuous streaming, one-time batch loads, and periodic ingestion."
 ---
 
+<Tip>
+**Try our SQL generator tool!** We've built an interactive [SQL Assistant](https://sql.risingwave.com/) to help you generate SQL statements for creating sources and tables. Check it out!
+</Tip>
+
 RisingWave offers several methods for data ingestion, each tailored to different use cases. This guide covers the main patterns to help you choose the best approach for your needs.
 
 For a detailed comparison of core objects like Source, Table, Materialized View, and Sink, see our guide on [Source, Table, MV, and Sink](/get-started/source-table-mv-sink).
@@ -43,23 +47,26 @@ GROUP BY user_id;
 ### Example: Database CDC (Change Data Capture)
 
 ```sql
--- Continuously ingest changes from PostgreSQL
+-- Create a shared source for Postgres CDC
+CREATE SOURCE shared_source WITH (
+    connector='postgres-cdc',
+    hostname='localhost',
+    port='5432',
+    username='postgres',
+    password='password',
+    database.name='ecommerce',
+    schema.name='public' -- Optional, defaults to 'public'
+);
+
+-- Create a table from the shared source to continuously ingest changes from the `orders` table in Postgres
 CREATE TABLE orders_cdc (
   order_id INT,
   customer_id INT,
   amount DECIMAL,
   status VARCHAR,
   created_at TIMESTAMP
-) WITH (
-  connector = 'postgres-cdc',
-  hostname = 'localhost',
-  port = '5432',
-  username = 'postgres',
-  password = 'password',
-  database.name = 'ecommerce',
-  schema.name = 'public',
-  table.name = 'orders'
-);
+) 
+FROM shared_source TABLE 'public.orders';
 ```
 
 ### Example: Message queues (MQTT, NATS, Pulsar)

@@ -1,0 +1,39 @@
+---
+title: "Amazon S3 Tables catalog"
+sidebarTitle: "Amazon S3 Tables"
+description: "Connect RisingWave to Amazon S3 Tables as a REST-based catalog for Apache Iceberg."
+---
+
+Amazon S3 Tables is an AWS-native Iceberg catalog service that uses the REST protocol with AWS SigV4 authentication. You can use it with RisingWave when creating an Iceberg `SOURCE`, `SINK`, or `CONNECTION` (for internal Iceberg tables).
+
+**Required REST parameters for S3 Tables:**
+
+| Parameter | Description | Value for S3 Tables |
+|---|---|---|
+| `catalog.uri` | The S3 Tables REST endpoint for your region. | `https://s3tables.<your-region>.amazonaws.com/iceberg` |
+| `catalog.rest.signing_region` | The AWS region for signing requests. | e.g., `us-east-1` |
+| `catalog.rest.signing_name` | The service name for signing requests. | `s3tables` |
+| `catalog.rest.sigv4_enabled` | Enables SigV4 signing. Must be `true`. | `true` |
+
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+
+**Example `CREATE SINK` with S3 Tables:**
+```sql
+CREATE SINK my_s3_tables_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 'arn:aws:s3tables:<your-region>:<account-id>:bucket/<bucket-name>',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    s3.region = '<your-region>',
+    catalog.type = 'rest',
+    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+    catalog.rest.signing_region = '<your-region>',
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
+    database.name = '<your-database-name>',
+    table.name = '<your-table-name>'
+);
+```

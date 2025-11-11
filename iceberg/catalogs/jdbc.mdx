@@ -1,0 +1,33 @@
+---
+title: "JDBC catalog"
+sidebarTitle: "JDBC catalog"
+description: "Connect RisingWave to a JDBC-compliant catalog for Apache Iceberg."
+---
+
+A JDBC catalog stores Iceberg table metadata in a relational database like PostgreSQL. You can use a JDBC catalog with RisingWave when creating an Iceberg `SOURCE`, `SINK`, or `CONNECTION` (for internal Iceberg tables).
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Example
+
+To create a sink that uses a JDBC catalog, set `catalog.type` to `'jdbc'` and provide the `catalog.uri` for your database, along with credentials.
+
+```sql
+CREATE SINK my_jdbc_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'jdbc',
+    catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg_db',
+    catalog.jdbc.user = 'user',
+    catalog.jdbc.password = 'password',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```

@@ -4,6 +4,10 @@ sidebarTitle: "Create and manage internal Iceberg tables"
 description: "Create and manage internal Iceberg tables in RisingWave. Persist data in an open format that is fully managed by RisingWave and queryable by external tools."
 ---
 
+<Tip>
+**Try our SQL generator tool!** We've built an interactive tool to help you generate SQL statements for creating Iceberg tables. Check it out at [https://sql.risingwave.com/table/iceberg-table](https://sql.risingwave.com/table/iceberg-table).
+</Tip>
+
 You can create and manage Apache Iceberg tables directly in RisingWave. When you create an internal Iceberg table (that is, a RisingWave-managed Iceberg table), RisingWave handles its lifecycle, while the underlying data is stored in the open Apache Iceberg format in an object store you configure.
 
 ## Create an internal Iceberg table
@@ -14,15 +18,17 @@ Creating and using an internal Iceberg table is a two-step process: first, you d
 
 An Iceberg `CONNECTION` defines the catalog and object storage configuration.
 
-You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based hosted catalog, set `hosted_catalog` to `true`.
+You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based built-in catalog, set `hosted_catalog` to `true`.
 
 You can also set the optional `commit_checkpoint_interval` parameter to control the commit frequency. For example, setting it to `10` means RisingWave will commit data every 10 checkpoints.
 
-The following tabs show examples for different catalog types. For a complete list of parameters, refer to [Catalog configuration](/iceberg/catalogs).
+When you create a `CONNECTION`, you specify the object storage backend where the table data will be stored. You also specify the catalog that will manage the table's metadata.
+
+For more details on the available catalog options, see [Iceberg catalog configuration](/iceberg/catalogs).
 
 <Tabs>
-    <Tab title="Hosted catalog - JDBC">
-    For the simplest setup, use RisingWave's built-in JDBC-based hosted catalog. This requires no external dependencies.
+    <Tab title="Built-in catalog">
+    For the simplest setup, use RisingWave's built-in JDBC-based catalog. This requires no external dependencies.
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
         type = 'iceberg',
@@ -33,9 +39,10 @@ The following tabs show examples for different catalog types. For a complete lis
         hosted_catalog = true
     );
     ```
-    For more details, see [Hosted Iceberg catalog](/iceberg/hosted-iceberg-catalog).
+    For more details, see [Built-in catalog](/iceberg/catalogs/internal).
     </Tab>
     <Tab title="JDBC catalog">
+    To connect to an external JDBC catalog like PostgreSQL:
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
         type = 'iceberg',
