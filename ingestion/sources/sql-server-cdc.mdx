@@ -268,6 +268,35 @@ And this it the output of `DESCRIBE supplier;`
 (10 rows)
 ```
 
+## Handle upstream schema changes
+
+When the source table schema evolves—for example, adding or dropping a column—you need to apply the same schema change manually to the corresponding RisingWave table (such as `ALTER TABLE ... ADD COLUMN` or `ALTER TABLE ... DROP COLUMN`) so that the table definitions stay aligned.
+
+In SQL Server, schema changes are not automatically reflected in the existing CDC capture instance. If the upstream schema changes, refresh the CDC configuration to capture the updated columns. The typical workflow is:
+
+```sql
+-- 1. Disable the old CDC capture instance
+EXEC sys.sp_cdc_disable_table 
+  @source_schema = N'dbo',
+  @source_name = N't',
+  @capture_instance = N'dbo_t';
+
+-- 2. Re-enable CDC with the new schema (creates a new capture instance)
+EXEC sys.sp_cdc_enable_table 
+  @source_schema = N'dbo',
+  @source_name = N't',
+  @role_name = NULL,
+  @supports_net_changes = 1;
+
+-- 3. Verify the new capture instance includes all columns
+SELECT column_name, column_type 
+FROM cdc.captured_columns 
+WHERE object_id = OBJECT_ID('cdc.dbo_t_CT')
+ORDER BY column_ordinal;
+```
+
+After refreshing the CDC, run the corresponding `ALTER TABLE` statements in RisingWave (for example, `ALTER TABLE ... ADD COLUMN` or `ALTER TABLE ... DROP COLUMN`) to keep the RisingWave table definition aligned with the source. For additional background, refer to the SQL Server CDC documentation.
+
 ## Expression as a column
 
 RisingWave allows users to define expressions as table columns. For example, in the SQL statement below, `next_id` is not a column from the source SQL Server table. Instead, it is a generated column that RisingWave computes dynamically while ingesting data. The value of `next_id` for each row is always equal to `id + 1`:
