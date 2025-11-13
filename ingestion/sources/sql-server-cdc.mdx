@@ -272,7 +272,31 @@ And this it the output of `DESCRIBE supplier;`
 
 When the source table schema evolves—for example, adding or dropping a column—you need to apply the same schema change manually to the corresponding RisingWave table (such as `ALTER TABLE ... ADD COLUMN` or `ALTER TABLE ... DROP COLUMN`) so that the table definitions stay aligned.
 
-In SQL Server, schema changes are not automatically reflected in the existing CDC capture instance. If the upstream schema changes, refresh the CDC configuration to capture the updated columns. The typical workflow is:
+In SQL Server, schema changes aren't captured by the existing CDC capture instance. You must introduce a new capture instance—either by temporarily running dual capture instances or by refreshing the original one—to make the new columns available in the change stream ([Microsoft documentation](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/about-change-data-capture-sql-server?view=sql-server-ver17)). We recommend rolling out schema changes by temporarily running dual CDC capture instances. This approach keeps historical data available while Debezium switches to the new schema and is safer for production workloads.
+The typical workflow is:
+
+**Using dual capture instances (recommended):** 
+This approach keeps historical change data accessible while the connector switches to the new capture instance, and it avoids any gap in CDC consumption that could occur if the old instance were disabled too early.
+
+```sql
+-- 1. Create a new capture instance first (keep the old one)
+EXEC sys.sp_cdc_enable_table 
+  @source_schema = N'dbo',
+  @source_name = N't',
+  @role_name = NULL,
+  @capture_instance = N'dbo_t_v2',  -- New instance name
+  @supports_net_changes = 1;
+
+-- 2. Wait for Debezium to switch to the new capture instance
+
+-- 3. Drop the old capture instance after the switchover
+EXEC sys.sp_cdc_disable_table 
+  @source_schema = N'dbo',
+  @source_name = N't',
+  @capture_instance = N'dbo_t';
+```
+
+If you prefer to refresh the existing capture instance instead, follow the steps below to rebuild it with the updated schema:
 
 ```sql
 -- 1. Disable the old CDC capture instance
