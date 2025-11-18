@@ -28,3 +28,18 @@ CREATE SINK my_glue_sink FROM my_mv WITH (
     table.name = 'my_table'
 );
 ```
+
+If you prefer not to specify AWS credentials, you can set `enable_config_load = true` to load them from environment variables instead (self-hosted environments only).
+
+```sql
+CREATE SINK my_glue_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'glue',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    enable_config_load = true, -- Load AWS credentials and region from environment variables
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```
