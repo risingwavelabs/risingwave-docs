@@ -6,9 +6,12 @@ description: "Ingest data from external Apache Iceberg tables in RisingWave for 
 
 This guide shows how to read data from external Apache Iceberg tables in RisingWave. Use it when your Iceberg tables are managed by external systems and you want to treat them as a streaming source for real-time processing.
 
-Create an Iceberg source with the `CREATE SOURCE` statement. In the WITH clause, provide the catalog and object storage settings for the table.
+You can ingest data from Iceberg tables using two approaches:
 
-After the source is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
+1. **Continuous ingestion**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
+2. **Periodic full reload**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes (experimental feature).
+
+After the source or table is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
 
 ## Prerequisites
 
@@ -16,6 +19,8 @@ After the source is created, you can run ad hoc queries against it or maintain m
 *   Access credentials for the underlying storage system (e.g., S3 access key and secret key).
 *   Network connectivity between RisingWave and your storage system.
 *   Knowledge of your Iceberg catalog type and configuration.
+
+## Continuous ingestion with CREATE SOURCE
 
 ## Basic connection example
 
@@ -79,6 +84,68 @@ WITH (
     s3.region = 'us-west-2'
 );
 ```
+
+## Periodic full reload with CREATE TABLE (Experimental)
+
+<Note>
+This is an experimental feature. Please use with caution.
+</Note>
+
+For batch-style workloads where you need to periodically reload an entire Iceberg table, you can create a table with `refresh_mode = 'FULL_RELOAD'`. This mode is useful when:
+
+- The external Iceberg table supports mutable data (updates and deletes)
+- You need a point-in-time snapshot of the entire table
+- Periodic full reloads fit your use case better than continuous streaming
+
+### Creating a refreshable table
+
+```sql
+CREATE TABLE iceberg_batch_table (
+    id int primary key,
+    name varchar
+) WITH (
+    connector = 'iceberg',
+    catalog.type = 'storage',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'public',
+    table.name = 'my_iceberg_table',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    refresh_mode = 'FULL_RELOAD',       -- Required for periodic refresh
+    refresh_interval_sec = '60'          -- Reload every 60 seconds
+);
+```
+
+### Parameters
+
+| Parameter | Description | Required | Example |
+|-----------|-------------|----------|---------|
+| `refresh_mode` | Must be set to `'FULL_RELOAD'` to enable periodic refresh functionality | Yes | `'FULL_RELOAD'` |
+| `refresh_interval_sec` | Interval in seconds between automatic refresh operations | No | `'60'` |
+
+### Manual refresh
+
+You can manually trigger a refresh at any time using the `REFRESH TABLE` command:
+
+```sql
+REFRESH TABLE iceberg_batch_table;
+```
+
+### Monitor refresh status
+
+Query the `rw_catalog.rw_refresh_table_state` system catalog to monitor refresh operations:
+
+```sql
+SELECT table_id, current_status, last_trigger_time, trigger_interval_secs
+FROM rw_catalog.rw_refresh_table_state;
+```
+
+The `current_status` field shows the current state of the refresh job:
+- `IDLE`: No refresh operation is currently in progress
+- `REFRESHING`: A refresh operation is in progress
+
+For more details, see [REFRESH TABLE](/sql/commands/sql-refresh-table).
 
 ## What's next?
 
