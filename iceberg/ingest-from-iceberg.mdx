@@ -8,8 +8,8 @@ This guide shows how to read data from external Apache Iceberg tables in RisingW
 
 You can ingest data from Iceberg tables using two approaches:
 
-1. **Continuous ingestion**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
-2. **Periodic full reload**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes (experimental feature).
+1. **Continuous ingestion (default)**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
+2. **Periodic full reload**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes (experimental feature). Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you trigger a refresh—either manually or via the configured schedule.
 
 After the source or table is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
 
@@ -22,7 +22,7 @@ After the source or table is created, you can run ad hoc queries against it or m
 
 ## Continuous ingestion with CREATE SOURCE
 
-## Basic connection example
+### Basic connection example
 
 The following example creates a source for a table in S3 using AWS Glue as the catalog:
 
@@ -65,7 +65,7 @@ You also need to specify catalog and object storage parameters in the `CREATE SO
 
 For details on how data types are mapped between RisingWave and Iceberg, see the [Data type mapping guide](/iceberg/data-types).
 
-## Source example
+### Source example
 
 For a REST catalog:
 
@@ -123,6 +123,10 @@ CREATE TABLE iceberg_batch_table (
 |-----------|-------------|----------|---------|
 | `refresh_mode` | Must be set to `'FULL_RELOAD'` to enable periodic refresh functionality | Yes | `'FULL_RELOAD'` |
 | `refresh_interval_sec` | Interval in seconds between automatic refresh operations | No | `'60'` |
+
+<Note>
+RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `stream_refresh_scheduler_interval_sec` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
+</Note>
 
 ### Manual refresh
 
