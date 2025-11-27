@@ -272,37 +272,41 @@ And this it the output of `DESCRIBE supplier;`
 
 When the source table schema evolves—for example, adding or dropping a column—you need to apply the same schema change manually to the corresponding RisingWave table (such as `ALTER TABLE ... ADD COLUMN` or `ALTER TABLE ... DROP COLUMN`) so that the table definitions stay aligned.
 
-In SQL Server, schema changes aren't captured by the existing CDC capture instance. You must introduce a new capture instance—either by temporarily running dual capture instances or by refreshing the original one—to make the new columns available in the change stream ([Microsoft documentation](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/about-change-data-capture-sql-server?view=sql-server-ver17)). We recommend rolling out schema changes by temporarily running dual CDC capture instances. This approach keeps historical data available while RisingWave switches to the new schema and is safer for production workloads.
-The typical workflow is:
+In SQL Server, schema changes aren't captured by the existing CDC capture instance. You must introduce a new capture instance—either by temporarily running dual capture instances or by refreshing the original one—to make the new columns available in the change stream, see  ([Microsoft documentation](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/about-change-data-capture-sql-server?view=sql-server-ver17)) for more information. We recommend rolling out schema changes by temporarily running dual CDC capture instances. This approach keeps historical data available while RisingWave switches to the new schema and is safer for production workloads.
 
-**Using dual capture instances (recommended):** 
-This approach keeps historical change data accessible while the connector switches to the new capture instance, and it avoids any gap in CDC consumption that could occur if the old instance were disabled too early.
+The typical workflow is to **run dual CDC capture instances**. This approach keeps historical change data accessible while the connector switches to the new capture instance, and it avoids any gap in CDC consumption that could occur if the old instance were disabled too early.
 
-```sql
--- Step 1: Do schema changes in upstream SqlServer.
-ALTER TABLE dbo.t ADD new_column VARCHAR(200) DEFAULT 'default_value';
+1. Apply schema changes to the upstream SQL Server table.
 
--- Step 2: Create a new capture instance with the updated schema (keep the old one)
-EXEC sys.sp_cdc_enable_table 
-  @source_schema = N'dbo',
-  @source_name = N't',
-  @role_name = NULL,
-  @capture_instance = N'dbo_t_v2',  -- New instance name
-  @supports_net_changes = 1;
+    ```sql
+    ALTER TABLE dbo.t ADD new_column VARCHAR(200) DEFAULT 'default_value';
+    ```
 
--- Step 3: In RisingWave, execute the corresponding ALTER TABLE immediately
--- Note: RisingWave will automatically detect and switch to the new capture instance 
-ALTER TABLE t ADD new_column VARCHAR;
+2. Create a new capture instance with the updated schema (keep the old one).
 
+    ```sql
+    EXEC sys.sp_cdc_enable_table 
+      @source_schema = N'dbo',
+      @source_name = N't',
+      @role_name = NULL,
+      @capture_instance = N'dbo_t_v2',  -- New instance name
+      @supports_net_changes = 1;
+    ```
 
--- Step 4 (Optional): Drop the old capture instance after confirming the switch is complete
--- You can verify by querying recent data in RisingWave to check if new rows have actual values
-EXEC sys.sp_cdc_disable_table 
-  @source_schema = N'dbo',
-  @source_name = N't',
-  @capture_instance = N'dbo_t';
-```
+3. In RisingWave, execute the corresponding `ALTER TABLE` immediately. RisingWave will automatically detect and switch to the new capture instance.
 
+    ```sql
+    ALTER TABLE t ADD new_column VARCHAR;
+    ```
+
+4. (Optional) Drop the old capture instance after confirming the switch is complete. You can verify by checking recent data in RisingWave to ensure that new rows contain values.
+
+    ```sql
+    EXEC sys.sp_cdc_disable_table 
+      @source_schema = N'dbo',
+      @source_name = N't',
+      @capture_instance = N'dbo_t';
+    ```
 
 ## Expression as a column
 
@@ -339,29 +343,35 @@ To observe the progress of direct CDC for SQL Server, use the following methods:
 Historical data needs to be backfilled into the table. You can check the internal state of the backfill executor as follows:
 
 1. Create a table to backfill historical data:
-```sql
-CREATE TABLE t3 (id INTEGER, v1 TIMESTAMP WITH TIME ZONE, PRIMARY KEY(id)) FROM mssql_source TABLE 'dbo.t3';
-```
+
+    ```sql
+    CREATE TABLE t3 (id INTEGER, v1 TIMESTAMP WITH TIME ZONE, PRIMARY KEY(id)) FROM mssql_source TABLE 'dbo.t3';
+    ```
+
 2. List the internal tables to find the relevant backfill executor state:
-```sql
-SHOW INTERNAL TABLES;
-```sql
-Output:
-```
-Name
----------------------------------
-__internal_t3_3_streamcdcscan_4
-__internal_mssql_source_1_source_2
-(2 rows)
-```sql
+    ```sql
+    SHOW INTERNAL TABLES;
+    ```
+
+    Output:
+    ```sql
+    Name
+    ---------------------------------
+    __internal_t3_3_streamcdcscan_4
+    __internal_mssql_source_1_source_2
+    (2 rows)
+    ```
+
 3. Check the internal state of the backfill executor:
-```
-SELECT * FROM __internal_t3_3_streamcdcscan_4;
-```
-Output:
-```bash
-split_id | id | backfill_finished | row_count | cdc_offset
-----------+----+-------------------+-----------+-------------------------------------------------------------------------------------------------
-3        |  5 | t                 |         4 | {"SqlServer": {"change_lsn": "00000029:000005b0:0006", "commit_lsn": "ffffffff:ffffffff:ffff"}}
-(1 row)
-```
+
+    ```sql
+    SELECT * FROM __internal_t3_3_streamcdcscan_4;
+    ```
+
+    Output:
+    ```bash
+    split_id | id | backfill_finished | row_count | cdc_offset
+    ----------+----+-------------------+-----------+-------------------------------------------------------------------------------------------------
+    3        |  5 | t                 |         4 | {"SqlServer": {"change_lsn": "00000029:000005b0:0006", "commit_lsn": "ffffffff:ffffffff:ffff"}}
+    (1 row)
+    ```
