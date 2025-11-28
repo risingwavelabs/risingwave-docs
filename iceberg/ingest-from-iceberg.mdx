@@ -8,8 +8,8 @@ This guide shows how to read data from external Apache Iceberg tables in RisingW
 
 You can ingest data from Iceberg tables using two approaches:
 
-1. **Continuous ingestion (default)**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
-2. **Periodic full reload**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes (experimental feature). Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you trigger a refresh—either manually or via the configured schedule.
+1. **[Continuous ingestion (default)](#continuous-ingestion-with-create-source)**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
+2. **[Periodic full reload](#periodic-full-reload-with-create-table)**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes. Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you trigger a refresh—either manually or via the configured schedule.
 
 After the source or table is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
 
@@ -41,18 +41,16 @@ WITH (
 );
 ```
 
-<Note>
 When you read from an external Iceberg table, RisingWave automatically derives column names and data types from the Iceberg table metadata. Use the [DESCRIBE](/sql/commands/sql-describe) statement to view the schema:
 
 ```sql
 DESCRIBE my_iceberg_source;
 ```
-</Note>
 
-## Parameters
+### Parameters
 
 | Parameter | Description | Example |
-|-----------|-------------|---------|
+|:----------|:------------|:--------|
 | `connector` | Required. For Iceberg sources, it must be `'iceberg'` | `'iceberg'` |
 | `database.name` | Required. The Iceberg database/namespace name. | `'analytics'` |
 | `table.name` | Required. The Iceberg table name. | `'user_events'` |
@@ -85,19 +83,19 @@ WITH (
 );
 ```
 
-## Periodic full reload with CREATE TABLE (Experimental)
+## Periodic full reload with CREATE TABLE
 
 <Note>
-This is an experimental feature. Please use with caution.
+Added in v2.7.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
 </Note>
 
 For batch-style workloads where you need to periodically reload an entire Iceberg table, you can create a table with `refresh_mode = 'FULL_RELOAD'`. This mode is useful when:
 
-- The external Iceberg table supports mutable data (updates and deletes)
-- You need a point-in-time snapshot of the entire table
-- Periodic full reloads fit your use case better than continuous streaming
+- The external Iceberg table supports mutable data (updates and deletes).
+- You need a point-in-time snapshot of the entire table.
+- Periodic full reloads fit your use case better than continuous streaming.
 
-### Creating a refreshable table
+### Create a refreshable table
 
 ```sql
 CREATE TABLE iceberg_batch_table (
@@ -120,13 +118,11 @@ CREATE TABLE iceberg_batch_table (
 ### Parameters
 
 | Parameter | Description | Required | Example |
-|-----------|-------------|----------|---------|
+|:----------|:------------|:---------|:--------|
 | `refresh_mode` | Must be set to `'FULL_RELOAD'` to enable periodic refresh functionality | Yes | `'FULL_RELOAD'` |
 | `refresh_interval_sec` | Interval in seconds between automatic refresh operations | No | `'60'` |
 
-<Note>
 RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `stream_refresh_scheduler_interval_sec` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
-</Note>
 
 ### Manual refresh
 
@@ -141,7 +137,7 @@ REFRESH TABLE iceberg_batch_table;
 Query the `rw_catalog.rw_refresh_table_state` system catalog to monitor refresh operations:
 
 ```sql
-SELECT table_id, current_status, last_trigger_time, trigger_interval_secs
+SELECT table_id, current_status, last_trigger_time, last_success_time, trigger_interval_secs
 FROM rw_catalog.rw_refresh_table_state;
 ```
 
