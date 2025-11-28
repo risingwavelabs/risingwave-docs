@@ -1,0 +1,69 @@
+---
+title: "REFRESH TABLE"
+description: "Use the `REFRESH TABLE` command to manually trigger a refresh operation for tables created with the FULL_RELOAD refresh mode."
+---
+
+<Note>
+Added in v2.7.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
+</Note>
+
+The `REFRESH TABLE` command manually triggers a full reload of data from the external source for tables configured with the `FULL_RELOAD` refresh mode. This is useful when you need to immediately update the table data without waiting for the next scheduled refresh.
+
+When a table is created with `refresh_mode = 'FULL_RELOAD'`, it can be configured to automatically refresh at a specified interval using the `refresh_interval_sec` parameter. The `REFRESH TABLE` command allows you to trigger an additional refresh on demand.
+
+## Syntax
+
+```sql
+REFRESH TABLE table_name;
+```
+
+## Parameters
+
+| Parameter | Description |
+|:----------|:------------|
+| `table_name` | The name of the table to refresh. The table must be created with `refresh_mode = 'FULL_RELOAD'`. |
+
+## Example
+
+Create a table with the `FULL_RELOAD` refresh mode:
+
+```sql
+CREATE TABLE iceberg_batch_table (
+    id int primary key,
+    name varchar
+) WITH (
+    connector = 'iceberg',
+    catalog.type = 'storage',
+    table.name = 'my_iceberg_table',
+    database.name = 'public',
+    refresh_mode = 'FULL_RELOAD',
+    refresh_interval_sec = '60'  -- Automatically refresh every 60 seconds
+);
+```
+
+Manually trigger a refresh:
+
+```sql
+REFRESH TABLE iceberg_batch_table;
+```
+
+## Monitor refresh status
+
+You can monitor the status of refresh operations using the `rw_catalog.rw_refresh_table_state` system catalog:
+
+```sql
+SELECT table_id, current_status, last_trigger_time, last_success_time, trigger_interval_secs
+FROM rw_catalog.rw_refresh_table_state;
+```
+
+This query returns information about all refreshable tables, including:
+- `table_id`: The unique identifier of the table
+- `current_status`: The current status of the refresh job (e.g., `IDLE`, `REFRESHING`)
+- `last_trigger_time`: The timestamp of the last refresh operation
+- `last_success_time`: The timestamp when the refresh last completed successfully
+- `trigger_interval_secs`: The configured refresh interval in seconds
+
+## Related topics
+
+- [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg)
+- [RisingWave catalogs](/sql/system-catalogs/rw-catalog)
