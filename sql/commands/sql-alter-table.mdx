@@ -172,7 +172,7 @@ SET PARALLELISM { TO | = } parallelism_number;
 ALTER TABLE test_table SET PARALLELISM = 8;
 ```
 
-Here is a more detailed example for you to practise this clause:
+Here is a more detailed example for you to practice this clause:
 
 First, let's set the parallelism to `3` by the [SET command](/operate/view-configure-runtime-parameters#how-to-configure-runtime-parameters).
 
@@ -180,20 +180,23 @@ First, let's set the parallelism to `3` by the [SET command](/operate/view-confi
 SET streaming_parallelism = 3;
 ```
 
-Then let's create a table to view the parallelism we set. As mentioned, the parallelism status of a table can be observed within the [rw\_fragments](/operate/view-configure-runtime-parameters) table.
+Then let's create a table to view the parallelism we set. As mentioned, the parallelism status of a table can be observed within the [`rw_fragments`](/sql/system-catalogs/rw-catalog#available-risingwave-catalogs) table.
 
 ```sql
 -- Create a table.
 CREATE TABLE t(v int);
--- View parrellelism by rw_fragments table.
-SELECT fragment_id, parallelism FROM rw_fragments;
+-- View parallelism by rw_fragments table.
+SELECT fragment_id, parallelism, parallelism_policy FROM rw_fragments;
 
 ------RESULTS
- fragment_id | parallelism
--------------+-------------
-           1 |           3
-           2 |           3
-(2 rows)
+ fragment_id | parallelism |   parallelism_policy
+-------------+-------------+------------------------
+           1 |          12 | inherit(adaptive)
+           2 |          12 | inherit(adaptive)
+           3 |          12 | upstream_fragment([1])
+           4 |           1 | single
+           5 |          12 | upstream_fragment([1])
+(5 rows)
 ```
 
 Now we can use `SET PARALLELISM` to change the parallelism and view the change:
