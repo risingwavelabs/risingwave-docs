@@ -1,5 +1,6 @@
 ---
 title: "Supported protobuf types"
+sidebarTitle: Protobuf
 description: "RisingWave supports a variety of protobuf data types, which are converted to equivalent types in RisingWave. This page provides an overview of the supported protobuf types and their corresponding RisingWave types."
 ---
 
@@ -41,7 +42,7 @@ RisingWave converts [well-known types](https://protobuf.dev/reference/protobuf/g
 
 The nested fields are transformed into columns within a struct type. For example, a Protobuf message with the following structure:
 
-```js
+```protobuf Example
 message NestedMessage {
   int32 id = 1;
   string name = 2;
@@ -75,14 +76,8 @@ RisingWave correctly handles [protobuf field presence](https://protobuf.dev/prog
 ### Regular primitive fields
 
 Regular primitive fields (without the `optional` keyword) receive their default values when absent from the protobuf message:
-- `int32`, `int64`, `uint32`, `uint64`, `sint32`, `sint64`, `fixed32`, `fixed64`, `sfixed32`, `sfixed64`: `0`
-- `float`, `double`: `0.0`
-- `bool`: `false`
-- `string`: empty string (`""`)
-- `bytes`: empty bytes
-- `enum`: first defined enum value (default)
 
-```protobuf Example schema
+```protobuf Example
 syntax = "proto3";
 message Example {
   int32 regular_int = 1;      // Gets 0 if missing
@@ -95,7 +90,7 @@ message Example {
 
 Fields marked with the `optional` keyword are set to `NULL` when absent:
 
-```protobuf Example schema
+```protobuf Example
 syntax = "proto3";
 message Example {
   optional int32 optional_int = 1;      // Gets NULL if missing
@@ -107,7 +102,7 @@ message Example {
 
 Message fields (nested messages) are set to `NULL` when absent:
 
-```protobuf Example schema
+```protobuf Example
 syntax = "proto3";
 message InnerMessage {
   string content = 1;
@@ -121,7 +116,7 @@ message Example {
 
 Fields within a `oneof` group are set to `NULL` when the `oneof` is not set or a different field in the group is set:
 
-```protobuf Example schema
+```protobuf Example
 syntax = "proto3";
 message Example {
   oneof test_oneof {
