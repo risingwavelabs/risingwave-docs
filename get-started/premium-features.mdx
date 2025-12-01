@@ -210,13 +210,27 @@ system parameters (`license_key`), the initial configuration (`system.license_ke
 
 ### Verify license key
 
-To check if your license key is valid, run:
+To check if your license key is valid and test the availability of a specific feature, run:
 
 ```sql
-SELECT rw_test_paid_tier();
+SELECT rw_test_feature('feature_name');
 ```
 
-A result of `t` means the key is valid; an error message indicates an invalid key.
+Replace `feature_name` with the name of the feature you want to test. A result of `t` means the feature is available; an error message indicates the feature is not available based on your license.
+
+<Note>
+`rw_test_paid_tier()` is deprecated. Use `rw_test_feature('feature_name')` instead.
+</Note>
+
+### View available features
+
+To view all license-gated features and their availability, query the `rw_features` system table:
+
+```sql
+SELECT * FROM rw_features;
+```
+
+This returns a list of all features with their names, descriptions, and availability status based on your current license.
 
 ### Retrieve license details
 
