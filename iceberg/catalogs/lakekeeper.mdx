@@ -39,8 +39,26 @@ You can deploy this configuration using one of two methods:
 
 ### Steps
 
-1. Create an Iceberg connection.
-   ```sql
+1. Create an Iceberg connection. There are two ways to configure the connection:
+
+   <Tabs>
+   <Tab title="Enable credential vending">
+   Since v2.7.0, RisingWave supports credential vending protocol, allowing RisingWave to obtain temporary object storage credentials directly from Lakekeeper. Make sure to set `catalog.type = 'rest'` and `vended_credentials = true`.
+
+   ```sql Example
+   CREATE CONNECTION lakekeeper_catalog_conn
+   WITH (
+      type = 'iceberg',
+      catalog.type = 'rest',
+      catalog.uri = 'http://lakekeeper:8181/catalog/',
+      warehouse.path = 'risingwave-warehouse',
+      vended_credentials = true
+   );
+   ```
+   </Tab>
+   <Tab title="Specify S3 credentials manually">
+   You can continue to specify S3 credentials manually as before.
+   ```sql Example
    CREATE CONNECTION lakekeeper_catalog_conn
    WITH (
        type = 'iceberg',
@@ -54,6 +72,8 @@ You can deploy this configuration using one of two methods:
        s3.region = 'us-east-1'
    );
    ```
+   </Tab>
+   </Tabs>
 
 2. Set the connection as the default for your session.
    ```sql
@@ -148,20 +168,46 @@ Ensure your Kubernetes environment is configured with Helm by following the [ins
    ```bash Connect to RisingWave
    psql -h localhost -p 4567 -d dev -U root
    ```
-   ```sql Run SQL
-   create connection lakekeeper_catalog_conn
-   with (
-       type = 'iceberg',
-       catalog.type = 'rest',
-       catalog.uri = 'http://my-lakekeeper:8181/catalog/',
-       warehouse.path = 'abc',       -- replace with your warehouse name
-       s3.access.key = 'root',
-       s3.secret.key = 'K9xXOGgEHx', -- replace with your MinIO secret key
-       s3.path.style.access = 'true',
-       s3.endpoint = 'http://risingwave-minio:9000',
-       s3.region = 'us-east-1'
-   );
 
+   Next, create an Iceberg connection. There are two ways to configure the connection:
+
+   <Tabs>
+   <Tab title="Enable credential vending">
+   Since v2.7.0, RisingWave supports credential vending protocol, allowing RisingWave to obtain temporary object storage credentials directly from Lakekeeper. Make sure to set `catalog.type = 'rest'` and `vended_credentials = true`.
+
+   ```sql Example
+   CREATE CONNECTION lakekeeper_catalog_conn
+   WITH (
+      type = 'iceberg',
+      catalog.type = 'rest',
+      catalog.uri = 'http://lakekeeper:8181/catalog/',
+      warehouse.path = 'risingwave-warehouse',
+      vended_credentials = true
+   );
+   ```
+   </Tab>
+   <Tab title="Specify S3 credentials manually">
+   You can continue to specify S3 credentials manually as before.
+   ```sql Example
+   CREATE CONNECTION lakekeeper_catalog_conn
+   WITH (
+      type = 'iceberg',
+      catalog.type = 'rest',
+      catalog.uri = 'http://my-lakekeeper:8181/catalog/',
+      warehouse.path = 'abc',       -- replace the warehouse name here
+      s3.access.key = 'root',
+      s3.secret.key = 'K9xXOGgEHx', -- replace the secret key here
+      s3.path.style.access = 'true',
+      s3.endpoint = 'http://risingwave-minio:9000',
+      s3.region = 'us-east-1'
+   );
+   ```
+   </Tab>
+   </Tabs>
+
+   Then run the SQL test queries:
+
+   ```sql
    set iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
 
    create table t_lakekeeper_basic(id int primary key, name varchar, v bigint)
@@ -172,3 +218,7 @@ Ensure your Kubernetes environment is configured with Helm by following the [ins
 
    select * from t_lakekeeper_basic;
    ```
+
+## Optional: Credential vending for sources and sinks
+
+Besides creating connection, Lakekeeper supports credential vending for sources and sinks when configured with valid object storage credentials. For more information on how vended credentials work, see [Vended credentials](/iceberg/catalogs/rest#vended-credentials).
