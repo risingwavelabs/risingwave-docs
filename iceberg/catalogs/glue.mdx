@@ -46,11 +46,15 @@ CREATE SINK my_glue_sink FROM my_mv WITH (
 
 ## Using IAM roles with Glue catalog
 
+<Note>
+Added in v2.7.0.
+</Note>
+
 RisingWave provides two ways to authenticate with AWS Glue and S3 when using the Iceberg connector. This enables tighter security by allowing distinct IAM roles or credentials for each service.
 
 ### Separate S3 and Glue credentials
 
-Starting from v2.7.0, you can configure S3 and Glue with independent credentials, using either access keys or IAM roles for each service.
+You can configure S3 and Glue with independent credentials, using either access keys or IAM roles for each service.
 
 ```sql Example of creating sink
 CREATE SINK sink_t FROM t WITH (
@@ -109,9 +113,9 @@ CREATE SOURCE iceberg_t_source WITH (
 
 If Glue-specific parameters are not provided, the connector falls back to using S3 credentials for backward compatibility.
 
-### Assume Roles for S3 and Glue with `enable_config_load`
+### Assume roles for S3 and Glue with `enable_config_load`
 
-When enable_config_load = true is enabled, RisingWave loads AWS config/credentials from the environment and assumes the IAM roles specified for S3 and Glue.
+When `enable_config_load = true` is enabled, RisingWave loads AWS config/credentials from the environment and assumes the IAM roles specified for S3 and Glue.
 
 ```sql Example of creating sink
 CREATE SINK sink_t FROM t WITH (
