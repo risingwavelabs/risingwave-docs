@@ -9,16 +9,18 @@ When RisingWave streams data into Iceberg, it generates many small data files an
 - **Compaction**: Merges small data files and delete files into larger, optimized files to improve read performance.
 - **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
 
-<Note>
-Automatic maintenance for Iceberg was added in RisingWave v2.5.0.
-</Note>
-
 ## Automatic maintenance
+
+<Note>
+**Version notes**
+- RisingWave introduced Iceberg automatic maintenance in v2.5.0 and added files-with-delete compaction in v2.7.0.  
+- Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
+</Note>
 
 You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables.
 
 <Warning>
-**Dedicated Compactor Required**
+**Dedicated compactor required**
 
 Automatic Iceberg maintenance requires a dedicated compactor service. Please contact us via the [RisingWave Slack workspace](https://www.risingwave.com/slack) to have the necessary resources allocated for your cluster.
 </Warning>
@@ -27,8 +29,8 @@ Automatic Iceberg maintenance requires a dedicated compactor service. Please con
 
 RisingWave supports three compaction types for Iceberg tables. You can specify the type using the `compaction.type` parameter.
 
-| Compaction Type | Description |
-|---|---|
+| Compaction type | Description |
+|:--|:--|
 | `full` | Rewrites all data files. This is the default type. |
 | `small-files` | Only compacts files smaller than a specified threshold. Use the `compaction.small_files_threshold_mb` parameter to set the threshold. |
 | `files-with-delete` | Only compacts data files that have associated delete files. Use the `compaction.delete_files_count_threshold` parameter to set the minimum number of delete files to trigger compaction. |
@@ -44,7 +46,7 @@ Configure automatic maintenance by specifying the following parameters in the `W
 #### General parameters
 
 | Parameter | Description |
-|---|---|
+|:--|:--|
 | `enable_compaction` | Required. Set to `true` to enable automatic compaction and snapshot expiration. |
 | `compaction_interval_sec` | Optional. The interval in seconds between maintenance runs. Default: `3600`. |
 | `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
@@ -54,13 +56,13 @@ Configure automatic maintenance by specifying the following parameters in the `W
 #### Compaction parameters
 
 | Parameter | Description |
-|---|---|
+|:--|:--|
 | `compaction.type` | Optional. The compaction strategy: `full`, `small-files`, or `files-with-delete`. Default: `full`. |
 | `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. |
-| `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. Default: `16`. |
-| `compaction.target_file_size_mb` | Optional. The target file size in MB for compacted files. Default: `1024`. |
-| `compaction.small_files_threshold_mb` | Optional. For `small-files` compaction type, the threshold size in MB below which files will be compacted. Default: `64`. |
-| `compaction.delete_files_count_threshold` | Optional. For `files-with-delete` compaction type, the minimum number of delete files associated with a data file required to trigger compaction. Default: `256`. |
+| `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. |
+| `compaction.target_file_size_mb` | Optional. The target file size in MB for compacted files. |
+| `compaction.small_files_threshold_mb` | Optional. For `small-files` compaction type, the threshold size in MB below which files will be compacted. |
+| `compaction.delete_files_count_threshold` | Optional. For `files-with-delete` compaction type, the minimum number of delete files associated with a data file required to trigger compaction. |
 
 ### Examples
 
