@@ -1,0 +1,103 @@
+---
+title: "Benchmark: Iceberg compaction"
+sidebarTitle: "Benchmark: Iceberg compaction"
+description: "Performance benchmarks of RisingWave's embedded Iceberg compaction engine compared to Apache Spark."
+---
+
+This report details the performance benchmarks of the RisingWave embedded Iceberg compaction engine compared to a standard Apache Spark setup. The tests evaluate execution time, resource efficiency, and stability under high-complexity delete scenarios.
+
+## Test environment
+
+Both engines were executed on identical hardware to ensure a fair comparison.
+
+### Hardware specifications
+
+- **Cloud provider:** AWS
+- **Instance type:** `m5.4xlarge`
+- **vCPU:** 16 Cores
+- **Memory:** 64 GB
+- **Storage:** EBS (General Purpose SSD)
+
+### Software configuration
+
+**Apache Spark**
+
+The Spark job was tuned for the instance size to maximize resource utilization without causing immediate out-of-memory errors on startup.
+
+- `spark.executor.memory`: 40g
+- `spark.executor.memoryOverhead`: 8g
+- `spark.driver.memory`: 12g
+- `spark.sql.shuffle.partitions`: 100
+
+**RisingWave**
+
+- **Compaction mode:** Embedded (Rust/DataFusion)
+- **Parallelism:** Default configuration (Execution Parallelism: 64, Output Parallelism: 64)
+
+---
+
+## Scenario 1: Bin-packing (small file compaction)
+
+This scenario tests the "Small File" problem. The objective is to merge thousands of small, fragmented files into a few large, optimized files. No delete files are involved in this test.
+
+### Dataset parameters
+
+- **Total data volume:** ~193 GB
+- **File count (input):** ~17,358 files
+- **Average file size:** ~11 MB
+- **Target file size:** 512 MB
+
+### Results
+
+| **Metric** | **RisingWave** | **Apache Spark** | **Difference** |
+| :--- | :--- | :--- | :--- |
+| **Duration (Uncompressed)** | **277 sec** | 1,533 sec | **~5.5x Faster** |
+| **Duration (ZSTD Level 5)** | **369 sec** | 1,923 sec | **~5.2x Faster** |
+| **Input Files** | 17,358 | 17,358 | - |
+| **Output Files** | 215 | 215 | - |
+
+<Note>
+RisingWave demonstrated a consistent ~5x speedup across both uncompressed and ZSTD-compressed datasets, indicating that the performance differential is driven by framework overhead (JVM startup, task scheduling) rather than I/O or compression bottlenecks.
+</Note>
+
+---
+
+## Scenario 2: High-complexity compaction (deletes)
+
+This scenario tests **Copy-on-Write (CoW)** capabilities. The engine must read data files, load "Delete Files" (Equality and Position deletes) into memory, filter out deleted rows, and rewrite the data. This workload is memory-intensive due to the metadata overhead required for equality lookups.
+
+### Dataset parameters
+
+- **Data files:** 20,000
+- **Position delete files:** 20,000
+- **Equality delete files:** 20,000
+- **Total input files:** 60,000
+
+### Results
+
+| **Workload Description** | **RisingWave Result** | **Apache Spark Result** |
+| :--- | :--- | :--- |
+| **Standard Entropy**<br/>(10k equality + 10k position deletes) | **SUCCESS**<br/>Time: 518s | **FAILED**<br/>Status: Out of Memory (OOM) |
+| **High Entropy**<br/>(20k equality + 20k position deletes) | **SUCCESS**<br/>Time: 490s | **FAILED**<br/>Status: Out of Memory (OOM) |
+| **Massive Metadata**<br/>(High volume equality deletes ~20GB) | **FAILED**<br/>Status: OOM | **FAILED**<br/>Status: Out of Memory (OOM) |
+
+<Note>
+**Observation:** On the tested `m5.4xlarge` instance (64GB RAM), the Apache Spark job failed to complete the delete-heavy workloads, terminating repeatedly due to memory exhaustion. RisingWave successfully completed the High Entropy workload in 490 seconds, demonstrating higher memory efficiency for complex metadata operations on single-node architectures.
+</Note>
+
+---
+
+## Resource utilization analysis
+
+During the execution of the **Bin-packing (uncompressed)** test, we monitored the resource usage of the RisingWave compaction worker.
+
+- **CPU utilization:** The engine effectively saturated the available compute resources, averaging **~10 cores** active usage out of 16 available cores during the merge phase.
+- **Memory footprint:** Memory usage remained stable around **~22 GB** (approx. 35% of system RAM), leaving ample headroom for OS operations and preventing OOM kills.
+
+## Conclusion
+
+The benchmarks indicate that RisingWave's embedded compaction engine significantly outperforms a standard single-node Spark deployment for Iceberg maintenance tasks:
+
+1.  **Speed:** Achieved a **5.5x speedup** on standard bin-packing tasks.
+2.  **Efficiency:** Eliminated the heavy startup and coordination overhead associated with distributed JVM frameworks.
+3.  **Stability:** Successfully handled complex Delete/CoW workloads that caused OOM failures on Spark within the same hardware constraints.
