@@ -3,7 +3,6 @@ title: "Benchmark: Iceberg compaction"
 sidebarTitle: "Benchmark: Iceberg compaction"
 description: "Performance benchmarks of RisingWave's embedded Iceberg compaction engine compared to Apache Spark."
 ---
-
 This report details the performance benchmarks of the RisingWave embedded Iceberg compaction engine compared to a standard Apache Spark setup. The tests evaluate execution time, resource efficiency, and stability under high-complexity delete scenarios.
 
 ## Test environment
@@ -24,10 +23,12 @@ Both engines were executed on identical hardware to ensure a fair comparison.
 
 The Spark job was tuned for the instance size to maximize resource utilization without causing immediate out-of-memory errors on startup.
 
-- `spark.executor.memory`: 40g
-- `spark.executor.memoryOverhead`: 8g
-- `spark.driver.memory`: 12g
-- `spark.sql.shuffle.partitions`: 100
+- spark.executor.memory = 40g
+- spark.executor.memoryOverhead = 8g
+- spark.driver.memory = 12g
+- spark.memory.fraction = 0.8
+- spark.memory.storageFraction = 0.2
+- spark.sql.shuffle.partitions = 1000
 
 **RisingWave**
 
@@ -64,7 +65,7 @@ RisingWave demonstrated a consistent ~5x speedup across both uncompressed and ZS
 
 ## Scenario 2: High-complexity compaction (deletes)
 
-This scenario tests **Copy-on-Write (CoW)** capabilities. The engine must read data files, load "Delete Files" (Equality and Position deletes) into memory, filter out deleted rows, and rewrite the data. This workload is memory-intensive due to the metadata overhead required for equality lookups.
+This scenario tests **Copy-on-Write (CoW)** capabilities. The engine must read data files, load "delete files" (equality and position deletes) into memory, filter out deleted rows, and rewrite the data. This workload is memory-intensive due to the metadata overhead required for equality lookups.
 
 ### Dataset parameters
 
