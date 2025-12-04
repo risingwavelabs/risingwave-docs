@@ -20,15 +20,19 @@ SHOW FUNCTIONS [ LIKE_expression ];
 ```sql
        Name       |         Arguments         |                                Return Type                                | Language |         Link
 ------------------+---------------------------+---------------------------------------------------------------------------+----------+-----------------------
- jsonb_concat     | jsonb[]                   | jsonb                                                                     | python   | http://localhost:8815
- array_access     | varchar[], integer        | varchar                                                                   | python   | http://localhost:8815
- hex_to_dec       | varchar                   | numeric                                                                   | python   | http://localhost:8815
- gcd              | integer, integer, integer | integer                                                                   | python   | http://localhost:8815
- gcd              | integer, integer          | integer                                                                   | python   | http://localhost:8815
- extract_tcp_info | bytea                     | struct<src_ip varchar,dst_ip varchar,src_port smallint,dst_port smallint> | python   | http://localhost:8815
- int_42           |                           | integer                                                                   | python   | http://localhost:8815
- series2          | integer                   | struct<x integer,y varchar>                                               | python   | http://localhost:8815
- series           | integer                   | integer                                                                   | python   | http://localhost:8815
- jsonb_access     | jsonb, integer            | jsonb                                                                     | python   | http://localhost:8815
+ public.jsonb_concat     | jsonb[]                   | jsonb                                                                     | python   | http://localhost:8815
+ public.array_access     | varchar[], integer        | varchar                                                                   | python   | http://localhost:8815
+ public.hex_to_dec       | varchar                   | numeric                                                                   | python   | http://localhost:8815
+ public.gcd              | integer, integer, integer | integer                                                                   | python   | http://localhost:8815
+ public.gcd              | integer, integer          | integer                                                                   | python   | http://localhost:8815
+ public.extract_tcp_info | bytea                     | struct<src_ip varchar,dst_ip varchar,src_port smallint,dst_port smallint> | python   | http://localhost:8815
+ public.int_42           |                           | integer                                                                   | python   | http://localhost:8815
+ public.series2          | integer                   | struct<x integer,y varchar>                                               | python   | http://localhost:8815
+ public.series           | integer                   | integer                                                                   | python   | http://localhost:8815
+ public.jsonb_access     | jsonb, integer            | jsonb                                                                     | python   | http://localhost:8815
 (10 rows)
 ```
+
+## Notes
+
+Starting from a recent version, the `Name` column in the output includes the schema name as a prefix (e.g., `public.function_name`). This helps distinguish functions with the same name in different schemas when querying across multiple schemas in the search path.
