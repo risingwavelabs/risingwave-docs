@@ -34,7 +34,7 @@ FORMAT data_format ENCODE data_encode [ (
 
 | Name | Description                                                                                                                                                                                                                                                                                                                                       |
 | :-------------- | :------------------ |
-| redis.url       | **Required**. Choose either the Redis cluster address or a non-cluster Redis address. <ul><li>If the address is a cluster address, it should be in the form of a JSON array, like `redis.url= '["redis://redis-server:6379/"]'`.</li><li>If the address is a non-cluster address, it should be in the form of a string, like `redis.url= 'redis://redis-server:6379/'`.</li></ul> |
+| redis.url       | **Required**. Choose either the Redis cluster address or a non-cluster Redis address. <ul><li>If the address is a cluster address, it should be in the form of a JSON array, like `redis.url= '["redis://redis-server:6379/"]'`.</li><li>If the address is a non-cluster address, it should be in the form of a string, like `redis.url= 'redis://redis-server:6379/'`.</li></ul><br/>To use TLS for secure connections, use the `rediss://` protocol instead of `redis://`. For example, `rediss://redis-server:6380/` or `'["rediss://redis-server:6380/"]'` for cluster addresses. |
 | primary\_key    | **Required**. The primary keys of the sink. If necessary, use `,` to delimit the primary key columns.                                                                                                                                                                                                                                                 |
 
 ## FORMAT and ENCODE options
@@ -104,6 +104,34 @@ FROM bhv_mv WITH (
     force_append_only='true',
     key_format = 'UserID:{user_id}',
     value_format = 'TargetID:{target_id},EventTimestamp{event_timestamp}'
+);
+```
+
+### TLS connections
+
+RisingWave supports secure TLS connections to Redis using the `rediss://` protocol. This is particularly useful when connecting to managed Redis services like AWS ElastiCache.
+
+```sql
+CREATE SINK redis_tls_sink
+FROM bhv_mv WITH (
+    connector = 'redis',
+    primary_key = 'user_id',
+    redis.url= 'rediss://your-redis-server.example.com:6380/'
+) FORMAT PLAIN ENCODE JSON (
+    force_append_only='true'
+);
+```
+
+For cluster addresses with TLS:
+
+```sql
+CREATE SINK redis_cluster_tls_sink
+FROM bhv_mv WITH (
+    connector = 'redis',
+    primary_key = 'user_id',
+    redis.url= '["rediss://redis-node1.example.com:6380/", "rediss://redis-node2.example.com:6380/"]'
+) FORMAT PLAIN ENCODE JSON (
+    force_append_only='true'
 );
 ```
 
