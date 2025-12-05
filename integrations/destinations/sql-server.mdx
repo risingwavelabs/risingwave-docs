@@ -4,7 +4,11 @@ sidebarTitle: Microsoft SQL Server
 description: This guide describes how to sink data from RisingWave to Microsoft SQL Server.
 ---
 
-You can test out this process on your own device by using the `sqlserver_sink.slt` demo in the [integration\_test directory](https://github.com/risingwavelabs/risingwave/tree/main/integration%5Ftests) of the RisingWave repository.
+This guide covers two connector options for sinking data to SQL Server:
+- **JDBC connector** (`connector='jdbc'`) - Recommended for better performance
+- **SQL Server native connector** (`connector='sqlserver'`)
+
+You can test out this process on your own device by using the `sqlserver_sink.slt` demo in the [e2e\_test directory](https://github.com/risingwavelabs/risingwave/tree/main/e2e%5Ftest/sink) of the RisingWave repository.
 
 <Tip>
 **PREMIUM FEATURE**
@@ -16,26 +20,46 @@ This is a premium feature. For a comprehensive overview of all premium features 
 
 Before sinking data from RisingWave to SQL Server, please ensure the following:
 
-* The SQL Server table you want to sink to is accessible from RisingWave.
-* You have an upstream materialized view or table in RisingWave that you can sink data from.
+- The SQL Server table you want to sink to is accessible from RisingWave.
+- You have an upstream materialized view or table in RisingWave that you can sink data from.
+- If you are running RisingWave locally from binaries and intend to use the JDBC sink connector, make sure you have [JDK 11](https://openjdk.org/projects/jdk/11/) or later versions installed in your environment.
 
-## Syntax
+## Create a sink
+
+RisingWave supports two connector types for SQL Server sinks. The JDBC connector is recommended for better performance.
+
+### Syntax
 
 ```sql
 CREATE SINK [ IF NOT EXISTS ] sink_name
 [FROM sink_from | AS select_query]
 WITH (
-   connector='sqlserver',
+   connector='jdbc' | 'sqlserver',
    connector_parameter = 'value', ...
 );
 ```
 
-## Parameters
+### Parameters (JDBC connector)
 
 | Parameter Names     | Description                                                                                                                        |
 | :------------------ | :--------------------------------------------------------------------------------------------------------------------------------- |
-| type                | **Required**. Allowed values: append-only and upsert.                                                                                  |
-| force\_append\_only | **Optional**. If true, forces the sink to be append-only, even if it cannot be.                                                        |
+| connector           | **Required**. Sink connector type. Use `jdbc` for the JDBC connector.                                                              |
+| jdbc.url            | **Required**. The JDBC URL of the destination database necessary for the driver to recognize and connect to the database. |
+| table.name          | **Required**. The SQL Server table you want to sink to.                                                                            |
+| schema.name         | **Optional**. The SQL Server schema name. If not specified, the default schema will be used.                                      |
+| type                | **Required**. Allowed values: `append-only` and `upsert`.                                                                         |
+| force\_append\_only | **Optional**. If true, forces the sink to be append-only, even if it cannot be.                                                   |
+| primary\_key        | **Conditional**. The primary keys of the sink. Use ',' to delimit the primary key columns. Primary keys are required for upsert sinks. |
+| jdbc.query.timeout  | **Optional**. Specifies the timeout for the operations to downstream. If not set, the default is 60s.                             |
+| jdbc.auto.commit    | **Optional**. Controls whether to automatically commit transactions for JDBC sink. If not set, the default is false.              |
+
+### Parameters (SQL Server native connector)
+
+| Parameter Names     | Description                                                                                                                        |
+| :------------------ | :--------------------------------------------------------------------------------------------------------------------------------- |
+| connector           | **Required**. Sink connector type. Use `sqlserver` for the native SQL Server connector.                                           |
+| type                | **Required**. Allowed values: `append-only` and `upsert`.                                                                         |
+| force\_append\_only | **Optional**. If true, forces the sink to be append-only, even if it cannot be.                                                   |
 | primary\_key        | **Conditional**. The primary keys of the sink. Use ',' to delimit the primary key columns. Primary keys are required for upsert sinks. |
 | sqlserver.host      | **Required**. The SQL Server host.                                                                                                     |
 | sqlserver.port      | **Required**. The SQL Server port.                                                                                                     |
@@ -43,6 +67,34 @@ WITH (
 | sqlserver.password  | **Required**. The password for SQL Server access.                                                                                      |
 | sqlserver.database  | **Required**. The SQL Server database you want to sink to.                                                                             |
 | sqlserver.table     | **Required**. The SQL Server table you want to sink to.                                                                                |
+
+## Examples
+
+```sql jdbc as connector
+CREATE SINK s_many_data_type from t_many_data_type_rw WITH (
+  connector = 'jdbc',
+  type = 'upsert',
+  jdbc.url='jdbc:sqlserver://sqlserver-server:1433;databaseName=SinkTest;user=SA;password=SomeTestOnly@SA;trustServerCertificate=true',
+  primary_key = 'k1,k2',
+  schema.name='test_schema',
+  table.name = 't_many_data_type',
+);
+```
+
+```sql sqlserver as connector
+CREATE SINK s_many_data_type from t_many_data_type_rw WITH (
+  connector = 'sqlserver',
+  type = 'upsert',
+  sqlserver.host = 'sqlserver-server',
+  sqlserver.port = 1433,
+  sqlserver.user = 'SA',
+  sqlserver.password = 'SomeTestOnly@SA',
+  sqlserver.database = 'SinkTest',
+  sqlserver.schema = 'test_schema',
+  sqlserver.table = 't_many_data_type',
+  primary_key = 'k1,k2',
+);
+```
 
 ## Data type mapping
 
