@@ -89,10 +89,10 @@ SELECT name, initialized_at, created_at FROM rw_sources;
 | `rw_ddl_progress`                     | Contains the progress of running DDL statements. You can use this relation to view the progress of running DDL statements. For details, see [Monitor statement progress](/operate/monitor-statement-progress).                                                                                                                                                               |
 | `rw_description`                      | Contains optional descriptions (comments) for each database object. Descriptions can be added with the [COMMENT ON](/sql/commands/sql-comment-on) command and viewed with DESCRIBE or SHOW COLUMNS FROM command.                                                                                                                                                             |
 | `rw_event_logs`                       | Contains information about events, including event IDs, timestamps, event types, and additional information if available.                                                                                                                                                                                                                                                    |
+| `rw_fragments` | Contains information about fragments in the database, including fragment IDs, table IDs, and the parallelism policy that explains how each fragment's parallelism is determined. The policy may be one of the following: <ul><li>`inherit(adaptive)`: inherits adaptive parallelism from its job.</li><li>`override(fixed(n))`: manually set to a fixed value.</li><li>`upstream_fragment([id])`: parallelism determined by upstream fragments, used only in NO_SHUFFLE scenarios.</li><li> `single`: the fragment runs with parallelism 1.</li></ul> |
+| `rw_fragment_parallelism`             | Contains information about the parallelism configuration at the fragment level, including fragment IDs, parallelism, and parallelism policy.                                                                                                                                                                                                                                               |
 | `rw_fragment_backfill_progress`               | Contains information about the backfill progress of each fragment, including job IDs, fragment IDs, job name, upstream table name, and progress.                                                                                                                                                             |
 | `rw_fragment_id_to_ddl`               | Contains information about the database schema change operations (DDL) and their corresponding fragment IDs. The outputs include fragment IDs, job IDs, schema IDs, DDL types, and names of the affected object.                                                                                                                                                             |
-| `rw_fragment_parallelism`             | Contains information about the parallelism configuration at the fragment level, including fragment IDs, parallelism, and parallelism policy that indicates the reasoning for each fragment's parallelism (e.g., `inherit(adaptive)`, `override(fixed(3))`, `upstream_fragment([1])`, or `single`).                                                                                                                                                                                                                                               |
-| `rw_fragments`                        | Contains low-level information about fragments in the database, including fragment IDs, table IDs, parallelism policy, and more.                                                                                                                                                                                                                                                                 |
 | `rw_functions`                        | Contains information about functions in the database, including their IDs, names, schema identifiers, types, argument and return data types, programming language, and more.                                                                                                                                                                                                 |
 | `rw_hummock_branched_objects`         | Contains information about branched objects of Hummock (the storage engine in RisingWave), including object IDs, corresponding SST IDs, and compaction group IDs.                                                                                                                                                                                                            |
 | `rw_hummock_checkpoint_version`       | Contains information about the checkpoint version of data in Hummock (the storage engine in RisingWave), including version ID, maximum committed epoch, safe epoch, and compaction group details.                                                                                                                                                                            |
@@ -132,71 +132,3 @@ SELECT name, initialized_at, created_at FROM rw_sources;
 | `rw_users`                            | Contains information about users that are available in the database, including their unique IDs, names, and boolean flags indicating whether they are a superuser, whether they can create databases, whether they can create other users, and whether can log in.                                                                                                           |
 | `rw_views`                            | Contains information about views that are available in the database, including their unique IDs, names, schema IDs, owner IDs, definitions, and more.                                                                                                                                                                                                                        |
 | `rw_worker_nodes`                     | Contains information about worker nodes available in the database, such as Meta Nodes, Compactor Nodes, and Compute Nodes. The detailed information includes their unique IDs, hostnames, ports, types, states, parallelism levels, boolean flags (indicating whether they are used for streaming, serving, or are unschedulable), kernel versions, memory, CPU, and uptime. |
-
-## Understanding `parallelism_policy`
-
-The `parallelism_policy` field in `rw_fragments` and `rw_fragment_parallelism` provides insight into how each fragment's parallelism is determined. This field helps you understand the reasoning behind each fragment's parallelism configuration.
-
-### Parallelism policy values
-
-The `parallelism_policy` field can have the following values:
-
-- **`inherit(adaptive)`**: The fragment inherits its parallelism from the streaming job, which uses adaptive parallelism. The parallelism automatically adjusts based on available resources.
-
-- **`inherit(fixed(N))`**: The fragment inherits its parallelism from the streaming job, which has a fixed parallelism of N.
-
-- **`override(fixed(N))`**: The fragment's parallelism has been manually overridden using `ALTER FRAGMENT`, setting it to a fixed value of N.
-
-- **`upstream_fragment([ID1, ID2, ...])`**: The fragment's parallelism is determined by its upstream fragments. This typically occurs in NO_SHUFFLE scenarios where data distribution requires matching parallelism.
-
-- **`single`**: The fragment has single parallelism, meaning it runs on a single actor. This is common for certain operator types that cannot be parallelized.
-
-### Example usage
-
-```sql Example
--- Create a table and materialized views
-CREATE TABLE t(v int);
-CREATE MATERIALIZED VIEW m AS SELECT * FROM t;
-CREATE MATERIALIZED VIEW m1 AS SELECT count(*) FROM t;
-
--- Query fragment parallelism information
-SELECT fragment_id, parallelism, parallelism_policy FROM rw_fragments;
-```
-
-```
- fragment_id | parallelism |   parallelism_policy
--------------+-------------+------------------------
-           1 |          12 | inherit(adaptive)
-           2 |          12 | inherit(adaptive)
-           3 |          12 | upstream_fragment([1])
-           4 |           1 | single
-           5 |          12 | upstream_fragment([1])
-(5 rows)
-```
-
-After manually altering a fragment's parallelism:
-
-```sql Example
--- Override fragment parallelism
-ALTER FRAGMENT 2 SET PARALLELISM = 3;
-
--- Check the updated policy
-SELECT fragment_id, parallelism, parallelism_policy FROM rw_fragments;
-```
-
-```
- fragment_id | parallelism |   parallelism_policy
--------------+-------------+------------------------
-           1 |          12 | inherit(adaptive)
-           2 |           3 | override(fixed(3))
-           3 |          12 | upstream_fragment([1])
-           4 |           1 | single
-           5 |          12 | upstream_fragment([1])
-(5 rows)
-```
-
-The `parallelism_policy` field is particularly useful for:
-
-- **Debugging performance issues**: Understand why certain fragments have specific parallelism settings.
-- **Monitoring configuration changes**: Track when and how fragment parallelism has been manually adjusted.
-- **Understanding dependencies**: Identify fragments whose parallelism is constrained by upstream fragments.
