@@ -1,0 +1,73 @@
+---
+title: "SHOW SUBSCRIPTIONS"
+description: "Use the `SHOW SUBSCRIPTIONS` command to list all subscriptions in a schema."
+---
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+## Syntax
+
+```sql
+SHOW SUBSCRIPTIONS [ FROM schema_name ] [ LIKE_expression ];
+```
+
+## Parameters
+
+| Parameter or clause | Description                                                                                                                                                                               |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _schema\_name_      | The schema of the subscriptions to be listed. The default schema is public.                                                                                                               |
+| LIKE\_expression    | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
+
+## Output
+
+The command returns the following columns:
+
+| Column | Description |
+| :----- | :---------- |
+| Name | The name of the subscription, including the schema prefix (e.g., `public.subscription_name`). |
+| Retention Seconds | The duration in seconds for which incremental data will be retained. |
+
+## Example
+
+```sql
+SHOW SUBSCRIPTIONS;
+```
+
+```bash
+        Name         | Retention Seconds
+---------------------+-------------------
+ public.my_sub       |           86400
+ public.another_sub  |          172800
+(2 rows)
+```
+
+## Notes
+
+Starting from a recent version, the `Name` column in the output includes the schema name as a prefix (e.g., `public.subscription_name`). This helps distinguish subscriptions with the same name in different schemas when querying across multiple schemas in the search path.
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="Real-time updates via subscriptions"
+    icon="rotate"
+    iconType="solid"
+    href="/serve/subscription"
+    horizontal
+  >
+    Learn more about subscriptions
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTION CURSORS"
+    icon="arrow-pointer"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscription-cursors"
+    horizontal
+  >
+    Show subscription cursors
+  </Card>
+</CardGroup>
