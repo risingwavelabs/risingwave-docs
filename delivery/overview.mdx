@@ -140,13 +140,17 @@ RisingWave implements batching strategies for file sinks, including [S3](/integr
 
 You can specify `path_partition_prefix` option in the `WITH` clause to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
 
-Regarding file naming rules, currently, files follow the naming pattern `/Option<path_partition_prefix>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
-   
+Files follow the naming pattern `/Option<path_partition_prefix>/<uuid>_<timestamp>.<suffix>`. `Timestamp` differentiates files batched by the rollover interval. 
+
+<Note>
+Starting from v2.7.0, the file naming scheme replaces the previous `executor_id` component with a UUID.
+</Note>
+
 The output files look like below:
 
 ```
-path/2024-09-20/47244640257_1727072046.parquet
-path/2024-09-20/47244640257_1727072055.parquet
+path/2024-09-20/01935d2c-8f12-7890-abcd-ef1234567890_1727072046.parquet
+path/2024-09-20/01935d2c-8f12-7890-abcd-ef1234567890_1727072055.parquet
 ```
 
 ### Example
