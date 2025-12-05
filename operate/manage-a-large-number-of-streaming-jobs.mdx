@@ -21,7 +21,31 @@ disable_automatic_parallelism_control=true
 default_parallelism=8
 ```
 
-The adaptive parallelism feature in version 1.7.0 ensures that every streaming job can fully utilize all available CPUs. Therefore, we need to disable it. The `default_parallelism` setting determines the parallelism for newly created streaming jobs. Change the `streaming_parallelism` before creating streaming jobs can achieve the same effect. For guidance on how to set this value, refer to [How to adjust the resources allocated to each streaming query?](/performance/faq#how-do-i-adjust-the-resources-allocated-to-each-streaming-query).
+The adaptive parallelism feature in v1.7.0 ensures that every streaming job can fully utilize all available CPUs. Therefore, we need to disable it. The `default_parallelism` setting determines the parallelism for newly created streaming jobs. Change the `streaming_parallelism` before creating streaming jobs can achieve the same effect. For guidance on how to set this value, refer to [How to adjust the resources allocated to each streaming query?](/performance/faq#how-do-i-adjust-the-resources-allocated-to-each-streaming-query).
+
+### Configure adaptive parallelism strategy
+
+RisingWave introduces the [system parameter](/operate/view-configure-system-parameters)`adaptive_parallelism_strategy` in v2.3.0 to control how jobs behave when they are of the adaptive type. This provides more granular control over adaptive scheduling behavior.
+
+The supported values are:
+
+- `Full` — the job uses all available parallelism.
+
+- `Bounded(n)` — limits the maximum parallelism to `n`.
+
+- `Ratio(r)` — sets the effective parallelism to a fraction `r` of the available CPUs (rounded down).
+
+- `Auto` — currently behaves the same as `Full`.
+
+When this parameter is modified, RisingWave sends a local notification to inform the scale controller, and adaptive jobs are updated in batches in the background.
+
+All parallelism values remain subject to the limits of max parallelism and resource groups.
+
+You can also set this parameter using the following syntax:
+
+```sql
+ALTER SYSTEM SET adaptive_parallelism_strategy TO '<strategy>';
+```
 
 ### Limit the concurrency of creating streaming jobs
 

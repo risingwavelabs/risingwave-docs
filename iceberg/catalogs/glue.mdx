@@ -28,3 +28,142 @@ CREATE SINK my_glue_sink FROM my_mv WITH (
     table.name = 'my_table'
 );
 ```
+
+If you prefer not to specify AWS credentials, you can set `enable_config_load = true` to load them from environment variables instead (self-hosted environments only).
+
+```sql
+CREATE SINK my_glue_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'glue',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    enable_config_load = true, -- Load AWS credentials and region from environment variables
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```
+
+## Using IAM roles with Glue catalog
+
+<Note>
+Added in v2.7.0.
+</Note>
+
+RisingWave provides two ways to authenticate with AWS Glue and S3 when using the Iceberg connector. This enables tighter security by allowing distinct IAM roles or credentials for each service.
+
+### Separate S3 and Glue credentials
+
+You can configure S3 and Glue with independent credentials, using either access keys or IAM roles for each service.
+
+```sql Example of creating sink
+CREATE SINK sink_t FROM t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+
+    database.name = 'demo',
+    table.name = 't',
+    catalog.name = 'demo',
+    catalog.type = 'glue',
+    warehouse.path = 'your_bucket',
+
+    -- S3 credentials or role
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxx',
+    s3.secret.key = 'xxx',
+    s3.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
+
+    -- Glue credentials or role
+    glue.region = 'ap-southeast-2',
+    glue.access.key = 'xxx',
+    glue.secret.key = 'xxx',
+    glue.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
+
+    commit_checkpoint_interval = 1,
+    create_table_if_not_exists = 'true'
+);
+```
+
+```sql Example of creating source
+CREATE SOURCE iceberg_t_source WITH (
+    connector = 'iceberg',
+
+    -- S3 credentials or role
+    s3.region = 'ap-southeast-2',
+    s3.access.key = 'xxx',
+    s3.secret.key = 'xxx',
+    s3.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
+
+    -- Glue credentials or role
+    glue.region = 'ap-southeast-2',
+    glue.access.key = 'xxx',
+    glue.secret.key = 'xxx',
+    glue.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
+
+    s3.path.style.access = 'true',
+
+    catalog.type = 'glue',
+    warehouse.path = 'your_bucket',
+    database.name = 'demo',
+    table.name = 't'
+);
+```
+
+If Glue-specific parameters are not provided, the connector falls back to using S3 credentials for backward compatibility.
+
+### Assume roles for S3 and Glue with `enable_config_load`
+
+When `enable_config_load = true` is enabled, RisingWave loads AWS config/credentials from the environment and assumes the IAM roles specified for S3 and Glue.
+
+```sql Example of creating sink
+CREATE SINK sink_t FROM t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+
+    database.name = 'demo',
+    table.name = 't',
+    catalog.name = 'demo',
+    catalog.type = 'glue',
+    warehouse.path = 'your_path',
+
+    -- Assume role for S3
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    s3.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
+
+    -- Assume role for Glue
+    glue.region = 'ap-southeast-2',
+    glue.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
+
+    enable_config_load = true,
+
+    commit_checkpoint_interval = 1,
+    create_table_if_not_exists = 'true'
+);
+```
+
+```sql Example of creating source
+CREATE SOURCE iceberg_t_source WITH (
+    connector = 'iceberg',
+
+    -- Assume role for S3
+    s3.region = 'ap-southeast-2',
+    s3.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
+
+    -- Assume role for Glue
+    glue.region = 'ap-southeast-2',
+    glue.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
+
+    enable_config_load = true,
+
+    s3.path.style.access = 'true',
+
+    catalog.type = 'glue',
+    warehouse.path = 'your_path',
+    database.name = 'demo',
+    table.name = 't'
+);
+```

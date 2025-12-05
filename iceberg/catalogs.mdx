@@ -55,7 +55,7 @@ External catalogs are required when you need to connect to Iceberg tables that a
 You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`, `CREATE SINK`, or `CREATE CONNECTION` statement.
 
 | Parameter | Description |
-|---|---|
+|:--|:--|
 | `catalog.type` | The type of catalog. Supported values: `'storage'`, `'rest'`, `'rest_rust'`, `'hive'`, `'jdbc'`, `'glue'`, and `'snowflake'`. Defaults to `'storage'` if not specified. |
 | `catalog.uri` | The URI for the catalog service. Required for `rest`, `hive`, `jdbc`, and `snowflake` catalog types. |
 | `catalog.name` | A user-defined name for the catalog. Required for all types except `storage`. |
@@ -69,3 +69,9 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 | `catalog.rest.signing_region` | For Amazon S3 Tables: the AWS region for signing requests. |
 | `catalog.rest.signing_name` | For Amazon S3 Tables: the service name for signing requests. |
 | `catalog.rest.sigv4_enabled` | For Amazon S3 Tables: enables SigV4 signing. Must be `true`. |
+| `glue.region` | The AWS region for the Glue catalog. |
+| `glue.access.key` | The AWS access key ID for Glue authentication. If not specified, defaults to `s3.access.key`. |
+| `glue.secret.key` | The AWS secret access key for Glue authentication. If not specified, defaults to `s3.secret.key`. |
+| `glue.iam_role_arn` | The IAM role ARN to assume for Glue catalog access via STS. When set, the connector assumes the specified role for Glue catalog operations. |
+| `enable_config_load` | If set to `true`, load warehouse credentials from environment variables. Only supported in self-hosted environments. |
+| `vended_credentials` | Enable vended credentials for a REST catalog. When set to `true` with `catalog.type = 'rest'`, requests credentials from the REST catalog server instead of managing them directly. Default: `false`. |

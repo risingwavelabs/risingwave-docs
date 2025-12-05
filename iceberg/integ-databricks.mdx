@@ -28,6 +28,10 @@ For a complete guide to the parameters, see the [Databricks Unity Catalog](/iceb
 
 Create a `SINK` in RisingWave that writes to your Databricks-managed table. Note that currently, only `append-only` sinks are supported for this integration.
 
+<Note>
+`vended_credentials` is added in v2.7.0. For more information, see [Vended credentials](/iceberg/catalogs/rest#vended-credentials).
+</Note>
+
 ```sql
 CREATE SINK databricks_uc_sink FROM my_source
 WITH (
@@ -38,7 +42,8 @@ WITH (
   database.name = '<your-schema-name>',
   table.name = '<your-table-name>',
   s3.region = 'ap-southeast-1',
-  catalog.type = 'rest_rust',
+  catalog.type = 'rest',
+  vended_credentials = true,
   catalog.uri = 'https://<workspace-url>/api/2.1/unity-catalog/iceberg-rest',
   catalog.oauth2_server_uri = 'https://<workspace-url>/oidc/v1/token',
   catalog.credential= '<oauth_client_id>:<oauth_client_secret>',
@@ -60,6 +65,7 @@ SELECT * FROM <your-uc-catalog-name>.<your-schema-name>.<your-table-name>;
 This pattern is ideal when you use AWS Glue as your central metastore for multiple query engines, not just Databricks.
 
 **How it works**
+
 RisingWave → Iceberg table on S3 → AWS Glue Catalog → Databricks
 
 ### Prerequisites
