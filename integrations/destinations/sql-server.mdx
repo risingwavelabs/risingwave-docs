@@ -1,14 +1,14 @@
 ---
-title: "Sink data from RisingWave to SQL Server with the JDBC connector"
+title: "Sink data from RisingWave to SQL Server"
 sidebarTitle: Microsoft SQL Server
-description: This guide describes how to sink data from RisingWave to Microsoft SQL Server using the JDBC connector.
+description: This guide describes how to sink data from RisingWave to Microsoft SQL Server.
 ---
 
-You can test out this process on your own device by using the `sqlserver_sink.slt` demo in the [e2e\_test directory](https://github.com/risingwavelabs/risingwave/tree/main/e2e%5Ftest/sink) of the RisingWave repository.
+This guide covers two connector options for sinking data to SQL Server:
+- **JDBC connector** (`connector='jdbc'`) - Recommended for better performance
+- **SQL Server native connector** (`connector='sqlserver'`) - Legacy option
 
-<Note>
-The demo has been updated to use the JDBC connector instead of the legacy SQL Server connector.
-</Note>
+You can test out this process on your own device by using the `sqlserver_sink.slt` demo in the [e2e\_test directory](https://github.com/risingwavelabs/risingwave/tree/main/e2e%5Ftest/sink) of the RisingWave repository.
 
 <Tip>
 **PREMIUM FEATURE**
@@ -27,22 +27,30 @@ Before sinking data from RisingWave to SQL Server, please ensure the following:
 
 If you are running RisingWave locally from binaries and intend to use the JDBC sink connector, make sure you have [JDK 11](https://openjdk.org/projects/jdk/11/) or later versions installed in your environment.
 
-## Syntax
+## Create a sink
+
+RisingWave supports two connector types for SQL Server sinks. The JDBC connector is recommended for better performance.
+
+### Syntax
 
 ```sql
 CREATE SINK [ IF NOT EXISTS ] sink_name
 [FROM sink_from | AS select_query]
 WITH (
-   connector='jdbc',
+   connector='jdbc' | 'sqlserver',
    connector_parameter = 'value', ...
 );
 ```
 
-## Parameters
+### Parameters (JDBC connector)
+
+<Note>
+The JDBC connector (`connector='jdbc'`) offers better performance compared to the native SQL Server connector.
+</Note>
 
 | Parameter Names     | Description                                                                                                                        |
 | :------------------ | :--------------------------------------------------------------------------------------------------------------------------------- |
-| connector           | **Required**. Sink connector type must be `jdbc` for SQL Server sink.                                                              |
+| connector           | **Required**. Sink connector type. Use `jdbc` for the JDBC connector.                                                              |
 | jdbc.url            | **Required**. The JDBC URL of the SQL Server database. Format: `jdbc:sqlserver://<host>:<port>;databaseName=<database>;user=<username>;password=<password>;trustServerCertificate=true` |
 | table.name          | **Required**. The SQL Server table you want to sink to.                                                                            |
 | schema.name         | **Optional**. The SQL Server schema name. If not specified, the default schema will be used.                                      |
@@ -52,11 +60,28 @@ WITH (
 | jdbc.query.timeout  | **Optional**. Specifies the timeout for the operations to downstream. If not set, the default is 60s.                             |
 | jdbc.auto.commit    | **Optional**. Controls whether to automatically commit transactions for JDBC sink. If not set, the default is false.              |
 
-## Example
+### Parameters (SQL Server native connector)
 
-The following example demonstrates how to create a SQL Server sink using the JDBC connector. The example uses the upsert type to ensure data consistency.
+| Parameter Names     | Description                                                                                                                        |
+| :------------------ | :--------------------------------------------------------------------------------------------------------------------------------- |
+| connector           | **Required**. Sink connector type. Use `sqlserver` for the native SQL Server connector.                                           |
+| type                | **Required**. Allowed values: `append-only` and `upsert`.                                                                         |
+| force\_append\_only | **Optional**. If true, forces the sink to be append-only, even if it cannot be.                                                   |
+| primary\_key        | **Conditional**. The primary keys of the sink. Use ',' to delimit the primary key columns. Primary keys are required for upsert sinks. |
+| sqlserver.host      | **Required**. The SQL Server host.                                                                                                 |
+| sqlserver.port      | **Required**. The SQL Server port.                                                                                                 |
+| sqlserver.user      | **Required**. The user for SQL Server access.                                                                                      |
+| sqlserver.password  | **Required**. The password for SQL Server access.                                                                                  |
+| sqlserver.database  | **Required**. The SQL Server database you want to sink to.                                                                         |
+| sqlserver.table     | **Required**. The SQL Server table you want to sink to.                                                                            |
 
-```sql Example
+## Examples
+
+### Example: JDBC connector (recommended)
+
+The following example demonstrates how to create a SQL Server sink using the JDBC connector. The JDBC connector offers better performance.
+
+```sql Example: JDBC connector
 -- Create a table in RisingWave
 CREATE TABLE t_many_data_type_rw (
   k1 integer,
@@ -64,7 +89,7 @@ CREATE TABLE t_many_data_type_rw (
   -- other columns
 );
 
--- Create a sink to SQL Server
+-- Create a sink to SQL Server using JDBC
 CREATE SINK s_many_data_type FROM t_many_data_type_rw WITH (
   connector = 'jdbc',
   type = 'upsert',
@@ -78,6 +103,31 @@ CREATE SINK s_many_data_type FROM t_many_data_type_rw WITH (
 <Note>
 **Security Best Practice**: Replace the connection parameters in `jdbc.url` with your actual SQL Server host, port, database name, username, and password. For production environments, avoid hardcoding credentials directly in the JDBC URL. Instead, use environment variables, secret management systems, or RisingWave's [secret management](/operate/manage-secrets) feature to securely store and reference credentials.
 </Note>
+
+### Example: SQL Server native connector
+
+The following example demonstrates how to create a SQL Server sink using the native SQL Server connector.
+
+```sql Example: Native connector
+-- Create a table in RisingWave
+CREATE TABLE t_data (
+  id integer,
+  name varchar
+);
+
+-- Create a sink to SQL Server using native connector
+CREATE SINK s_data FROM t_data WITH (
+  connector = 'sqlserver',
+  type = 'upsert',
+  sqlserver.host = 'sqlserver-server',
+  sqlserver.port = 1433,
+  sqlserver.user = 'SA',
+  sqlserver.password = 'YourPassword',
+  sqlserver.database = 'SinkTest',
+  sqlserver.table = 't_data',
+  primary_key = 'id'
+);
+```
 
 ## Data type mapping
 
