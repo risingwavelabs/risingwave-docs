@@ -89,7 +89,11 @@ For self-managed deployments, you need to purchase and set up a license key to a
 
 ### Free trial
 
-RisingWave provides a trial of paid features for clusters with up to 4 Streaming Node CPUs, allowing you to evaluate these features on a small scale. When there are more CPUs in the cluster, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
+RisingWave provides a trial of paid features for clusters with up to 4 CPU cores across all nodes in the cluster, allowing you to evaluate these features on a small scale. When there are more CPUs in the cluster, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
+
+<Note>
+Starting with v2.7, CPU cores from all node types (compute, frontend, meta, and compactor nodes) are counted against the limit. Previously, only compute node CPUs were counted. To avoid double-counting in single-node or standalone deployments, the system takes the maximum CPU cores among nodes with the same hostname, rather than summing them.
+</Note>
 
 - For a fresh deployment, this free trial is included automatically.
 - For an existing deployment upgrading to this version, you may need to refresh the license key by executing `ALTER SYSTEM SET license_key TO DEFAULT;` in the SQL shell to activate the trial.
@@ -247,7 +251,7 @@ If the current license is valid, the output will look like this:
 ```
 Otherwise, an error message will indicate the issue (e.g., invalid token, expired license).
 
-- For `cpu_core_limit`, this specifies the number of cores you can use for your cluster. Exceeding this limit will disable premium features.
+- For `cpu_core_limit`, this specifies the maximum number of CPU cores you can use across all nodes in your cluster. Exceeding this limit will disable premium features. Starting with v2.7, this includes CPU cores from all node types (compute, frontend, meta, and compactor nodes).
 - For `exp`, this specifies the expiry time in Unix epoch seconds. You can use the `to_timestamp` function to convert the Unix epoch into a readable timestamp.
 
 ## Premium support packages
