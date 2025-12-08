@@ -53,6 +53,7 @@ For a table with primary key constraints, if a new data record with an existing 
 | oauth.credentials.url          | **Optional**. The path for credential files, starts with `file://`. This field must be filled if other `oauth` fields are specified.                                                                                      |
 | oauth.audience                 | **Optional**. The audience for OAuth2\. This field must be filled if other `oauth` fields are specified.                                                                                                                |
 | oauth.scope                    | **Optional**. The scope for OAuth2.                                                                                                                                                                                   |
+| subscription.unacked.resend.delay | **Optional**. Specifies the delay duration after which the broker will resend unacknowledged messages. Accepts duration values such as `'1s'`, `'5m'`, or `'1h'`. If not set, the broker will not resend unacknowledged messages. |
 
 ### Other parameters
 
@@ -174,5 +175,24 @@ WITH (
    </Tab>
 </Tabs>
 
+## Message acknowledgment
+
+RisingWave supports message acknowledgment for Pulsar sources. When configured, the broker will resend unacknowledged messages after a specified delay.
+
+### Example with acknowledgment
+
+```sql Example
+CREATE TABLE my_pulsar_table (
+   f1 int,
+   f2 varchar
+) WITH (
+   connector = 'pulsar',
+   service.url = 'pulsar://localhost:6650/',
+   topic = 'my_topic',
+   subscription.unacked.resend.delay = '10s'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+In this example, if messages are not acknowledged within the checkpoint, the broker will resend them after 10 seconds.
 
 
