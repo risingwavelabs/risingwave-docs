@@ -75,7 +75,7 @@ For a table with primary key constraints, if a new data record with an existing 
 Added in v2.7.0.
 </Note>
 
-RisingWave supports message acknowledgment for Pulsar sources. When configured, the broker will resend unacknowledged messages after a specified delay.
+RisingWave automatically sends acknowledgments to the Pulsar broker for consumed messages. You can optionally configure the `subscription.unacked.resend.delay` parameter to control when the broker resends unacknowledged messages.
 
 ```sql Example
 CREATE TABLE my_pulsar_table (
@@ -89,7 +89,7 @@ CREATE TABLE my_pulsar_table (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-In this example, if messages are not acknowledged by RisingWave within 10 seconds, the broker will resend them.
+In this example, if the broker does not receive an acknowledgment within 10 seconds, it will resend the messages.
 
 ## Read schemas from locations
 
