@@ -13,7 +13,7 @@ SHOW MATERIALIZED VIEWS [ FROM schema_name ] [ LIKE_expression ];
 
 | Parameter        | Description                                                                                                                                                                               |
 | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _schema\_name_   | The schema in which the materialized views will be listed. If not given, materialized views from the default schema, public, will be listed                                               |
+| _schema\_name_   | The schema in which the materialized views will be listed. If not given, materialized views from the default schema, public, will be listed.                                               |
 | LIKE\_expression | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
 
 ## Example
@@ -22,6 +22,14 @@ SHOW MATERIALIZED VIEWS [ FROM schema_name ] [ LIKE_expression ];
 SHOW MATERIALIZED VIEWS FROM schema_1;
 ```
 
-## Notes
+```bash
+        Name
+---------------------
+public.mv1
+public.mv2
+(2 rows)
+```
 
-Starting from a recent version, the `name` column in the output includes the schema name as a prefix (e.g., `public.mv_name`). This helps distinguish materialized views with the same name in different schemas when querying across multiple schemas in the search path.
+<Note>
+Starting from v2.7.0, the `name` column in the output includes the schema name as a prefix (e.g., `public.mv_name`). This helps distinguish materialized views with the same name in different schemas when querying across multiple schemas in the search path.
+</Note>
