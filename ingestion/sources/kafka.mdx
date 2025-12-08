@@ -119,7 +119,27 @@ WITH (
 </Tab>
 <Tab title="Upsert Avro">
 ```sql
+-- Using CREATE TABLE (data stored, full query support)
 CREATE TABLE IF NOT EXISTS source_abc (
+  primary key (rw_key)
+)
+INCLUDE key AS rw_key
+WITH (
+   connector='kafka',
+   properties.bootstrap.server='localhost:9092',
+   topic='test_topic'
+)
+FORMAT UPSERT ENCODE AVRO (
+   message = 'message_name',
+   schema.registry = 'http://127.0.0.1:8081',
+   schema.registry.username='your_schema_registry_username',
+   schema.registry.password='your_schema_registry_password'
+);
+```
+
+```sql
+-- Using CREATE SOURCE (data not stored, limited query support)
+CREATE SOURCE IF NOT EXISTS upsert_source_abc (
   primary key (rw_key)
 )
 INCLUDE key AS rw_key
@@ -153,10 +173,26 @@ WITH (
 </Tab>
 <Tab title="Upsert JSON">
 ```sql
+-- Using CREATE TABLE (data stored, full query support)
 CREATE TABLE IF NOT EXISTS source_abc (
    column1 varchar,
    column2 integer,
    primary key (rw_key)
+)
+INCLUDE key AS rw_key
+WITH (
+   connector='kafka',
+   properties.bootstrap.server='localhost:9092',
+   topic='t1'
+) FORMAT UPSERT ENCODE JSON;
+```
+
+```sql
+-- Using CREATE SOURCE (data not stored, limited query support)
+CREATE SOURCE IF NOT EXISTS upsert_source_abc (
+   primary key (rw_key),
+   column1 varchar,
+   column2 integer
 )
 INCLUDE key AS rw_key
 WITH (

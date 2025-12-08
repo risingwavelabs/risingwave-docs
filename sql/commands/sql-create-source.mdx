@@ -5,7 +5,7 @@ description: "A source is a resource that RisingWave can read data from. You can
 
 For the full list of the sources we support, see [Supported sources](/ingestion/sources).
 
-If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. Or if you need to create the primary key (which is required by some formats like FORMAT UPSERT/DEBEZIUM), you have to use `CREATE TABLE` too. For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
+If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. For most CDC formats (FORMAT DEBEZIUM, MAXWELL, CANAL), you must use `CREATE TABLE` to properly handle updates and deletes. For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
 
 Regardless of whether the data is persisted in RisingWave, you can create materialized views to perform analysis or data transformations.
 
@@ -13,6 +13,7 @@ Regardless of whether the data is persisted in RisingWave, you can create materi
 
 ```js
 CREATE SOURCE [ IF NOT EXISTS ] source_name (
+    [PRIMARY KEY (col_name, ...)],
     col_name data_type [ AS generation_expression ],
     ...
    [ watermark_clause ]
@@ -77,6 +78,65 @@ Please distinguish between the parameters set in the FORMAT and ENCODE options a
 ## Watermarks
 
 RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/processing/watermarks) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/processing/watermarks).
+
+## Upsert sources
+
+You can create sources with `FORMAT UPSERT` to handle streams with updates and deletes based on a primary key. When using `FORMAT UPSERT`, you must:
+
+- Include the `INCLUDE KEY` clause to specify a key column
+- Define a `PRIMARY KEY` using the key column
+
+```sql Example
+CREATE SOURCE upsert_source (
+    PRIMARY KEY (rw_key),
+    id INT,
+    name VARCHAR,
+    age INT
+)
+INCLUDE KEY AS rw_key
+WITH (
+    connector='kafka',
+    topic='user_updates',
+    properties.bootstrap.server='localhost:9092'
+)
+FORMAT UPSERT ENCODE JSON;
+```
+
+### Limitations and recommended usage
+
+Upsert sources emit "upsert streams" which lack old values for `Update` operations. This makes most stateful operators unavailable, including:
+
+- JOIN operations
+- Aggregations (GROUP BY, COUNT, SUM, etc.)
+- Window functions
+
+You will receive error messages like "upsert stream is not supported as input of" when attempting to use these operators directly on an upsert source.
+
+**Recommended usage patterns:**
+
+1. **Simple ETL with filtering and transformation:**
+   ```sql Example: Filter and transform before sinking
+   CREATE SINK filtered_sink INTO target_table AS
+   SELECT 
+       id,
+       UPPER(name) AS name,
+       age
+   FROM upsert_source
+   WHERE age >= 18;
+   ```
+
+2. **Materialize to enable stateful operations:**
+   ```sql Example: Materialize first, then aggregate
+   CREATE MATERIALIZED VIEW user_mv AS
+   SELECT * FROM upsert_source;
+   
+   -- Now you can perform aggregations
+   SELECT age, COUNT(*) FROM user_mv GROUP BY age;
+   ```
+
+<Note>
+If your use case requires complex transformations or stateful operations, consider using `CREATE TABLE` with `FORMAT UPSERT` instead, which persists all data and provides full query support.
+</Note>
 
 ## Change Data Capture (CDC)
 

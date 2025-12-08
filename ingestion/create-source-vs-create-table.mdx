@@ -16,10 +16,15 @@ The `CREATE SOURCE` command establishes a direct, non-persistent connection to a
 *   **Use Cases:**
     *   **Quick data exploration:** Inspecting data from a source without the overhead of storing it.
     *   **Pure streaming pipelines:** Building real-time materialized views or sinks where you only need to process data as it arrives, without needing to retain the raw data.
+    *   **Simple ETL pipelines:** Performing filtering and basic transformations on upsert streams before sinking to a table.
     *   **Ad-hoc queries:** Running one-off queries directly against a source like Kafka or S3.
 
 <Note>
 Data ingested via `CREATE SOURCE` is not stored in RisingWave. The persistence of the data depends entirely on the external source's retention policies.
+</Note>
+
+<Note>
+**Upsert sources:** When using `FORMAT UPSERT` with `CREATE SOURCE`, you can define a primary key to handle update and delete operations. However, upsert sources have limitations—they cannot be used directly with stateful operations like JOIN, aggregations, or window functions. For these use cases, either materialize the source as a view first, or use `CREATE TABLE` instead. See [Upsert sources](/sql/commands/sql-create-source#upsert-sources) for details.
 </Note>
 
 ### Syntax
@@ -99,8 +104,9 @@ CREATE TABLE my_kafka_table (
 | Feature                 | `CREATE SOURCE`                                      | `CREATE TABLE ... WITH (connector=...)`                   |
 | ----------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
 | **Data Storage**        | ❌ No (Data remains in the external source)          | ✅ Yes (Data is durably stored in RisingWave)             |
-| **Primary Use Case**    | Ad-hoc queries, pure streaming pipelines             | CDC, data retention, performance-sensitive queries        |
-| **Required for CDC?**   | ❌ No (Cannot handle updates/deletes)                | ✅ Yes (Mandatory for CDC sources)                        |
-| **Query Performance**   | Dependent on the external source and network         | Generally faster due to local data access               |
+| **Primary Use Case**    | Ad-hoc queries, pure streaming pipelines, simple ETL | CDC, data retention, performance-sensitive queries        |
+| **Required for CDC?**   | ❌ No (Most CDC formats require CREATE TABLE)        | ✅ Yes (Mandatory for Debezium, Maxwell, Canal formats)   |
+| **Query Performance**   | Dependent on the external source and network         | Generally faster due to local data access                 |
 | **Indexes**             | ❌ Not supported                                     | ✅ Supported                                              |
-| **Primary Keys**        | Semantic meaning only, no enforcement                | ✅ Supported and enforced                                 |
+| **Primary Keys**        | ✅ Supported for FORMAT UPSERT                       | ✅ Supported and enforced                                 |
+| **Stateful Operations** | ⚠️ Limited (not available for upsert sources)        | ✅ Full support (JOIN, aggregations, windows)             |
