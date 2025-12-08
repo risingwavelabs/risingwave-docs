@@ -112,7 +112,7 @@ FROM <source_table>;
 
 ### Creating streaming jobs with vector index lookups
 
-You can create materialized views, sinks, or sink-into-table jobs that use vector index lookups:
+You can create materialized views, sinks, or sink-into-table jobs that use vector index lookups. First, ensure you have created a vector index on the table you want to lookup (as shown in the earlier examples).
 
 ```sql Example
 -- Create an append-only source table with events
@@ -122,12 +122,14 @@ CREATE TABLE events (
     embedding vector(3)
 ) APPEND ONLY;
 
+-- Assume idx_embedding already exists on items table with name included
+
 -- Create a materialized view with vector index lookup
 CREATE MATERIALIZED VIEW event_enrichment AS 
 SELECT
     event_id,
     array(
-        SELECT row(text) 
+        SELECT row(name) 
         FROM items FOR SYSTEM_TIME AS OF PROCTIME() 
         ORDER BY events.embedding <-> items.embedding 
         LIMIT 3
@@ -141,7 +143,7 @@ WITH (connector = '...', ...) AS
 SELECT
     event_id,
     array(
-        SELECT row(text) 
+        SELECT row(name) 
         FROM items FOR SYSTEM_TIME AS OF PROCTIME() 
         ORDER BY events.embedding <-> items.embedding 
         LIMIT 3
@@ -184,7 +186,7 @@ Ad-hoc queries using the same syntax are also supported. For ad-hoc queries, the
 SELECT
     event_id,
     array(
-        SELECT row(text)
+        SELECT row(name)
         FROM items
         ORDER BY events.embedding <-> items.embedding
         LIMIT 3
