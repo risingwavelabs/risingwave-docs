@@ -1,0 +1,139 @@
+---
+title: "ALTER FRAGMENT"
+description: The `ALTER FRAGMENT` command modifies the configuration of streaming fragments at runtime.
+sidebarTitle: "ALTER FRAGMENT"
+---
+
+## Syntax
+
+```sql
+ALTER FRAGMENT fragment_id [, ...]
+    alter_option;
+```
+
+_`alter_option`_ depends on the operation you want to perform on the fragment. For all supported clauses, see the sections below.
+
+## Clauses
+
+### `SET PARALLELISM`
+
+```sql
+ALTER FRAGMENT fragment_id [, ...]
+SET PARALLELISM { TO | = } { parallelism_number | ADAPTIVE | DEFAULT };
+```
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET PARALLELISM** | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for specific streaming [fragments](/reference/key-concepts#fragments). This allows fine-grained control over fragment execution, enabling targeted scaling of individual fragments within a streaming job. |
+| _fragment\_id_ | The ID of the fragment to modify. You can specify multiple fragment IDs separated by commas. To find fragment IDs, query the [`rw_fragment_parallelism`](/sql/system-catalogs/rw-catalog#available-risingwave-catalogs) system table. |
+| _parallelism\_number_ | A fixed number (e.g., 1, 2, 3) that locks the fragment's parallelism at that value. Setting it to 0 is equivalent to ADAPTIVE. |
+| **ADAPTIVE** | Expands the fragment's parallelism to all available units in the cluster. |
+| **DEFAULT** | Resets the fragment's parallelism to inherit from its parent streaming job's parallelism setting. |
+
+```sql Example
+-- Set the parallelism of fragment 5 to 4
+ALTER FRAGMENT 5 SET PARALLELISM = 4;
+
+-- Set the parallelism of multiple fragments to adaptive
+ALTER FRAGMENT 10, 11, 12 SET PARALLELISM = ADAPTIVE;
+
+-- Reset fragment parallelism to inherit from the job
+ALTER FRAGMENT 7 SET PARALLELISM = DEFAULT;
+```
+
+<Note>
+**Important considerations:**
+
+- **No-shuffle fragments:** Fragments connected by no-shuffle edges (where data flows without repartitioning) must maintain consistent parallelism. When altering parallelism for fragments in a no-shuffle ensemble, you must specify at least one entry fragment in the request. The system will automatically adjust parallelism for all fragments in the same no-shuffle group.
+
+- **Entry fragments:** Entry fragments are the starting points of no-shuffle ensembles. If you attempt to modify a non-entry fragment in a no-shuffle ensemble without including its entry fragment, the operation will fail.
+
+- **Viewing fragment information:** To view fragment IDs and their current parallelism settings, query the [`rw_fragment_parallelism`](/sql/system-catalogs/rw-catalog#available-risingwave-catalogs) system table.
+</Note>
+
+### `SET BACKFILL_RATE_LIMIT`
+
+```sql
+ALTER FRAGMENT fragment_id
+SET BACKFILL_RATE_LIMIT { TO | = } rate_limit_number;
+```
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET BACKFILL_RATE_LIMIT** | This clause controls the rate limit for backfilling operations on the specified fragment. |
+| _fragment\_id_ | The ID of the fragment to modify. Only a single fragment ID is supported for this operation. |
+| _rate\_limit\_number_ | The rate limit value in records per second. Set to 0 to pause backfilling. |
+
+```sql Example
+-- Set backfill rate limit for fragment 3
+ALTER FRAGMENT 3 SET BACKFILL_RATE_LIMIT = 1000;
+
+-- Pause backfilling for fragment 3
+ALTER FRAGMENT 3 SET BACKFILL_RATE_LIMIT = 0;
+```
+
+## Examples
+
+### Finding fragment IDs
+
+Before altering fragments, you need to identify the fragment IDs for your streaming job:
+
+```sql
+-- View all fragments with their parallelism settings
+SELECT fragment_id, name, relation_type, parallelism, distribution_type
+FROM rw_fragment_parallelism
+WHERE name = 'my_materialized_view';
+```
+
+```
+ fragment_id |        name         |   relation_type   | parallelism | distribution_type
+-------------+---------------------+-------------------+-------------+-------------------
+           2 | my_materialized_view | materialized view |           4 | HASH
+           1 | my_materialized_view | materialized view |           4 | HASH
+(2 rows)
+```
+
+### Adjusting fragment parallelism
+
+```sql
+-- Increase parallelism for a specific fragment
+ALTER FRAGMENT 2 SET PARALLELISM = 8;
+
+-- Verify the change
+SELECT fragment_id, parallelism FROM rw_fragment_parallelism WHERE fragment_id = 2;
+```
+
+```
+ fragment_id | parallelism
+-------------+-------------
+           2 |           8
+(1 row)
+```
+
+### Managing no-shuffle ensembles
+
+When fragments are connected by no-shuffle edges, they form an ensemble that must share the same parallelism:
+
+```sql
+-- Alter parallelism for an entire no-shuffle ensemble by specifying the entry fragment
+ALTER FRAGMENT 1 SET PARALLELISM = 6;
+
+-- This automatically adjusts all fragments in the same no-shuffle ensemble
+SELECT fragment_id, parallelism FROM rw_fragment_parallelism WHERE name = 'my_materialized_view';
+```
+
+```
+ fragment_id | parallelism
+-------------+-------------
+           1 |           6
+           2 |           6
+(2 rows)
+```
+
+## See also
+
+- [ALTER TABLE](/sql/commands/sql-alter-table) — Modify table properties including job-level parallelism
+- [ALTER MATERIALIZED VIEW](/sql/commands/sql-alter-materialized-view) — Modify materialized view properties including job-level parallelism
+- [ALTER SINK](/sql/commands/sql-alter-sink) — Modify sink properties including job-level parallelism
+- [Cluster scaling](/deploy/k8s-cluster-scaling) — Learn about adaptive and fixed parallelism for streaming jobs
+- [System catalogs](/sql/system-catalogs/rw-catalog) — View fragment information using `rw_fragment_parallelism` and `rw_fragments`
