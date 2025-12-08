@@ -9,7 +9,7 @@ This guide shows how to read data from external Apache Iceberg tables in RisingW
 You can ingest data from Iceberg tables using two approaches:
 
 1. **[Continuous ingestion (default)](#continuous-ingestion-with-create-source)**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
-2. **[Periodic full reload](#periodic-full-reload-with-create-table)**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes. Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you trigger a refresh—either manually or via the configured schedule.
+2. **[Manual refresh](#manual-refresh-with-create-table)**: Create an Iceberg table with `refresh_mode = 'FULL_RECOMPUTE'` for on-demand full table refreshes. Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you manually trigger a refresh using `REFRESH TABLE`.
 
 After the source or table is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
 
@@ -83,17 +83,17 @@ WITH (
 );
 ```
 
-## Periodic full reload with CREATE TABLE
+## Manual refresh with CREATE TABLE
 
 <Note>
 Added in v2.7.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
 </Note>
 
-For batch-style workloads where you need to periodically reload an entire Iceberg table, you can create a table with `refresh_mode = 'FULL_RELOAD'`. This mode is useful when:
+For batch-style workloads where you need to manually reload an entire Iceberg table on demand, you can create a table with `refresh_mode = 'FULL_RECOMPUTE'`. This mode is useful when:
 
 - The external Iceberg table supports mutable data (updates and deletes).
-- You need a point-in-time snapshot of the entire table.
-- Periodic full reloads fit your use case better than continuous streaming.
+- You need explicit control over when data is synced from Iceberg.
+- You want to apply Iceberg deletes (PositionDeletes and EqualityDeletes) for accurate query results.
 
 ### Create a refreshable table
 
@@ -110,8 +110,7 @@ CREATE TABLE iceberg_batch_table (
     s3.access.key = 'your-access-key',
     s3.secret.key = 'your-secret-key',
     s3.region = 'us-west-2',
-    refresh_mode = 'FULL_RELOAD',        -- Required for periodic refresh
-    refresh_interval_sec = '60'          -- Reload every 60 seconds
+    refresh_mode = 'FULL_RECOMPUTE'     -- Required for manual refresh
 );
 ```
 
@@ -119,25 +118,40 @@ CREATE TABLE iceberg_batch_table (
 
 | Parameter | Description | Required | Example |
 |:----------|:------------|:---------|:--------|
-| `refresh_mode` | Must be set to `'FULL_RELOAD'` to enable periodic refresh functionality | Yes | `'FULL_RELOAD'` |
-| `refresh_interval_sec` | Interval in seconds between automatic refresh operations | No | `'60'` |
+| `refresh_mode` | Must be set to `'FULL_RECOMPUTE'` to enable manual refresh functionality | Yes | `'FULL_RECOMPUTE'` |
 
-RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `stream_refresh_scheduler_interval_sec` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
+When `refresh_mode = 'FULL_RECOMPUTE'` is set, the table will only be populated when you explicitly execute `REFRESH TABLE`. The refresh operation pulls the latest Iceberg snapshot and applies any delete files (PositionDeletes and EqualityDeletes) to ensure query results match the latest table state in Iceberg.
 
-### Manual refresh
+### Trigger a refresh
 
-You can manually trigger a refresh at any time using the `REFRESH TABLE` command:
+To load or reload data from the external Iceberg table, use the `REFRESH TABLE` command:
 
 ```sql
 REFRESH TABLE iceberg_batch_table;
 ```
+
+This command pulls the latest Iceberg snapshot and applies all delete files, ensuring the table reflects the current state in Iceberg.
+
+### Monitor delete files
+
+You can verify discovered delete files via the `rw_iceberg_files` system catalog:
+
+```sql
+SELECT * FROM rw_iceberg_files 
+WHERE source_name = '__iceberg_source_iceberg_batch_table';
+```
+
+This query shows all data and delete files associated with the table. The `content` column indicates the file type:
+- `Data`: Regular data files
+- `PositionDeletes`: Position-based delete files
+- `EqualityDeletes`: Equality-based delete files
 
 ### Monitor refresh status
 
 Query the `rw_catalog.rw_refresh_table_state` system catalog to monitor refresh operations:
 
 ```sql
-SELECT table_id, current_status, last_trigger_time, last_success_time, trigger_interval_secs
+SELECT table_id, current_status, last_trigger_time, last_success_time
 FROM rw_catalog.rw_refresh_table_state;
 ```
 
