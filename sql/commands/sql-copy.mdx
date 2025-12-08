@@ -1,0 +1,96 @@
+---
+title: "COPY"
+description: "Use the `COPY` command to export query results to standard output in tab-separated values (TSV) format."
+---
+
+The `COPY` command allows you to export query results from RisingWave to standard output (STDOUT) in tab-separated values (TSV) format. This is useful for integrating RisingWave with external systems that can consume PostgreSQL-compatible COPY output, such as ClickHouse's PostgreSQL table engine.
+
+## Syntax
+
+```sql
+COPY ( query ) TO STDOUT;
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _query_   | A SELECT query that specifies the data to export. |
+
+## Output format
+
+The `COPY TO STDOUT` command outputs data in TSV (tab-separated values) format with the following characteristics:
+
+- Fields are separated by tab characters (`\t`)
+- Rows are separated by newline characters (`\n`)
+- NULL values are represented as empty fields
+- Special characters are escaped:
+  - Tab characters in data are escaped as `\t`
+  - Newline characters in data are escaped as `\n`
+  - Carriage return characters in data are escaped as `\r`
+  - Backslash characters in data are escaped as `\\`
+
+## Examples
+
+### Basic example
+
+Export results from a simple query:
+
+```sql
+COPY (SELECT id, name FROM users ORDER BY id) TO STDOUT;
+```
+
+This outputs data in TSV format:
+
+```
+1	Alice
+2	Bob
+3	Charlie
+```
+
+### Example with special characters
+
+When data contains special characters, they are properly escaped:
+
+```sql
+CREATE TABLE t (id int, name string);
+INSERT INTO t VALUES 
+  (1, 'name'), 
+  (2, null), 
+  (3, E'name1\tname'),
+  (4, E'name1\rname'),
+  (5, E'name1\nname'),
+  (6, E'name1\\name');
+FLUSH;
+
+COPY (SELECT name, id FROM t ORDER BY id) TO STDOUT;
+```
+
+Output:
+
+```
+name	1
+	2
+name1\tname	3
+name1\rname	4
+name1\nname	5
+name1\\name	6
+```
+
+### Integration with ClickHouse
+
+The `COPY TO STDOUT` command enables ClickHouse to query RisingWave data using the [PostgreSQL table engine](https://clickhouse.com/docs/engines/table-engines/integrations/postgresql). ClickHouse uses this syntax internally when loading data from PostgreSQL-compatible databases.
+
+Example ClickHouse configuration:
+
+```sql
+CREATE TABLE clickhouse_table
+ENGINE = PostgreSQL('risingwave_host:4566', 'database_name', 'table_name', 'user', 'password');
+```
+
+ClickHouse will automatically use `COPY () TO STDOUT` to efficiently load data from RisingWave.
+
+## Related topics
+
+- [SELECT](/sql/commands/sql-select) — Query data from tables and materialized views
+- [ClickHouse sink](/integrations/destinations/clickhouse) — Send data from RisingWave to ClickHouse
