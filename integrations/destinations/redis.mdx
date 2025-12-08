@@ -52,16 +52,18 @@ These options should be set in `FORMAT data_format ENCODE data_encode (key = 'va
 | key\_format         | Specify the format for the key as a string.                                                                                                                                                                                                                                                                                            |
 | value\_format       | Specify the format for the value as a string.                                                                                                                                                                                                                                                                                          |
 | key\_encode         | **Optional**. <ul><li>When specified, the key encode can only be `TEXT`, and the primary key should be one and only one of the following types: `varchar`, `bool`, `smallint`, `int`, and `bigint`;</li><li>When absent, both key and value will use the same setting of `ENCODE data_encode ( ... )`.</li></ul>                                                                                                        |
-|  redis_value_type     | **Optional**. Controls how data is written to Redis. For details, see [examples](#example) below.<ul><li>`string` (Default): Key-value storage. `key_format` and `value_format` are required. </li><li>`pubsub`: Publishes messages to Redis Pub/Sub channels. `value_format` is required. </li><li>`geospatial`: Stores data using Redis' geospatial index. `key_format` is required.</li></ul>                                                                                                 |
+|  redis_value_type     | **Optional**. Controls how data is written to Redis. For details, see [examples](#example) below.<ul><li>`string` (Default): Key-value storage. `key_format` and `value_format` are required. </li><li>`pubsub`: Publishes messages to Redis Pub/Sub channels. `value_format` is required. </li><li>`geospatial`: Stores data using Redis' geospatial index. `key_format` is required.</li><li>`stream`: Publishes messages to Redis Streams. `key_format` and `value_format` are required. This is a licensed feature.</li></ul>                                                                                                 |
 |  channel     | **Optional**. Required if `redis_value_type = 'pubsub'` and `channel_column` is not set. The name of the Redis Pub/Sub channel to publish messages to.                                                                                                         |
 |  channel_column     | **Optional**. Required if `redis_value_type = 'pubsub'` and `channel` is not set. The values from this column will be used as the names of the Redis Pub/Sub channels to publish messages to. Must be type of `VARCHAR`.                                                                                                        |
+|  stream     | **Optional**. Required if `redis_value_type = 'stream'` and `stream_column` is not set. The name of the Redis Stream to publish messages to.                                                                                                         |
+|  stream_column     | **Optional**. Required if `redis_value_type = 'stream'` and `stream` is not set. The values from this column will be used as the names of the Redis Streams to publish messages to. Must be type of `VARCHAR`.                                                                                                        |
 |  longitude     | **Optional**. Required if `redis_value_type = 'geospatial'`. Contains the longitude value. Must be of type `FLOAT`, `REAL`, or `VARCHAR`.                                                                                                         |
 |  latitude     | **Optional**. Required if `redis_value_type = 'geospatial'`. Contains the latitude value. Must be of type `FLOAT`, `REAL`, or `VARCHAR`.                                                                                                        |
 |  member     | **Optional**. Required when `redis_value_type = 'geospatial'`. Contains the member names for the geospatial set. Must be of type `VARCHAR` and part of the primary key.                                                                                                        |
 
 ## Example
 
-This section provides examples for sinking data from RisingWave to Redis, covering key-value storage, geospatial data storage, and Pub/Sub messaging.
+This section provides examples for sinking data from RisingWave to Redis, covering key-value storage, geospatial data storage, Pub/Sub messaging, and Redis Streams.
 
 ### Key-value storage
 
@@ -194,4 +196,67 @@ value_format = 'abcd3:{v4}'
 );
 ```
 
+### Redis Streams
+
+This approach allows RisingWave to publish messages to Redis Streams. Redis Streams is a data structure that acts as an append-only log. Make sure to specify `FORMAT PLAIN ENCODE TEMPLATE`, `redis_value_type = 'stream'`, `key_format`, and `value_format`. At least one of `stream` or `stream_column` must also be specified.
+
+<Note>
+This is a licensed feature. You may need to configure a valid license key to use it.
+</Note>
+
+Assume we have a table `t1`:
+
+```sql
+CREATE TABLE t1(v1 float, v2 float, v3 varchar, v4 varchar);
+```
+
+We can sink data from `t1` as messages to a predefined Redis Stream:
+
+```sql
+CREATE SINK s1
+FROM
+    t1 WITH (
+    primary_key = 'v3,v4',
+    connector = 'redis',
+    redis.url= 'redis://127.0.0.1:6379/',
+)FORMAT PLAIN ENCODE TEMPLATE
+(redis_value_type ='stream', 
+stream = 'test123',
+key_format = 'abcd3:{v3}',
+value_format = 'abcd3:{v4}'
+);
+```
+
+Alternatively, you can publish to a dynamic stream using `stream_column`:
+
+```sql
+CREATE SINK s1
+FROM
+    t1 WITH (
+    primary_key = 'v2,v3,v4',
+    connector = 'redis',
+    redis.url= 'redis://127.0.0.1:6379/',
+)FORMAT PLAIN ENCODE TEMPLATE
+(redis_value_type ='stream', 
+stream_column = 'v2',
+key_format = 'abcd3:{v3}',
+value_format = 'abcd3:{v4}'
+);
+```
+
+Now insert data into the table `t1`:
+
+```sql
+INSERT INTO t1 VALUES (1.1, 1.1, 'test','test');
+```
+
+You can retrieve the stream information from Redis:
+
+```
+XLEN test123
+------
+1
+```
+
+For more information, see [Redis Streams](https://redis.io/docs/data-types/streams/).
 
