@@ -1,0 +1,337 @@
+---
+title: "LDAP authentication"
+description: "Configure RisingWave to authenticate users against an LDAP directory server."
+---
+
+RisingWave supports LDAP (Lightweight Directory Access Protocol) authentication, enabling user login validation against external directory services such as OpenLDAP or Active Directory. This feature allows organizations to centralize user authentication and leverage existing enterprise directory infrastructure.
+
+## Overview
+
+LDAP authentication in RisingWave works by validating user credentials against an external LDAP server during the login process. When a user attempts to connect, RisingWave contacts the configured LDAP server to verify the provided credentials.
+
+LDAP authentication is configured through RisingWave's Host-Based Authentication (HBA) system, similar to PostgreSQL's `pg_hba.conf`. This allows fine-grained control over authentication methods based on connection type, client address, database, and user.
+
+## Authentication modes
+
+RisingWave supports two LDAP authentication modes:
+
+### Simple bind mode
+
+In simple bind mode, RisingWave constructs a Distinguished Name (DN) by combining a prefix, the username, and a suffix, then attempts to bind to the LDAP server with this DN and the user's password.
+
+**Use case**: Suitable when the DN structure is predictable and follows a consistent pattern.
+
+### Search+bind mode
+
+In search+bind mode, RisingWave first searches the LDAP directory to find the user's DN, then binds using the discovered DN and the user's password. This mode is more flexible and can accommodate complex directory structures.
+
+**Use case**: Recommended when user DNs vary or when additional search criteria are needed.
+
+## Configuration
+
+LDAP authentication is configured in the `risingwave.toml` configuration file under the `[[frontend.hba_config.entries]]` section.
+
+### Basic configuration structure
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["all"]
+addresses = ["0.0.0.0/0"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+# Additional LDAP options...
+```
+
+### Simple bind configuration
+
+Use `ldapprefix` and `ldapsuffix` to construct the bind DN:
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["ldapuser1", "ldapuser2"]
+addresses = ["10.0.0.0/8"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapport = "389"
+ldapprefix = "uid="
+ldapsuffix = ",ou=people,dc=example,dc=com"
+```
+
+With this configuration, a user logging in as `alice` will attempt to bind with the DN: `uid=alice,ou=people,dc=example,dc=com`.
+
+### Search+bind configuration
+
+Configure LDAP search parameters to locate the user's DN:
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["all"]
+addresses = ["all"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapbasedn = "ou=people,dc=example,dc=com"
+ldapsearchattribute = "uid"
+# Optional: credentials for non-anonymous search
+ldapbinddn = "cn=admin,dc=example,dc=com"
+ldapbindpasswd = "admin_password"
+```
+
+#### Custom search filters
+
+You can specify a custom LDAP search filter using the `$username` placeholder:
+
+```toml
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapbasedn = "ou=people,dc=example,dc=com"
+ldapsearchfilter = "(&(objectClass=person)(uid=$username))"
+ldapbinddn = "cn=admin,dc=example,dc=com"
+ldapbindpasswd = "admin_password"
+```
+
+The `$username` placeholder is replaced with the connecting user's name and properly escaped to prevent LDAP injection attacks.
+
+### LDAP URL configuration
+
+Alternatively, you can use an LDAP URL (RFC 4516 format) to specify the connection:
+
+```toml
+[frontend.hba_config.entries.auth_options]
+ldapurl = "ldap://ldap.example.com/ou=people,dc=example,dc=com?uid?sub"
+```
+
+<Note>
+When using `ldapurl`, you cannot specify conflicting parameters like `ldapserver`, `ldapport`, `ldapbasedn`, etc. However, you can still use `ldaptls`, `ldapbinddn`, and `ldapbindpasswd`.
+</Note>
+
+## TLS/SSL encryption
+
+RisingWave supports encrypted LDAP connections using TLS/SSL to protect credentials in transit.
+
+### Using LDAPS
+
+For LDAPS (LDAP over SSL), specify the `ldaps` scheme and port 636:
+
+```toml
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapscheme = "ldaps"
+ldapport = "636"
+```
+
+### Using STARTTLS
+
+For STARTTLS on a standard LDAP connection:
+
+```toml
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapport = "389"
+ldaptls = "true"
+```
+
+<Warning>
+You cannot use both STARTTLS (`ldaptls`) and LDAPS (`ldapscheme = "ldaps"`) simultaneously.
+</Warning>
+
+### TLS certificate configuration
+
+RisingWave uses environment variables for TLS certificate configuration, following the same conventions as PostgreSQL and OpenLDAP:
+
+| Environment Variable | Description |
+|---------------------|-------------|
+| `LDAPTLS_CACERT` | Path to the CA certificate file for verifying the LDAP server's certificate |
+| `LDAPTLS_CERT` | Path to the client certificate for mutual TLS authentication |
+| `LDAPTLS_KEY` | Path to the private key corresponding to the client certificate |
+| `LDAPTLS_REQCERT` | Certificate validation behavior: `never`, `allow`, `try`, or `demand` (default: `demand`) |
+
+Set these environment variables before starting RisingWave:
+
+```bash
+export LDAPTLS_CACERT=/path/to/ca.crt
+export LDAPTLS_CERT=/path/to/client.crt
+export LDAPTLS_KEY=/path/to/client.key
+export LDAPTLS_REQCERT=demand
+```
+
+## Configuration parameters reference
+
+### Common parameters
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `ldapserver` | LDAP server hostname or IP address | Yes (unless using `ldapurl`) |
+| `ldapport` | LDAP server port (default: 389 for `ldap`, 636 for `ldaps`) | No |
+| `ldapscheme` | Connection scheme: `ldap` or `ldaps` | No (default: `ldap`) |
+| `ldaptls` | Enable STARTTLS: `true` or `false` | No (default: `false`) |
+
+### Simple bind parameters
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `ldapprefix` | String to prepend to the username to form the DN | No |
+| `ldapsuffix` | String to append to the username to form the DN | No |
+
+### Search+bind parameters
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `ldapbasedn` | Base DN for the LDAP search | Yes (for search+bind) |
+| `ldapsearchattribute` | Attribute to match against the username (default: `uid`) | No |
+| `ldapsearchfilter` | Custom LDAP search filter with `$username` placeholder | No |
+| `ldapbinddn` | DN to bind as when performing searches (for non-anonymous search) | No |
+| `ldapbindpasswd` | Password for the bind DN | No |
+
+### URL parameter
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `ldapurl` | LDAP URL in RFC 4516 format | Alternative to individual parameters |
+
+## Example configurations
+
+### Example 1: Simple bind with TLS
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["all"]
+addresses = ["0.0.0.0/0"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldaptls = "true"
+ldapprefix = "uid="
+ldapsuffix = ",ou=people,dc=example,dc=com"
+```
+
+### Example 2: Search+bind with LDAPS
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["all"]
+addresses = ["all"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapscheme = "ldaps"
+ldapport = "636"
+ldapbasedn = "ou=people,dc=example,dc=com"
+ldapsearchattribute = "uid"
+ldapbinddn = "cn=admin,dc=example,dc=com"
+ldapbindpasswd = "admin_password"
+```
+
+### Example 3: Search+bind with custom filter
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["production"]
+users = ["all"]
+addresses = ["192.168.1.0/24"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapscheme = "ldaps"
+ldapbasedn = "dc=example,dc=com"
+ldapsearchfilter = "(&(objectClass=person)(uid=$username)(memberOf=cn=risingwave-users,ou=groups,dc=example,dc=com))"
+ldapbinddn = "cn=readonly,dc=example,dc=com"
+ldapbindpasswd = "readonly_password"
+```
+
+### Example 4: Multiple authentication rules
+
+```toml
+# Allow local connections without authentication
+[[frontend.hba_config.entries]]
+connection_type = "Local"
+databases = ["all"]
+users = ["all"]
+auth_method = "trust"
+
+# Require password for admin users
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["root", "postgres", "rwadmin"]
+addresses = ["0.0.0.0/0"]
+auth_method = "password"
+
+# Use LDAP for all other users
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["all"]
+addresses = ["all"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldaptls = "true"
+ldapbasedn = "ou=people,dc=example,dc=com"
+ldapsearchattribute = "uid"
+ldapbinddn = "cn=admin,dc=example,dc=com"
+ldapbindpasswd = "admin_password"
+```
+
+## Security considerations
+
+- **Always use TLS/SSL**: Encrypt LDAP connections to protect credentials in transit using either LDAPS or STARTTLS.
+- **Restrict network access**: Use the `addresses` field in HBA entries to limit which client IP addresses can use LDAP authentication.
+- **Use dedicated bind accounts**: For search+bind mode, create a dedicated LDAP account with minimal read-only privileges for performing searches.
+- **Secure credential storage**: Store LDAP bind passwords securely and restrict access to the `risingwave.toml` configuration file.
+- **Input validation**: RisingWave automatically escapes usernames to prevent LDAP injection attacks in DNs and search filters.
+- **Certificate validation**: Use `LDAPTLS_REQCERT=demand` to enforce strict certificate verification in production environments.
+
+## Troubleshooting
+
+### Connection fails
+
+- Verify the LDAP server is reachable from RisingWave nodes.
+- Check that the correct port is specified (389 for LDAP, 636 for LDAPS).
+- Ensure firewall rules allow connections to the LDAP server.
+
+### TLS/SSL errors
+
+- Verify certificate paths in `LDAPTLS_*` environment variables are correct.
+- Ensure the CA certificate chain is complete and valid.
+- Check that certificates have not expired.
+- Verify the server certificate's hostname matches the `ldapserver` value.
+
+### Authentication fails
+
+- Verify user credentials are correct.
+- For simple bind: Check that `ldapprefix` and `ldapsuffix` construct a valid DN.
+- For search+bind: Verify `ldapbasedn` and `ldapsearchattribute` or `ldapsearchfilter` locate the correct user entry.
+- Check RisingWave logs for detailed error messages.
+
+### Search+bind issues
+
+- Ensure `ldapbinddn` and `ldapbindpasswd` are correct if using authenticated searches.
+- Verify the bind account has sufficient permissions to search the directory.
+- Test LDAP search queries using command-line tools like `ldapsearch`.
+
+## See also
+
+- [Access control](/operate/access-control) — User management and privileges
+- [Secure connections with SSL/TLS](/operate/secure-connections-with-ssl-tls) — SSL/TLS configuration for client connections
+- [Node-specific configurations](/deploy/node-specific-configurations) — General configuration file setup
