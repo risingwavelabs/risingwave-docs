@@ -116,6 +116,7 @@ You can create materialized views, sinks, or sink-into-table jobs that use vecto
 
 ```sql Example
 -- Create an append-only source table with events
+-- Note: Using vector(3) for simplicity; real-world embeddings are typically higher dimensional (e.g., 128, 384, 768)
 CREATE TABLE events (
     event_id INT PRIMARY KEY, 
     time TIMESTAMP, 
@@ -162,7 +163,7 @@ You can include the distance between vectors in the output by using the distance
 SELECT
     event_id,
     array(
-        SELECT row(id, name, events.embedding <-> items.embedding AS distance)
+        SELECT row(id, name, (events.embedding <-> items.embedding) AS distance)
         FROM items FOR SYSTEM_TIME AS OF PROCTIME()
         ORDER BY distance
         LIMIT 3
