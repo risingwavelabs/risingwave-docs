@@ -35,11 +35,90 @@ WITH (
 | warehouse                     | Snowflake warehouse name |
 | jdbc.url                       | JDBC URL to connect to Snowflake |
 | username                      | Snowflake username |
-| password                      | Snowflake password |
+| password                      | Snowflake password (required when using password authentication) |
 | commit_checkpoint_interval     | Commit every n checkpoints (default: 10) |
 | auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
 | stage     | Name of the stage in Snowflake used for loading data |
 | create_table_if_not_exists     | Create target table if it does not exist |
+
+**Authentication parameters**
+
+| Parameter                     | Description |
+|:------------------------------|:------------|
+| auth.method                   | Authentication method: `password` (default), `key_pair_file`, or `key_pair_object`. If not specified, the method is inferred from the provided credentials |
+| private_key_file              | Path to the private key file for key-pair authentication (required when `auth.method = 'key_pair_file'`) |
+| private_key_file_pwd          | Password for encrypted private key file (optional, used with `private_key_file`) |
+| private_key_pem               | PEM-formatted private key content for key-pair authentication (required when `auth.method = 'key_pair_object'`). This is the recommended method for secret management systems |
+
+## Authentication
+
+Snowflake v2 sink connector supports three authentication methods:
+
+1. **Password authentication** (default): Standard username/password authentication
+2. **Key-pair authentication with file**: Uses a private key file path
+3. **Key-pair authentication with PEM content**: Uses PEM-formatted private key content directly
+
+### Password authentication
+
+This is the default authentication method. Provide your Snowflake username and password:
+
+```sql Example
+CREATE SINK snowflake_sink FROM mv_name WITH (
+    connector = 'snowflake_v2',
+    type = 'append-only',
+    jdbc.url = 'jdbc:snowflake://account.snowflakecomputing.com/',
+    username = 'your_username',
+    password = 'your_password',
+    ...
+);
+```
+
+### Key-pair authentication with file
+
+For enhanced security, you can use key-pair authentication with RSA private keys stored in a file. This method requires:
+- Setting `auth.method = 'key_pair_file'`
+- Providing the path to your private key file via `private_key_file`
+- Optionally providing the passphrase via `private_key_file_pwd` if the key is encrypted
+
+```sql Example
+CREATE SINK snowflake_sink FROM mv_name WITH (
+    connector = 'snowflake_v2',
+    type = 'append-only',
+    jdbc.url = 'jdbc:snowflake://account.snowflakecomputing.com/',
+    username = 'your_username',
+    auth.method = 'key_pair_file',
+    private_key_file = '/path/to/rsa_key.p8',
+    private_key_file_pwd = 'your_key_passphrase',  -- Optional, only if key is encrypted
+    ...
+);
+```
+
+### Key-pair authentication with PEM content
+
+For integration with secret management systems (like AWS Secrets Manager, HashiCorp Vault, etc.), you can provide the PEM-formatted private key content directly. This is the recommended approach for production environments:
+
+```sql Example
+CREATE SINK snowflake_sink FROM mv_name WITH (
+    connector = 'snowflake_v2',
+    type = 'append-only',
+    jdbc.url = 'jdbc:snowflake://account.snowflakecomputing.com/',
+    username = 'your_username',
+    auth.method = 'key_pair_object',
+    private_key_pem = '-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSk...
+-----END PRIVATE KEY-----',
+    ...
+);
+```
+
+<Note>
+To set up key-pair authentication in Snowflake, you need to:
+1. Generate an RSA key pair (minimum 2048-bit)
+2. Assign the public key to your Snowflake user
+3. Use the private key for authentication
+
+For detailed instructions, see [Snowflake's key-pair authentication documentation](https://docs.snowflake.com/en/user-guide/key-pair-auth).
+</Note>
 
 **S3 parameters**
 
@@ -118,7 +197,7 @@ In `upsert` mode, performance is optimized through the use of an intermediate ta
 
 Examples:
 
-1. Snowflake v2 sink with S3 writer (Append-only mode)
+1. Snowflake v2 sink with S3 writer (Append-only mode) using password authentication
 
 ```sql
 CREATE SINK snowflake_sink FROM test_table WITH (
@@ -145,8 +224,7 @@ CREATE SINK snowflake_sink FROM test_table WITH (
     s3.assume_role = '...',
     enable_config_load = 'true',
 
-    -- Required if auto.schema.change = false 
-    -- and create_table_if_not_exists = false
+    -- Snowflake authentication: password (default)
     jdbc.url = 'jdbc:snowflake://...',
     username = '...',
     password = '...',
@@ -157,7 +235,40 @@ CREATE SINK snowflake_sink FROM test_table WITH (
 );
 ```
 
-2. Snowflake v2 sink with S3 writer (Upsert mode):
+2. Snowflake v2 sink with S3 writer (Append-only mode) using key-pair authentication
+
+```sql
+CREATE SINK snowflake_sink FROM test_table WITH (
+    connector = 'snowflake_v2',
+    type = 'append-only',
+    table.name = 'test_table',
+
+    -- Snowflake concepts
+    warehouse = 'COMPUTE_WH',
+    database = 'RW_TEST',
+    schema = 'RW_SCHEMA',
+
+    -- S3 writer (enabled by default)
+    with_s3 = true,
+    s3.bucket_name = '...',
+    s3.region_name = '...',
+    s3.path = '...',
+    s3.credentials.access = '...',
+    s3.credentials.secret = '...',
+
+    -- Snowflake authentication: key-pair with PEM content
+    jdbc.url = 'jdbc:snowflake://...',
+    username = '...',
+    auth.method = 'key_pair_object',
+    private_key_pem = '-----BEGIN PRIVATE KEY-----...',
+
+    -- Defaults (can be overridden)
+    auto.schema.change = 'false',
+    create_table_if_not_exists = 'false'
+);
+```
+
+3. Snowflake v2 sink with S3 writer (Upsert mode):
 
 ```sql
 CREATE SINK snowflake_sink FROM test_table WITH (
