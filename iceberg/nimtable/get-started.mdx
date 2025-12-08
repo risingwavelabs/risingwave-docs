@@ -1,0 +1,153 @@
+---
+title: "Get started with Nimtable"
+sidebarTitle: "Get started"
+description: "Deploy Nimtable, complete first login, and connect your first Iceberg catalog."
+---
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Network access to your Iceberg storage and catalog backends (for example, S3 and AWS Glue)
+- PostgreSQL for Nimtable metadata if you override the default Docker Compose database
+
+## Deploy with Docker Compose
+
+```bash
+git clone https://github.com/nimtable/nimtable.git
+cd nimtable/docker
+docker compose up -d
+```
+
+- UI defaults to `http://localhost:3000`
+- REST Catalog API defaults to port `8182` (configurable)
+
+## First login
+
+- Open `http://localhost:3000/login`
+- Default admin username/password: `admin` / `admin`
+- Change the password immediately in the UI; afterward, environment variables no longer override it
+
+## First-run catalog wizard
+
+On first login you are prompted to register a catalog and warehouse. Available templates:
+
+- Custom
+- REST + S3
+- JDBC + S3
+- S3 Tables
+- Glue + S3
+- Load from nimtable `config.yaml`
+- Load from Spark CLI parameters
+- Load from `spark-defaults.conf`
+
+For REST + S3, supply:
+
+- Catalog type and URI for the REST endpoint
+- Warehouse path (for example, `s3://warehouse/wh/`)
+- S3 properties such as `io-impl`, `s3.endpoint`, `s3.access-key-id`, `s3.secret-access-key`, `s3.region`, `s3.path-style-access`
+
+Catalogs created in the wizard are stored in Nimtable’s internal database.
+
+## Configure via file (optional)
+
+Mount `config.yaml` to `/app/config.yaml` in Docker to pre-provision catalogs.
+
+```yaml
+server:
+  port: 8182
+  host: 0.0.0.0
+database:
+  url: jdbc:postgresql://localhost:5432/nimtable_db
+  username: nimtable_user
+  password: password
+```
+
+Use the file for repeatable environments; keep secrets out of the image by passing them via environment variables or mounted credentials.
+
+## Connect RisingWave to Nimtable
+
+Set `catalog.type = 'rest'` and point `catalog.uri` to Nimtable’s REST endpoint when creating an Iceberg source, sink, or connection in RisingWave.
+
+```sql
+CREATE CONNECTION nimtable_rest WITH (
+  connector = 'iceberg',
+  catalog.type = 'rest',
+  catalog.uri = 'http://nimtable:8182',
+  warehouse.path = 's3://my-warehouse/',
+  database.name = 'analytics',
+  table.name = 'events'
+);
+```
+
+- Adjust `catalog.uri` to the host:port reachable from RisingWave
+- Provide storage credentials (for example, `s3.region`, `s3.access.key`, `s3.secret.key`) or enable vended credentials if supported by your REST catalog setup
+---
+title: "Get started with Nimtable"
+sidebarTitle: "Get started"
+description: "Deploy Nimtable, sign in, add your first Iceberg catalog, and connect RisingWave."
+---
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Network access to your Iceberg storage and catalog backends (for example, S3 and AWS Glue)
+- A PostgreSQL instance for Nimtable metadata if you override the default Docker Compose database settings
+
+## Deploy with Docker Compose
+
+```bash
+git clone https://github.com/nimtable/nimtable.git
+cd nimtable/docker
+docker compose up -d
+```
+
+- UI defaults to `http://localhost:3000`
+- REST Catalog API defaults to port `8182` (configurable)
+
+## First login and password
+
+- Browse to `http://localhost:3000`
+- Default admin username/password: `admin` / `admin`
+- Change the password immediately in the UI; once changed, environment variables no longer override it
+
+## Add your first catalog in the UI
+
+- Click **Create Catalog** and choose a catalog type: REST, AWS Glue, S3 Tables, or PostgreSQL (JDBC)
+- Provide the required fields (for AWS Glue or S3, you can supply AWS credentials via env vars or a mounted `~/.aws/credentials` file in Docker)
+- Catalogs added through the UI are stored in Nimtable’s internal database, not in `config.yaml`
+
+## Configure via file (optional)
+
+Nimtable reads `config.yaml` from the working directory. In Docker, mount it to `/app/config.yaml`.
+
+```yaml
+server:
+  port: 8182
+  host: 0.0.0.0
+database:
+  url: jdbc:postgresql://localhost:5432/nimtable_db
+  username: nimtable_user
+  password: password
+```
+
+- Use the file to pre-provision catalogs; see the repository `backend/config.yaml` template for full examples
+- Keep credentials out of the image; pass them via environment variables or mounted secrets
+
+## Use Nimtable as a REST catalog from RisingWave
+
+Set `catalog.type = 'rest'` and point `catalog.uri` to Nimtable’s REST endpoint when creating an Iceberg source, sink, or connection in RisingWave.
+
+```sql
+CREATE CONNECTION nimtable_rest WITH (
+  connector = 'iceberg',
+  catalog.type = 'rest',
+  catalog.uri = 'http://nimtable:8182',
+  warehouse.path = 's3://my-warehouse/',
+  database.name = 'analytics',
+  table.name = 'events'
+);
+```
+
+- Adjust `catalog.uri` to the host:port reachable from RisingWave
+- Add storage credentials (for example, `s3.region`, `s3.access.key`, `s3.secret.key`) or enable vended credentials if your REST catalog setup supports them
+
