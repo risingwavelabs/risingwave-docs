@@ -20,6 +20,10 @@ true
 [2, false]
 ```
 
+Note: If you're using `jsonb_array_elements` to do array unnesting for row-level processing, followed by an `array_agg` aggregation,
+it can incur additional overhead due to subplan execution. Use `EXPLAIN` to examine your query plan, and see if there are unexpected `JOIN`s in your query.
+If so, please consider rewriting with `array_transform` to perform your mapping logic to avoid the subplan execution.
+
 ### `jsonb_array_elements_text`
 
 Expands the top-level JSON array into a set of text (varchar) values.
