@@ -128,21 +128,3 @@ dev=> SELECT * FROM rw_fragment_parallelism WHERE name = 't';
 
 To understand the output of the query, you may need to know about these two concepts: [streaming actors](/reference/key-concepts#streaming-actors) and [fragments](/reference/key-concepts#fragments).
 
-## Fine-grained parallelism control
-
-For advanced use cases, you can control parallelism at the fragment level using the [`ALTER FRAGMENT`](/sql/commands/sql-alter-fragment) command. This allows you to adjust parallelism for specific fragments within a streaming job, enabling targeted scaling of individual operations.
-
-```sql
--- Set parallelism for a specific fragment
-ALTER FRAGMENT 2 SET PARALLELISM = 8;
-
--- Set parallelism for multiple fragments
-ALTER FRAGMENT 1, 2, 3 SET PARALLELISM = ADAPTIVE;
-```
-
-Fragment-level parallelism control is useful when:
-- You need to scale specific operations independently within a streaming job
-- Certain fragments are bottlenecks and require more parallelism than others
-- You want to optimize resource allocation for complex streaming pipelines
-
-For more details, see the [`ALTER FRAGMENT`](/sql/commands/sql-alter-fragment) reference documentation.
