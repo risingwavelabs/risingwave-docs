@@ -11,13 +11,26 @@ SHOW SINKS [ FROM schema_name ] [ LIKE_expression ];
 
 ## Parameters
 
-| Clause | Description      |
-| :------------------ | :-------------------------- |
-| schema\_name |The schema of the sinks to be listed.|
+| Parameter or clause | Description                                                                                                                                                                               |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _schema\_name_      | The schema of the sinks to be listed. If not specified, sinks from all schemas in the current schema [search_path](https://docs.risingwave.com/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters:~:text=multi%20point%20lookup.-,search_path,-%E2%80%9D%24user%E2%80%9D%2C%20public) will be listed. |
 | LIKE\_expression    | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
 
 ## Example
 
-```bash
+```sql
 SHOW SINKS;
 ```
+
+```bash
+        Name
+---------------------
+ public.orders_sink
+ public.metrics_sink
+ public.kafka_export
+(3 rows)
+```
+
+<Note>
+Starting from v2.7.0, the `name` column in the output includes the schema name as a prefix (e.g., `public.sink_name`). This helps distinguish sinks with the same name in different schemas when querying across multiple schemas in the search path.
+</Note>

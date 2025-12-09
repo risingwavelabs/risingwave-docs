@@ -13,7 +13,7 @@ SHOW MATERIALIZED VIEWS [ FROM schema_name ] [ LIKE_expression ];
 
 | Parameter        | Description                                                                                                                                                                               |
 | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _schema\_name_   | The schema in which the materialized views will be listed. If not given, materialized views from the default schema, public, will be listed                                               |
+| _schema\_name_   | The schema in which the materialized views will be listed. If not specified, materialized views from all schemas in the current schema [search_path](https://docs.risingwave.com/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters:~:text=multi%20point%20lookup.-,search_path,-%E2%80%9D%24user%E2%80%9D%2C%20public) will be listed. |
 | LIKE\_expression | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
 
 ## Example
@@ -21,3 +21,15 @@ SHOW MATERIALIZED VIEWS [ FROM schema_name ] [ LIKE_expression ];
 ```sql
 SHOW MATERIALIZED VIEWS FROM schema_1;
 ```
+
+```bash
+        Name
+---------------------
+public.mv1
+public.mv2
+(2 rows)
+```
+
+<Note>
+Starting from v2.7.0, the `name` column in the output includes the schema name as a prefix (e.g., `public.mv_name`). This helps distinguish materialized views with the same name in different schemas when querying across multiple schemas in the search path.
+</Note>
