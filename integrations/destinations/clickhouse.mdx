@@ -10,36 +10,7 @@ description: " This guide describes how to sink data from RisingWave to ClickHou
 
 ClickHouse is a high-performance, column-oriented SQL database management system (DBMS) for online analytical processing (OLAP). For more information about ClickHouse, see [ClickHouse official website](https://clickhouse.com).
 
-You can integrate RisingWave with ClickHouse in two ways:
-
-- **Sink data from RisingWave to ClickHouse**: Use RisingWave's ClickHouse sink connector to push processed data to ClickHouse tables.
-- **Query RisingWave from ClickHouse**: Use ClickHouse's PostgreSQL table engine to pull data from RisingWave tables and materialized views.
-
-## Query RisingWave from ClickHouse
-
-ClickHouse can query RisingWave directly using the [PostgreSQL table engine](https://clickhouse.com/docs/engines/table-engines/integrations/postgresql). RisingWave supports the `COPY TO STDOUT` command, which allows ClickHouse to efficiently load data from RisingWave tables and materialized views.
-
-To create a ClickHouse table that queries RisingWave:
-
-```sql
-CREATE TABLE clickhouse_table
-ENGINE = PostgreSQL('risingwave_host:4566', 'database_name', 'table_name', 'user', 'password');
-```
-
-Replace the parameters with your RisingWave connection details:
-- `risingwave_host:4566`: Your RisingWave server address and port (default port is 4566)
-- `database_name`: The RisingWave database name
-- `table_name`: The RisingWave table or materialized view name
-- `user`: Your RisingWave username
-- `password`: Your RisingWave password
-
-ClickHouse will automatically use the PostgreSQL-compatible `COPY` command to load data from RisingWave. For more details on the `COPY` command, see [COPY](/sql/commands/sql-copy).
-
-## Sink data to ClickHouse
-
-This section describes how to use RisingWave's ClickHouse sink connector to push data from RisingWave to ClickHouse.
-
-### Prerequisites
+## Prerequisites
 
 * Ensure you already have a ClickHouse table that you can sink data to. For additional guidance on creating a table and setting up ClickHouse, refer to this [quick start guide](https://clickhouse.com/docs/en/getting-started/quick-start).
 * Ensure you have an upstream materialized view or source that you can sink data from.
@@ -48,7 +19,7 @@ This section describes how to use RisingWave's ClickHouse sink connector to push
 We highly recommend using the deduplication engine, like ReplacingMergeTree, in ClickHouse. This is because it addresses the potential problem of duplicate writes in ClickHouse during RisingWave recovery when primary keys can be duplicated.
 </Note>
 
-### Syntax
+## Syntax
 
 ```sql
 CREATE SINK [ IF NOT EXISTS ] sink_name
@@ -59,7 +30,7 @@ WITH (
 );
 ```
 
-### Parameters
+## Parameters
 
 | Parameter Names              | Description    |
 | :--------------------------- | :------------------- |
@@ -73,7 +44,7 @@ WITH (
 | commit\_checkpoint\_interval | **Optional**. Commit every N checkpoints (N > 0). Default value is 10. <br/>The behavior of this field also depends on the `sink_decouple` setting:<ul><li>If `sink_decouple` is true (the default), the default value of `commit_checkpoint_interval` is 10.</li> <li>If `sink_decouple` is set to false, the default value of `commit_checkpoint_interval` is 1.</li> <li>If `sink_decouple` is set to false and `commit_checkpoint_interval` is set to larger than 1, an error will occur.</li></ul> |
 | clickhouse.delete.column     | **Optional**. You can run an upsert sink using the ReplacingMergeTree engine. When using the ReplacingMergeTree engine, you can specify the delete column with this parameter.                      |
 
-### Upsert sinks
+## Upsert sinks
 
 While RisingWave supports `append-only` sinks for all ClickHouse engines, support for `upsert` sinks is limited. Additionally, for ReplacingMergeTree engines, an `append-only` sink will not insert duplicate data.
 
@@ -83,7 +54,7 @@ RisingWave supports `upsert` sinks for the following ClickHouse engines:
 * VersionedCollapsingMergeTree: `DELETE` operations are transformed into `INSERT with SIGN = -1`.
 * ReplacingMergeTree: `DELETE` operations are transformed into `INSERT with SIGN = 1`.
 
-### Supported table engines
+## Supported table engines
 
 RisingWave supports the following table engines of ClickHouse:
 
@@ -118,12 +89,15 @@ Among these, engines prefixed with "Shared" are exclusively available in ClickHo
 This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
+## Load data with `COPY TO STDOUT`
 
-### Examples
+ClickHouse will automatically use the PostgreSQL-compatible `COPY` command to load data from RisingWave. For more details on the `COPY` command, see [COPY](/sql/commands/sql-copy).
+
+## Examples
 
 This section includes several examples that you can use if you want to quickly experiment with sinking data to ClickHouse.
 
-#### Create a ClickHouse table (if you do not already have one)
+### Create a ClickHouse table (if you do not already have one)
 
 For example, let's consider creating a basic ClickHouse table with the primary key as `seq_id` and the ENGINE set to `ReplacingMergeTree`. It's important to emphasize that without using `ReplacingMergeTree` or other deduplication techniques, there is a significant risk of duplicate writes to ClickHouse.
 
@@ -138,7 +112,7 @@ CREATE TABLE demo_test(
 PRIMARY KEY (seq_id);
 ```
 
-#### Create an upstream materialized view or source
+### Create an upstream materialized view or source
 
 The following query creates an append-only source. For more details on creating a source, see [CREATE SOURCE](/sql/commands/sql-create-source).
 
@@ -182,7 +156,7 @@ WITH (
  ) FORMAT PLAIN ENCODE JSON;
 ```
 
-#### Append-only sink from append-only source
+### Append-only sink from append-only source
 
 If you have an append-only source and want to create an append-only sink, set `type = append-only` in the `CREATE SINK` SQL query.
 
@@ -199,7 +173,7 @@ WITH (
 );
 ```
 
-#### Append-only sink from upsert source
+### Append-only sink from upsert source
 
 If you have an upsert source and want to create an append-only sink, set `type = append-only` and `force_append_only = true`. This will ignore delete messages in the upstream, and turn upstream update messages into insert messages.
 
@@ -216,7 +190,7 @@ WITH (
 );
 ```
 
-#### Upsert sink from upsert source
+### Upsert sink from upsert source
 
 If you have an upsert source and want to create an upsert sink, set `type = upsert`. When the sink type is upsert, be sure to set the `primary_key` field to specify the primary key of the downstream ClickHouse table.
 
@@ -234,7 +208,7 @@ WITH (
 );
 ```
 
-### Data type mapping
+## Data type mapping
 
 | RisingWave Data Type   | ClickHouse Data Type                                                                          |
 | :--------------------- | :------------------------------ |

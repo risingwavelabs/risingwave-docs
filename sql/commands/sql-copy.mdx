@@ -1,6 +1,6 @@
 ---
 title: "COPY"
-description: "Use the `COPY` command to export query results to standard output in tab-separated values (TSV) format."
+description: "Use the `COPY` command to export query results to standard output in TSV format."
 ---
 
 The `COPY` command allows you to export query results from RisingWave to standard output (STDOUT) in tab-separated values (TSV) format. This is useful for integrating RisingWave with external systems that can consume PostgreSQL-compatible COPY output, such as ClickHouse's PostgreSQL table engine.
@@ -19,7 +19,7 @@ COPY ( query ) TO STDOUT;
 
 ## Output format
 
-The `COPY TO STDOUT` command outputs data in TSV (tab-separated values) format with the following characteristics:
+The `COPY TO STDOUT` command outputs data in TSV format with the following characteristics:
 
 - Fields are separated by tab characters (`\t`)
 - Rows are separated by newline characters (`\n`)
@@ -32,11 +32,9 @@ The `COPY TO STDOUT` command outputs data in TSV (tab-separated values) format w
 
 ## Examples
 
-### Basic example
-
 Export results from a simple query:
 
-```sql
+```sql Basic example
 COPY (SELECT id, name FROM users ORDER BY id) TO STDOUT;
 ```
 
@@ -48,11 +46,9 @@ This outputs data in TSV format:
 3	Charlie
 ```
 
-### Example with special characters
-
 When data contains special characters, they are properly escaped:
 
-```sql
+```sql Example with special characters
 CREATE TABLE t (id int, name string);
 INSERT INTO t VALUES 
   (1, 'name'), 
@@ -66,7 +62,7 @@ FLUSH;
 COPY (SELECT name, id FROM t ORDER BY id) TO STDOUT;
 ```
 
-Output:
+The output is:
 
 ```
 name	1
@@ -92,5 +88,4 @@ ClickHouse will automatically use `COPY () TO STDOUT` to efficiently load data f
 
 ## Related topics
 
-- [SELECT](/sql/commands/sql-select) — Query data from tables and materialized views
 - [ClickHouse sink](/integrations/destinations/clickhouse) — Send data from RisingWave to ClickHouse
