@@ -159,27 +159,6 @@ SELECT pg_typeof(row(true, 1, 'hello')); → `record`
 SELECT pg_typeof(array[1, 2]); → `integer[]`
 ```
 
-## `rw_cluster_id()`
-
-Returns the unique identifier (UUID) of the current RisingWave cluster. This function is useful when configuring OAuth authentication, as the cluster ID is required in the JWT token's audience (`aud`) claim.
-
-```sql
-rw_cluster_id() → varchar
-```
-
-```sql Example
-SELECT rw_cluster_id();
-----RESULT
- rw_cluster_id
---------------------------------------
- 550e8400-e29b-41d4-a716-446655440000
-(1 row)
-```
-
-The returned UUID follows the standard format (8-4-4-4-12 hexadecimal digits separated by hyphens) and remains consistent throughout the cluster's lifetime.
-
-For OAuth authentication setup, see [`CREATE USER`](/sql/commands/sql-create-user#oauth-audience-validation).
-
 ## `pg_relation_size`
 
 Computes the disk space used by one “fork” of the specified relation.
