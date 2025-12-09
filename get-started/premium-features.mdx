@@ -89,7 +89,7 @@ For self-managed deployments, you need to purchase and set up a license key to a
 
 ### Free trial
 
-RisingWave provides a trial of paid features for clusters with up to 4 Streaming Node CPUs, allowing you to evaluate these features on a small scale. When there are more CPUs in the cluster, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
+RisingWave provides a trial of paid features for clusters with up to 4 RWUs (RisingWave Units), allowing you to evaluate these features on a small scale. With 4 RWUs, your cluster can use up to 4 CPU cores and 16 GiB of total memory. When the cluster exceeds either of these limits, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
 
 - For a fresh deployment, this free trial is included automatically.
 - For an existing deployment upgrading to this version, you may need to refresh the license key by executing `ALTER SYSTEM SET license_key TO DEFAULT;` in the SQL shell to activate the trial.
@@ -243,11 +243,11 @@ SELECT rw_license();
 If the current license is valid, the output will look like this:
 
 ```json
-{"cpu_core_limit": null, "exp": 9999999999, "iss": "test.risingwave.com", "sub": "rw-test", "tier": "paid"}
+{"rwu_limit": null, "exp": 9999999999, "iss": "test.risingwave.com", "sub": "rw-test", "tier": "paid"}
 ```
 Otherwise, an error message will indicate the issue (e.g., invalid token, expired license).
 
-- For `cpu_core_limit`, this specifies the number of cores you can use for your cluster. Exceeding this limit will disable premium features.
+- For `rwu_limit`, this specifies the number of RWUs (RisingWave Units) you can use for your cluster. Each RWU corresponds to 1 CPU core and 4 GiB of memory. With an `rwu_limit` of X, your cluster may use up to X CPU cores **and** up to (X * 4) GiB of total memory. Exceeding either limit will disable premium features. See [RisingWave Unit (RWU)](/cloud/pricing#risingwave-unit-rwu) for more details.
 - For `exp`, this specifies the expiry time in Unix epoch seconds. You can use the `to_timestamp` function to convert the Unix epoch into a readable timestamp.
 
 ## Premium support packages
