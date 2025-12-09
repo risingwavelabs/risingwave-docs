@@ -26,7 +26,7 @@ Currently, RisingWave supports the following sink connectors:
 | [Elasticsearch](/integrations/destinations/elasticsearch) | `connector = 'elasticsearch'` |
 | [Google BigQuery](/integrations/destinations/bigquery) | `connector = 'bigquery'` |
 | [Google Pub/Sub](/integrations/destinations/google-pub-sub) | `connector = 'google_pubsub'` |
-| JDBC: [MySQL](/integrations/destinations/mysql) \| [PostgreSQL](/integrations/destinations/postgresql) \| [TiDB](/integrations/destinations/tidb) | `connector = 'jdbc'` |
+| JDBC: [MySQL](/integrations/destinations/mysql), [PostgreSQL](/integrations/destinations/postgresql), [SQL Server](/integrations/destinations/sql-server), [TiDB](/integrations/destinations/tidb)| `connector = 'jdbc'` |
 | [Kafka](/integrations/destinations/apache-kafka) | `connector = 'kafka'` |
 | [MQTT](/integrations/destinations/mqtt) | `connector = 'mqtt'` |
 | [NATS](/integrations/destinations/nats-and-nats-jetstream) | `connector = 'nats'` |
@@ -36,7 +36,7 @@ Currently, RisingWave supports the following sink connectors:
 | [Snowflake](/integrations/destinations/snowflake) | `connector = 'snowflake'` |
 | [Snowflake v2](/integrations/destinations/snowflake-v2) | `connector = 'snowflake_v2'` |
 | [StarRocks](/integrations/destinations/starrocks) | `connector = 'starrocks'` |
-| [Microsoft SQL Server](/integrations/destinations/sql-server) | `connector = 'sqlserver'` |
+| [Microsoft SQL Server](/integrations/destinations/sql-server) | `connector = 'jdbc'` or `'sqlserver'` |
 
 ## Sink decoupling
 
@@ -140,13 +140,17 @@ RisingWave implements batching strategies for file sinks, including [S3](/integr
 
 You can specify `path_partition_prefix` option in the `WITH` clause to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
 
-Regarding file naming rules, currently, files follow the naming pattern `/Option<path_partition_prefix>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
-   
+Files follow the naming pattern `/Option<path_partition_prefix>/<uuid>_<timestamp>.<suffix>`. `Timestamp` differentiates files batched by the rollover interval. 
+
+<Note>
+Starting from v2.7.0, the file naming scheme replaces the previous `executor_id` component with a UUID, meaning that further operations should no longer rely on `executor_id` in the filename.
+</Note>
+
 The output files look like below:
 
 ```
-path/2024-09-20/47244640257_1727072046.parquet
-path/2024-09-20/47244640257_1727072055.parquet
+path/2024-09-20/01935d2c-8f12-7890-abcd-ef1234567890_1727072046.parquet
+path/2024-09-20/01935d2c-8f12-7890-abcd-ef1234567890_1727072055.parquet
 ```
 
 ### Example
