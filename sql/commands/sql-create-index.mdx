@@ -38,6 +38,10 @@ Vector index is added in v2.6.0 and is in **[technical preview](/changelog/produ
 | USING index_method | Specify the index method. Supported methods are `default`(for standard index), `flat`(for vector index) and `HNSW`(for vector index).|
 | distance_type | Specify the similarity metric for vector indexes. Supported types are `l1`, `l2`, `inner_product`, and `cosine`.|
 
+## Backfill and isolation
+
+When creating an index, RisingWave will backfill historical data from the indexed table or materialized view. To improve isolation between the backfill phase and streaming phase, you can enable snapshot backfill by setting `SET streaming_use_snapshot_backfill=true;` before creating the index. This helps prevent resource contention between backfilling historical data and processing new streaming data. For more details, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+
 ## Examples
 
 ### Standard index
