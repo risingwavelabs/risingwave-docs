@@ -4,6 +4,10 @@ description: "RisingWave supports delivering data to downstream systems via its 
 sidebarTitle: Overview
 ---
 
+<Tip>
+**Try our SQL generator tool!** We've built an interactive [SQL Assistant](https://sql.risingwave.com/) to help you generate SQL statements for creating sinks. Check it out!
+</Tip>
+
 To stream data out of RisingWave, you must create a sink. A sink is an external target that you can send data to. Use the [CREATE SINK](/sql/commands/sql-create-sink) statement to create a sink. You need to specify what data to be exported, the format, and the sink parameters.
 
 Sinks become visible right after you create them, regardless of the backfilling status. Therefore, it's important to understand that the data in the sinks may not immediately reflect the latest state of their upstream sources due to the latency of the sink, connector, and backfilling process. To determine whether the process is complete and the data in the sink is consistent, refer to [Monitor statement progress](/operate/monitor-statement-progress).
@@ -22,15 +26,17 @@ Currently, RisingWave supports the following sink connectors:
 | [Elasticsearch](/integrations/destinations/elasticsearch) | `connector = 'elasticsearch'` |
 | [Google BigQuery](/integrations/destinations/bigquery) | `connector = 'bigquery'` |
 | [Google Pub/Sub](/integrations/destinations/google-pub-sub) | `connector = 'google_pubsub'` |
-| JDBC: [MySQL](/integrations/destinations/mysql) \| [PostgreSQL](/integrations/destinations/postgresql) \| [TiDB](/integrations/destinations/tidb) | `connector = 'jdbc'` |
+| JDBC: [MySQL](/integrations/destinations/mysql), [PostgreSQL](/integrations/destinations/postgresql), [SQL Server](/integrations/destinations/sql-server), [TiDB](/integrations/destinations/tidb)| `connector = 'jdbc'` |
 | [Kafka](/integrations/destinations/apache-kafka) | `connector = 'kafka'` |
 | [MQTT](/integrations/destinations/mqtt) | `connector = 'mqtt'` |
 | [NATS](/integrations/destinations/nats-and-nats-jetstream) | `connector = 'nats'` |
 | [Pulsar](/integrations/destinations/apache-pulsar) | `connector = 'pulsar'` |
 | [Redis](/integrations/destinations/redis) | `connector = 'redis'` |
+| [Amazon Redshift](/integrations/destinations/redshift) | `connector = 'redshift'` |
 | [Snowflake](/integrations/destinations/snowflake) | `connector = 'snowflake'` |
+| [Snowflake v2](/integrations/destinations/snowflake-v2) | `connector = 'snowflake_v2'` |
 | [StarRocks](/integrations/destinations/starrocks) | `connector = 'starrocks'` |
-| [Microsoft SQL Server](/integrations/destinations/sql-server) | `connector = 'sqlserver'` |
+| [Microsoft SQL Server](/integrations/destinations/sql-server) | `connector = 'jdbc'` or `'sqlserver'` |
 
 ## Sink decoupling
 
@@ -83,6 +89,25 @@ A sink will buffer incoming data within each barrier interval if the stream's in
 
 If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or `force_append_only`, no buffering is performed and the sink emits changes immediately as they arrive.
 
+### Force compaction
+
+You can set the `force_compaction` option to `true` to enable buffering and compaction even when the stream key matches the sink primary key exactly. This allows you to:
+
+- Reduce the number of output messages by compacting updates within each barrier interval
+- Emit at most one update per key within a barrier interval, simplifying downstream logic
+
+Example:
+
+```sql
+CREATE SINK sink_t_force_compaction FROM t_force_compaction WITH (
+  connector = 'kafka',
+  properties.bootstrap.server = 'message_queue:29092',
+  topic = 'test-rw-force-compaction-sink',
+  force_compaction = 'true',
+  primary_key = 'id'
+) FORMAT UPSERT ENCODE JSON;
+```
+
 ## Sink data in parquet or json format
 
 RisingWave supports sinking data in Parquet or JSON formats to cloud storage services, including [S3](/integrations/destinations/aws-s3), [Google Cloud Storage (GCS)](/integrations/destinations/google-cloud-storage), [Azure Blob Storage](/integrations/destinations/azure-blob), and [WebHDFS](/integrations/destinations/webhdfs). This eliminates the need for complex data lake setups. Once the data is saved, the files can be queried using RisingWave's batch processing engine through the `file_scan` API. You can also leverage third-party OLAP query engines to enhance data processing capabilities.
@@ -134,13 +159,17 @@ RisingWave implements batching strategies for file sinks, including [S3](/integr
 
 You can specify `path_partition_prefix` option in the `WITH` clause to organize files into subdirectories based on their creation time. The available options are month, day, or hour. If not specified, files will be stored directly in the root directory without any time-based subdirectories.
 
-Regarding file naming rules, currently, files follow the naming pattern `/Option<path_partition_prefix>/executor_id + timestamp.suffix`. `Timestamp` differentiates files batched by the rollover interval. 
-   
+Files follow the naming pattern `/Option<path_partition_prefix>/<uuid>_<timestamp>.<suffix>`. `Timestamp` differentiates files batched by the rollover interval. 
+
+<Note>
+Starting from v2.7.0, the file naming scheme replaces the previous `executor_id` component with a UUID, meaning that further operations should no longer rely on `executor_id` in the filename.
+</Note>
+
 The output files look like below:
 
 ```
-path/2024-09-20/47244640257_1727072046.parquet
-path/2024-09-20/47244640257_1727072055.parquet
+path/2024-09-20/01935d2c-8f12-7890-abcd-ef1234567890_1727072046.parquet
+path/2024-09-20/01935d2c-8f12-7890-abcd-ef1234567890_1727072055.parquet
 ```
 
 ### Example

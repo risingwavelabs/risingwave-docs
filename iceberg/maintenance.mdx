@@ -1,0 +1,91 @@
+---
+title: "Iceberg table maintenance"
+sidebarTitle: "Maintenance"
+description: "Configure compaction and snapshot expiration for Iceberg sinks and internal tables in RisingWave."
+---
+
+When RisingWave streams data into Iceberg, it generates many small data files and creates frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction and snapshot expiration.
+
+- **Compaction**: Merges small data files and delete files into larger, optimized files to improve read performance.
+- **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
+
+<Note>
+Automatic maintenance for Iceberg was added in RisingWave v2.5.0.
+</Note>
+
+## Automatic maintenance
+
+You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables.
+
+<Warning>
+**Dedicated Compactor Required**
+
+Automatic Iceberg maintenance requires a dedicated compactor service. Please contact us via the [RisingWave Slack workspace](https://www.risingwave.com/slack) to have the necessary resources allocated for your cluster.
+</Warning>
+
+### Parameters
+
+Configure automatic maintenance by specifying the following parameters in the `WITH` clause of a `CREATE SINK` or `CREATE TABLE ... ENGINE = iceberg` statement.
+
+| Parameter | Description |
+|---|---|
+| `enable_compaction` | Required. Set to `true` to enable automatic compaction and snapshot expiration. |
+| `compaction_interval_sec` | Optional. The interval in seconds between maintenance runs. Default: `3600`. |
+| `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
+| `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. To keep only the latest snapshot, set this to `0`. |
+| `snapshot_expiration_retain_last` | Optional. The minimum number of snapshots to retain, regardless of their age. |
+| `max_snapshots_num_before_compaction` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. |
+
+### Examples
+
+#### Internal Iceberg table
+
+```sql
+CREATE TABLE my_iceberg_table (
+    id INT PRIMARY KEY, 
+    name VARCHAR
+) WITH (
+    enable_compaction = true, 
+    compaction_interval_sec = 1800, 
+    enable_snapshot_expiration = true,
+    snapshot_expiration_retain_last = 10
+) ENGINE = iceberg;
+```
+
+#### Iceberg Sink
+
+```sql
+CREATE SINK my_iceberg_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_db',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    s3.access.key = 'your-key',
+    s3.secret.key = 'your-secret',
+    -- Maintenance settings
+    enable_compaction = true, 
+    compaction_interval_sec = 1800, 
+    enable_snapshot_expiration = true,
+    snapshot_expiration_retain_last = 10
+);
+```
+
+## Manual maintenance
+
+In addition to automatic background maintenance, you can trigger compaction and snapshot expiration manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
+
+This gives you on-demand control over table optimization and storage cleanup.
+
+```sql
+-- Compact small files for a table
+VACUUM my_iceberg_table;
+
+-- Compact files and expire snapshots older than 2 days
+VACUUM my_iceberg_table RETAIN 2 DAYS;
+```
+

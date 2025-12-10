@@ -1,7 +1,6 @@
 ---
-title: "Deploy RisingWave on Kubernetes with Helm"
+title: "Kubernetes (Helm)"
 description: "This guide walks you through the process of deploying RisingWave in a single Kubernetes cluster with [Helm](https://helm.sh/)."
-sidebarTitle: Kubernetes with Helm
 ---
 
 ## Prerequisites
@@ -45,12 +44,15 @@ kubectl create namespace risingwave
   <Step>
 Customize your configuration for the RisingWave deployment by editing the [values.yml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml) file.
    * **Customize meta store**: The meta store in RisingWave holds metadata for cluster operations. See [Configuration](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-meta-store) for all the available options and [Examples](https://github.com/risingwavelabs/helm-charts/tree/main/examples/meta-stores) for detailed usage of meta stores.
+      <Note>
+      If using PostgreSQL as the meta store, make sure the PostgreSQL user configured in your Helm values has at least `USAGE` permission on the `public` schema.
+      </Note>
    * **Customize state store**: The state store in RisingWave serves as a fault-tolerant storage system for preserving system state. See [Configuration](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-state-store) for all the available options and [Examples](https://github.com/risingwavelabs/helm-charts/tree/main/examples/state-stores) for detailed usage of state stores.
    * **Bundled PostgreSQL and MinIO**: If you want to use `PostgreSQL` as the meta store and `MinIO` as the state store, the Helm chart for RisingWave offers the option to bundle them together. This allows for a quick and easy setup of the Helm chart. See [Configuration](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#bundled-etcdpostgresqlminio-as-stores) for more details. To enable this feature, set `tags.bundle=true`.
+      <Note>
+      Before using the bundled `PostgreSQL` and `MinIO`, and any local stores, ensure that you have implemented the [Dynamic Volume Provisioning](https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/).
+      </Note>
 
-<Note>
-Before using the bundled `PostgreSQL` and `MinIO`, and any local stores, ensure that you have implemented the [Dynamic Volume Provisioning](https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/).
-</Note>
   </Step>
   <Step>
 Install the latest RisingWave Helm chart:
@@ -116,7 +118,7 @@ You can monitor the RisingWave cluster using the monitoring stack. For details, 
 
 ## Optional: Resize a node
 
-By editing the configurations in [values.yml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml), you can resize a worker node. The compactor node configurations are in the `compactorComponent` section. Configurations for the meta node and compute node are in `metaComponent` and `computeComponent` sections respectively. See [Customize pods of different components](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-pods-of-different-components) for details.
+By editing the configurations in [values.yml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml), you can resize a worker node. The Compactor Node configurations are in the `compactorComponent` section. Configurations for the Meta Node and Serving / Streaming Node are in `metaComponent` and `computeComponent` sections respectively. See [Customize pods of different components](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-pods-of-different-components) for details.
 
 ```yaml
 # To resize other types of node, please replace the name with
@@ -134,4 +136,10 @@ compactorComponent:
       memory: 64Mi
 
 ```
-Please note that increasing the CPU resource will not automatically increase the parallelism of existing materialized views. When scaling up (adding more CPU cores) a compute node, you should perform the scaling by following the instructions in [Cluster scaling](/deploy/k8s-cluster-scaling).
+Please note that increasing the CPU resource will not automatically increase the parallelism of existing materialized views. When scaling up (adding more CPU cores) a Streaming Node, you should perform the scaling by following the instructions in [Cluster scaling](/deploy/k8s-cluster-scaling).
+
+## Set up RisingWave Console
+
+After deploying your RisingWave cluster with Helm, we recommend setting up RisingWave Console. The Console provides a web interface for managing and monitoring your cluster. It simplifies daily operations and helps you quickly collect and share diagnostic information when contacting RisingWave support team.
+
+For detailed instructions, see [RisingWave Console setup guide](/risingwave-console/introduction).

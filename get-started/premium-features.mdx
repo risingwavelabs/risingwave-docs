@@ -39,6 +39,10 @@ A lightweight version is available under the Apache 2.0 License: [risingwave-con
 
 The [**Elastic disk cache**](/get-started/disk-cache) feature harnesses modern hardware to dramatically reduce S3 access costs - by up to **90%** - while enhancing performance and improving robustness. [Contact us](https://risingwave.com/contact-us/) to learn more.
 
+The [**State table memory preload**](/deploy/node-specific-configurations#state-table-memory-preload) feature preloads state tables into memory to accelerate query processing and stateful operator performance. [Contact us](https://risingwave.com/contact-us/) to learn more.
+
+The [**Locality backfill**](/performance/best-practices#locality-backfill) feature makes backfilling more efficient by preserving data locality across the entire processing pipeline.
+
 ### SQL and security
 
 - [Time travel queries](/processing/time-travel-queries)
@@ -48,8 +52,11 @@ The [**Elastic disk cache**](/get-started/disk-cache) feature harnesses modern h
 
 ### Schema management
 
-- [Automatic schema changes for PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc#automatic-schema-changes)
-- [Automatic schema changes for MySQL CDC](/ingestion/sources/mysql/mysql-cdc#automatic-schema-changes)
+- [Auto schema change for PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc#auto-schema-change)
+- [Auto schema change for MySQL CDC](/ingestion/sources/mysql/mysql-cdc#auto-schema-change)
+- [Auto schema change for Elasticsearch Sink](/integrations/destinations/elasticsearch#auto-schema-change)
+- [Auto schema change for Snowflake Sink](/integrations/destinations/snowflake-v2#auto-schema-change)
+- [Auto schema change for Redshift Sink](/integrations/destinations/redshift#auto-schema-change)
 - [AWS Glue Schema Registry for Kafka Source](/ingestion/sources/kafka-config#use-aws-glue-schema-registry) and [Kafka Sink](/integrations/destinations/apache-kafka#use-aws-glue-schema-registry)
 
 ### Connectors
@@ -66,7 +73,6 @@ While the following connectors are premium features, they are available to users
 - [Sink to SQL Server](/integrations/destinations/sql-server)
 - [Direct SQL Server CDC source connector](/ingestion/sources/sql-server-cdc)
 - [Glue catalog for Iceberg](/iceberg/catalogs#glue-catalog)
-- [Iceberg compaction](/iceberg/create-manage-native-iceberg-tables#compaction-for-native-iceberg-tables)
 
 For users who are already using these features in 1.9.x or earlier versions, rest assured that the functionality of these features will be intact if you stay on the version. If you choose to upgrade to v2.0 or later versions, an error will show up to indicate you need a license to use the features.
 
@@ -83,7 +89,7 @@ For self-managed deployments, you need to purchase and set up a license key to a
 
 ### Free trial
 
-RisingWave provides a trial of paid features for clusters with up to 4 compute node CPUs, allowing you to evaluate these features on a small scale. When there are more CPUs in the cluster, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
+RisingWave provides a trial of paid features for clusters with up to 4 RWUs (RisingWave Units), allowing you to evaluate these features on a small scale. With 4 RWUs, your cluster can use up to 4 CPU cores and 16 GiB of total memory. When the cluster exceeds either of these limits, the trial will be unavailable for both existing and future jobs, and you will need to acquire a license key to continue using the paid features.
 
 - For a fresh deployment, this free trial is included automatically.
 - For an existing deployment upgrading to this version, you may need to refresh the license key by executing `ALTER SYSTEM SET license_key TO DEFAULT;` in the SQL shell to activate the trial.
@@ -125,7 +131,7 @@ Depending on the deployment, there are several different ways of setting license
 
 3. Apply the RisingWave object to Kubernetes.
 
-The pod of the meta node (or standalone node) will restart to reflect the license key.
+The pod of the Meta Node (or standalone node) will restart to reflect the license key.
 
 If you'd like to renew the license key afterwards, you could simply update the content of the secret created above. The change will be propagated to and loaded by RisingWave automatically.
 
@@ -169,7 +175,7 @@ For detailed instructions of deploying RisingWave with Helm, please check the [D
     helm upgrade -f values.yaml --reuse-values <release-name> risingwavelabs/risingwave
     ```
 
-The pod of the meta node (or standalone node) will restart afterwards to set the license key.
+The pod of the Meta Node (or standalone node) will restart afterwards to set the license key.
 
 If you'd like to renew the license key afterwards, you could simply update the content of the secret created above. The change will be propagated to and loaded by RisingWave automatically.
 
@@ -191,9 +197,9 @@ Note you'll need to rotate the license by yourself with the same SQL command bef
 There are several ways to set your license key to a local RisingWave:
 
 1. Add `system.license_key` to your TOML configuration file before launching a new RisingWave
-2. Set `RW_LICENSE_KEY` environment variable on meta node
-3. Use the `--license-key-path` CLI option or the `RW_LICENSE_KEY_PATH` environment variable on meta node to specify a file holding the license key.
-   Changes to the file will be monitored and meta node will reload the license key. This helps streamline license key rotation.
+2. Set `RW_LICENSE_KEY` environment variable on Meta Node
+3. Use the `--license-key-path` CLI option or the `RW_LICENSE_KEY_PATH` environment variable on Meta Node to specify a file holding the license key.
+   Changes to the file will be monitored and Meta Node will reload the license key. This helps streamline license key rotation.
 
 When the `--license-key-path` option or the `RW_LICENSE_KEY_PATH` environment variable is specified, any manual configuration of the license key through
 system parameters (`license_key`), the initial configuration (`system.license_key`), or the `RW_LICENSE_KEY` environment variable will be rejected.
@@ -204,13 +210,27 @@ system parameters (`license_key`), the initial configuration (`system.license_ke
 
 ### Verify license key
 
-To check if your license key is valid, run:
+To check if your license key is valid and test the availability of a specific feature, run:
 
 ```sql
-SELECT rw_test_paid_tier();
+SELECT rw_test_feature('feature_name');
 ```
 
-A result of `t` means the key is valid; an error message indicates an invalid key.
+Replace `feature_name` with the name of the feature you want to test. A result of `t` means the feature is available; an error message indicates the feature is not available based on your license.
+
+<Note>
+`rw_test_paid_tier()` will be deprecated in a future release. Use `rw_test_feature()` instead.
+</Note>
+
+### View available features
+
+To view all license-gated features and their availability, query the `rw_features` system table:
+
+```sql
+SELECT * FROM rw_features;
+```
+
+This returns a list of all features with their names, descriptions, and availability status based on your current license.
 
 ### Retrieve license details
 
@@ -223,9 +243,12 @@ SELECT rw_license();
 If the current license is valid, the output will look like this:
 
 ```json
-{"cpu_core_limit": null, "exp": 9999999999, "iss": "test.risingwave.com", "sub": "rw-test", "tier": "paid"}
+{"rwu_limit": null, "exp": 9999999999, "iss": "test.risingwave.com", "sub": "rw-test", "tier": "paid"}
 ```
 Otherwise, an error message will indicate the issue (e.g., invalid token, expired license).
+
+- For `rwu_limit`, this specifies the number of RWUs (RisingWave Units) you can use for your cluster. Each RWU corresponds to 1 CPU core and 4 GiB of memory. With an `rwu_limit` of X, your cluster may use up to X CPU cores **and** up to (X * 4) GiB of total memory. Exceeding either limit will disable premium features. See [RisingWave Unit (RWU)](/cloud/pricing#risingwave-unit-rwu) for more details.
+- For `exp`, this specifies the expiry time in Unix epoch seconds. You can use the `to_timestamp` function to convert the Unix epoch into a readable timestamp.
 
 ## Premium support packages
 

@@ -1,0 +1,83 @@
+---
+title: "REST catalog"
+sidebarTitle: "REST catalog"
+description: "Connect RisingWave to a REST-compliant catalog for Apache Iceberg."
+---
+
+A REST catalog uses a RESTful API to manage Iceberg table metadata. You can use a REST catalog with RisingWave when creating an Iceberg `SOURCE`, `SINK`, or `CONNECTION` (for internal Iceberg tables).
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Example
+
+To create a sink that uses a REST catalog, set `catalog.type` to `'rest'` and provide the `catalog.uri` for your REST catalog service.
+
+```sql
+CREATE SINK my_rest_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```
+
+## Vended credentials
+
+<Note>
+Added in v2.7.0.
+</Note>
+
+Vended credentials allow the REST catalog server to provide temporary credentials for accessing object storage, rather than requiring you to manage credentials directly in RisingWave.
+
+To enable vended credentials, set `vended_credentials = true` along with `catalog.type = 'rest'`:
+
+```sql Example: Source
+CREATE SOURCE iceberg_t
+WITH (
+    connector = 'iceberg',
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    vended_credentials = true,
+    s3.path.style.access = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181/catalog',
+    warehouse.path = '<warehouse_name>',
+    database.name = 'ns',
+    table.name = 't',
+);
+```
+
+```sql Example: Sink
+CREATE SINK sink_t from t WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    force_append_only = 'true',
+    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    s3.region = 'ap-southeast-2',
+    vended_credentials = true,
+    s3.path.style.access = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181/catalog',
+    warehouse.path = '<warehouse_name>',
+    database.name = 'ns',
+    table.name = 't',
+    create_table_if_not_exists='true',
+    commit_checkpoint_interval = 1,
+);
+```
+
+<Card
+  title="Deploying a Lakekeeper REST catalog"
+  href="/iceberg/catalogs/lakekeeper"
+>
+  For a complete, step-by-step guide to deploying a self-hosted REST catalog with Lakekeeper, see this topic.
+</Card>

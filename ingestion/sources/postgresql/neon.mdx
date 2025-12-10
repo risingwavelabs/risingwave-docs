@@ -6,11 +6,11 @@ description: "How to set up a serverless Neon PostgreSQL database as a source fo
 
 To connect RisingWave to a [Neon](https://neon.tech/) database for Change Data Capture (CDC), you first need to configure your Neon project.
 
-### 1. Create a Neon project
+## 1. Create a Neon project
 
 If you haven't already, sign up for a Neon account and create a project. This will provision a new serverless PostgreSQL database. Note your project's connection details.
 
-### 2. Enable logical replication
+## 2. Enable logical replication
 
 Connect to your Neon database using the provided SQL Editor or any compatible `psql` client.
 
@@ -21,7 +21,7 @@ ALTER SYSTEM SET wal_level = logical;
 ```
 Your Neon project may need to restart for this change to apply.
 
-### 3. Configure a replication user
+## 3. Configure a replication user
 
 Create or alter a user, granting them the necessary roles for replication.
 
@@ -34,7 +34,7 @@ ALTER USER <user_name> WITH REPLICATION LOGIN;
 ```
 You can verify the roles by running `\du` in `psql`.
 
-### 4. Grant required privileges
+## 4. Grant required privileges
 
 Finally, grant the user the necessary privileges on the database and schemas you want to capture changes from.
 
@@ -49,7 +49,7 @@ GRANT USAGE ON SCHEMA <schema_name> TO <user_name>;
 GRANT SELECT ON ALL TABLES IN SCHEMA <schema_name> TO <user_name>;
 ```
 
-### Next step
+## Next step
 
 Now that your Neon database is configured, you can proceed to connect RisingWave.
 

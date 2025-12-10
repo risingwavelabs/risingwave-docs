@@ -87,6 +87,30 @@ RisingWave now supports the following configurations:
 | :---------------------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | unsafe\_enable\_strict\_consistency | true    | Control the strictness of stream consistency. When set to false, data inconsistency like double-insertion or double-deletion with the same primary keys will be tolerated. |
 
+### State table memory preload
+
+<Note>
+Added in v2.6.0.
+</Note>
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+RisingWave supports preloading state tables into memory to accelerate query processing and stateful operator performance. When enabled, all rows of specified state tables are loaded into memory at initialization, reducing read latency for hot tables.
+
+Configurations can be set in `[streaming.developer]` section in the configuration file. For example:
+
+| Configuration                            | Description                             |
+|------------------------------------------|-----------------------------------------|
+| `default_enable_mem_preload_state_table` | Whether to enable preloading all rows in memory for state tables by default. If `true`, all capable state tables preload their state into memory. |
+| `mem_preload_state_table_ids_whitelist`  | List of state table IDs to **enable** preloading all rows in memory. Only takes effect when `default_enable_mem_preload_state_table` is `false`. |
+| `mem_preload_state_table_ids_blacklist`  | List of state table IDs to **disable** preloading all rows in memory. Only takes effect when `default_enable_mem_preload_state_table` is `true`. |
+
+Using this feature involves certain configuration steps and considerations. To ensure it is set up correctly and used effectively, please contact our [support team](mailto:cloud-support@risingwave-labs.com) for guidance.
+
 ### Storage configurations
 
 Storage configurations can be set in `[storage]` and `[storage.xxx]` sections.
@@ -153,7 +177,7 @@ Below is an example of the cache refill configuration for your reference.
 
 #### Other storage configurations
 
-Except for the above, RisingWave also provides some other storage configurations to help control the overall buffer and cache limits. Please see [Dedicated compute node](/operate/dedicated-compute-node) for more.
+Except for the above, RisingWave also provides some other storage configurations to help control the overall buffer and cache limits. Please see [Dedicated Compute Nodes](/operate/dedicated-compute-node) for more.
 
 ### UDF configurations
 

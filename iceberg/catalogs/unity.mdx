@@ -1,0 +1,40 @@
+---
+title: "Databricks Unity Catalog"
+sidebarTitle: "Databricks Unity Catalog"
+description: "Connect RisingWave to Databricks Unity Catalog for Apache Iceberg."
+---
+
+You can sink data from RisingWave directly to a Databricks-managed Iceberg table using Unity Catalog. RisingWave acts as a streaming ETL engine, writing data directly into your Unity Catalog.
+
+For a complete guide on configuring the full integration, see [Integrate with Databricks](/iceberg/integ-databricks).
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Example
+
+To create a sink that writes to a Databricks Unity Catalog table, set `catalog.type` to `'rest'` with `vended_credentials = true` and provide your Unity Catalog REST endpoint and credentials. Note that currently, only `append-only` sinks are supported for this integration.
+
+<Note>
+`vended_credentials` is added in v2.7.0. For more information, see [Vended credentials](/iceberg/catalogs/rest#vended-credentials).
+</Note>
+
+```sql
+CREATE SINK databricks_uc_sink FROM my_source
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+  force_append_only = 'true',
+  warehouse.path = '<your-uc-catalog-name>',
+  database.name = '<your-schema-name>',
+  table.name = '<your-table-name>',
+  s3.region = 'ap-southeast-1',
+  catalog.type = 'rest',
+  vended_credentials = true,
+  catalog.uri = 'https://<workspace-url>/api/2.1/unity-catalog/iceberg-rest',
+  catalog.oauth2_server_uri = 'https://<workspace-url>/oidc/v1/token',
+  catalog.credential= '<oauth_client_id>:<oauth_client_secret>',
+  catalog.scope='all-apis'
+);
+```

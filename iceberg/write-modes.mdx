@@ -1,0 +1,138 @@
+---
+title: "Iceberg write modes"
+sidebarTitle: "Write modes"
+description: "Understand copy-on-write (CoW) and merge-on-read (MoR) write modes for Iceberg sinks and tables in RisingWave."
+---
+
+RisingWave supports two write modes for Iceberg sinks and tables, allowing you to balance write performance, read performance, and data consistency based on your use case.
+
+- **Merge-on-read (MoR)**: Prioritizes write performance by writing updates and deletes to separate delta files, which are merged with base files at read time. This is the default mode.
+- **Copy-on-write (CoW)**: Prioritizes read performance by rewriting data files to apply updates and deletes.
+
+## Merge-on-read (MoR)
+
+In merge-on-read mode, updates and deletes are written to separate delta files (delete files) instead of rewriting existing data files. When the data is queried, the engine merges the base data files with the delete files on the fly to produce the latest view.
+
+This is the default write mode in RisingWave.
+
+### How it works
+
+This mode is efficient for continuous ingestion because it avoids the cost of rewriting data for every update or delete. However, queries must apply delete files at read time, which can add overhead. MoR is ideal when downstream systems, such as query engines, natively support Iceberg deletes and can efficiently reconstruct the latest data.
+
+### Example
+
+As this is the default mode, you do not need to specify the `write_mode` parameter. However, you can explicitly set it to `'merge-on-read'`.
+
+```sql
+-- Create an Iceberg table with MoR
+CREATE TABLE t_merge_on_read (
+    id INT PRIMARY KEY,
+    value STRING
+) WITH (
+    write_mode = 'merge-on-read'
+) ENGINE = iceberg;
+```
+
+```sql
+-- Create an Iceberg sink with MoR
+CREATE SINK rest_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    catalog.credential = 'username:password',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    enable_compaction = true,
+    write_mode = 'merge-on-read',
+    commit_checkpoint_interval = 10,
+    compaction_interval_sec = 30,
+    enable_snapshot_expiration = true,
+    snapshot_expiration_max_age_millis=0
+);
+```
+
+## Copy-on-write (CoW)
+
+In copy-on-write mode, updates and deletes are handled by rewriting the data files that contain the affected rows. This ensures that every snapshot presents a clean, delete-free view of the data, optimizing read performance for external consumers.
+
+### How it works
+
+RisingWave uses two branches to manage data:
+
+- The **ingestion branch** handles continuous writes, including both data files and delete files.
+- The **main branch** provides a clean, queryable view by periodically compacting the ingestion branch, rewriting data files to apply deletes, and exposing only the merged results.
+
+This approach is ideal for workloads with frequent upserts where downstream systems require a stable and consistent view. The trade-off is higher write amplification and potential latency during compaction.
+
+### Example
+
+To use Copy-on-Write mode, set the parameter `write_mode = 'copy-on-write'`.
+
+```sql
+-- Create an Iceberg table with CoW
+CREATE TABLE t_copy_on_write (
+    a INT PRIMARY KEY,
+    b INT
+) WITH (
+    commit_checkpoint_interval = 10,
+    compaction_interval_sec = 30,
+    write_mode = 'copy-on-write'
+) ENGINE = iceberg;
+```
+
+```sql
+-- Create an Iceberg sink with CoW
+CREATE SINK rest_sink FROM my_data
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    catalog.credential = 'username:password',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    enable_compaction = true,
+    write_mode = 'copy-on-write',
+    commit_checkpoint_interval = 10,
+    compaction_interval_sec = 30,
+    enable_snapshot_expiration = true,
+    snapshot_expiration_max_age_millis=0
+);
+```
+
+## Choosing a write mode
+
+Choose the write mode that best fits your workload and query patterns.
+
+*   **Use Merge-on-Read (MoR) if**:
+    *   Your primary concern is write performance and low ingestion latency.
+    *   Downstream query engines can efficiently process delete files.
+    *   Workloads are write-heavy with frequent updates or deletes.
+
+*   **Use Copy-on-Write (CoW) if**:
+    *   Your primary concern is read performance.
+    *   Downstream consumers do not efficiently handle delete files.
+    *   You can tolerate higher write amplification and ingestion latency.
+    *   Workloads are read-heavy with infrequent updates.
+
+## Comparison
+
+| Feature | Merge-on-Read (MoR) | Copy-on-Write (CoW) |
+|---|---|---|
+| **Primary goal** | Optimize write performance | Optimize read performance |
+| **Write amplification** | Low (writes delta files) | High (data files are rewritten) |
+| **Read performance** | Slower (requires merging data and delete files) | Faster (no merge needed at read time) |
+| **Ingestion latency** | Lower (writes are faster) | Higher (due to compaction) |
+| **Storage overhead** | Higher (stores base and delta files) | Lower (no separate delete files) |
+| **Default mode** | Yes | No |
+| **Ideal for** | Write-heavy workloads, real-time ingestion | Read-heavy workloads, BI dashboards |

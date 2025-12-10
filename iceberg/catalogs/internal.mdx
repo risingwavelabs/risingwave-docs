@@ -1,0 +1,75 @@
+---
+title: "Built-in catalog"
+sidebarTitle: "Built-in catalog"
+description: "Use RisingWave's built-in catalog to create and manage internal Iceberg tables with zero external dependencies."
+---
+
+RisingWave includes a built-in Iceberg catalog that simplifies the creation and management of internal Iceberg tables. It utilizes RisingWave’s internal PostgreSQL-compatible metastore to serve as a standard Iceberg JDBC catalog, removing the need for you to deploy or manage any external catalog services.
+
+This is the simplest way to get started with internal Iceberg tables in RisingWave.
+
+<Note>
+You can use this catalog configuration when creating a `CONNECTION` for managing internal Iceberg tables.
+</Note>
+
+## How it works
+
+When you create an internal Iceberg table using a connection with `hosted_catalog = true`, RisingWave automatically manages the Iceberg metadata within its own metastore.
+
+- **JDBC endpoint**: The metastore exposes a JDBC endpoint that is compatible with the Iceberg JDBC catalog specification.
+- **External access**: Because it uses a standard protocol, external query engines like Spark or Trino can connect to this endpoint to discover and query the Iceberg tables that RisingWave manages.
+
+## Create and test your table
+
+To use the built-in catalog, you create a `CONNECTION` with `hosted_catalog = true` and then create an internal Iceberg table.
+
+### 1. Create a connection
+
+Define a connection that specifies your object storage backend. This example uses AWS S3.
+
+```sql
+CREATE CONNECTION built_in_catalog_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = 'your-key',
+    s3.secret.key = 'your-secret',
+    hosted_catalog = true
+);
+```
+
+For details on configuring other storage backends, see [Object storage configuration](/iceberg/object-storage).
+
+### 2. Set the default connection
+
+Set the default connection for your session to simplify table creation.
+
+```sql
+SET iceberg_engine_connection = 'public.built_in_catalog_conn';
+```
+
+### 3. Create and query the table
+
+Create an internal Iceberg table and write data to it.
+
+```sql
+-- Create a table
+CREATE TABLE my_iceberg_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+) ENGINE = iceberg;
+
+-- Insert data
+INSERT INTO my_iceberg_table VALUES (1, 'alice'), (2, 'bob');
+FLUSH;
+
+-- Query the data
+SELECT * FROM my_iceberg_table;
+```
+
+<Card
+  title="Complete Guide: Create and manage internal Iceberg tables"
+  href="/iceberg/internal-iceberg-tables#create-an-internal-iceberg-table"
+>
+  For a complete, step-by-step guide to creating and working with internal Iceberg tables, see this topic.
+</Card>

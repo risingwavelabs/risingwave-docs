@@ -13,7 +13,7 @@ SHOW TABLES [ FROM schema_name ] [ LIKE_expression ];
 
 | Parameter or clause | Description                                                                                                                                                                               |
 | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _schema\_name_      | The schema in which tables will be listed. If not given, tables from the default schema, public, will be listed.                                                                          |
+| _schema\_name_      | The schema in which tables will be listed. If not specified, tables from all schemas in the current schema [search_path](https://docs.risingwave.com/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters:~:text=multi%20point%20lookup.-,search_path,-%E2%80%9D%24user%E2%80%9D%2C%20public) will be listed. |
 | LIKE\_expression    | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
 
 ## Example
@@ -23,5 +23,13 @@ SHOW TABLES FROM public LIKE 't_';
 ```
 
 ```bash
-t1
+        Name
+---------------------
+public.t1
+public.t2
+(2 rows)
 ```
+
+<Note>
+Starting from v2.7.0, the `name` column in the output includes the schema name as a prefix (e.g., `public.t1`). This helps distinguish tables with the same name in different schemas when querying across multiple schemas in the search path.
+</Note>

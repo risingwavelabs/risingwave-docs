@@ -1,0 +1,67 @@
+---
+title: "ALTER FRAGMENT"
+description: The `ALTER FRAGMENT` command modifies the configuration of streaming fragments at runtime.
+sidebarTitle: "ALTER FRAGMENT"
+---
+
+## Syntax
+
+```sql
+ALTER FRAGMENT fragment_id [, ...]
+    alter_option;
+```
+
+_`alter_option`_ depends on the operation you want to perform on the fragment.
+
+## Clauses
+
+### `SET PARALLELISM`
+
+```sql
+ALTER FRAGMENT fragment_id [, ...]
+SET PARALLELISM { TO | = } { parallelism_number | ADAPTIVE | DEFAULT };
+```
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET PARALLELISM** | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for specific streaming [fragments](/reference/key-concepts#fragments). This allows fine-grained control over fragment execution, enabling targeted scaling of individual fragments within a streaming job. |
+| _fragment\_id_ | The ID of the fragment to modify. You can specify multiple fragment IDs separated by commas. To find fragment IDs, query the [`rw_fragment_parallelism`](/sql/system-catalogs/rw-catalog#available-risingwave-catalogs) system table. |
+| _parallelism\_number_ | A fixed number (e.g., 1, 2, 3) that locks the fragment's parallelism at that value. Setting it to 0 is equivalent to ADAPTIVE. |
+| **ADAPTIVE** | Expands the fragment's parallelism to all available units in the cluster. |
+| **DEFAULT** | Resets the fragment's parallelism to inherit from its parent streaming job's parallelism setting. |
+
+```sql Example
+-- Set the parallelism of fragment 5 to 4
+ALTER FRAGMENT 5 SET PARALLELISM = 4;
+
+-- Set the parallelism of multiple fragments to adaptive
+ALTER FRAGMENT 10, 11, 12 SET PARALLELISM = ADAPTIVE;
+
+-- Reset fragment parallelism to inherit from the job
+ALTER FRAGMENT 7 SET PARALLELISM = DEFAULT;
+```
+
+### `SET BACKFILL_RATE_LIMIT`
+
+```sql
+ALTER FRAGMENT fragment_id
+SET BACKFILL_RATE_LIMIT { TO | = } rate_limit_number;
+```
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET BACKFILL_RATE_LIMIT** | This clause controls the rate limit for backfilling operations on the specified fragment. |
+| _fragment\_id_ | The ID of the fragment to modify. Only a single fragment ID is supported for this operation. |
+| _rate\_limit\_number_ | The rate limit value in records per second. Set to 0 to pause backfilling. |
+
+```sql Example
+-- Set backfill rate limit for fragment 3
+ALTER FRAGMENT 3 SET BACKFILL_RATE_LIMIT = 1000;
+
+-- Pause backfilling for fragment 3
+ALTER FRAGMENT 3 SET BACKFILL_RATE_LIMIT = 0;
+```
+
+## See also
+
+- [System catalogs](/sql/system-catalogs/rw-catalog) — View fragment information using `rw_fragment_parallelism` and `rw_fragments`

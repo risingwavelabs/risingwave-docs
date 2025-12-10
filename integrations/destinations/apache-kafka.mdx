@@ -138,6 +138,10 @@ You can specify the following configurations in the `FORMAT PLAIN ENCODE AVRO (.
 | `aws.credentials.secret_access_key` | Your AWS secret access key. |
 | `aws.credentials.role.arn` | The Amazon Resource Name (ARN) of the role to assume. For example, `arn:aws:iam::123456123456:role/MyGlueRole`. This IAM role shall be granted permissions for the action `glue:GetSchemaVersion`. |
 
+<Note>
+In RisingWave Cloud, AWS credentials (`aws.credentials.access_key_id`, `aws.credentials.secret_access_key`) are required and cannot be omitted. In self-hosted deployments, you may omit them to rely on the AWS SDK default credential chain (for example, EC2 instance profile or environment variables).
+</Note>
+
 **ARN to the schema**:
 
 | Parameter             |Description   |
@@ -170,7 +174,7 @@ When creating an append-only Protobuf sink, the following options can be used fo
 | schema.registry.name.strategy | **Optional**. Accepted options include topic\_name\_strategy (default), record\_name\_strategy, and topic\_record\_name\_strategy.                                                             |
 
 <Note>
-The `file://` format is not recommended for production use. If it is used, it needs to be available for both meta and compute nodes.
+The `file://` format is not recommended for production use. If it is used, it needs to be available for both Meta and Compute Nodes.
 </Note>
 
 Syntax:

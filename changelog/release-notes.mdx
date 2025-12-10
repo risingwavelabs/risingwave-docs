@@ -3,6 +3,71 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v2.6.0" description="2025-09-25">
+
+Support for certain earlier version will end following the release of v2.6, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+
+## SQL features
+
+- SQL commands:
+    - **Technical preview**: Supports using `CREATE INDEX` to create vector indexes, including flat and HNSW methods, and allows creating vector indexes on function expressions. [#22432](https://github.com/risingwavelabs/risingwave/pull/22432), [#22022](https://github.com/risingwavelabs/risingwave/pull/22022), [#22808](https://github.com/risingwavelabs/risingwave/pull/22808)
+    - `CREATE SINK` supports `auto.schema.change` option for Elasticsearch, Redshift, and Snowflake. [#22611](https://github.com/risingwavelabs/risingwave/pull/22611)
+    - `ALTER SOURCE` and `ALTER TABLE` support `CONNECTOR WITH` clause. [#20780](https://github.com/risingwavelabs/risingwave/pull/20780)
+    - `DROP CONNECTION` supports `CASCADE` option to automatically drop dependent objects, except for Iceberg connections. [#22557](https://github.com/risingwavelabs/risingwave/pull/22557)
+    - `DROP FUNCTION` supports `CASCADE` option to automatically remove dependent objects. [#22991](https://github.com/risingwavelabs/risingwave/pull/22991)
+    - Supports using multiple version columns to resolve upsert conflicts. [#22931](https://github.com/risingwavelabs/risingwave/pull/22931)
+- SQL functions & operators:
+    - Supports new data type `vector(n)`. [#22019](https://github.com/risingwavelabs/risingwave/pull/22019)
+    - Supports `jsonb_to_array` function to convert a JSONB array into a SQL array of JSONB elements. [#22777](https://github.com/risingwavelabs/risingwave/pull/22777)
+    - `openai_embedding` accepts a single constant JSONB `config` parameter instead of separate `api_key` and `model` arguments. [#22960](https://github.com/risingwavelabs/risingwave/pull/22960)
+    - Supports `arg_min` and `arg_max` aggregate functions. [#22895](https://github.com/risingwavelabs/risingwave/pull/22895)
+- System catalog:
+    - Adds system function `has_database_privilege`. [#22576](https://github.com/risingwavelabs/risingwave/pull/22576)
+
+## Connectors
+
+- **Public preview:** Iceberg table engine supports `copy-on-write` write mode for enhanced compaction. [#22713](https://github.com/risingwavelabs/risingwave/pull/22713)
+- Supports Redshift and Snowflake v2 sink connectors. You can use intermediate table and leverage S3 to improve sink performance, and auto schema change is supported to automatically add new columns. [#22984](https://github.com/risingwavelabs/risingwave/pull/22984)
+- Iceberg table engine and Iceberg sink support `VACUUM [FULL] schema_name.object_name` syntax. [#22942](https://github.com/risingwavelabs/risingwave/pull/22942)
+- NATS connector no longer creates stream automatically unless new option `allow_create_stream` is explicitly set to `true`. [#22315](https://github.com/risingwavelabs/risingwave/pull/22315)
+- Kafka source supports altering `group.id.prefix` parameter at runtime. [#22492](https://github.com/risingwavelabs/risingwave/pull/22492)
+- For Kafka source, when querying with a timestamp beyond the latest message, it starts from the latest offset instead of resetting to the earliest. [#22413](https://github.com/risingwavelabs/risingwave/pull/22413)
+- MQTT source supports multiple comma-separated topics. [#22074](https://github.com/risingwavelabs/risingwave/pull/22074)
+- Postgres CDC supports parallelized CDC backfill. [#22536](https://github.com/risingwavelabs/risingwave/pull/22536)
+- For PostgreSQL CDC, if you’ve already created a publication, fewer permissions are required. [#22807](https://github.com/risingwavelabs/risingwave/pull/22807)
+- Supports TOASTed data from PostgreSQL when using the CDC connector. [#22852](https://github.com/risingwavelabs/risingwave/pull/22852)
+
+## Installation and deployment
+
+- Supports deploying lakekeeper as an Iceberg REST catalog via Docker compose or Kubernetes. [#23045](https://github.com/risingwavelabs/risingwave/pull/23045)
+- Supports using `hashicorp_vault` as secret backend with Token or AppRole authentication methods. [#22627](https://github.com/risingwavelabs/risingwave/pull/22627)
+
+## Cluster configuration changes
+
+- Supports Memory-Only Mode for faster, low-latency queries by fully loading operator states into memory. You can configure it at the operator level to balance performance and memory usage. [#22857](https://github.com/risingwavelabs/risingwave/pull/22857)
+- Adds session variable `streaming_separate_consecutive_join` to separate consecutive stream joins to improve performance. [#22259](https://github.com/risingwavelabs/risingwave/pull/22259)
+- Adds session variable `streaming_join_encoding` to switch join encoding type. [#22416](https://github.com/risingwavelabs/risingwave/pull/22416)
+- Adds session variable `streaming_separate_sink` to separate sink. [#22827](https://github.com/risingwavelabs/risingwave/pull/22827)
+- Adds `protect_drop_table_with_incoming_sink` to block table drops if incoming sinks exist. [#22347](https://github.com/risingwavelabs/risingwave/pull/22347)
+- Adds `streaming_now_progress_ratio` to decouple `now_timestamp` from `epoch_timestamp`. [#22487](https://github.com/risingwavelabs/risingwave/pull/22487)
+
+## Access control list (ACL)
+
+- Adds a new superuser `rwadmin` for the Cloud control plane. [#22327](https://github.com/risingwavelabs/risingwave/pull/22327)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.6.0 standalone`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.6.0/risingwave-v2.6.0-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.6.0.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.6.0.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v2.6.0/risectl-v2.6.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/release-2.5...release-2.6).
+
+</Update>
+
 <Update label="v2.5.0" description="2025-07-29">
 
 Support for certain earlier version will end following the release of v2.5, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
@@ -58,7 +123,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 </Update>
 
-<Update label="v2.4.0" description="2025-05-22">
+<Update label="v2.4.0" description="2025-05-21">
 
 Support for certain earlier version will end following the release of v2.4, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
 
@@ -109,7 +174,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 </Update>
 
-<Update label="v2.3.0" description="2025-04-14">
+<Update label="v2.3.0" description="2025-04-13">
 Support for certain earlier version will end following the release of v2.3, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
 
 ## SQL features
@@ -162,6 +227,7 @@ Support for certain earlier version will end following the release of v2.3, plea
 ### Cluster configuration changes
 
 - Adds runtime parameter `sink_rate_limit`. [#19660](https://github.com/risingwavelabs/risingwave/pull/19660)
+- Adds system parameter `adaptive_parallelism_strategy`. [#20589](https://github.com/risingwavelabs/risingwave/pull/20589)
 
 
 ### Assets
@@ -231,7 +297,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 </Update>
 
 
-<Update label="v2.1.0" description="2024-12-07">
+<Update label="v2.1.0" description="2024-12-06">
 
 ## SQL features
 
@@ -272,7 +338,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 ## Installation and deployment
 
-- Adds a CLI argument of `--license-key-path` for the meta node, enabling a background task to watch and reload license key from the specified file. [#18768](https://github.com/risingwavelabs/risingwave/pull/18768)
+- Adds a CLI argument of `--license-key-path` for the Meta Node, enabling a background task to watch and reload license key from the specified file. [#18768](https://github.com/risingwavelabs/risingwave/pull/18768)
 
 ## Cluster configuration changes
 
@@ -317,7 +383,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
     *   Supports `pg_index_column_has_property()` to query index column properties. [#17275](https://github.com/risingwavelabs/risingwave/pull/17275)
     *   Supports continuous timestamp generation in streaming mode. [#17371](https://github.com/risingwavelabs/risingwave/pull/17371)
     *   Supports `acosd()`. [#9876](https://github.com/risingwavelabs/risingwave/pull/9876)
-    *   Supports function `rw_recovery_status()` and `pg_is_in_recovery()` to retrieve the meta node status. [#17641](https://github.com/risingwavelabs/risingwave/pull/17641)
+    *   Supports function `rw_recovery_status()` and `pg_is_in_recovery()` to retrieve the Meta Node status. [#17641](https://github.com/risingwavelabs/risingwave/pull/17641)
 *   System catalog:
     *   Adds `append_only` column in RisingWave catalogs `rw_tables` and `rw_materialized_views`. [#17598](https://github.com/risingwavelabs/risingwave/pull/17598)
     *   Adds RisingWave catalog `rw_catalog.rw_secrets`. [#17726](https://github.com/risingwavelabs/risingwave/pull/17726)
@@ -455,7 +521,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 </Update>
 
-<Update label="v1.9.1" description="2024-06-06">
+<Update label="v1.9.1" description="2024-06-05">
 
 v1.9.0 was skipped due to some critical bugs.
 
@@ -504,7 +570,7 @@ v1.9.0 was skipped due to some critical bugs.
 
 *   Supports using `ALTER SYSTEM` to set a system-wide default value for a session parameter. [#16062](https://github.com/risingwavelabs/risingwave/pull/16062).
 *   Modifies the meaning of `streaming_rate_limit=0`, which now means pausing the snapshot read stream for backfill, and pausing source read for sources. This statement previously disabled the rate limit within the session. [#16333](https://github.com/risingwavelabs/risingwave/pull/16333).
-*   Supports configuring the reserved memory bytes of the compute node by using `RW_RESERVED_MEMORY_BYTES` runtime parameter and `reserved-memory-bytes` startup option. [#16433](https://github.com/risingwavelabs/risingwave/pull/16433).
+*   Supports configuring the reserved memory bytes of the Compute Node by using `RW_RESERVED_MEMORY_BYTES` runtime parameter and `reserved-memory-bytes` startup option. [#16433](https://github.com/risingwavelabs/risingwave/pull/16433).
 *   Introduce new timeout and retry configurations for ObjectStore and deprecate ambiguous timeout configurations. [#16231](https://github.com/risingwavelabs/risingwave/pull/16231).
 
 ## Fixes
@@ -868,7 +934,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v1.2-rc...v1.3-rc).
 </Update>
 
-<Update label="v1.2.0" description="2024-09-11">
+<Update label="v1.2.0" description="2023-09-11">
 
 ## SQL features
 
@@ -1251,7 +1317,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 ## Cluster configuration changes
 
-*   `--data_directory`and `--state_store`must be specified on CLI of the meta node, or the cluster will fail to start. [#9170](https://github.com/risingwavelabs/risingwave/pull/9170)
+*   `--data_directory`and `--state_store`must be specified on CLI of the Meta Node, or the cluster will fail to start. [#9170](https://github.com/risingwavelabs/risingwave/pull/9170)
 *   Clusters will refuse to start if the specified object store URL identified by `state_store` and `data_directory` is occupied by another instance. Do not share the object store URL between multiple clusters. [#9642](https://github.com/risingwavelabs/risingwave/pull/9642)
 
 ## Assets
@@ -1402,7 +1468,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 ## Installation and deployment
 
-*   Parallelism and available memory of compute nodes are now command-line arguments and removed from the configuration file. [#6767](https://github.com/risingwavelabs/risingwave/pull/6767)
+*   Parallelism and available memory of Compute Nodes are now command-line arguments and removed from the configuration file. [#6767](https://github.com/risingwavelabs/risingwave/pull/6767)
 *   The default barrier interval is set to 1 second. [#6553](https://github.com/risingwavelabs/risingwave/pull/6553)
 *   Adds support for meta store backup and recovery. [#6737](https://github.com/risingwavelabs/risingwave/pull/6737)
 

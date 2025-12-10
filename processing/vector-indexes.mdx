@@ -1,0 +1,186 @@
+---
+title: "Vector indexes"
+description: "Create and use vector indexes for efficient similarity search operations in RisingWave."
+---
+
+RisingWave supports vector indexes to enable efficient similarity search operations. Vector indexes are specialized data structures that optimize queries involving vector distance calculations.
+
+## Creating vector indexes
+
+Use the `CREATE INDEX` command with vector-specific syntax to create vector indexes. For more details, see [CREATE INDEX](/sql/commands/sql-create-index).
+
+```sql Syntax
+CREATE INDEX index_name ON table_name 
+USING { FLAT | HNSW } (vector_column | expression) 
+[ INCLUDE ( include_column [, ...] ) ]
+[ WITH ( option = value [, ...] ) ];
+```
+
+## Index types
+
+Before creating a vector index, you may create a sample table `item` to reference the table name and column names. Currently, we only support creating vector indexes on append-only inputs, such as append-only tables or materialized views. Therefore, we have to specify the table as append-only here:
+
+```sql
+create table items (id int primary key, name string, embedding vector(128)) append only;
+```
+
+RisingWave supports two methods when creating index:
+
+- FLAT index: Provides exact results by comparing the query vector against all stored vectors.
+
+    ```sql
+    -- Create a FLAT vector index
+    CREATE INDEX idx_embedding ON items 
+    USING FLAT (embedding) 
+    INCLUDE (name) 
+    WITH (distance_type = 'l2');
+    ```
+
+- HNSW index: Hierarchical Navigable Small World (HNSW) index that provides approximate nearest neighbor search with better performance for large datasets.
+
+
+    ```sql
+    -- Create an HNSW vector index
+    CREATE INDEX idx_embedding_hnsw ON items 
+    USING HNSW (embedding) 
+    INCLUDE (name) 
+    WITH (
+        distance_type = 'inner_product', 
+        m = 32, 
+        ef_construction = 40, 
+        max_level = 5
+    );
+    ```
+
+For HNSW index, we also support specifying a query parameter `ef_search` by setting the session variable `batch_hnsw_ef_search` (the default value is 40).
+
+## Parameters
+
+| Parameter | Description | Valid for |
+| :--- | :--- | :--- |
+| `distance_type` | Distance metric to use: `l2`, `cosine`, `l1`, or `inner_product` | FLAT, HNSW |
+| `m` | Optional. Maximum number of connections per node | HNSW |
+| `ef_construction` | Optional. Size of dynamic candidate list during construction | HNSW |
+| `max_level` | Optional. Maximum level of the HNSW graph | HNSW |
+
+## Vector distance operators
+
+RisingWave provides specialized operators for calculating vector distances:
+
+| Operator | Function | Description |
+| :--- | :--- | :--- |
+| `<->` | `l2_distance()` | Euclidean (L2) distance |
+| `<=>` | `cosine_distance()` | Cosine distance |
+| `<+>` | `l1_distance()` | Manhattan (L1) distance |
+| `<#>` | Negative inner product | Negative inner product distance |
+
+## Vector similarity search
+
+Use vector distance operators with `ORDER BY` and `LIMIT` to perform similarity search:
+
+```sql
+-- Find the 5 most similar items using L2 distance
+SELECT * FROM items 
+ORDER BY embedding <-> '[3,1,2]' 
+LIMIT 5;
+
+-- Find similar items using cosine distance
+SELECT id, name FROM items 
+ORDER BY embedding <=> '[0.5, 0.3, 0.2]' 
+LIMIT 10;
+```
+
+## Vector indexes on function expressions
+
+You can create vector indexes on function expressions instead of raw columns. This allows you to avoid storing a separate vector column, saving storage and reducing maintenance costs.
+
+1. Create the table to include the input column
+
+```sql
+CREATE TABLE items (
+    id INT PRIMARY KEY,
+    description STRING
+    -- embedding column is optional if using function expression
+);
+```
+
+The `embedding` column is used to store the embedding generated from the `description` column. If you create the vector index directly from `description` column with function expression, you don't have to store raw `embedding` in the table.
+
+2. Define the user-defined function (UDF)
+
+```sql
+CREATE FUNCTION get_embedding(string) RETURNS VECTOR(128) LANGUAGE SQL AS $$
+SELECT openai_embedding('{"model": <EMBEDDING_MODEL_NAME>, "api_key": <API_KEY>}'::jsonb, $1)::vector(128);
+$$;
+```
+
+3. Create the vector index on the function expression
+
+```sql
+CREATE INDEX idx_embedding_func ON items
+USING FLAT (get_embedding(description))
+INCLUDE(description)
+WITH (distance_type = 'l2');
+```
+
+In this example, `get_embedding(description)` is used as the index expression.
+
+This approach avoids materializing a separate vector column in the table, which reduces storage costs and keeps the table schema simpler.
+
+## Examples
+
+### Basic vector similarity search
+
+```sql
+-- Create table with vector data
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name STRING,
+    description STRING,
+    embedding vector(128)
+) APPEND ONLY;
+
+-- Create vector index
+CREATE INDEX idx_embedding ON products
+USING HNSW (embedding)
+WITH (distance_type = 'cosine');
+
+-- Insert sample data
+INSERT INTO products (id, name, description, embedding) VALUES
+(1, 'Product A', 'Description for Product A', '[0.1, 0.2, ...]'),
+(2, 'Product B', 'Description for Product B', '[0.3, 0.4, ...]');
+
+-- Find similar products
+SELECT id, name
+FROM products
+ORDER BY embedding <=> '[0.2, 0.3, ...]'
+LIMIT 5;
+```
+
+### Using cosine distance type
+
+The SQL query depends on the type of vector index you created:
+
+- If the vector index is built on a raw embedding column, use the raw column in your `ORDER BY` clause.
+
+```sql
+-- Query on the raw embedding column
+SELECT * FROM items
+ORDER BY embedding <=> '[0.5, 0.5, 0.0]' 
+LIMIT 3;
+```
+
+- If the vector index is built using a function expression, use the same function expression in your `ORDER BY` clause.
+
+```sql
+-- Query on a function expression
+SELECT * FROM items
+ORDER BY get_embedding(description) <=> '[1.0, 2.0, 3.0]'
+LIMIT 3;
+```
+
+## Related topics
+
+- [CREATE INDEX](/sql/commands/sql-create-index) command
+
+- [Vector data type, operators, functions](/sql/data-types/vector)

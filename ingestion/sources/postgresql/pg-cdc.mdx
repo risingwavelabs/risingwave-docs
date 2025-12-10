@@ -4,88 +4,59 @@ sidebarTitle: Connect to PostgreSQL
 description: "Ingest real-time changes from your PostgreSQL database using change data capture (CDC)."
 ---
 
+<Tip>
+**Try our SQL generator tool!** We've built an interactive tool to help you generate SQL statements for connecting to data sources. Check it out at [https://sql.risingwave.com/source/postgres-cdc](https://sql.risingwave.com/source/postgres-cdc).
+</Tip>
+
 This guide explains how to connect RisingWave to a PostgreSQL database to ingest data changes in real time using the native PostgreSQL CDC source connector.
 
 RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-compliant database that supports logical replication, and supports **PostgreSQL versions 10 through 17**.
 
 ## Prerequisites
 
-Before connecting to RisingWave, you must enable logical replication on your upstream database. The specific steps depend on your provider. Select your platform below for detailed setup instructions:
+Before using the native Postgres CDC connector in RisingWave, you need to configure your Postgres database properly.
 
 *   **[Set up a self-hosted PostgreSQL database](/ingestion/sources/postgresql/self-hosted)**
 *   **[Set up AWS RDS or Aurora PostgreSQL](/ingestion/sources/postgresql/aws-rds)**
 *   **[Set up a Neon serverless PostgreSQL database](/ingestion/sources/postgresql/neon)**
 *   **[Set up a Supabase project](/ingestion/sources/postgresql/supabase)**
 
-Once setup is complete, return to this guide to connect RisingWave.
-
-## User permissions
-
-Before connecting to PostgreSQL CDC, you need to set up proper user permissions. The PostgreSQL user used for CDC must have specific privileges to perform logical replication.
-
-### Required user permissions
-
-The replication user needs the following permissions:
-
-* `REPLICATION` privilege
-* `CONNECT` privilege on the target database
-* `SELECT` privilege on the tables to be replicated
-* Permission to create publications (if `publication.create.enable` is enabled)
-
-### Publication permissions
-
-If you don't make any special settings, RisingWave will automatically help you create publications. In this case, the user needs:
-
-* **CREATE PUBLICATION permission**: The user must be the database owner, have SUPERUSER privileges, or have CREATE privileges on the database
-* **ALTER PUBLICATION ADD TABLE permission**: The user must be the table owner or have SUPERUSER privileges
-
-If you set `publication.create.enable = 'false'`, the user only needs SELECT privileges on the tables, and you must manually create the publication. This approach reduces permission requirements since you don't need to be the table owner.
-
-### Setting up permissions
-
-For basic user creation and privilege granting, see the setup instructions for your specific PostgreSQL deployment:
-
-* **[Self-hosted PostgreSQL](/ingestion/sources/postgresql/self-hosted)**
-* **[AWS RDS PostgreSQL](/ingestion/sources/postgresql/aws-rds)**
-* **[Neon PostgreSQL](/ingestion/sources/postgresql/neon)**
-* **[Supabase PostgreSQL](/ingestion/sources/postgresql/supabase)**
-
 ## Connect to PostgreSQL
 
-RisingWave uses the `CREATE SOURCE` or `CREATE TABLE ... FROM source` syntax to connect to PostgreSQL CDC. You'll use `CREATE SOURCE` to create a shared source, and then create multiple tables from it, each representing a table in the upstream PostgreSQL database.
+To ingest CDC data from PostgreSQL, you first create a shared source using the `CREATE SOURCE` statement. This source establishes the connection to the PostgreSQL database. Then, for each upstream table you want to ingest, you define a corresponding table in RisingWave using the `CREATE TABLE FROM SOURCE` statement.
 
-### `CREATE SOURCE`
+### Create a shared source
 
-Use the `CREATE SOURCE` statement to define the source with connection parameters.
+Use the `CREATE SOURCE` statement to create a shared source.
 
 ```sql
-CREATE SOURCE [ IF NOT EXISTS ] source_name WITH (
+CREATE SOURCE [ IF NOT EXISTS ] <shared_source_name> WITH (
     connector='postgres-cdc',
     <field>=<value>, ...
 );
 ```
 
-### `CREATE TABLE ... FROM source` (per-table definition)
+### Create a table from the shared source
 
-Create a table on top of the defined source. Note that a primary key is required and must be consistent with the upstream table. We must also specify the Postgres table name (`pg_table_name`) which we are selecting from.
+Next, create a table from the shared source to ingest data from a specific upstream PostgreSQL table. When defining this table in RisingWave, you must specify a primary key that matches the primary key of the upstream table. You also need to provide the name of the upstream table.
 
 ```sql
-CREATE TABLE [ IF NOT EXISTS ] table_name (
-    column_name data_type PRIMARY KEY , ...
-    PRIMARY KEY ( column_name, ... )
+CREATE TABLE [ IF NOT EXISTS ] <rw_table_name> (
+    <column_name> <data_type> PRIMARY KEY , ...
+    PRIMARY KEY ( <column_name>, ... )
 )
-[ INCLUDE timestamp AS column_name ]
+[ INCLUDE timestamp AS <column_name> ]
 WITH (
     snapshot='true'
 )
-FROM source TABLE pg_table_name;
+FROM <shared_source_name> TABLE <upstream_table_name>;
 ```
 
 ### Basic connection example
 
 ```sql
 -- Create a shared CDC source
-CREATE SOURCE pg_source WITH (
+CREATE SOURCE shared_source WITH (
     connector='postgres-cdc',
     hostname='localhost',
     port='5432',
@@ -100,14 +71,10 @@ CREATE TABLE my_table (
     id INT PRIMARY KEY,
     name VARCHAR
 )
-FROM pg_source TABLE 'public.my_upstream_table';
+FROM shared_source TABLE 'public.my_upstream_table';
 ```
 
-## Configuration Parameters
-
-This section contains a complete reference for all parameters used when creating a PostgreSQL CDC source.
-
-### Connector parameters
+## Parameters
 
 These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 
@@ -126,15 +93,34 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 | `auto.schema.change`  | Set to `true` to enable automatic replication of DDL changes from Postgres. Defaults to `false`.                                                                                                                            | No       |
 | `ssl.mode`            | SSL/TLS encryption mode. Accepted values: `disabled`, `preferred`, `required`, `verify-ca`, `verify-full`. Defaults to `disabled`.                                                                       | No       |
 | `ssl.root.cert`       | The PEM-encoded root certificate for `verify-ca` or `verify-full` mode. Use a [secret](/operate/manage-secrets).                                                                                                          | No       |
+| `postgres.is.aws.rds` | Set to `true` to specify that the upstream database is AWS RDS. This enhances RDS detection and supports scenarios that use a custom DNS endpoint. The default value is `false`. | No       |
 | `transactional`       | Ensures that changes from a single upstream transaction are processed atomically. Defaults to `true` for shared sources.                                                   | No       |
-
-### Per-table parameters
 
 These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
 
-| Parameter        | Description                                                                                                                   | Required | Default |
-| :--------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------- | :------ |
-| `snapshot`       | If `false`, disables the initial snapshot (backfill) of the table. Only new changes will be ingested.                          | No       | `true`  |
+| Parameter        | Description           |
+| :--------------- | :-------------------- |
+| `snapshot`       | **Optional**. If `false`, disables the initial snapshot (backfill) of the table. Only new changes will be ingested. The default value is `true`.                         |
+| snapshot.interval    | **Optional**. Specifies the barrier interval for buffering upstream events. The default value is 1.                                                                                                                          |
+| snapshot.batch_size | **Optional**. Specifies the batch size of a snapshot read query from the upstream table. The default value is 1000.                                                                                                          |
+| backfill.parallelism | **Optional**. Controls the parallelism of CDC table backfill. When set to a value greater than 0, enables parallelized CDC backfill. The default value is `0` (disabled).                                                                                         |
+| backfill_num_rows_per_split | **Optional**. Specifies number of rows per split for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `100000`.                                                                                                  |
+| backfill_as_even_splits | **Optional**. Whether to create even splits for parallelized CDC backfill. Only effective when `backfill.parallelism > 0`. The default value is `true`.                                                                                             |
+
+For large tables, you can significantly speed up the initial data load by enabling parallelized backfill. Configure this feature using the `backfill.parallelism`, `backfill_num_rows_per_split`, and `backfill_as_even_splits` parameters.
+
+```sql
+CREATE TABLE large_table (
+  id integer primary key,
+  data varchar
+)
+WITH (
+  backfill.parallelism = '4',
+  backfill.num_rows_per_split = '50000',
+  backfill.as_even_splits = 'true'
+)
+FROM pg_mydb TABLE 'public.large_table';
+```
 
 ### Debezium parameters
 
@@ -206,6 +192,103 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | MACADDR                                              | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR8                                             | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
+### Support for PostgreSQL TOAST
+
+<Note>
+Added in v2.6.0.
+</Note>
+
+RisingWave supports [TOASTed (The Oversized-Attribute Storage Technique) data](https://www.postgresql.org/docs/current/storage-toast.html) from PostgreSQL when using the CDC connector. This ensures that even columns with very large values, such as long text or large JSON objects, are ingested completely and accurately during both the initial backfill and incremental changes.
+
+Supported TOAST-able data types in Postgres:
+
+- Standard types: `varchar`, `text`, `xml`, `jsonb`, `bytea`.
+- One-dimensional array of the above types: `varchar[]`, `text[]`, `jsonb[]`, `bytea[], xml[]`.
+
+<Note>
+RisingWave currently supports the TOAST-able data types mentioned above. Other types that may trigger TOAST, mainly simple one-dimensional arrays with low probability, are not yet supported. For more details, please refer to the [issue](https://github.com/risingwavelabs/risingwave/issues/22916).
+</Note>
+
+The example below demonstrates how RisingWave ingests large data that triggers PostgreSQL's TOAST mechanism and ensures that large fields are not lost even when non-TOAST columns are updated.
+
+1. Create a table with TOAST-able columns in PostgreSQL.
+
+```
+CREATE TABLE test_toast (
+    id int PRIMARY KEY,
+    v_text text,
+    v_json jsonb,
+    v_bytea bytea
+);
+```
+
+2. Insert large TOAST data in PostgreSQL.
+
+```
+INSERT INTO test_toast (id, v_text, v_json, v_bytea)
+VALUES (
+    1,
+    repeat('long_text_', 10000),  -- large text triggers TOAST
+    jsonb_build_object('data', repeat('x', 50000)),  -- large JSON triggers TOAST
+    repeat('a', 2000000)::bytea  -- large bytea triggers TOAST
+);
+```
+
+3. Create a RisingWave source from PostgreSQL CDC.
+
+```
+CREATE SOURCE src_test_toast WITH (
+    connector = 'postgres-cdc',
+    hostname = 'localhost',
+    port = 5432,
+    username = 'pguser',
+    password = 'pgpassword',
+    database.name = 'mydb',
+    schema.name = 'public',
+    slot.name = 'rw_slot_toast_example'
+);
+```
+
+4. Create a RisingWave table from the source.
+
+```
+CREATE TABLE rw_test_toast(*) FROM src_test_toast TABLE 'public.test_toast';
+```
+
+5. Verify data is ingested in RisingWave with TOAST preserved.
+
+```
+SELECT
+    id,
+    CASE WHEN octet_length(v_text) > 15000 THEN 'toast-triggered' ELSE 'small' END AS v_text_check,
+    CASE WHEN octet_length(v_json::text) > 50000 THEN 'toast-triggered' ELSE 'small' END AS v_json_check,
+    CASE WHEN octet_length(v_bytea) > 1500000 THEN 'toast-triggered' ELSE 'small' END AS v_bytea_check
+FROM rw_test_toast
+WHERE id = 1;
+```
+
+6. Update non-TOAST column to test placeholder handling.
+
+```
+ALTER TABLE test_toast ADD COLUMN v_counter int DEFAULT 0;
+UPDATE test_toast SET v_counter = 1 WHERE id = 1;
+```
+
+Verify TOAST columns remain intact.
+
+```
+SELECT
+    id,
+    octet_length(v_text) AS text_len,
+    octet_length(v_json::text) AS json_len,
+    octet_length(v_bytea) AS bytea_len,
+    v_counter
+FROM rw_test_toast
+WHERE id = 1;
+```
+
+RisingWave can process changes to rows with TOASTed data even if the upstream table's `REPLICA IDENTITY` is set to `default`. It achieves this by leveraging its own materialized state of the source data. When an `UPDATE` or `DELETE` event occurs, RisingWave uses the record stored within its materialized view to construct the full change event, rather than relying on the `before` field in the CDC message.
+
 ### Use dbt to ingest data from PostgreSQL CDC
 
 Here is an example of how to use dbt to ingest data from PostgreSQL CDC. In this dbt example, `source` and `table_with_connector` models will be used. For more details about these two models, please refer to [Use dbt for data transformations](/integrations/other/dbt#define-dbt-models).
@@ -253,7 +336,7 @@ Instead of defining columns individually, you can use `*` when creating a table 
 ```sql
 CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_name>';
 ```
-### Automatic schema changes
+### Auto schema change
 
 <Tip>
 **PREMIUM FEATURE**

@@ -1,0 +1,239 @@
+---
+title: "Create and manage internal Iceberg tables"
+sidebarTitle: "Create and manage internal Iceberg tables"
+description: "Create and manage internal Iceberg tables in RisingWave. Persist data in an open format that is fully managed by RisingWave and queryable by external tools."
+---
+
+<Tip>
+**Try our SQL generator tool!** We've built an interactive tool to help you generate SQL statements for creating Iceberg tables. Check it out at [https://sql.risingwave.com/table/iceberg-table](https://sql.risingwave.com/table/iceberg-table).
+</Tip>
+
+You can create and manage Apache Iceberg tables directly in RisingWave. When you create an internal Iceberg table (that is, a RisingWave-managed Iceberg table), RisingWave handles its lifecycle, while the underlying data is stored in the open Apache Iceberg format in an object store you configure.
+
+## Create an internal Iceberg table
+
+Creating and using an internal Iceberg table is a two-step process: first, you define the storage and catalog details in a `CONNECTION` object, and then you create the table itself.
+
+### Step 1: Create an Iceberg Connection
+
+An Iceberg `CONNECTION` defines the catalog and object storage configuration.
+
+You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based built-in catalog, set `hosted_catalog` to `true`.
+
+You can also set the optional `commit_checkpoint_interval` parameter to control the commit frequency. The default is `60`, which means RisingWave commits data every 60 checkpoints. You can adjust this value based on your requirements.
+
+When you create a `CONNECTION`, you specify the object storage backend where the table data will be stored. You also specify the catalog that will manage the table's metadata.
+
+For more details on the available catalog options, see [Iceberg catalog configuration](/iceberg/catalogs).
+
+<Tabs>
+    <Tab title="Built-in catalog">
+    For the simplest setup, use RisingWave's built-in JDBC-based catalog. This requires no external dependencies.
+    ```sql
+    CREATE CONNECTION my_iceberg_conn WITH (
+        type = 'iceberg',
+        warehouse.path = 's3://my-bucket/warehouse/',
+        s3.region = 'us-west-2',
+        s3.access.key = 'your-key',
+        s3.secret.key = 'your-secret',
+        hosted_catalog = true
+    );
+    ```
+    For more details, see [Built-in catalog](/iceberg/catalogs/internal).
+    </Tab>
+    <Tab title="JDBC catalog">
+    To connect to an external JDBC catalog like PostgreSQL:
+    ```sql
+    CREATE CONNECTION my_iceberg_conn WITH (
+        type = 'iceberg',
+        warehouse.path = 's3://my-bucket/warehouse/',
+        s3.region = 'us-west-2',
+        s3.access.key = 'your-key',
+        s3.secret.key = 'your-secret',
+        catalog.type = 'jdbc',
+        catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg_db',
+        catalog.jdbc.user = 'user',
+        catalog.jdbc.password = 'password'
+    );
+    ```
+    </Tab>
+    <Tab title="Glue catalog">
+    ```sql
+    CREATE CONNECTION my_iceberg_conn WITH (
+        type = 'iceberg',
+        warehouse.path = 's3://my-bucket/warehouse/',
+        s3.region = 'us-west-2',
+        s3.access.key = 'your-key',
+        s3.secret.key = 'your-secret',
+        catalog.type = 'glue'
+    );
+    ```
+    </Tab>
+    <Tab title="REST catalog">
+    ```sql
+    CREATE CONNECTION my_iceberg_conn WITH (
+        type = 'iceberg',
+        warehouse.path = 's3://my-bucket/warehouse/',
+        s3.region = 'us-west-2',
+        s3.access.key = 'your-key',
+        s3.secret.key = 'your-secret',
+        catalog.type = 'rest',
+        catalog.uri = 'http://rest-catalog:8181'
+    );
+    ```
+    </Tab>
+    <Tab title="S3 Tables catalog">
+    ```sql
+    CREATE CONNECTION s3_tables_conn WITH (
+        type = 'iceberg',
+        warehouse.path = 's3://DOC-EXAMPLE-BUCKET/my-table-bucket/',
+        s3.region = 'us-east-1',
+        catalog.type = 'rest',
+        catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/tables',
+        catalog.rest.signing_region = 'us-east-1',
+        catalog.rest.signing_name = 's3tables',
+        catalog.rest.sigv4_enabled = 'true'
+    );
+    ```
+    </Tab>
+</Tabs>
+
+
+### Step 2: Create an internal Iceberg table
+
+Create an internal Iceberg table using the `ENGINE = iceberg` clause and associate it with your connection. To simplify creation, you can set a default connection for your session.
+
+```sql
+-- Option 1: Set a default connection for the session
+SET iceberg_engine_connection = 'my_iceberg_conn';
+
+CREATE TABLE user_events (
+    user_id INT,
+    event_type VARCHAR,
+    timestamp TIMESTAMPTZ,
+    PRIMARY KEY (user_id, timestamp)
+) ENGINE = iceberg;
+
+-- Option 2: Specify the connection explicitly
+CREATE TABLE user_events (
+    user_id INT,
+    event_type VARCHAR,
+    timestamp TIMESTAMPTZ,
+    PRIMARY KEY (user_id, timestamp)
+) ENGINE = iceberg
+  WITH (connection = 'my_iceberg_conn');
+```
+
+You can also define a partition strategy in the `WITH` clause to optimize query performance.
+
+```sql
+CREATE TABLE partitioned_events (
+    user_id INT,
+    event_type VARCHAR,
+    event_date DATE,
+    PRIMARY KEY (event_date, user_id)
+) WITH (
+    partition_by = 'event_date'
+) ENGINE = iceberg;
+```
+
+Supported partitioning strategies include by column, by multiple columns, and by applying transforms like `bucket(n, column)` or `truncate(n, column)`. The partition key must be a prefix of the primary key.
+
+## Work with internal tables
+
+Once created, an internal Iceberg table behaves like any other table in RisingWave.
+
+### Ingest data
+
+You can ingest data using standard `INSERT` statements or by streaming data from a source using `CREATE SINK ... INTO`.
+
+```sql 
+-- Manual inserts
+INSERT INTO user_events VALUES (1, 'login', '2024-01-01 10:00:00Z');
+
+-- Stream data from a Kafka source into the table
+CREATE SOURCE sales_src (
+  item_id INT,
+  customer_id INT,
+  price DOUBLE,
+  ts TIMESTAMP
+) WITH (
+  connector = 'kafka',
+  topic = 'sales_events',
+  properties.bootstrap.server = 'kafka:9092'
+) FORMAT PLAIN ENCODE JSON;
+
+CREATE SINK to_sales_events INTO sales_events AS
+SELECT item_id, customer_id, price, ts
+FROM sales_src;
+```
+
+### Query data
+
+Query the table directly with `SELECT` or use it as a source for a materialized view.
+
+```sql
+-- Ad hoc query
+SELECT * FROM user_events WHERE event_type = 'login';
+
+-- Create a materialized view
+CREATE MATERIALIZED VIEW user_login_count AS
+SELECT user_id, COUNT(*) as login_count
+FROM user_events 
+WHERE event_type = 'login'
+GROUP BY user_id;
+```
+
+### Time travel
+
+Query historical snapshots of the table using `FOR SYSTEM_TIME AS OF` or `FOR SYSTEM_VERSION AS OF`.
+
+```sql
+-- Query a snapshot by timestamp
+SELECT * FROM user_events FOR SYSTEM_TIME AS OF TIMESTAMPTZ '2024-01-01 12:00:00Z';
+
+-- Query a snapshot by ID
+SELECT * FROM user_events FOR SYSTEM_VERSION AS OF 1234567890;
+```
+
+### Partition strategy
+
+RisingWave’s Iceberg table engine supports table partitioning using the `partition_by` option. Partitioning helps organize data for efficient storage and query performance. You can partition by one or multiple columns, separated by commas, and optionally apply a Transform function to each column to customize partitioning.
+
+Supported transformations include `identity`, `truncate(n)`, `bucket(n)`, `year`, `month`, `day`, `hour`, and `void`. For more details on Iceberg partitioning, see [Partition transforms](https://iceberg.apache.org/spec/#partition-transforms).
+
+```sql
+CREATE TABLE t_partition (
+    v1 INT,
+    v2 INT,
+    v3 TIMESTAMP,
+    v4 TIMESTAMP,
+    PRIMARY KEY (v1, v2, v3, v4)
+)
+WITH (
+    commit_checkpoint_interval = 1,
+    partition_by = 'truncate(4,v2),bucket(5,v1)'
+)
+ENGINE = ICEBERG;
+```
+
+## Table maintenance
+
+To maintain good performance and manage storage costs, internal Iceberg tables require periodic maintenance, including compaction and snapshot expiration.
+
+RisingWave provides both automatic and manual maintenance options. For complete details, see the [Iceberg table maintenance](/iceberg/maintenance) guide.
+
+## External access
+
+Because internal tables are standard Iceberg tables, they can be read by external query engines like Spark or Trino using the same catalog and storage configuration.
+
+**Spark Example:**
+```python
+spark.sql("SELECT * FROM iceberg_catalog.your_database.user_events")
+```
+
+## Limitations
+
+- Advanced schema evolution operations are not yet supported.
+- To ensure data consistency, only RisingWave should write to internal Iceberg tables.
+

@@ -1,0 +1,224 @@
+---
+title: "Lakekeeper catalog"
+sidebarTitle: "Lakekeeper catalog"
+description: "Deploy and use Lakekeeper, a self-hosted REST catalog, to manage internal Iceberg tables in RisingWave."
+---
+
+This guide shows how to deploy [Lakekeeper](https://github.com/lake-keeper/lakekeeper), a self-hosted REST catalog service, for use with RisingWave. A Lakekeeper catalog can be used when creating Iceberg sources, sinks, and internal tables.
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+You can deploy this configuration using one of two methods:
+
+- **Docker**: Use this method for local testing and development.
+- **Kubernetes (Helm)**: Use this method for production or clustered environments.
+
+## Deploy with Docker
+
+### Prerequisites
+
+1. Ensure [Docker Desktop](https://docs.docker.com/get-docker/) is installed and running in your environment.
+2. Clone the [RisingWave repository](https://github.com/risingwavelabs/risingwave).
+   ```bash
+   git clone https://github.com/risingwavelabs/risingwave.git
+   ```
+3. Navigate to the `docker` directory within the repository.
+   ```bash
+   cd risingwave/docker
+   ```
+4. Run the `docker compose` command to start the services. This command deploys a RisingWave cluster and the Lakekeeper catalog. A default warehouse named `risingwave-warehouse` is automatically created. You can view its configuration at `http://localhost:8181/ui/warehouse` after the services are running.
+   ```bash
+   docker compose -f docker-compose-with-lakekeeper.yml up
+   ```
+5. Connect to RisingWave to begin creating tables:
+   ```bash
+   psql -h localhost -p 4566 -d dev -U root
+   ```
+
+### Steps
+
+1. Create an Iceberg connection. There are two ways to configure the connection:
+
+   <Tabs>
+   <Tab title="Enable credential vending">
+   Since v2.7.0, RisingWave supports credential vending protocol, allowing RisingWave to obtain temporary object storage credentials directly from Lakekeeper. Make sure to set `catalog.type = 'rest'` and `vended_credentials = true`.
+
+   ```sql Example
+   CREATE CONNECTION lakekeeper_catalog_conn
+   WITH (
+      type = 'iceberg',
+      catalog.type = 'rest',
+      catalog.uri = 'http://lakekeeper:8181/catalog/',
+      warehouse.path = 'risingwave-warehouse',
+      vended_credentials = true
+   );
+   ```
+   </Tab>
+   <Tab title="Specify S3 credentials manually">
+   You can continue to specify S3 credentials manually as before.
+   ```sql Example
+   CREATE CONNECTION lakekeeper_catalog_conn
+   WITH (
+       type = 'iceberg',
+       catalog.type = 'rest',
+       catalog.uri = 'http://lakekeeper:8181/catalog/',
+       warehouse.path = 'risingwave-warehouse',
+       s3.access.key = 'hummockadmin',
+       s3.secret.key = 'hummockadmin',
+       s3.path.style.access = 'true',
+       s3.endpoint = 'http://minio-0:9301',
+       s3.region = 'us-east-1'
+   );
+   ```
+   </Tab>
+   </Tabs>
+
+2. Set the connection as the default for your session.
+   ```sql
+   SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+   ALTER SYSTEM SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+   ```
+
+3. Create an internal Iceberg table.
+   ```sql
+   CREATE TABLE t_lakekeeper_basic(
+       id INT PRIMARY KEY,
+       name VARCHAR,
+       v BIGINT
+   )
+   WITH (commit_checkpoint_interval = 1)
+   ENGINE = iceberg;
+   ```
+
+4. Insert data into the table.
+   ```sql
+   INSERT INTO t_lakekeeper_basic VALUES
+       (1, 'alice', 100),
+       (2, 'bob', 200),
+       (3, 'charlie', 300);
+   FLUSH;
+   ```
+
+5. Query the table to verify the data.
+   ```sql
+   SELECT * FROM t_lakekeeper_basic;
+   ```
+
+## Deploy with Kubernetes (Helm)
+
+### Prerequisites
+
+Ensure your Kubernetes environment is configured with Helm by following the [installation instructions](/deploy/risingwave-k8s-helm).
+
+### Steps
+
+1. Add the RisingWave and Lakekeeper Helm repositories.
+   ```bash
+   helm repo add risingwavelabs https://risingwavelabs.github.io/helm-charts/ --force-update
+   helm repo add lakekeeper https://lakekeeper.github.io/lakekeeper-charts/
+   helm repo update
+   ```
+
+2. Create a Kubernetes namespace for the deployment.
+   ```bash
+   kubectl create namespace risingwave
+   ```
+
+3. Use Helm to install RisingWave with its bundled components.
+   ```bash
+   helm install -n risingwave --set tags.bundle=true risingwavelabs/risingwave
+   ```
+
+4. Use Helm to install Lakekeeper.
+   ```bash
+   helm install -n risingwave my-lakekeeper lakekeeper/lakekeeper
+   ```
+
+5. Verify that all pods are running successfully.
+   ```bash
+   kubectl get pods -n risingwave
+   ```
+
+6. Retrieve the default root password for the MinIO service.
+   ```bash
+   k get secret risingwave-minio -o jsonpath="{.data['root-password']}" | base64 -d
+   ```
+
+7. Forward the necessary ports. Run each command in a separate terminal.
+   ```bash
+   kubectl -n risingwave port-forward svc/risingwave 4567
+   kubectl -n risingwave port-forward svc/risingwave-minio 9001
+   kubectl -n risingwave port-forward svc/my-lakekeeper 8181
+   ```
+
+8. Configure the storage warehouse in the Lakekeeper UI.
+   <Note>
+   This guide uses **MinIO** as an example. If you use a different object store, such as **Amazon S3**, configure it accordingly in the Lakekeeper UI.
+   </Note>
+
+   Open `http://localhost:9001` in a browser and create a bucket (e.g., "abc"). Then, open `http://localhost:8181` and create a warehouse (e.g., "abc"), providing the following details:
+    - **Access key**: `root`
+    - **Password**: Use the password you obtained in the previous step.
+    - **Path style**: Enable this toggle.
+    - **Region**: `us-east-1`
+
+9. Connect to RisingWave and run the test queries.
+   ```bash Connect to RisingWave
+   psql -h localhost -p 4567 -d dev -U root
+   ```
+
+   Next, create an Iceberg connection. There are two ways to configure the connection:
+
+   <Tabs>
+   <Tab title="Enable credential vending">
+   Since v2.7.0, RisingWave supports credential vending protocol, allowing RisingWave to obtain temporary object storage credentials directly from Lakekeeper. Make sure to set `catalog.type = 'rest'` and `vended_credentials = true`.
+
+   ```sql Example
+   CREATE CONNECTION lakekeeper_catalog_conn
+   WITH (
+      type = 'iceberg',
+      catalog.type = 'rest',
+      catalog.uri = 'http://lakekeeper:8181/catalog/',
+      warehouse.path = 'risingwave-warehouse',
+      vended_credentials = true
+   );
+   ```
+   </Tab>
+   <Tab title="Specify S3 credentials manually">
+   You can continue to specify S3 credentials manually as before.
+   ```sql Example
+   CREATE CONNECTION lakekeeper_catalog_conn
+   WITH (
+      type = 'iceberg',
+      catalog.type = 'rest',
+      catalog.uri = 'http://my-lakekeeper:8181/catalog/',
+      warehouse.path = 'abc',       -- replace the warehouse name here
+      s3.access.key = 'root',
+      s3.secret.key = 'K9xXOGgEHx', -- replace the secret key here
+      s3.path.style.access = 'true',
+      s3.endpoint = 'http://risingwave-minio:9000',
+      s3.region = 'us-east-1'
+   );
+   ```
+   </Tab>
+   </Tabs>
+
+   Then run the SQL test queries:
+
+   ```sql
+   set iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+
+   create table t_lakekeeper_basic(id int primary key, name varchar, v bigint)
+   with(commit_checkpoint_interval = 1) engine = iceberg;
+
+   insert into t_lakekeeper_basic values(1, 'alice', 100), (2, 'bob', 200), (3, 'charlie', 300);
+   flush;
+
+   select * from t_lakekeeper_basic;
+   ```
+
+## Optional: Credential vending for sources and sinks
+
+Besides creating connection, Lakekeeper supports credential vending for sources and sinks when configured with valid object storage credentials. For more information on how vended credentials work, see [Vended credentials](/iceberg/catalogs/rest#vended-credentials).

@@ -6,13 +6,14 @@ description: "Use the `SHOW CONNECTIONS` command to see connections that have be
 ## Syntax
 
 ```bash
-SHOW CONNECTIONS [ LIKE_expression ];
+SHOW CONNECTIONS [ FROM schema_name ] [ LIKE_expression ];
 ```
 
 ## Parameters
 
 | Parameter or clause | Description                                                                                                                                                                               |
 | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _schema\_name_      | The schema of the connections to be listed. If not specified, connections from all schemas in the current schema [search_path](https://docs.risingwave.com/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters:~:text=multi%20point%20lookup.-,search_path,-%E2%80%9D%24user%E2%80%9D%2C%20public) will be listed. |
 | LIKE\_expression    | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
 
 ## Example
@@ -24,16 +25,19 @@ SHOW CONNECTIONS;
 ```
 
 ```bash
-Name             | Type        |   Properties
------------------+-------------+----------------
-connection_name  | privatelink | provider: aws
-                 |             | service_name: com.amazonaws.xyz.us-east-1.abc-xyz-0000
-                 |             | endpoint_id: xyz-0000
-                 |             | availability_zones: ["use1-az6", "use1-az4"]
-                 |             | sources: ["tcp_metrics"]
-                 |             | sinks: ["sink1"]
-
+Name                   | Type        | Properties
+-----------------------+-------------+-----------------------------------------
+public.connection_name | privatelink | provider: aws
+                       |             | service_name: com.amazonaws.xyz.us-east-1.abc-xyz-0000
+                       |             | endpoint_id: xyz-0000
+                       |             | availability_zones: ["use1-az6", "use1-az4"]
+                       |             | sources: ["tcp_metrics"]
+                       |             | sinks: ["sink1"]
 ```
+
+<Note>
+Starting from v2.7.0, the `Name` column in the output includes the schema name as a prefix (e.g., `public.connection_name`). This helps distinguish connections with the same name in different schemas when querying across multiple schemas in the search path.
+</Note>
 
 ## Related topics
 

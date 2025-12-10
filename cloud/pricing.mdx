@@ -5,48 +5,68 @@ description: RisingWave Cloud offers a flexible pricing model based on your usag
 
 ## Pricing model
 
-RisingWave Cloud charges the cost of each project individually. The pricing model of each project varies depending on its plan.
+RisingWave Cloud charges the cost of each project individually based on the plan selected.
 
-| Plan                       | Pricing model | Pricing precision |
-| :------------------------- | :------------ | :---------------- |
-| [Trial](#trial-plan)       | Free          | /                 |
-| [Standard](#standard-plan) | Pay-as-you-go | 30-second basis   |
-| [Advanced](#advanced-plan) | Contact sales | Contact sales     |
+| Plan          | Hosting                       | Pricing model                          |
+|:--------------|:------------------------------|:----------------------------------------|
+| [Basic](#basic-plan)       | Fully hosted (AWS, GCP, Azure) | Pay-as-you-go (after 7-day free trial) |
+| [Pro](#pro-plan)           | Fully hosted or BYOC          | Pay-as-you-go or Annual contract       |
+| [Self-managed](#self-managed-plan)  | On-prem / Kubernetes            | Annual contract                        |
 
-### Trial plan
 
-The Trial plan is offered for free. This plan equips you with all the essential resources needed to test and experience the features offered by RisingWave.
+### Basic plan
 
-### Standard plan
+The Basic plan is designed to help you launch streaming projects fast with zero setup. It is fully hosted on the Cloud provider of your choice (AWS, GCP, or Azure).
 
-The Standard plan operates on a pay-as-you-go model. You only pay for your actual usage, which includes compute resources, storage capacity, and network usage.
+- **Trial period**: Get started with a 7-day free trial.
+- **Pricing**: After the trial, the plan operates on a pay-as-you-go model starting from **$0.227 / RWU / hour**.
+- **Features**: Includes core features and standard support.
+- **Capacity**: Supports up to 64 cores.
 
-* **Compute resources**: Compute resources are measured in RisingWave Unit (RWU) hours used across all projects in the organization. See the [explanation of RWU](#risingwave-unit-rwu) below. In each RisingWave project, the usages are tracked for all four components:
-   * Compute node
-   * Frontend node
-   * Meta node
-   * Compactor node
-For detailed information on each node, see [Understanding nodes in RisingWave](/cloud/choose-a-project-plan/#understanding-nodes-in-risingwave).
-* **Storage capacity**: RisingWave Cloud bills the storage in per GB-month increments at a second rate. You pay for the storage capacity of the data your RisingWave project persisted during stream processing, such as tables, materialized views, and internal states.
-* **Network**: Network usage is billed based on data transfer. For detailed information about network billing, see [Network billing](/cloud/network-billing).
+### Pro plan
 
-See the [pricing information](#pricing-information) below for the cost of compute resources and storage capacity in different regions.
+The Pro plan offers elastic scale, flexibility, and advanced capabilities. This plan is suitable for projects requiring high scalability or specific deployment requirements.
 
-### Advanced plan
+- **Deployment**: Available as Fully hosted or Bring Your Own Cloud (BYOC).
+- **Pricing**: Options for Pay-as-you-go or an Annual contract.
+- **Features**: Includes premium features, premium support, and SLA.
+- **Capacity**: No core limits.
 
-The Advanced plan offers a customized pricing model based on your specific needs. Unlike other plans, the billing details for Advanced projects aren't directly displayed in the billing system. The usage for Advanced projects is monitored in the backend and your invoices are generated based on a customized base price. While the pricing model aligns with the Standard plan, we provide a custom offer to match your specific needs. Please reach out to our sales for your customized offer.
+### Self-managed plan
+
+The Self-managed plan provides full control over your infrastructure with enterprise optimizations.
+
+- **Deployment**: Designed for On-premise or Kubernetes environments.
+- **Pricing**: Requires an Annual contract.
+- **Features**: Includes premium features, premium support, SLA, and quarterly success reviews.
+- **Capacity**: No core limits.
 
 ## RisingWave Unit (RWU)
 
-In RisingWave Cloud, the primary unit of computational resource allocation and pricing is the RisingWave Unit (RWU). An RWU is a pre-allocated bundle of computational resources, specifically designed to facilitate horizontal scalability in your data processing operations.
+In RisingWave Cloud, the RisingWave Unit (RWU) is the standard measure for the computing resources you use. Each RWU represents a specific amount of vCPU and memory.
 
-Each RWU is composed of approximately 1-core vCPU and 4 GB of memory. This allocation allows for efficient resource management and cost-effective scalability.
+The number of RWUs for a component is calculated based on its vCPU and memory allocation using this formula:
 
-Billing for all components within a RisingWave project is based on RWU-hour usage. This means that possessing one RWU for one hour equates to 1 RWU-hour.
+`RWU = MAX(vCPU, Memory in GB / 4)`
+
+This means 1 RWU is equivalent to 1 vCPU or 4 GB of memory, whichever value is higher.
+
+Your total charge is based on the RWU-hours consumed by all components in your project. For instance, using 1 RWU for 1 hour equals 1 RWU-hour.
 
 ## Pricing information
 
-To learn about detailed pricing information of the Standard plan and Advanced plan in different regions, please contact our sales team.
+For plans utilizing the pay-as-you-go model (Basic and Pro), you are billed for your actual usage, which includes compute resources, storage capacity, and network usage.
+
+- **Compute resources**: Compute resources are measured in RisingWave Unit (RWU) hours used across all projects in the organization. See the [explanation of RWU](#risingwave-unit-rwu) above. In each RisingWave project, the usages are tracked for all four components:
+   - Serving Node
+   - Streaming Node
+   - Meta Node
+   - Compactor Node
+
+  For detailed information on each node, see [Understanding nodes in RisingWave](/cloud/choose-a-project-plan/#understanding-nodes-in-risingwave).
+
+- **Storage capacity**: RisingWave Cloud bills the storage in per GB-month increments at a second rate. You pay for the storage capacity of the data your RisingWave project persisted during stream processing, such as tables, materialized views, and internal states.
+- **Network**: Network usage is billed based on data transfer. For detailed information about network billing, see [Network billing](/cloud/network-billing).
 
 ## Pricing example
 
@@ -54,21 +74,21 @@ To better understand how pricing works in RisingWave Cloud, let's consider a hyp
 
 Suppose you've provisioned a RisingWave project with the following configuration:
 
-* 3 Compute nodes, each with 8 RWUs
-* 3 Frontend nodes, each with 2 RWUs
-* 1 Meta node with 4 RWUs
-* 1 Compactor node with 4 RWUs
+- 3 Serving nodes, each with 2 RWUs
+- 3 Streaming nodes, each with 8 RWUs
+- 1 Meta Node with 4 RWUs
+- 1 Compactor Node with 4 RWUs
 
-In total, the project utilizes 41 RWUs and stores 20GB of data. The project operated for 700 hours in the past month. The project also transferred 1TB (1024GB) of public ingress data and 20GB of public egress data.
+In total, the project utilizes 38 RWUs and stores 20GB of data. The project operated for 700 hours in the past month. The project also transferred 1TB (1024GB) of public ingress data and 20GB of public egress data.
 
 Suppose the base price for your region is \$0.227 per RWU-hour for compute resources and \$0.0299 per GB-month for storage capacities. The network transfer rates are \$0.07 per GB for public ingress and \$0.17 per GB for public egress.
 
 Given these details, your bill for this project for the past month will be calculated as follows:
 
-* Compute resources cost: \$0.227 * 41 RWUs * 700 hours = \$6,514.9
-* Storage capacity cost: \$0.0299 * 20GB = \$0.598
-* Network transfer cost:
-  * Public ingress: \$0.07 * 1024GB = \$71.68
-  * Public egress: \$0.17 * 20GB = \$3.40
+- Compute resources cost: \$0.227 * 38 RWUs * 700 hours = \$6,038.2
+- Storage capacity cost: \$0.0299 * 20GB = \$0.598
+- Network transfer cost:
+  - Public ingress: \$0.07 * 1024GB = \$71.68
+  - Public egress: \$0.17 * 20GB = \$3.40
 
-Therefore, the total cost for this example would be \$6,590.578.
+Therefore, the total cost for this example would be \$6,113.878.

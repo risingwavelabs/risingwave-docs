@@ -1,12 +1,17 @@
 ---
-title: "Ingest from Iceberg tables"
-sidebarTitle: "Ingest from Iceberg tables"
-description: "Learn how to use the Iceberg source in RisingWave to ingest data from your existing Iceberg tables."
+title: "Ingest data from Iceberg tables"
+sidebarTitle: "Ingest data from Iceberg tables"
+description: "Ingest data from external Apache Iceberg tables in RisingWave for real-time analytics."
 ---
 
-This guide explains how to ingest data from existing Iceberg tables into RisingWave. Use this when you have Iceberg tables managed by external systems and want to use them as a streaming source for real-time processing in RisingWave.
+This guide shows how to read data from external Apache Iceberg tables in RisingWave. Use it when your Iceberg tables are managed by external systems and you want to treat them as a streaming source for real-time processing.
 
-To ingest data from an Iceberg table, you create an Iceberg source. This involves two main steps:
+You can ingest data from Iceberg tables using two approaches:
+
+1. **[Continuous ingestion (default)](#continuous-ingestion-with-create-source)**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
+2. **[Periodic full reload](#periodic-full-reload-with-create-table)**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes. Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you trigger a refresh—either manually or via the configured schedule.
+
+After the source or table is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
 
 ## Prerequisites
 
@@ -15,9 +20,11 @@ To ingest data from an Iceberg table, you create an Iceberg source. This involve
 *   Network connectivity between RisingWave and your storage system.
 *   Knowledge of your Iceberg catalog type and configuration.
 
-## Basic connection example
+## Continuous ingestion with CREATE SOURCE
 
-The following example shows how to connect to an Iceberg table stored on S3 using AWS Glue as the catalog:
+### Basic connection example
+
+The following example creates a source for a table in S3 using AWS Glue as the catalog:
 
 ```sql
 CREATE SOURCE my_iceberg_source
@@ -34,40 +41,31 @@ WITH (
 );
 ```
 
-Replace the placeholders with your actual values.
-
-<Note>
-RisingWave automatically derives column names and data types from the Iceberg table metadata. Use the [DESCRIBE](/sql/commands/sql-describe) statement to view the schema:
+When you read from an external Iceberg table, RisingWave automatically derives column names and data types from the Iceberg table metadata. Use the [DESCRIBE](/sql/commands/sql-describe) statement to view the schema:
 
 ```sql
 DESCRIBE my_iceberg_source;
 ```
-</Note>
 
-## Configuration examples
+### Parameters
 
-### AWS Glue catalog
+| Parameter | Description | Example |
+|:----------|:------------|:--------|
+| `connector` | Required. For Iceberg sources, it must be `'iceberg'` | `'iceberg'` |
+| `database.name` | Required. The Iceberg database/namespace name. | `'analytics'` |
+| `table.name` | Required. The Iceberg table name. | `'user_events'` |
+| `commit_checkpoint_interval` | Optional. Determines the commit frequency (RisingWave commits every N checkpoints). | `60` |
 
-For tables managed by AWS Glue Data Catalog:
+You also need to specify catalog and object storage parameters in the `CREATE SOURCE` statement. Because these parameters are shared across all Iceberg objects—sources, sinks, and internal Iceberg tables—they are documented separately.
 
-```sql
-CREATE SOURCE glue_iceberg_source
-WITH (
-    connector = 'iceberg',
-    warehouse.path = 's3://my-data-lake/warehouse',
-    database.name = 'my_database',
-    table.name = 'my_table',
-    catalog.type = 'glue',
-    catalog.name = 'my_catalog',
-    s3.access.key = 'your-access-key',
-    s3.secret.key = 'your-secret-key',
-    s3.region = 'us-west-2'
-);
-```
+- **Object storage**: [Object storage configuration](/iceberg/object-storage)
+- **Catalogs**: [Catalog configuration](/iceberg/catalogs)
 
-### REST catalog
+For details on how data types are mapped between RisingWave and Iceberg, see the [Data type mapping guide](/iceberg/data-types).
 
-For tables managed by a REST catalog service:
+### Source example
+
+For a REST catalog:
 
 ```sql
 CREATE SOURCE rest_iceberg_source
@@ -85,47 +83,73 @@ WITH (
 );
 ```
 
-### JDBC catalog
+## Periodic full reload with CREATE TABLE
 
-For tables managed by a JDBC catalog (PostgreSQL/MySQL):
+<Note>
+Added in v2.7.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
+</Note>
 
-```sql
-CREATE SOURCE jdbc_iceberg_source
-WITH (
-    connector = 'iceberg',
-    warehouse.path = 's3://my-data-lake/warehouse',
-    database.name = 'my_database',
-    table.name = 'my_table',
-    catalog.type = 'jdbc',
-    catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg_catalog',
-    catalog.jdbc.user = 'catalog_user',
-    catalog.jdbc.password = 'catalog_password',
-    catalog.name = 'production',
-    s3.access.key = 'your-access-key',
-    s3.secret.key = 'your-secret-key',
-    s3.region = 'us-west-2'
-);
-```
+For batch-style workloads where you need to periodically reload an entire Iceberg table, you can create a table with `refresh_mode = 'FULL_RELOAD'`. This mode is useful when:
 
-### Storage catalog
+- The external Iceberg table supports mutable data (updates and deletes).
+- You need a point-in-time snapshot of the entire table.
+- Periodic full reloads fit your use case better than continuous streaming.
 
-For tables using direct filesystem metadata:
+### Create a refreshable table
 
 ```sql
-CREATE SOURCE storage_iceberg_source
-WITH (
+CREATE TABLE iceberg_batch_table (
+    id int primary key,
+    name varchar
+) WITH (
     connector = 'iceberg',
-    warehouse.path = 's3://my-data-lake/warehouse',
-    database.name = 'my_database',
-    table.name = 'my_table',
     catalog.type = 'storage',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'public',
+    table.name = 'my_iceberg_table',
     s3.access.key = 'your-access-key',
     s3.secret.key = 'your-secret-key',
-    s3.region = 'us-west-2'
+    s3.region = 'us-west-2',
+    refresh_mode = 'FULL_RELOAD',        -- Required for periodic refresh
+    refresh_interval_sec = '60'          -- Reload every 60 seconds
 );
 ```
 
-## Query data
+### Parameters
+
+| Parameter | Description | Required | Example |
+|:----------|:------------|:---------|:--------|
+| `refresh_mode` | Must be set to `'FULL_RELOAD'` to enable periodic refresh functionality | Yes | `'FULL_RELOAD'` |
+| `refresh_interval_sec` | Interval in seconds between automatic refresh operations | No | `'60'` |
+
+RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `stream_refresh_scheduler_interval_sec` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
+
+### Manual refresh
+
+You can manually trigger a refresh at any time using the `REFRESH TABLE` command:
+
+```sql
+REFRESH TABLE iceberg_batch_table;
+```
+
+### Monitor refresh status
+
+Query the `rw_catalog.rw_refresh_table_state` system catalog to monitor refresh operations:
+
+```sql
+SELECT table_id, current_status, last_trigger_time, last_success_time, trigger_interval_secs
+FROM rw_catalog.rw_refresh_table_state;
+```
+
+The `current_status` field shows the current state of the refresh job:
+- `IDLE`: No refresh operation is currently in progress
+- `REFRESHING`: A refresh operation is in progress
+
+For more details, see [REFRESH TABLE](/sql/commands/sql-refresh-table).
+
+## What's next?
+
+### Query data
 
 Once created, you can query data from the Iceberg source:
 
@@ -142,11 +166,21 @@ WHERE event_date >= '2024-01-01'
 GROUP BY event_type;
 ```
 
-## Create streaming jobs
+### Query historical snapshots of your Iceberg data
 
-<Note>
-Streaming ingestion is supported for append-only Iceberg tables. If you created the source before RisingWave v2.3, you might need to recreate it to enable streaming functionality.
-</Note>
+Query historical snapshots of your Iceberg tables:
+
+```sql
+-- Query data as it existed at a specific timestamp
+SELECT * FROM my_iceberg_source 
+FOR SYSTEM_TIME AS OF TIMESTAMPTZ '2024-01-01 12:00:00'
+WHERE user_id = 123;
+
+-- Query a specific snapshot by ID
+SELECT COUNT(*) FROM my_iceberg_source
+FOR SYSTEM_VERSION AS OF 1234567890;
+```
+### Continuous data processing jobs
 
 You can create materialized views that continuously process data from the Iceberg source:
 
@@ -173,24 +207,9 @@ FROM my_iceberg_source i
 JOIN user_profiles u ON i.user_id = u.user_id;
 ```
 
-## Time travel
+### Inspect Iceberg metadata through system tables
 
-Query historical snapshots of your Iceberg tables:
-
-```sql
--- Query data as it existed at a specific timestamp
-SELECT * FROM my_iceberg_source 
-FOR SYSTEM_TIME AS OF TIMESTAMPTZ '2024-01-01 12:00:00'
-WHERE user_id = 123;
-
--- Query a specific snapshot by ID
-SELECT COUNT(*) FROM my_iceberg_source
-FOR SYSTEM_VERSION AS OF 1234567890;
-```
-
-## System tables
-
-Access Iceberg metadata through system tables:
+Use system tables to inspect Iceberg metadata:
 
 ```sql
 -- View table snapshots
@@ -206,120 +225,3 @@ SELECT * FROM my_iceberg_source$history;
 SELECT * FROM my_iceberg_source$manifests;
 ```
 
-## Configuration parameters
-
-### Required parameters
-
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `connector` | Must be `'iceberg'` | `'iceberg'` |
-| `database.name` | Iceberg database/namespace name | `'analytics'` |
-| `table.name` | Iceberg table name | `'user_events'` |
-
-### Optional parameters
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `commit_checkpoint_interval` | Commit every N checkpoints | `60` |
-
-### Storage and catalog configuration
-
-For detailed configuration options:
-- **Object storage**: [Object storage configuration](/iceberg/object-storage)
-- **Catalogs**: [Catalog configuration](/iceberg/catalogs)
-
-## Integration patterns
-
-### Lambda architecture pattern
-
-Combine batch and streaming data processing:
-
-```sql
--- Batch layer: Historical data from Iceberg
-CREATE SOURCE historical_events
-WITH (
-    connector = 'iceberg',
-    warehouse.path = 's3://data-lake/warehouse',
-    database.name = 'batch',
-    table.name = 'processed_events',
-    catalog.type = 'glue'
-);
-
--- Speed layer: Real-time data from Kafka
-CREATE SOURCE realtime_events
-WITH (
-    connector = 'kafka',
-    topic = 'live_events',
-    properties.bootstrap.server = 'kafka:9092'
-) FORMAT JSON;
-
--- Serving layer: Combined view
-CREATE MATERIALIZED VIEW unified_events AS
-SELECT user_id, event_type, event_timestamp, 'batch' as source
-FROM historical_events
-UNION ALL
-SELECT user_id, event_type, event_timestamp, 'realtime' as source  
-FROM realtime_events;
-```
-
-### Multi-engine data lake
-
-Connect to tables managed by multiple systems:
-
-```sql
--- Ingest from tables written by Spark
-CREATE SOURCE spark_aggregates
-WITH (
-    connector = 'iceberg',
-    warehouse.path = 's3://data-lake/spark',
-    database.name = 'analytics',
-    table.name = 'daily_summaries',
-    catalog.type = 'glue'
-);
-
--- Process and enhance the data
-CREATE MATERIALIZED VIEW enhanced_summaries AS
-SELECT 
-    date,
-    metric_type,
-    metric_value,
-    metric_value * 1.1 as adjusted_value
-FROM spark_aggregates;
-```
-
-## Best practices
-
-1. **Monitor checkpoint intervals**: Adjust `commit_checkpoint_interval` based on your latency requirements.
-2. **Use time travel for debugging**: Leverage historical snapshots to troubleshoot data issues.
-3. **Combine with real-time sources**: Create comprehensive views that merge batch and stream data.
-4. **Optimize query patterns**: Structure your materialized views to match your query patterns.
-5. **Handle schema evolution**: Be prepared for schema changes in upstream Iceberg tables.
-
-## Limitations
-
-- **Append-only streaming**: Only append-only Iceberg tables support streaming ingestion.
-- **Schema changes**: Major schema changes may require recreating the source.
-- **Catalog permissions**: Ensure RisingWave has read access to your catalog and storage.
-
-## Troubleshooting
-
-### Connection issues
-- Verify catalog configuration and connectivity.
-- Check storage permissions and network access.
-- Ensure credentials are correct.
-
-### Schema issues
-- Use `DESCRIBE` to verify the derived schema.
-- Check for unsupported data types.
-- Verify table exists in the specified database.
-
-### Performance issues
-- Monitor checkpoint intervals and adjust if needed.
-- Consider partitioning in your source tables.
-- Review query patterns and create appropriate indexes.
-
-## Next steps
-
-- **Set up a sink**: Deliver processed data back to Iceberg with [Deliver to Iceberg](/iceberg/deliver-to-iceberg).
-- **Configure catalogs**: Review [Catalog configuration](/iceberg/catalogs) for your specific setup.
-- **Storage setup**: Configure your object storage in [Object storage configuration](/iceberg/object-storage).

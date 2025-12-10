@@ -6,7 +6,7 @@ description: "How to set up a self-hosted PostgreSQL database as a source for Ri
 
 To connect RisingWave to a self-hosted PostgreSQL database for Change Data Capture (CDC), you need to configure your database to support logical replication.
 
-### 1. Set `wal_level` to `logical`
+## 1. Set `wal_level` to `logical`
 
 In your `postgresql.conf` file or via a SQL client, set the `wal_level` parameter to `logical`.
 
@@ -20,7 +20,7 @@ This change requires a **restart of your PostgreSQL server** to take effect.
 If you plan to create multiple CDC sources, ensure the `max_wal_senders` parameter in your `postgresql.conf` is greater than or equal to the number of sources you intend to create. The default value is typically 10.
 </Note>
 
-### 2. Create a dedicated replication user
+## 2. Create a dedicated replication user
 
 Create a dedicated PostgreSQL user for replication. This user needs the `REPLICATION` and `LOGIN` attributes.
 
@@ -32,7 +32,7 @@ CREATE USER <user_name> WITH REPLICATION LOGIN PASSWORD '<your_password>';
 ALTER USER <user_name> WITH REPLICATION LOGIN;
 ```
 
-### 3. Grant required privileges
+## 3. Grant required privileges
 
 Grant the user the necessary privileges on the database and schemas you want to capture changes from.
 
@@ -52,7 +52,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA <schema_name> TO <user_name>;
 ALTER DEFAULT PRIVILEGES IN SCHEMA <schema_name> GRANT SELECT ON TABLES TO <user_name>;
 ```
 
-### Next step
+## Next step
 
 Now that your database is configured, you can proceed to connect RisingWave.
 
