@@ -1,0 +1,59 @@
+---
+title: "SHOW SUBSCRIPTIONS"
+description: "Use the `SHOW SUBSCRIPTIONS` command to list all subscriptions in a schema."
+---
+
+## Syntax
+
+```sql
+SHOW SUBSCRIPTIONS [ FROM schema_name ] [ LIKE_expression ];
+```
+
+## Parameters
+
+| Parameter or clause | Description                                                                                                                                                                               |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _schema\_name_      | The schema of the subscriptions to be listed. If not specified, subscriptions from all schemas in the current schema [search_path](https://docs.risingwave.com/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters:~:text=multi%20point%20lookup.-,search_path,-%E2%80%9D%24user%E2%80%9D%2C%20public) will be listed. |
+| LIKE\_expression    | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
+
+## Example
+
+```sql
+SHOW SUBSCRIPTIONS;
+```
+
+```bash
+        Name
+---------------------
+ public.my_sub
+ public.order_events_sub
+ public.metrics_stream_sub
+(3 rows)
+```
+
+<Note>
+Starting from v2.7.0, the `Name` column in the output includes the schema name as a prefix (e.g., `public.subscription_name`). This helps distinguish subscriptions with the same name in different schemas when querying across multiple schemas in the search path.
+</Note>
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="Real-time updates via subscriptions"
+    icon="rotate"
+    iconType="solid"
+    href="/serve/subscription"
+    horizontal
+  >
+    Learn more about subscriptions
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTION CURSORS"
+    icon="arrow-pointer"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscription-cursors"
+    horizontal
+  >
+    Show subscription cursors
+  </Card>
+</CardGroup>
