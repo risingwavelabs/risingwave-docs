@@ -36,6 +36,10 @@ WITH (
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
 </Note>
 
+## Backfill and isolation
+
+When creating a sink, RisingWave will backfill historical data from the upstream source, table, or materialized view (unless `snapshot=false` is specified). To improve isolation between the backfill phase and streaming phase, you can enable snapshot backfill by setting `SET streaming_use_snapshot_backfill=true;` before creating the sink. This helps prevent resource contention between backfilling historical data and processing new streaming data. For more details, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+
 ## Supported sinks
 
 Click a sink name to see the SQL syntax, options, and sample statement of sinking data from RisingWave to the sink.
