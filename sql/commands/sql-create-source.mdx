@@ -11,7 +11,7 @@ Regardless of whether the data is persisted in RisingWave, you can create materi
 
 ## Syntax
 
-```js
+```sql
 CREATE SOURCE [ IF NOT EXISTS ] source_name (
     [PRIMARY KEY (col_name, ...)],
     col_name data_type [ AS generation_expression ],
@@ -102,17 +102,7 @@ WITH (
 FORMAT UPSERT ENCODE JSON;
 ```
 
-### Limitations and recommended usage
-
-Upsert sources emit "upsert streams" which lack old values for `Update` operations. This makes most stateful operators unavailable, including:
-
-- JOIN operations
-- Aggregations (GROUP BY, COUNT, SUM, etc.)
-- Window functions
-
-You will receive error messages like "upsert stream is not supported as input of" when attempting to use these operators directly on an upsert source.
-
-**Recommended usage patterns:**
+**Recommended usage patterns**
 
 1. **Simple ETL with filtering and transformation:**
    ```sql Example: Filter and transform before sinking
@@ -135,7 +125,7 @@ You will receive error messages like "upsert stream is not supported as input of
    ```
 
 <Note>
-If your use case requires complex transformations or stateful operations, consider using `CREATE TABLE` with `FORMAT UPSERT` instead, which persists all data and provides full query support.
+Upsert sources emit **upsert streams**, which do not contain old values for `UPDATE` operations. Therefore, stateful operators like JOINs, aggregations, and window functions do not work on an upsert source. Attempting to do so will result in errors like `"upsert stream is not supported as input of"`.
 </Note>
 
 ## Change Data Capture (CDC)
