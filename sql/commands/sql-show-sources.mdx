@@ -13,19 +13,24 @@ SHOW SOURCES [ FROM schema_name ] [ LIKE_expression ];
 
 | Parameter or clause | Description                                                                                                                                                                               |
 | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _schema\_name_      | The schema of the sources to be listed. The default schema is public.                                                                                                                     |
+| _schema\_name_      | The schema of the sources to be listed. If not specified, sources from all schemas in the current schema [search_path](https://docs.risingwave.com/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters:~:text=multi%20point%20lookup.-,search_path,-%E2%80%9D%24user%E2%80%9D%2C%20public) will be listed. |
 | LIKE\_expression    | Filters the output based on names by applying pattern matching. See details in [LIKE pattern matching expressions](/sql/functions/string#like-pattern-matching-expressions). |
 
 ## Examples
 
-```bash
+```sql
 SHOW SOURCES;
+```
 
-----RESULT
- Name
-------
-nics_metrics
-tcp_metrics
-twitter_events
+```bash
+        Name
+---------------------
+public.nics_metrics
+public.tcp_metrics
+public.twitter_events
 (3 rows)
 ```
+
+<Note>
+Starting from v2.7.0, the `name` column in the output includes the schema name as a prefix (e.g., `public.source_name`). This helps distinguish sources with the same name in different schemas when querying across multiple schemas in the search path.
+</Note>

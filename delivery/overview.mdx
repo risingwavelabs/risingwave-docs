@@ -89,6 +89,25 @@ A sink will buffer incoming data within each barrier interval if the stream's in
 
 If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or `force_append_only`, no buffering is performed and the sink emits changes immediately as they arrive.
 
+### Force compaction
+
+You can set the `force_compaction` option to `true` to enable buffering and compaction even when the stream key matches the sink primary key exactly. This allows you to:
+
+- Reduce the number of output messages by compacting updates within each barrier interval
+- Emit at most one update per key within a barrier interval, simplifying downstream logic
+
+Example:
+
+```sql
+CREATE SINK sink_t_force_compaction FROM t_force_compaction WITH (
+  connector = 'kafka',
+  properties.bootstrap.server = 'message_queue:29092',
+  topic = 'test-rw-force-compaction-sink',
+  force_compaction = 'true',
+  primary_key = 'id'
+) FORMAT UPSERT ENCODE JSON;
+```
+
 ## Sink data in parquet or json format
 
 RisingWave supports sinking data in Parquet or JSON formats to cloud storage services, including [S3](/integrations/destinations/aws-s3), [Google Cloud Storage (GCS)](/integrations/destinations/google-cloud-storage), [Azure Blob Storage](/integrations/destinations/azure-blob), and [WebHDFS](/integrations/destinations/webhdfs). This eliminates the need for complex data lake setups. Once the data is saved, the files can be queried using RisingWave's batch processing engine through the `file_scan` API. You can also leverage third-party OLAP query engines to enhance data processing capabilities.
