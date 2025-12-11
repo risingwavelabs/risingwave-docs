@@ -29,28 +29,28 @@ LDAP authentication is configured in the RisingWave configuration file by adding
 
 ### Configuration parameters
 
-### Common parameters
+#### Common parameters
 
 | Parameter | Required | Description |
 | :-- | :-- | :-- |
 | `ldapserver` | Yes | LDAP server hostname or IP address |
-| `ldapport` | No | LDAP server port (default: 389 for ldap, 636 for ldaps) |
-| `ldapscheme` | No | Connection scheme:`ldap`or`ldaps`(default: ldap) |
-| `ldaptls` | No | Enable STARTTLS on ldap:// connections (default: false) |
+| `ldapport` | No | LDAP server port (Default: 389 for ldap, 636 for ldaps) |
+| `ldapscheme` | No | Connection scheme:`ldap`or`ldaps`(Default: ldap) |
+| `ldaptls` | No | Enable STARTTLS on ldap:// connections (Default: false) |
 | `ldapurl` | Yes | RFC 4516 LDAP URL (alternative to individual parameters) |
 
 <Note>
 Either `ldapserver` or `ldapurl` is required, but not both.
 </Note>
 
-### Simple bind mode parameters
+#### Simple bind mode parameters
 
 | Parameter | Required | Description |
 | :-- | :-- | :-- |
 | `ldapprefix` | No | String to prepend to the username |
 | `ldapsuffix` | No | String to append to the username |
 
-### Search + bind mode parameters
+#### Search + bind mode parameters
 
 | Parameter | Required | Description |
 | :-- | :-- | :-- |
@@ -141,7 +141,7 @@ With this configuration:
 - RisingWave binds as admin to search for users
 - Searches for `(uid=username)` under `ou=people,dc=example,dc=com`
 - Uses LDAPS (port 636) for encrypted connection
-- Only accepts connections from the 192.168.1.0/24 subnet
+- Only accepts connections from the `192.168.1.0/24` subnet
 
 ### Simple bind using LDAP URL format
 
@@ -243,7 +243,7 @@ Users must exist in both the LDAP directory AND be created in RisingWave. The LD
 ## Security considerations
 
 1. **Encryption**: Always use TLS/SSL (LDAPS or STARTTLS) in production to protect credentials in transit.
-2. **Certificate Verification**: Use `LDAPTLS_REQCERT="demand"` to enforce strict certificate validation.
-3. **Bind Credentials**: Store bind DN passwords securely. Consider using read-only service accounts.
-4. **Injection Protection**: RisingWave automatically escapes usernames to prevent LDAP injection attacks.
-5. **Network Security**: Use HBA `addresses` field to restrict LDAP authentication to trusted networks.
+2. **Certificate verification**: Use `LDAPTLS_REQCERT="demand"` to enforce strict certificate validation.
+3. **Bind credentials**: Store bind DN passwords securely. Consider using read-only service accounts.
+4. **Injection protection**: RisingWave automatically escapes usernames to prevent LDAP injection attacks.
+5. **Network security**: Use HBA `addresses` field to restrict LDAP authentication to trusted networks.
