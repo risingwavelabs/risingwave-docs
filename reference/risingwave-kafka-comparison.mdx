@@ -1,0 +1,160 @@
+---
+title: "RisingWave vs. Apache Kafka: Which one to choose?"
+sidebarTitle: "RisingWave vs. Kafka"
+description: "Kafka and RisingWave often show up in the same architecture, but they solve different parts of a modern real-time data pipeline. Kafka is a distributed log and messaging backbone. RisingWave is a SQL-first streaming database that can ingest streams, continuously transform them, and deliver results to downstream systems. This page helps you choose the right system for your ingestion pipeline needs."
+---
+
+We periodically update this article to keep up with the rapidly evolving landscape.
+
+## Summary
+
+|  | Apache Kafka | RisingWave |
+| :------------------------------- | :-------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| System category | Distributed log and messaging backbone | SQL-first streaming database |
+| Primary strength | Durable event streaming and fan-out | Ingest + transform + deliver in one system |
+| Transformation | Requires separate tools (ksqlDB, Kafka Streams, Flink, Spark) | Built-in SQL-based continuous transformations |
+| Delivery | Kafka Connect sink connectors | Built-in sinks with SQL-managed pipeline objects |
+| Iceberg support | Via Connect or custom jobs | Native Iceberg support with built-in compaction |
+| Operational complexity | Multiple systems to manage | Single SQL-centric system |
+| Use case focus | Event bus, buffering, fan-out | End-to-end ingestion pipeline |
+
+## Introduction
+
+_Kafka is a distributed log and messaging backbone; RisingWave is a SQL-first streaming database that can ingest streams, continuously transform them, and deliver results to downstream systems._
+
+Kafka and RisingWave often show up in the same architecture, but they solve different parts of a modern real-time data pipeline. This page focuses on one specific decision: choosing a system for the ingestion pipeline, meaning ingest + transform + deliver. It follows the same "which one to choose" framing as the [RisingWave vs. Flink](/reference/risingwave-flink-comparison) page, but the comparison point here is Kafka.
+
+### Apache Kafka
+
+Apache Kafka is a distributed event streaming platform that serves as a durable log and messaging backbone. Kafka excels at storing events in topics so multiple consumers can read them independently, at their own pace. It is strongest when you need a shared event backbone for many teams and many downstream consumers. Kafka Connect is commonly used to move data between Kafka and external systems via source connectors (external system to Kafka) and sink connectors (Kafka to external system).
+
+### RisingWave
+
+RisingWave is an open-source distributed SQL database designed for stream processing. It can ingest from Kafka, but it is not Kafka-dependent. It also supports ingestion from sources like database CDC and other systems, and it treats sources as first-class objects managed with SQL DDL. In practice, this means ingest is directly connected to the next stage: you ingest data with the intent to transform and deliver it immediately in the same system.
+
+## A useful mental model
+
+Think of the pipeline as three stages:
+
+1. **Ingest**: get events into the system reliably.
+2. **Transform**: continuously clean, join, aggregate, enrich, and compute derived data.
+3. **Deliver**: push results to where they will be used (serving DBs, search, Iceberg, other topics).
+
+Kafka is strongest at stage 1. RisingWave is designed to cover all three stages with one SQL-centric system.
+
+## Stage 1: Ingest
+
+### Kafka
+
+Kafka's primary job is durable event streaming and fan-out. It stores events in topics so multiple consumers can read them independently, at their own pace. Kafka excels when you need a shared event backbone for many teams and many downstream consumers.
+
+Kafka Connect is commonly used here too, but it is important to place it correctly. Connect is a connector runtime that moves data between Kafka and external systems via **source connectors** (external system to Kafka) and **sink connectors** (Kafka to external system).
+
+### RisingWave
+
+RisingWave can ingest from Kafka, but it is not Kafka-dependent. It also supports ingestion from sources like database CDC and other systems, and it treats sources as first-class objects managed with SQL DDL. In practice, this means ingest is directly connected to the next stage: you ingest data with the intent to transform and deliver it immediately in the same system.
+
+**How to choose for ingest**
+
+* Choose **Kafka** when the main requirement is a durable, shared event bus with broad fan-out and replay semantics for many independent consumers.
+* Choose **RisingWave** when ingest is the beginning of a continuous SQL pipeline and you want ingestion to be tightly integrated with transformations and delivery.
+
+## Stage 2: Transform
+
+### Kafka
+
+Kafka itself does not provide a full transformation engine. In Kafka-centric architectures, transformations are typically handled by one of the following:
+
+* **ksqlDB**, which models **streams and tables** on top of Kafka topics and provides SQL-based stream processing.
+* **Kafka Streams**, which is a **client library** for processing data stored in Kafka.
+* A dedicated stream processing engine such as **Flink** or **Spark Streaming**, when you need more general-purpose streaming compute and ecosystem integrations.
+
+Kafka Connect can apply **Single Message Transforms (SMTs)**, but SMTs are intentionally limited and are not meant to turn Connect into a general stream processing framework. KIP-66 explicitly states that Connect should not extend its focus beyond moving data, and only simple map/filter style transformations are supported.
+
+### RisingWave
+
+RisingWave is built around continuous SQL transformations. Instead of writing a separate processing job, you express transformation logic as SQL, and RisingWave maintains the results incrementally, typically via materialized views and related objects. This matches the same "SQL-first" design philosophy described in the [RisingWave vs. Flink](/reference/risingwave-flink-comparison) comparison, where RisingWave emphasizes PostgreSQL-style SQL and integrated state management rather than external job graphs.
+
+**How to choose for transform**
+
+* Choose **Kafka + (ksqlDB or Kafka Streams)** when your transformations are tightly coupled to Kafka topics and you want to stay within the Kafka ecosystem.
+* Choose **Kafka + Flink/Spark** when you need a dedicated compute framework and you are comfortable operating it.
+* Choose **RisingWave** when you want transformations expressed and managed as SQL assets inside a database-like system, without introducing a separate stream processing stack.
+
+## Stage 3: Deliver
+
+### Kafka
+
+Kafka delivers data to downstream systems primarily in two ways:
+
+1. Downstream systems consume Kafka topics directly.
+2. Kafka Connect sink connectors push data from Kafka topics into external systems such as databases, storage, or indexes.
+
+This works well, but delivery often becomes a separate operational plane: running Connect clusters, managing connector versions, handling retries, and maintaining connector configurations.
+
+### RisingWave
+
+RisingWave is designed to deliver the results of transformations directly to downstream systems using built-in sinks and SQL-managed pipeline objects. Conceptually, delivery is not an afterthought. It is part of the same SQL workflow as ingestion and transformation.
+
+**How to choose for deliver**
+
+* Choose **Kafka + Connect** when you already standardize on Kafka topics as your interchange layer and you want connectors to handle delivery to many systems.
+* Choose **RisingWave** when delivery is coupled with transformation and you want the pipeline defined end-to-end in one system.
+
+## Iceberg-based Lakehouse
+
+If your primary delivery target is an Iceberg lakehouse, the ingestion pipeline is not just about writing records. It is also about keeping tables healthy over time.
+
+### Kafka-based approach
+
+You can deliver to object storage or lakehouse systems via Connect sinks or custom jobs, but table-level maintenance is typically outside Kafka's scope. SMTs are not designed for table maintenance.
+
+### RisingWave-based approach
+
+RisingWave positions itself as an ETL/ELT tool for Iceberg with support for Iceberg table writing and built-in **Iceberg compaction** using its own engine, including support for MoR and CoW modes. For more details, see the [Iceberg feature support](/iceberg/iceberg-feature-support) page, which also highlights catalog integrations (for example, Unity Catalog, Polaris, Lakekeeper, S3 Tables, Glue, and others) and exactly-once support for Iceberg writing.
+
+**How to choose for Iceberg**
+
+* If Iceberg is the main destination and you care about ongoing table maintenance as part of ingestion, RisingWave's "deliver to Iceberg plus maintenance" story is often a better fit than treating Iceberg delivery as a simple sink.
+
+## Common architectures
+
+### 1) Kafka as the event bus, RisingWave as the ingestion pipeline
+
+Use Kafka for fan-out and buffering, then use RisingWave to transform and deliver to Iceberg or serving systems.
+
+* Good when Kafka is already the shared backbone.
+* Good when you want SQL-managed transformations and delivery.
+
+### 2) Kafka-centric pipeline with separate transformation engine
+
+Kafka ingest, then ksqlDB or Kafka Streams or Flink/Spark for transformation, then Connect or custom sinks for delivery.
+
+* Good when you want to stay in Kafka-native tooling.
+* Good when you already operate a stream processing framework.
+
+### 3) RisingWave-first pipeline with Kafka optional
+
+Ingest from CDC or other sources directly into RisingWave, then deliver to Iceberg and downstream systems.
+
+* Good when the primary goal is a single, SQL-defined ingestion pipeline and Kafka is not required as a central bus.
+
+## How to choose?
+
+So, which one should you choose? The answer to this question depends on your specific use case and requirements.
+
+### Choose Apache Kafka if:
+
+* You need a shared, durable event backbone for many independent consumers.
+* Your primary need is buffering, fan-out, and replay at the messaging layer.
+
+### Choose RisingWave if:
+
+* You want a single system to define and operate ingest + transform + deliver using SQL.
+* You want to minimize the number of moving parts (Connect clusters, separate stream jobs) for typical transformation pipelines.
+* Your delivery target is Iceberg and you want built-in maintenance (for example, compaction) as part of the ingestion workflow.
+
+### Choose both if:
+
+* Kafka is your organization-wide event bus, but you want RisingWave to turn streams into ready-to-use, continuously updated results and deliver them downstream.
+

@@ -1,0 +1,38 @@
+---
+title: "Operate Nimtable"
+sidebarTitle: "Operations"
+description: "Ports, configuration, security, and persistence for running Nimtable in production."
+---
+
+## Ports and endpoints
+
+- UI: 3000
+- REST Catalog API: default 8182 (configurable in `config.yaml`)
+
+## Configuration
+
+- `config.yaml` mounted to `/app/config.yaml` in Docker for server, database, and catalog settings
+- Environment variables for overrides (for example, admin username/password on first boot, AWS credentials)
+- Keep secrets out of images; prefer mounted secrets or environment variables
+
+## Metadata store
+
+- Nimtable stores its own metadata in PostgreSQL; back up this database on your standard schedule
+- UI-added catalogs persist in this database; file-based catalogs come from `config.yaml`
+
+## Logging and observability
+
+- Use `docker compose logs -f` for quick inspection
+- Route container logs to your central log pipeline in production
+
+## Security
+
+- Change the default `admin/admin` credentials immediately after first login
+- Limit network exposure of the REST endpoint and UI; place behind your standard auth and TLS termination
+- Use least-privilege IAM for S3 or Glue access
+
+## Backup and restore
+
+- Back up the PostgreSQL database used by Nimtable
+- Keep a versioned copy of `config.yaml` for reproducible deployments
+
