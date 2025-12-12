@@ -1,0 +1,28 @@
+---
+title: "Maintenance with Nimtable"
+sidebarTitle: "Maintenance"
+description: "Use Nimtable to spot and act on Iceberg maintenance needs alongside RisingWave."
+---
+
+## What Nimtable tracks
+
+- Tables needing compaction
+- Recent compaction jobs and outcomes
+- Watchlist entries for tables you want to track closely
+
+## How to act
+
+- Trigger compaction or optimization via your preferred engine (for example, Spark or a RisingWave job) while using Nimtable for visibility and coordination
+- Use file and partition layout views to decide when to compact or rewrite manifests
+
+## Using Nimtable as a REST Catalog for RisingWave
+
+- Expose Nimtable’s REST endpoint to RisingWave and create Iceberg sources, sinks, or internal tables with `catalog.type = 'rest'`
+- Keep storage credentials aligned or use vended credentials if your REST stack provides them
+
+## Good practices
+
+- Compact small files before downstream queries peak
+- Monitor snapshots after large writes to ensure manifest counts stay healthy
+- Pin critical tables to the watchlist to avoid missing compaction windows
+
