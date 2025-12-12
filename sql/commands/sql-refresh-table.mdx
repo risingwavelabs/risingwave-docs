@@ -1,20 +1,17 @@
 ---
 title: "REFRESH TABLE"
-description: "Use the `REFRESH TABLE` command to manually trigger a refresh operation for tables created with the FULL_RELOAD or FULL_RECOMPUTE refresh modes."
+description: "Use the `REFRESH TABLE` command to manually trigger a refresh operation for tables created with the FULL_RELOAD refresh mode."
 ---
 
 <Note>
 Added in v2.7.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
 </Note>
 
-The `REFRESH TABLE` command manually triggers a full reload of data from the external source for tables configured with refreshable modes. It supports two refresh modes:
+The `REFRESH TABLE` command manually triggers a full reload of data from the external source for tables configured with the `FULL_RELOAD` refresh mode. This is useful when you need to immediately update the table data without waiting for the next scheduled refresh, or when you want complete control by not setting a refresh interval.
 
-- **`FULL_RELOAD`**: For periodic refresh with optional scheduled intervals. Use this when you want scheduled automatic refreshes plus on-demand manual triggers.
-- **`FULL_RECOMPUTE`**: For manual-only refresh. Use this when you want complete control over when data is loaded and need explicit delete file handling (PositionDeletes and EqualityDeletes).
+When a table is created with `refresh_mode = 'FULL_RELOAD'`, it can be configured to automatically refresh at a specified interval using the `refresh_interval_sec` parameter. The `REFRESH TABLE` command allows you to trigger an additional refresh on demand. If you omit `refresh_interval_sec`, the table will only refresh when you manually execute `REFRESH TABLE`, giving you complete control over when data is loaded.
 
-When a table is created with `refresh_mode = 'FULL_RELOAD'`, it can be configured to automatically refresh at a specified interval using the `refresh_interval_sec` parameter. The `REFRESH TABLE` command allows you to trigger an additional refresh on demand.
-
-When a table is created with `refresh_mode = 'FULL_RECOMPUTE'`, it does not automatically load data. You must explicitly execute `REFRESH TABLE` to pull data from the external Iceberg table. Each refresh pulls the latest Iceberg snapshot and applies any delete files.
+Each refresh pulls the latest Iceberg snapshot and applies any delete files (PositionDeletes and EqualityDeletes) to ensure accurate query results.
 
 ## Syntax
 
@@ -26,11 +23,11 @@ REFRESH TABLE table_name;
 
 | Parameter | Description |
 |:----------|:------------|
-| `table_name` | The name of the table to refresh. The table must be created with `refresh_mode = 'FULL_RELOAD'` or `refresh_mode = 'FULL_RECOMPUTE'`. |
+| `table_name` | The name of the table to refresh. The table must be created with `refresh_mode = 'FULL_RELOAD'`. |
 
 ## Examples
 
-### Example 1: Periodic refresh with FULL_RELOAD
+### Example 1: Periodic refresh with scheduled interval
 
 Create a table with the `FULL_RELOAD` refresh mode for scheduled automatic refreshes:
 
@@ -58,9 +55,9 @@ Manually trigger a refresh:
 REFRESH TABLE iceberg_batch_table;
 ```
 
-### Example 2: Manual-only refresh with FULL_RECOMPUTE
+### Example 2: Manual-only refresh without scheduled interval
 
-Create a table with the `FULL_RECOMPUTE` refresh mode for manual-only refreshes:
+Create a table with the `FULL_RELOAD` refresh mode but without `refresh_interval_sec` for manual-only refreshes:
 
 ```sql
 CREATE TABLE iceberg_manual_table (
@@ -76,7 +73,7 @@ CREATE TABLE iceberg_manual_table (
     s3.secret.key = secret my_secret,
     s3.endpoint = 'http://127.0.0.1:9301',
     s3.region = 'us-west-2',
-    refresh_mode = 'FULL_RECOMPUTE'  -- No automatic refresh
+    refresh_mode = 'FULL_RELOAD'  -- No refresh_interval_sec means manual-only
 );
 ```
 
