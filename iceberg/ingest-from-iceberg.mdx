@@ -6,10 +6,11 @@ description: "Ingest data from external Apache Iceberg tables in RisingWave for 
 
 This guide shows how to read data from external Apache Iceberg tables in RisingWave. Use it when your Iceberg tables are managed by external systems and you want to treat them as a streaming source for real-time processing.
 
-You can ingest data from Iceberg tables using two approaches:
+You can ingest data from Iceberg tables using three approaches:
 
 1. **[Continuous ingestion (default)](#continuous-ingestion-with-create-source)**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
 2. **[Manual refresh](#manual-refresh-with-create-table)**: Create an Iceberg table with `refresh_mode = 'FULL_RECOMPUTE'` for on-demand full table refreshes. Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you manually trigger a refresh using `REFRESH TABLE`.
+3. **[Periodic full reload](#periodic-full-reload-with-create-table)**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes. Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you trigger a refresh—either manually or via the configured schedule.
 
 After the source or table is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
 
@@ -98,7 +99,7 @@ For batch-style workloads where you need to manually reload an entire Iceberg ta
 ### Create a refreshable table
 
 ```sql
-CREATE TABLE iceberg_batch_table (
+CREATE TABLE iceberg_manual_table (
     id int primary key,
     name varchar
 ) WITH (
@@ -107,8 +108,9 @@ CREATE TABLE iceberg_batch_table (
     warehouse.path = 's3://my-data-lake/warehouse',
     database.name = 'public',
     table.name = 'my_iceberg_table',
-    s3.access.key = 'your-access-key',
-    s3.secret.key = 'your-secret-key',
+    s3.access.key = secret my_secret,
+    s3.secret.key = secret my_secret,
+    s3.endpoint = 'http://127.0.0.1:9301',
     s3.region = 'us-west-2',
     refresh_mode = 'FULL_RECOMPUTE'     -- Required for manual refresh
 );
@@ -127,7 +129,7 @@ When `refresh_mode = 'FULL_RECOMPUTE'` is set, the table will only be populated 
 To load or reload data from the external Iceberg table, use the `REFRESH TABLE` command:
 
 ```sql
-REFRESH TABLE iceberg_batch_table;
+REFRESH TABLE iceberg_manual_table;
 ```
 
 This command pulls the latest Iceberg snapshot and applies all delete files, ensuring the table reflects the current state in Iceberg.
@@ -138,7 +140,7 @@ You can verify discovered delete files via the `rw_iceberg_files` system catalog
 
 ```sql
 SELECT * FROM rw_iceberg_files 
-WHERE source_name = '__iceberg_source_iceberg_batch_table';
+WHERE source_name = '__iceberg_source_iceberg_manual_table';
 ```
 
 This query shows all data and delete files associated with the table. The `content` column indicates the file type:
@@ -152,6 +154,70 @@ Query the `rw_catalog.rw_refresh_table_state` system catalog to monitor refresh 
 
 ```sql
 SELECT table_id, current_status, last_trigger_time, last_success_time
+FROM rw_catalog.rw_refresh_table_state;
+```
+
+The `current_status` field shows the current state of the refresh job:
+- `IDLE`: No refresh operation is currently in progress
+- `REFRESHING`: A refresh operation is in progress
+
+For more details, see [REFRESH TABLE](/sql/commands/sql-refresh-table).
+
+## Periodic full reload with CREATE TABLE
+
+<Note>
+Added in v2.7.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
+</Note>
+
+For batch-style workloads where you need to periodically reload an entire Iceberg table, you can create a table with `refresh_mode = 'FULL_RELOAD'`. This mode is useful when:
+
+- The external Iceberg table supports mutable data (updates and deletes).
+- You need a point-in-time snapshot of the entire table.
+- Periodic full reloads fit your use case better than continuous streaming.
+
+### Create a refreshable table
+
+```sql
+CREATE TABLE iceberg_batch_table (
+    id int primary key,
+    name varchar
+) WITH (
+    connector = 'iceberg',
+    catalog.type = 'storage',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'public',
+    table.name = 'my_iceberg_table',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    refresh_mode = 'FULL_RELOAD',        -- Required for periodic refresh
+    refresh_interval_sec = '60'          -- Reload every 60 seconds
+);
+```
+
+### Parameters
+
+| Parameter | Description | Required | Example |
+|:----------|:------------|:---------|:--------|
+| `refresh_mode` | Must be set to `'FULL_RELOAD'` to enable periodic refresh functionality | Yes | `'FULL_RELOAD'` |
+| `refresh_interval_sec` | Interval in seconds between automatic refresh operations | No | `'60'` |
+
+RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `stream_refresh_scheduler_interval_sec` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
+
+### Manual refresh
+
+You can manually trigger a refresh at any time using the `REFRESH TABLE` command:
+
+```sql
+REFRESH TABLE iceberg_batch_table;
+```
+
+### Monitor refresh status
+
+Query the `rw_catalog.rw_refresh_table_state` system catalog to monitor refresh operations:
+
+```sql
+SELECT table_id, current_status, last_trigger_time, last_success_time, trigger_interval_secs
 FROM rw_catalog.rw_refresh_table_state;
 ```
 

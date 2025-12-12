@@ -1,15 +1,20 @@
 ---
 title: "REFRESH TABLE"
-description: "Use the `REFRESH TABLE` command to manually trigger a refresh operation for tables created with the FULL_RECOMPUTE refresh mode."
+description: "Use the `REFRESH TABLE` command to manually trigger a refresh operation for tables created with the FULL_RELOAD or FULL_RECOMPUTE refresh modes."
 ---
 
 <Note>
 Added in v2.7.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
 </Note>
 
-The `REFRESH TABLE` command manually triggers a full reload of data from the external source for tables configured with the `FULL_RECOMPUTE` refresh mode. This command is required to load data into the table for the first time and can be used anytime you need to update the table data with the latest snapshot from the external source.
+The `REFRESH TABLE` command manually triggers a full reload of data from the external source for tables configured with refreshable modes. It supports two refresh modes:
 
-When a table is created with `refresh_mode = 'FULL_RECOMPUTE'`, it does not automatically load data. You must explicitly execute `REFRESH TABLE` to pull data from the external Iceberg table. Each refresh pulls the latest Iceberg snapshot and applies any delete files (PositionDeletes and EqualityDeletes) to ensure accurate query results.
+- **`FULL_RELOAD`**: For periodic refresh with optional scheduled intervals. Use this when you want scheduled automatic refreshes plus on-demand manual triggers.
+- **`FULL_RECOMPUTE`**: For manual-only refresh. Use this when you want complete control over when data is loaded and need explicit delete file handling (PositionDeletes and EqualityDeletes).
+
+When a table is created with `refresh_mode = 'FULL_RELOAD'`, it can be configured to automatically refresh at a specified interval using the `refresh_interval_sec` parameter. The `REFRESH TABLE` command allows you to trigger an additional refresh on demand.
+
+When a table is created with `refresh_mode = 'FULL_RECOMPUTE'`, it does not automatically load data. You must explicitly execute `REFRESH TABLE` to pull data from the external Iceberg table. Each refresh pulls the latest Iceberg snapshot and applies any delete files.
 
 ## Syntax
 
@@ -21,11 +26,13 @@ REFRESH TABLE table_name;
 
 | Parameter | Description |
 |:----------|:------------|
-| `table_name` | The name of the table to refresh. The table must be created with `refresh_mode = 'FULL_RECOMPUTE'`. |
+| `table_name` | The name of the table to refresh. The table must be created with `refresh_mode = 'FULL_RELOAD'` or `refresh_mode = 'FULL_RECOMPUTE'`. |
 
-## Example
+## Examples
 
-Create a table with the `FULL_RECOMPUTE` refresh mode:
+### Example 1: Periodic refresh with FULL_RELOAD
+
+Create a table with the `FULL_RELOAD` refresh mode for scheduled automatic refreshes:
 
 ```sql
 CREATE TABLE iceberg_batch_table (
@@ -34,14 +41,10 @@ CREATE TABLE iceberg_batch_table (
 ) WITH (
     connector = 'iceberg',
     catalog.type = 'storage',
-    warehouse.path = 's3://hummock001/iceberg_connection',
     table.name = 'my_iceberg_table',
     database.name = 'public',
-    s3.access.key = secret my_secret,
-    s3.secret.key = secret my_secret,
-    s3.endpoint = 'http://127.0.0.1:9301',
-    s3.region = 'us-west-2',
-    refresh_mode = 'FULL_RECOMPUTE'
+    refresh_mode = 'FULL_RELOAD',
+    refresh_interval_sec = '60'  -- Automatically refresh every 60 seconds
 );
 ```
 
@@ -51,12 +54,40 @@ Manually trigger a refresh:
 REFRESH TABLE iceberg_batch_table;
 ```
 
+### Example 2: Manual-only refresh with FULL_RECOMPUTE
+
+Create a table with the `FULL_RECOMPUTE` refresh mode for manual-only refreshes:
+
+```sql
+CREATE TABLE iceberg_manual_table (
+    id int primary key,
+    name varchar
+) WITH (
+    connector = 'iceberg',
+    catalog.type = 'storage',
+    warehouse.path = 's3://hummock001/iceberg_connection',
+    table.name = 't_refresh',
+    database.name = 'public',
+    s3.access.key = secret my_secret,
+    s3.secret.key = secret my_secret,
+    s3.endpoint = 'http://127.0.0.1:9301',
+    s3.region = 'us-west-2',
+    refresh_mode = 'FULL_RECOMPUTE'  -- No automatic refresh
+);
+```
+
+Manually trigger a refresh (required to load data):
+
+```sql
+REFRESH TABLE iceberg_manual_table;
+```
+
 ## Monitor refresh status
 
 You can monitor the status of refresh operations using the `rw_catalog.rw_refresh_table_state` system catalog:
 
 ```sql
-SELECT table_id, current_status, last_trigger_time, last_success_time
+SELECT table_id, current_status, last_trigger_time, last_success_time, trigger_interval_secs
 FROM rw_catalog.rw_refresh_table_state;
 ```
 
@@ -65,6 +96,7 @@ This query returns information about all refreshable tables, including:
 - `current_status`: The current status of the refresh job (e.g., `IDLE`, `REFRESHING`)
 - `last_trigger_time`: The timestamp of the last refresh operation
 - `last_success_time`: The timestamp when the refresh last completed successfully
+- `trigger_interval_secs`: The configured refresh interval in seconds
 
 ## Related topics
 
