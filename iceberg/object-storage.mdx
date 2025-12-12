@@ -1,7 +1,7 @@
 ---
 title: "Object storage configuration"
 sidebarTitle: "Object storage"
-description: "Configure the object storage backend (such as AWS S3, GCS, or Azure Blob Storage) for your Iceberg warehouse."
+description: "Configure the object storage backend (such as AWS S3, GCS, Azure Blob Storage, or Azure Data Lake Storage Gen2) for your Iceberg warehouse."
 ---
 
 This guide provides the configuration parameters for connecting RisingWave to the object storage backend for your Apache Iceberg data. These parameters are used in the `WITH` clause when creating an Iceberg source, sink, or connection.
@@ -71,5 +71,36 @@ CREATE SINK my_iceberg_sink FROM my_mv WITH (
     warehouse.path = 'azblob://my-container/warehouse',
     azblob.account_name = 'myaccount',
     azblob.account_key = '...'
+);
+```
+
+## Azure Data Lake Storage Gen2 (ADLS)
+
+These parameters configure the connection to Azure Data Lake Storage Gen2.
+
+<Note>
+Support for ADLS was added in RisingWave v2.5.0. ADLS can only be used with REST catalog.
+</Note>
+
+| Parameter | Description |
+|---|---|
+| `warehouse.path` | **Required**. The warehouse path. This is typically just the name of the container or a relative path. |
+| `adlsgen2.account_name` | **Required**. The Azure Storage account name. |
+| `adlsgen2.account_key` | **Required**. The Azure Storage account key. Alternatively, you can use client credentials (client ID, client secret, tenant ID) configured in your REST catalog. |
+| `adlsgen2.endpoint` | **Optional**. The endpoint URL for ADLS. Defaults to `https://<account_name>.dfs.core.windows.net/`. |
+
+```sql Example
+CREATE SINK my_iceberg_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    catalog.type = 'rest',
+    catalog.uri = 'http://127.0.0.1:8181/catalog/',
+    catalog.name = 'demo',
+    warehouse.path = 'test',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    adlsgen2.account_name = 'myaccount',
+    adlsgen2.account_key = '...'
 );
 ```
