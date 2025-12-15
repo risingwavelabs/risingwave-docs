@@ -10,56 +10,58 @@ Support for certain earlier version will end following the release of v2.7, plea
 ## SQL features
 
 - SQL commands:
-    - Supports vector index Top-N lookups in streaming queries, enabling MVs and sinks to enrich each row with nearest-neighbor results. https://github.com/risingwavelabs/risingwave/pull/23288
-    - Supports `ALTER FRAGMENT ... SET PARALLELISM` command to alter the parallelism of streaming fragments. https://github.com/risingwavelabs/risingwave/pull/23523
-    - Reduces reserved keywords in `EXPLAIN` options (e.g., `BACKFILL`, `TRACE`) by parsing them as identifiers.https://github.com/risingwavelabs/risingwave/pull/23208
-    - Adds schema name to `name` column in the output of `SHOW [TABLE|VIEW|SOURCE|SINK|...]` commands. https://github.com/risingwavelabs/risingwave/pull/23119
-    - When `DROP`/`CANCEL` takes longer than `slow_ddl_notification_secs` (30s), you can run `RECOVER` for immediate effect. https://github.com/risingwavelabs/risingwave/pull/23613
-    - Supports `ALTER TABLE ... ADD COLUMN` command on tables with incoming sinks.https://github.com/risingwavelabs/risingwave/pull/23766
-    - Supports querying vector index in append-only streaming. https://github.com/risingwavelabs/risingwave/pull/23288
+    - Supports vector index Top-N lookups in streaming queries, enabling MVs and sinks to enrich each row with nearest-neighbor results. [#23288](https://github.com/risingwavelabs/risingwave/pull/23288)
+    - Supports `ALTER FRAGMENT ... SET PARALLELISM` command to alter the parallelism of streaming fragments. [#23523](https://github.com/risingwavelabs/risingwave/pull/23523)
+    - Reduces reserved keywords in `EXPLAIN` options (e.g., `BACKFILL`, `TRACE`) by parsing them as identifiers. [#23208](https://github.com/risingwavelabs/risingwave/pull/23208)
+    - Adds schema name to `name` column in the output of `SHOW [TABLE|VIEW|SOURCE|SINK|...]` commands. [#23119](https://github.com/risingwavelabs/risingwave/pull/23119)
+    - When `DROP`/`CANCEL` takes longer than `slow_ddl_notification_secs` (30s), you can run `RECOVER` for immediate effect. [#23613](https://github.com/risingwavelabs/risingwave/pull/23613)
+    - Supports `ALTER TABLE ... ADD COLUMN` command on tables with incoming sinks. [#23766](https://github.com/risingwavelabs/risingwave/pull/23766)
+    - Supports querying vector index in append-only streaming. [#23288](https://github.com/risingwavelabs/risingwave/pull/23288)
+
 - SQL functions & operators:
-    - Supports parsing `STRUCT< >` as empty struct type. https://github.com/risingwavelabs/risingwave/pull/23099
-    - Supports `rw_cluster_id()`  function to return the cluster's unique identifier as a `VARCHAR`. https://github.com/risingwavelabs/risingwave/pull/23260
+    - Supports parsing `STRUCT< >` as empty struct type. [#23099](https://github.com/risingwavelabs/risingwave/pull/23099)
+    - Supports `rw_cluster_id()` function to return the cluster's unique identifier as a `VARCHAR`. [#23260](https://github.com/risingwavelabs/risingwave/pull/23260)
+
 - System catalog:
-    - Adds system catalog `rw_recovery_info` to display the database-level recovery state. https://github.com/risingwavelabs/risingwave/pull/23728
-    - Adds column `parallelism_policy` in system catalog `rw_fragments`. https://github.com/risingwavelabs/risingwave/pull/23524
+    - Adds system catalog `rw_recovery_info` to display the database-level recovery state. [#23728](https://github.com/risingwavelabs/risingwave/pull/23728)
+    - Adds column `parallelism_policy` in system catalog `rw_fragments`. [#23524](https://github.com/risingwavelabs/risingwave/pull/23524)
 
 ## Connectors
 
-- **Breaking change:** When decoding Protobuf messages, RisingWave returns `NULL` for missing `optional` fields and default values for all other fields. https://github.com/risingwavelabs/risingwave/pull/23120
-- Supports using `CREATE SOURCE` directly for UPSERT-format sources requiring a primary key, without creating a table first. https://github.com/risingwavelabs/risingwave/pull/22856
-- File sink now uses UUIDs instead of `executor_id` in output file names. https://github.com/risingwavelabs/risingwave/pull/23981
-- Supports on-demand manual refresh for Iceberg batch tables with position deletes and equity deletes. https://github.com/risingwavelabs/risingwave/pull/23527
-- **Technical preview**:  Supports periodic automatic refresh for batch tables with persistent state tracking and improved observability. https://github.com/risingwavelabs/risingwave/pull/23737
-- **Technical preview**: Supports files-with-delete Iceberg compaction and introduces additional compaction parameters. https://github.com/risingwavelabs/risingwave/pull/23660, https://github.com/risingwavelabs/risingwave/pull/23809
-- Supports Azure Data Lake Storage Gen2 for Iceberg sink when using REST catalog. https://github.com/risingwavelabs/risingwave/pull/23350
-- Supports configuring S3 and Glue with independent credentials for Iceberg connector when using Glue catalog. https://github.com/risingwavelabs/risingwave/pull/23775
-- Support assuming IAM roles for S3 and Glue when `enable_config_load` is enabled for Iceberg connector when using Glue catalog. https://github.com/risingwavelabs/risingwave/pull/23788
-- Supports key-pair authentication using RSA private keys for Snowflake sink. https://github.com/risingwavelabs/risingwave/pull/23525
-- Supports JDBC sink connector for SQL Server. https://github.com/risingwavelabs/risingwave/pull/23416
-- Changes the default value of `commit_checkpoint_interval` from 10 to 60 for Iceberg sink. https://github.com/risingwavelabs/risingwave/pull/23552
-- Supports `is_exactly_once` for Iceberg sink by default. https://github.com/risingwavelabs/risingwave/pull/23553
-- Supports vended credentials for Iceberg connector when using REST catalog. https://github.com/risingwavelabs/risingwave/pull/23567
-- Supports configuring `postgres.is.aws.rds` to specify if the upstream PostgreSQL is hosted on AWS RDS. https://github.com/risingwavelabs/risingwave/pull/23420
-- Supports using Base64-encoded JSON strings for BigQuery credentials. https://github.com/risingwavelabs/risingwave/pull/23100
-- Supports TLS connections to Redis sink using `rediss://` protocol. https://github.com/risingwavelabs/risingwave/pull/23223
-- Supports Redis Streams for Redis sink. https://github.com/risingwavelabs/risingwave/pull/23412
-- Supports `COPY (<query>) TO STDOUT` syntax to load data from PostgreSQL tables. https://github.com/risingwavelabs/risingwave/pull/23198
-- Supports ack for Pulsar source, enabling control over broker resending of unacknowledged messages. https://github.com/risingwavelabs/risingwave/pull/22158
-- Supports `force_compaction` on sinks to enable buffering and compaction of updates when the stream key is the same as the primary key. https://github.com/risingwavelabs/risingwave/pull/23681
+- **Breaking change:** When decoding Protobuf messages, RisingWave returns `NULL` for missing `optional` fields and default values for all other fields. [#23120](https://github.com/risingwavelabs/risingwave/pull/23120)
+- Supports using `CREATE SOURCE` directly for UPSERT-format sources requiring a primary key, without creating a table first. [#22856](https://github.com/risingwavelabs/risingwave/pull/22856)
+- File sink now uses UUIDs instead of `executor_id` in output file names. [#23981](https://github.com/risingwavelabs/risingwave/pull/23981)
+- Supports on-demand manual refresh for Iceberg batch tables with position deletes and equity deletes. [#23527](https://github.com/risingwavelabs/risingwave/pull/23527)
+- **Technical preview**: Supports periodic automatic refresh for batch tables with persistent state tracking and improved observability. [#23737](https://github.com/risingwavelabs/risingwave/pull/23737)
+- **Technical preview**: Supports files-with-delete Iceberg compaction and introduces additional compaction parameters. [#23660](https://github.com/risingwavelabs/risingwave/pull/23660), [#23809](https://github.com/risingwavelabs/risingwave/pull/23809)
+- Supports Azure Data Lake Storage Gen2 for Iceberg sink when using REST catalog. [#23350](https://github.com/risingwavelabs/risingwave/pull/23350)
+- Supports configuring S3 and Glue with independent credentials for Iceberg connector when using Glue catalog. [#23775](https://github.com/risingwavelabs/risingwave/pull/23775)
+- Support assuming IAM roles for S3 and Glue when `enable_config_load` is enabled for Iceberg connector when using Glue catalog. [#23788](https://github.com/risingwavelabs/risingwave/pull/23788)
+- Supports key-pair authentication using RSA private keys for Snowflake sink. [#23525](https://github.com/risingwavelabs/risingwave/pull/23525)
+- Supports JDBC sink connector for SQL Server. [#23416](https://github.com/risingwavelabs/risingwave/pull/23416)
+- Changes the default value of `commit_checkpoint_interval` from 10 to 60 for Iceberg sink. [#23552](https://github.com/risingwavelabs/risingwave/pull/23552)
+- Supports `is_exactly_once` for Iceberg sink by default. [#23553](https://github.com/risingwavelabs/risingwave/pull/23553)
+- Supports vended credentials for Iceberg connector when using REST catalog. [#23567](https://github.com/risingwavelabs/risingwave/pull/23567)
+- Supports configuring `postgres.is.aws.rds` to specify if the upstream PostgreSQL is hosted on AWS RDS. [#23420](https://github.com/risingwavelabs/risingwave/pull/23420)
+- Supports using Base64-encoded JSON strings for BigQuery credentials. [#23100](https://github.com/risingwavelabs/risingwave/pull/23100)
+- Supports TLS connections to Redis sink using `rediss://` protocol. [#23223](https://github.com/risingwavelabs/risingwave/pull/23223)
+- Supports Redis Streams for Redis sink. [#23412](https://github.com/risingwavelabs/risingwave/pull/23412)
+- Supports `COPY (<query>) TO STDOUT` syntax to load data from PostgreSQL tables. [#23198](https://github.com/risingwavelabs/risingwave/pull/23198)
+- Supports ack for Pulsar source, enabling control over broker resending of unacknowledged messages. [#22158](https://github.com/risingwavelabs/risingwave/pull/22158)
+- Supports `force_compaction` on sinks to enable buffering and compaction of updates when the stream key is the same as the primary key. [#23681](https://github.com/risingwavelabs/risingwave/pull/23681)
 
 ## Installation and deployment
 
-- Counts the CPU cores of all nodes (instead of only compute nodes) in the cluster against the `cpu_core_limit` specified in the license key. https://github.com/risingwavelabs/risingwave/pull/23390
-- Changes `cpu_core_limit` in the license key to `rwu_limit` to limit both CPU cores and total cluster memory. https://github.com/risingwavelabs/risingwave/pull/23403
-- **Breaking change**: Requires the correct `aud` claim for authentication. https://github.com/risingwavelabs/risingwave/pull/23155
-- Supports LDAP authentication to verify users against an external LDAP directory server. https://github.com/risingwavelabs/risingwave/pull/23150
+- Counts the CPU cores of all nodes (instead of only compute nodes) in the cluster against the `cpu_core_limit` specified in the license key. [#23390](https://github.com/risingwavelabs/risingwave/pull/23390)
+- Changes `cpu_core_limit` in the license key to `rwu_limit` to limit both CPU cores and total cluster memory. [#23403](https://github.com/risingwavelabs/risingwave/pull/23403)
+- **Breaking change**: Requires the correct `aud` claim for authentication. [#23155](https://github.com/risingwavelabs/risingwave/pull/23155)
+- Supports LDAP authentication to verify users against an external LDAP directory server. [#23150](https://github.com/risingwavelabs/risingwave/pull/23150)
 
 ## Cluster configuration changes
 
-- Adds session variable `enable_index_selection` to control whether to enable index selection for both streaming and batch queries. https://github.com/risingwavelabs/risingwave/pull/23092
-- **Technical preview**: Adds session variable `enable_locality_backfill` to control locality backfilling, which extends index-based optimizations to the entire backfill pipeline. https://github.com/risingwavelabs/risingwave/pull/23275
-- Adds configuration option `RW_SSL_ENFORCE` to control SSL enforcement for security. https://github.com/risingwavelabs/risingwave/pull/23306
+- Adds session variable `enable_index_selection` to control whether to enable index selection for both streaming and batch queries. [#23092](https://github.com/risingwavelabs/risingwave/pull/23092)
+- **Technical preview**: Adds session variable `enable_locality_backfill` to control locality backfilling, which extends index-based optimizations to the entire backfill pipeline. [#23275](https://github.com/risingwavelabs/risingwave/pull/23275)
+- Adds configuration option `RW_SSL_ENFORCE` to control SSL enforcement for security. [#23306](https://github.com/risingwavelabs/risingwave/pull/23306)
 
 ## Assets
 
