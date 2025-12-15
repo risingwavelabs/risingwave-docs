@@ -90,111 +90,6 @@ ORDER BY embedding <=> '[0.5, 0.3, 0.2]'
 LIMIT 10;
 ```
 
-## Stream vector index lookup
-
-RisingWave supports streaming jobs that can lookup vector indexes to expand input rows with an array of top-N nearest neighbors. This feature enables real-time use cases such as Retrieval-Augmented Generation (RAG) systems.
-
-### Syntax
-
-Use an array sub-query with `FOR SYSTEM_TIME AS OF PROCTIME()` to perform vector index lookups in streaming queries:
-
-```sql Syntax
-SELECT 
-    <columns>, 
-    array(
-        SELECT row(<column>, <column>, ...)
-        FROM <indexed_table> FOR SYSTEM_TIME AS OF PROCTIME()
-        ORDER BY <query_vector> <-> <indexed_vector_column>
-        LIMIT N
-    ) AS top_n_related
-FROM <source_table>;
-```
-
-### Creating streaming jobs with vector index lookups
-
-You can create materialized views, sinks, or sink-into-table jobs that use vector index lookups. First, ensure you have created a vector index on the table you want to lookup (as shown in the earlier examples).
-
-```sql Example
--- Create an append-only source table with events
--- Note: Using vector(3) for simplicity; real-world embeddings are typically higher dimensional (e.g., 128, 384, 768)
-CREATE TABLE events (
-    event_id INT PRIMARY KEY, 
-    time TIMESTAMP, 
-    embedding vector(3)
-) APPEND ONLY;
-
--- Assume idx_embedding already exists on items table with name included
-
--- Create a materialized view with vector index lookup
-CREATE MATERIALIZED VIEW event_enrichment AS 
-SELECT
-    event_id,
-    array(
-        SELECT row(name) 
-        FROM items FOR SYSTEM_TIME AS OF PROCTIME() 
-        ORDER BY events.embedding <-> items.embedding 
-        LIMIT 3
-    ) AS related_info,
-    time
-FROM events;
-
--- Create a sink with vector index lookup
-CREATE SINK event_sink 
-WITH (connector = '...', ...) AS
-SELECT
-    event_id,
-    array(
-        SELECT row(name) 
-        FROM items FOR SYSTEM_TIME AS OF PROCTIME() 
-        ORDER BY events.embedding <-> items.embedding 
-        LIMIT 3
-    ) AS related_info,
-    time
-FROM events;
-```
-
-The expanded column has type `struct[]`, where the struct fields correspond to the columns selected in the sub-query.
-
-### Including distance in results
-
-You can include the distance between vectors in the output by using the distance operator in the SELECT clause:
-
-```sql Example
-SELECT
-    event_id,
-    array(
-        SELECT row(id, name, (events.embedding <-> items.embedding) AS distance)
-        FROM items FOR SYSTEM_TIME AS OF PROCTIME()
-        ORDER BY distance
-        LIMIT 3
-    ) AS related_info,
-    time
-FROM events;
-```
-
-### Constraints
-
-- **Append-only input**: Currently, only append-only source tables are supported for streaming vector index lookups.
-- **PROCTIME temporal join**: When creating streaming jobs (materialized views or sinks), you must use `FOR SYSTEM_TIME AS OF PROCTIME()` in the sub-query.
-- **Indexed columns**: All columns included in the lookup output must be included in the vector index using the `INCLUDE` clause when the index is created.
-
-### Ad-hoc queries
-
-Ad-hoc queries using the same syntax are also supported. For ad-hoc queries, the `FOR SYSTEM_TIME AS OF` clause is optional, or you can specify a different system time for time-travel queries.
-
-```sql Example
--- Ad-hoc query without time-travel
-SELECT
-    event_id,
-    array(
-        SELECT row(name)
-        FROM items
-        ORDER BY events.embedding <-> items.embedding
-        LIMIT 3
-    ) AS related_info
-FROM events;
-```
-
 ## Vector indexes on function expressions
 
 You can create vector indexes on function expressions instead of raw columns. This allows you to avoid storing a separate vector column, saving storage and reducing maintenance costs.
@@ -231,6 +126,88 @@ WITH (distance_type = 'l2');
 In this example, `get_embedding(description)` is used as the index expression.
 
 This approach avoids materializing a separate vector column in the table, which reduces storage costs and keeps the table schema simpler.
+
+## Streaming vector index lookup
+
+<Note>
+Added in v2.7.0.
+</Note>
+
+After creating a vector index, you can use array subqueries to define streaming jobs that look up the vector index, and expand the input with an additional array column containing the Top-N nearest rows.
+
+The query syntax is as follows:
+
+```sql Syntax
+SELECT 
+    <input_table_col1>, 
+    <input_table_col2>, 
+    ..., 
+    array(
+        SELECT row(<col1>, <col2>, .., <col_n>)
+        FROM <indexed_table> FOR SYSTEM_TIME AS OF PROCTIME()
+        ORDER BY <input_embedding_col> <=> <indexed_table_embedding_col>
+        LIMIT N
+    ) AS top_n_related
+FROM <input>;
+```
+
+This query expands the input with an extra column. The data type of the expanded column is:
+
+```sql
+struct<col1, col2, ..., col_n>[]
+```
+
+You can use this query to create a **materialized view**, **sink**, or **sink into table**, thereby defining a streaming job that performs vector index lookups. When creating such streaming jobs, `FOR SYSTEM_TIME AS OF` must be set to `PROCTIME()`.
+
+The same syntax is also supported in **ad-hoc queries**. In that case, `FOR SYSTEM_TIME AS OF` is optional, and you may specify a different system time, similar to how time-travel queries are defined.
+
+<Info>
+- Currently, vector index lookups are supported only for append-only inputs.
+- All columns returned by the lookup from the indexed table must be included in the vector index.
+</Info>
+
+Suppose you have two append-only tables, `items` and `events`:
+
+```sql
+CREATE TABLE items (
+    id INT PRIMARY KEY,
+    text STRING,
+    embedding VECTOR(3)
+) APPEND ONLY;
+
+CREATE TABLE events (
+    event_id INT PRIMARY KEY,
+    time TIMESTAMP,
+    embedding VECTOR(3)
+);
+```
+
+Create a vector index on the `items` table:
+
+```sql
+CREATE INDEX raw_column_index
+ON items USING HNSW (embedding)
+WITH (distance_type = 'l2');
+```
+
+You can then create a sink to table or external system that uses the embedding from the `events` table to look up the vector index on `items`:
+
+```sql
+CREATE SINK AS
+SELECT
+    event_id,
+    array(
+        SELECT row(text)
+        FROM items FOR SYSTEM_TIME AS OF PROCTIME()
+        ORDER BY events.embedding <-> items.embedding
+        LIMIT 3
+    ) AS related_info,
+    time
+FROM events
+WITH (...);
+```
+
+For each row in `events`, this query expands the output with a new column. The row `embedding` in `events` is used to query the vector index, retrieve a list of the Top-N nearest `text` values, and store the result in an array column. With these Top-N nearest `text`s, the related content can be further processed for downstream scenarios such as real-time RAG.
 
 ## Examples
 
