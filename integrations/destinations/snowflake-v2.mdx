@@ -95,7 +95,7 @@ CREATE SINK snowflake_sink FROM mv_name WITH (
 
 ### Key-pair authentication with PEM content
 
-For integration with secret management systems (like AWS Secrets Manager), you can provide the PEM-formatted private key content directly. This is the recommended approach for production environments:
+For integration with [secret management](/operate/manage-secrets) systems, you can provide the PEM-formatted private key content directly. This is the recommended approach for production environments:
 
 ```sql Example
 CREATE SINK snowflake_sink FROM mv_name WITH (
@@ -188,7 +188,7 @@ In `upsert` mode, performance is optimized through the use of an intermediate ta
 
 Examples:
 
-1. Snowflake v2 sink with S3 writer (Append-only mode) using password authentication:
+1. Snowflake v2 sink with S3 writer (Append-only mode)
 
 ```sql
 CREATE SINK snowflake_sink FROM test_table WITH (
@@ -215,7 +215,8 @@ CREATE SINK snowflake_sink FROM test_table WITH (
     s3.assume_role = '...',
     enable_config_load = 'true',
 
-    -- Snowflake authentication: password (default)
+    -- Required if auto.schema.change = false 
+    -- and create_table_if_not_exists = false
     jdbc.url = 'jdbc:snowflake://...',
     username = '...',
     password = '...',
@@ -226,42 +227,7 @@ CREATE SINK snowflake_sink FROM test_table WITH (
 );
 ```
 
-2. Snowflake v2 sink with S3 writer (Append-only mode) using key-pair authentication:
-
-```sql
-CREATE SINK snowflake_sink FROM test_table WITH (
-    connector = 'snowflake_v2',
-    type = 'append-only',
-    table.name = 'test_table',
-
-    -- Snowflake concepts
-    warehouse = 'COMPUTE_WH',
-    database = 'RW_TEST',
-    schema = 'RW_SCHEMA',
-
-    -- S3 writer (enabled by default)
-    with_s3 = true,
-    s3.bucket_name = '...',
-    s3.region_name = '...',
-    s3.path = '...',
-    s3.credentials.access = '...',
-    s3.credentials.secret = '...',
-
-    -- Snowflake authentication: key-pair with PEM content
-    jdbc.url = 'jdbc:snowflake://...',
-    username = '...',
-    auth.method = 'key_pair_object',
-    private_key_pem = '-----BEGIN PRIVATE KEY-----
-MIIEv...your_private_key_content_here...
------END PRIVATE KEY-----',
-
-    -- Defaults (can be overridden)
-    auto.schema.change = 'false',
-    create_table_if_not_exists = 'false'
-);
-```
-
-3. Snowflake v2 sink with S3 writer (Upsert mode):
+2. Snowflake v2 sink with S3 writer (Upsert mode):
 
 ```sql
 CREATE SINK snowflake_sink FROM test_table WITH (
