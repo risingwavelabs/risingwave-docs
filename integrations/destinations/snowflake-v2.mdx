@@ -97,17 +97,25 @@ CREATE SINK snowflake_sink FROM mv_name WITH (
 
 For integration with [secret management](/operate/manage-secrets) systems, you can provide the PEM-formatted private key content directly. This is the recommended approach for production environments:
 
-```sql Example
+First, create a secret containing your private key:
+
+```sql
+CREATE SECRET snowflake_pk AS '-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----';
+```
+
+Then, reference the secret in your sink definition:
+
+```
 CREATE SINK snowflake_sink FROM mv_name WITH (
-    connector = 'snowflake_v2',
-    type = 'append-only',
-    jdbc.url = 'jdbc:snowflake://account.snowflakecomputing.com/',
-    username = 'your_username',
-    auth.method = 'key_pair_object',
-    private_key_pem = '-----BEGIN PRIVATE KEY-----
-MIIEv...your_private_key_content_here...
------END PRIVATE KEY-----',
-    ...
+  connector = 'snowflake_v2',
+  type = 'upsert',
+  jdbc.url = 'jdbc:snowflake://account.snowflakecomputing.com/',
+  username = 'user',
+  auth.method = 'key_pair_object',
+  private_key_pem = secret snowflake_pk,
+  ...
 );
 ```
 
