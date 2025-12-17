@@ -1,0 +1,40 @@
+---
+title: "Manage catalogs in Nimtable"
+sidebarTitle: "Manage catalogs"
+description: "Map Nimtable catalog templates to required fields and authentication options."
+---
+
+## Templates and what they expect
+
+- REST + S3  
+  - Required: catalog type `rest`, REST URI, warehouse path (for example, `s3://warehouse/wh/`)  
+  - S3 props: `io-impl`, `s3.endpoint`, `s3.access-key-id`, `s3.secret-access-key`, `s3.region`, `s3.path-style-access`
+- JDBC + S3  
+  - JDBC URI and credentials for the catalog store, S3 warehouse path and S3 props
+- S3 Tables  
+  - REST endpoint for S3 Tables, S3 region/signing settings, warehouse path, AWS credentials or IAM role
+- Glue + S3  
+  - Glue region and credentials or role, warehouse path, S3 props
+- Custom  
+  - Free-form key/value pairs for advanced or mixed setups
+- Load from nimtable `config.yaml`  
+  - Reads pre-provisioned catalogs from the mounted config file
+- Load from Spark CLI parameters or `spark-defaults.conf`  
+  - Reuses existing Spark Iceberg config to speed onboarding
+
+## Where definitions live
+
+- Catalogs added in the UI are stored in Nimtable’s internal database
+- Catalogs in `config.yaml` are loaded at startup when mounted to `/app/config.yaml`
+
+## AWS authentication options
+
+- Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- Mounted shared credentials file: `~/.aws/credentials` into the container
+- IAM role assumption if supported by your environment (for example, Glue)
+
+## Tips for RisingWave users
+
+- Point RisingWave to the Nimtable REST endpoint using `catalog.type = 'rest'` and `catalog.uri`
+- Keep storage credentials consistent between Nimtable and RisingWave or enable vended credentials if your REST catalog stack supports them
+
