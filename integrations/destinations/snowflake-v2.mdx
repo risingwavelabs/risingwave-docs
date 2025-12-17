@@ -41,6 +41,22 @@ WITH (
 | stage     | Name of the stage in Snowflake used for loading data |
 | create_table_if_not_exists     | Create target table if it does not exist |
 
+**S3 parameters**
+
+These options only need to be set when `with_s3 = true`:
+
+| Parameter                     | Description |
+|:------------------------------|:------------|
+| with_s3                        | Enable writing via S3 (default: true) |
+| s3.region_name                 | AWS region for S3 |
+| s3.bucket_name                 | S3 bucket name |
+| s3.path                        | S3 folder path for sink files |
+| enable_config_load             | Load S3 credentials from environment (self-hosted only) |
+| s3.credentials.access          | AWS access key ID |
+| s3.credentials.secret          | AWS secret access key |
+| s3.endpoint_url                | Custom S3 endpoint URL (for self-hosted setups) |
+| s3.assume_role                 | IAM role ARN to assume for S3 access |
+
 **Authentication parameters**
 
 | Parameter                     | Description |
@@ -95,45 +111,20 @@ CREATE SINK snowflake_sink FROM mv_name WITH (
 
 ### Key-pair authentication with PEM content
 
-For integration with [secret management](/operate/manage-secrets) systems, you can provide the PEM-formatted private key content directly. This is the recommended approach for production environments:
+You can provide the PEM-formatted private key directly in the sink definition.  
+Alternatively, you can store the private key securely using [`CREATE SECRET`](/operate/manage-secrets) and reference the secret in the sink configuration.
 
-First, create a secret containing your private key:
-
-```sql
-CREATE SECRET snowflake_pk AS '-----BEGIN PRIVATE KEY-----
-...
------END PRIVATE KEY-----';
-```
-
-Then, reference the secret in your sink definition:
-
-```
+```sql Example
 CREATE SINK snowflake_sink FROM mv_name WITH (
   connector = 'snowflake_v2',
   type = 'upsert',
   jdbc.url = 'jdbc:snowflake://account.snowflakecomputing.com/',
   username = 'user',
   auth.method = 'key_pair_object',
-  private_key_pem = secret snowflake_pk,
+  private_key_pem = '-----BEGIN PRIVATE KEY-----...',
   ...
 );
 ```
-
-**S3 parameters**
-
-These options only need to be set when `with_s3 = true`:
-
-| Parameter                     | Description |
-|:------------------------------|:------------|
-| with_s3                        | Enable writing via S3 (default: true) |
-| s3.region_name                 | AWS region for S3 |
-| s3.bucket_name                 | S3 bucket name |
-| s3.path                        | S3 folder path for sink files |
-| enable_config_load             | Load S3 credentials from environment (self-hosted only) |
-| s3.credentials.access          | AWS access key ID |
-| s3.credentials.secret          | AWS secret access key |
-| s3.endpoint_url                | Custom S3 endpoint URL (for self-hosted setups) |
-| s3.assume_role                 | IAM role ARN to assume for S3 access |
 
 ## Auto schema change
 
