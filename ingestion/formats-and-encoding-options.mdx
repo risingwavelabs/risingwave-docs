@@ -70,6 +70,8 @@ ENCODE JSON [ (
 
 For Kafka topics with updates/deletes (key-value pairs). RisingWave inserts, updates, or deletes rows based on the key and value.
 
+When using `FORMAT UPSERT`, you must include the `INCLUDE KEY` clause and define a primary key. This format can be used with both `CREATE SOURCE` and `CREATE TABLE`.
+
 ```sql
 FORMAT UPSERT
 ENCODE JSON [ (
@@ -78,6 +80,26 @@ ENCODE JSON [ (
    [schema.registry.password = 'password']
 ) ]
 ```
+
+**Example with CREATE SOURCE:**
+```sql Example
+CREATE SOURCE upsert_source (
+    PRIMARY KEY (rw_key),
+    id INT,
+    name VARCHAR
+)
+INCLUDE KEY AS rw_key
+WITH (
+    connector='kafka',
+    topic='user_updates',
+    properties.bootstrap.server='localhost:9092'
+)
+FORMAT UPSERT ENCODE JSON;
+```
+
+<Note>
+When using `FORMAT UPSERT` with `CREATE SOURCE`, be aware that upsert sources cannot be used directly with stateful operations like JOIN, aggregations, or window functions. For these use cases, either materialize the source as a view first, or use `CREATE TABLE` instead. See [Upsert sources](/sql/commands/sql-create-source#upsert-sources) for details.
+</Note>
 
 ### `DEBEZIUM JSON`
 

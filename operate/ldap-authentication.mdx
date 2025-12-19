@@ -1,0 +1,249 @@
+---
+title: "LDAP authentication"
+description: "Configure RisingWave to authenticate users against an LDAP directory server."
+---
+
+RisingWave supports LDAP (Lightweight Directory Access Protocol) authentication, allowing you to authenticate users against an external LDAP directory server. This feature is compatible with PostgreSQL's LDAP authentication mechanism and supports both simple bind and search+bind authentication modes.
+
+LDAP authentication is configured through RisingWave's Host-Based Authentication (HBA) configuration file. When a user connects, RisingWave validates their credentials against the configured LDAP server before granting access.
+
+## Authentication modes
+
+RisingWave supports two LDAP authentication modes:
+
+### Simple bind mode
+
+In simple bind mode, RisingWave constructs the user's Distinguished Name (DN) directly from the username using a prefix and suffix pattern, then attempts to bind to the LDAP server with this DN and the provided password.
+
+**Use case**: When your LDAP directory has a predictable DN structure (e.g., all users follow the pattern `uid=username,ou=people,dc=example,dc=com`).
+
+### Search + bind mode
+
+In search + bind mode, RisingWave first performs an LDAP search to find the user's DN, then attempts to bind using that DN and the provided password. This mode requires an initial bind (either anonymous or with dedicated credentials) to perform the search.
+
+**Use case**: When user DNs are not predictable or users are spread across multiple organizational units.
+
+## Configuration
+
+LDAP authentication is configured in the RisingWave configuration file by adding HBA entries. Each entry specifies which users should authenticate via LDAP and the LDAP server details.
+
+### Configuration parameters
+
+#### Common parameters
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `ldapserver` | Yes | LDAP server hostname or IP address |
+| `ldapport` | No | LDAP server port (Default: 389 for ldap, 636 for ldaps) |
+| `ldapscheme` | No | Connection scheme:`ldap`or`ldaps`(Default: ldap) |
+| `ldaptls` | No | Enable STARTTLS on ldap:// connections (Default: false) |
+| `ldapurl` | Yes | RFC 4516 LDAP URL (alternative to individual parameters) |
+
+<Note>
+Either `ldapserver` or `ldapurl` is required, but not both.
+</Note>
+
+#### Simple bind mode parameters
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `ldapprefix` | No | String to prepend to the username |
+| `ldapsuffix` | No | String to append to the username |
+
+#### Search + bind mode parameters
+
+| Parameter | Required | Description |
+| :-- | :-- | :-- |
+| `ldapbasedn` | Yes | Base DN for searching users |
+| `ldapsearchattribute` | No | Attribute to search for username (default: uid) |
+| `ldapsearchfilter` | No | Custom LDAP search filter with`$username`placeholder |
+| `ldapbinddn` | No | DN to bind as for search operations |
+| `ldapbindpasswd` | No | Password for bind DN |
+
+<Note>
+Simple bind parameters (`ldapprefix`/`ldapsuffix`) and search+bind-only parameters (`ldapsearchfilter`/`ldapbinddn`/`ldapsearchattribute`) cannot be mixed in the same configuration.
+</Note>
+
+### TLS/SSL configuration
+
+RisingWave supports encrypted LDAP connections via:
+
+- **LDAPS** (LDAP over SSL): Use `ldapscheme = "ldaps"` or `ldaps://` URL scheme
+- **STARTTLS**: Use `ldaptls = "true"` with `ldap://` connections
+
+### TLS environment variables
+
+TLS settings are configured via environment variables and must be set before starting RisingWave:
+
+| Environment variable | Description |
+| :-- | :-- |
+| `LDAPTLS_CACERT` | Path to CA certificate file (required for self-signed certificates) |
+| `LDAPTLS_CERT` | Path to client certificate file (for mutual TLS) |
+| `LDAPTLS_KEY` | Path to client private key file (for mutual TLS) |
+| `LDAPTLS_REQCERT` | Certificate verification policy:`never`,`allow`,`try`, or`demand`(default: demand) |
+
+```bash Example
+export LDAPTLS_CACERT="/path/to/ca.crt"
+export LDAPTLS_REQCERT="demand"
+```
+
+If `LDAPTLS_CACERT` is not set, RisingWave uses the system's native certificate store.
+
+## Examples
+
+### Simple bind with STARTTLS
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["john", "jane", "alice"]
+addresses = ["all"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapscheme = "ldap"
+ldapport = "389"
+ldaptls = "true"
+ldapprefix = "uid="
+ldapsuffix = ",ou=people,dc=example,dc=com"
+```
+
+With this configuration:
+
+- User `john` authenticates as DN: `uid=john,ou=people,dc=example,dc=com`
+- Connection uses STARTTLS encryption
+- Requires `LDAPTLS_CACERT` environment variable if using self-signed certificates
+
+### Search + bind with LDAPS
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["mydb"]
+users = ["all"]
+addresses = ["192.168.1.0/24"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapscheme = "ldaps"
+ldapport = "636"
+ldapbasedn = "ou=people,dc=example,dc=com"
+ldapsearchattribute = "uid"
+ldapbinddn = "cn=admin,dc=example,dc=com"
+ldapbindpasswd = "admin_password"
+```
+
+With this configuration:
+
+- RisingWave binds as admin to search for users
+- Searches for `(uid=username)` under `ou=people,dc=example,dc=com`
+- Uses LDAPS (port 636) for encrypted connection
+- Only accepts connections from the `192.168.1.0/24` subnet
+
+### Simple bind using LDAP URL format
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["testuser1"]
+addresses = ["all"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapurl = "ldap://ldap.example.com:389/"
+ldaptls = "true"
+ldapprefix = "uid="
+ldapsuffix = ",ou=people,dc=example,dc=com"
+```
+
+### Search + bind using LDAP URL format
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["testuser1"]
+addresses = ["all"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+# Format: ldap[s]://host:port/basedn?attributes?scope?filter
+ldapurl = "ldaps://ldap.example.com:636/ou=people,dc=example,dc=com?uid"
+ldapbinddn = "cn=admin,dc=example,dc=com"
+ldapbindpasswd = "admin_password"
+```
+
+The LDAP URL format follows RFC 4516:
+
+- Scheme: `ldap://` or `ldaps://`
+- Base DN: Specified in the path component
+- Attributes: First attribute is used as search attribute
+- Filter: Optional custom filter (third query component)
+
+### Custom search filter
+
+```toml
+[[frontend.hba_config.entries]]
+connection_type = "Host"
+databases = ["all"]
+users = ["all"]
+addresses = ["all"]
+auth_method = "ldap"
+
+[frontend.hba_config.entries.auth_options]
+ldapserver = "ldap.example.com"
+ldapscheme = "ldap"
+ldaptls = "true"
+ldapbasedn = "dc=example,dc=com"
+ldapsearchfilter = "(&(objectClass=person)(mail=$username@example.com))"
+ldapbinddn = "cn=admin,dc=example,dc=com"
+ldapbindpasswd = "admin_password"
+```
+
+This configuration demonstrates advanced LDAP filtering:
+
+- Users authenticate using their username prefix (e.g., login as `john` for email `john@example.com`)
+- The `$username` placeholder is replaced with the actual username (automatically escaped to prevent LDAP injection)
+- The filter combines two conditions with AND (`&`): matches `person` objects where `mail` attribute equals the constructed email
+- When user "john" logs in, the filter becomes: `(&(objectClass=person)(mail=john@example.com))`
+
+**Other filter examples**:
+
+- Search by username OR email: `(|(uid=$username)(mail=$username))`
+- Restrict to specific group: `(&(uid=$username)(memberOf=cn=db-users,ou=groups,dc=example,dc=com))`
+- Search by common name: `(cn=$username)`
+
+## Connecting with LDAP credentials
+
+After configuring LDAP authentication:
+
+1. Create the user in RisingWave:
+    
+    ```sql
+    CREATE USER john;
+    GRANT ALL PRIVILEGES ON SCHEMA public TO john;
+    ```
+    
+2. Users can connect using their LDAP credentials:
+    
+    ```bash
+    PGPASSWORD=ldap_password psql -h risingwave_host -U john -d mydb
+    ```
+    
+3. RisingWave validates credentials against LDAP server before granting access.
+
+<Note>
+Users must exist in both the LDAP directory AND be created in RisingWave. The LDAP server only validates credentials, not user existence or permissions in RisingWave.
+</Note>
+
+## Security considerations
+
+1. **Encryption**: Always use TLS/SSL (LDAPS or STARTTLS) in production to protect credentials in transit.
+2. **Certificate verification**: Use `LDAPTLS_REQCERT="demand"` to enforce strict certificate validation.
+3. **Bind credentials**: Store bind DN passwords securely. Consider using read-only service accounts.
+4. **Injection protection**: RisingWave automatically escapes usernames to prevent LDAP injection attacks.
+5. **Network security**: Use HBA `addresses` field to restrict LDAP authentication to trusted networks.
