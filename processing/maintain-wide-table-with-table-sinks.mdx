@@ -15,28 +15,29 @@ CREATE TABLE wide_d(v1 int, v2 int, v3 int, k int primary key)
 ON CONFLICT DO UPDATE IF NOT NULL;
 
 CREATE SINK sink1 INTO wide_d (v1, k) AS
-  SELECT v1, k FROM d1
-  with (
-      type = 'append-only',
-      force_append_only = 'true',
-  );
+  SELECT v1, k FROM d1;
 CREATE SINK sink2 INTO wide_d (v2, k) AS
-  SELECT v2, k FROM d2
-  with (
-      type = 'append-only',
-      force_append_only = 'true',
-  );
+  SELECT v2, k FROM d2;
 CREATE SINK sink3 INTO wide_d (v3,k) AS
-  SELECT v3, k FROM d3
-  with (
-      type = 'append-only',
-      force_append_only = 'true',
-  );
+  SELECT v3, k FROM d3;
 ```
 
 <Note>
 
-Keep in mind that the `ON CONFLICT` clause does not affect the update or delete events, the sinks should be forced to be append-only. Otherwise, the delete or update events from any sink will delete the regarding row.
+`ON CONFLICT` only controls how INSERTs and UPDATEs are handled. By default, `CREATE SINK ... INTO` forwards DELETE events as well, so if any upstream deletes a row (same primary key), the corresponding row in the wide table will be deleted.
+
+If you don't want deletes/updates from a sink to remove rows in the wide table, force the sink to be append-only:
+
+```sql
+CREATE SINK sink1 INTO wide_d (v1, k) AS
+  SELECT v1, k FROM d1
+  WITH (
+    type = 'append-only',
+    force_append_only = 'true'
+  );
+```
+
+For RisingWave v2.6 and earlier, you must set `type = 'append-only'` and `force_append_only = 'true'` for this pattern.
 </Note>
 
 ## Enrich data with foreign keys in Star/Snowflake schema model
@@ -52,33 +53,34 @@ CREATE TABLE d3(pk int primary key, v int);
 CREATE TABLE wide_fact(pk int primary key, v1 int, v2 int, v3 int)
   ON CONFLICT DO UPDATE IF NOT NULL;
 
-/* the main sink is not force-append-only to control if the record exists*/
+/* The main sink controls which rows exist in wide_fact. */
 CREATE SINK fact_sink INTO wide_fact (pk) AS
   SELECT pk FROM fact;
 
+/* Dimension sinks are force-append-only to avoid propagating DELETE into the wide table. */
 CREATE SINK sink1 INTO wide_fact (pk, v1) AS
   SELECT fact.pk, d1.v
   FROM fact JOIN d1 ON fact.k1 = d1.pk
-with (
-  type = 'append-only',
-  force_append_only = 'true',
-);
+  WITH (
+    type = 'append-only',
+    force_append_only = 'true'
+  );
 
 CREATE SINK sink2 INTO wide_fact (pk, v2) AS
   SELECT fact.pk, d2.v
   FROM fact JOIN d2 ON fact.k2 = d2.pk
-with (
-  type = 'append-only',
-  force_append_only = 'true',
-);
+  WITH (
+    type = 'append-only',
+    force_append_only = 'true'
+  );
 
 CREATE SINK sink3 INTO wide_fact (pk, v3) AS
   SELECT fact.pk, d3.v
   FROM fact JOIN d3 ON fact.k3 = d3.pk
-with (
-  type = 'append-only',
-  force_append_only = 'true',
-);
+  WITH (
+    type = 'append-only',
+    force_append_only = 'true'
+  );
 ```
 
 The example above and the following SQL with left join operation are completely equivalent.
