@@ -425,6 +425,10 @@ Use `generate_series` with `unnest`:
 ```sql
 SELECT v1, unnest(v2) AS item, generate_series(1, array_length(v2), 1) AS ord FROM example;
 ```
+
+<Note>
+In RisingWave, when multiple set-returning functions appear in the SELECT list, they are executed in a coordinated manner. This query will correctly pair each array element with its position.
+</Note>
 </Tab>
 
 <Tab title="❌ Not recommended">
@@ -437,7 +441,7 @@ SELECT v1, item, ord FROM example, unnest(v2) WITH ORDINALITY AS foo(item, ord);
 </Tabs>
 
 <Note>
-The `generate_series` approach is generally preferred in RisingWave. However, note that if your array contains NULL values, `unnest` skips them while `generate_series` continues generating sequential numbers. In such cases where NULL handling is critical, consider using `WITH ORDINALITY` which maintains correct ordinality for NULL elements.
+**NULL handling:** If your array contains NULL values, `unnest` skips them while `generate_series` continues generating sequential numbers. In such cases where NULL handling is critical, consider using `WITH ORDINALITY` which maintains correct ordinality for NULL elements, or use the [`_pg_expandarray`](/sql/functions/set-returning#_pg_expandarray) function which also handles NULLs correctly.
 </Note>
 
 ## Array operators[](#array-operators "Direct link to Array operators")
