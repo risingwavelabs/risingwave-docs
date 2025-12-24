@@ -189,7 +189,7 @@ This leads to increased resource usage and potential inconsistencies:
 
 With shared sources, when using the `CREATE SOURCE` statement:
 - It will instantiate a single `SourceExecutor` immediately. 
-- All materialized views referencing the same source share the `SourceExecutor`.
+- All materialized views referencing the same source share the `SourceExecutor`, thus the same start offset and consumption progress.
 - The downstream materialized views will only forwards data from the upstream sources, instead of consuming from Kafka independently.
 
 This improves resource utilization and consistency.
@@ -204,6 +204,7 @@ When creating a materialized view, RisingWave backfills historical data from Kaf
 
 - To monitoring backfill progress, use the [SHOW JOBS](/sql/commands/sql-show-jobs) command or check `Kafka Consumer Lag Size` in the Grafana dashboard (under `Streaming`).
 
+<Note>Even if the source is created with `scan.startup.mode` set to `latest`, the materialized view might still need to backfill data from the "latest" offset resolved when the source was initially created. If you want the materialized view to restart freshly from an existing source, you must drop and recreate the source to resolve a new start offset.</Note>
 
 <Note>If you set up a retention policy or if the external system can only be accessed once (like message queues), and the data is no longer available, any newly created materialized views won’t be able to backfill the complete historical data. This can lead to inconsistencies with earlier materialized views.</Note>
 
