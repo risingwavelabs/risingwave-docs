@@ -387,7 +387,7 @@ unnest(Array[Array[1,3,4,5],Array[2,3]]) →
 
 #### Best practices
 
-When working with arrays, prefer using array functions directly over unnesting in subqueries. Also, use `generate_series` with `unnest` for ordinality instead of the `WITH ORDINALITY` clause for better performance.
+When working with arrays, prefer using array functions directly over unnesting in subqueries. Also, use `generate_series` with `unnest` for ordinality instead of the `WITH ORDINALITY` clause.
 
 Given this example table:
 
@@ -425,6 +425,10 @@ Use `generate_series` with `unnest`:
 ```sql
 SELECT v1, unnest(v2) AS item, generate_series(1, array_length(v2), 1) AS ord FROM example;
 ```
+
+<Note>
+When using this approach with arrays containing NULL values, note that `unnest` skips NULL elements while `generate_series` continues generating sequential numbers, which may result in mismatched ordinality.
+</Note>
 </Tab>
 
 <Tab title="❌ Not recommended">
