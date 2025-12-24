@@ -387,7 +387,11 @@ unnest(Array[Array[1,3,4,5],Array[2,3]]) →
 
 #### Best practices
 
-When working with arrays, prefer using array functions directly over unnesting in subqueries. Also, use `generate_series` with `unnest` for ordinality instead of the `WITH ORDINALITY` clause.
+When using the `unnest` function, consider the following performance-optimized patterns:
+
+**For aggregation:** If you want to unnest an array and then aggregate them back to a scalar value, consider using functions like `array_sum` against the array directly instead of using `unnest` and then `sum` to aggregate. Pure functions like `array_sum` have much better performance than relational level aggregation, which would introduce additional states.
+
+**For unnesting:** If you want to unnest the array only, you should use `unnest` in the SELECT clause directly, instead of using it in a correlated subquery (which would introduce additional states). Especially, if you want to add ordinality to each unnested row, you can use `unnest` together with `generate_series`.
 
 Given this example table:
 
@@ -408,7 +412,7 @@ SELECT v1, array_sum(v2) AS sum FROM example;
 </Tab>
 
 <Tab title="❌ Not recommended">
-Avoid using unnest in subqueries for aggregation:
+Avoid using unnest in correlated subqueries for aggregation:
 
 ```sql
 SELECT v1, (SELECT sum(item) FROM unnest(example.v2) AS item) AS sum FROM example;
