@@ -441,7 +441,7 @@ SELECT v1, item, ord FROM example, unnest(v2) WITH ORDINALITY AS foo(item, ord);
 </Tabs>
 
 <Note>
-**NULL handling:** If your array contains NULL values, `unnest` skips them while `generate_series` continues generating sequential numbers. In such cases where NULL handling is critical, consider using `WITH ORDINALITY` which maintains correct ordinality for NULL elements, or use the [`_pg_expandarray`](/sql/functions/set-returning#_pg_expandarray) function which also handles NULLs correctly.
+**NULL handling:** If your array may contain NULL values, be aware that `unnest` skips them while `generate_series` continues generating sequential numbers, resulting in mismatched ordinality. For arrays with NULLs, use `WITH ORDINALITY` instead (which correctly handles NULL elements), or use the [`_pg_expandarray`](/sql/functions/set-returning#_pg_expandarray) function.
 </Note>
 
 ## Array operators[](#array-operators "Direct link to Array operators")
