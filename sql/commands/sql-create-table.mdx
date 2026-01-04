@@ -35,7 +35,11 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 
 ## Notes
 
-- RisingWave supports **NOT NULL** constraints in table schemas. For batch inserts and updates, RisingWave throws an error if any row contains NULL in a NOT NULL column; for streaming ingestion, rows with NULL in NOT NULL columns are silently ignored.
+- RisingWave supports **NOT NULL** constraints for tables:
+  - For batch inserts and updates via `INSERT` or `UPDATE` statements, RisingWave throws an error if any row contains NULL in a NOT NULL column.
+  - For tables with connectors (streaming ingestion), the NOT NULL constraint is enforced the same way as batch operations - rows with NULL values in NOT NULL columns will cause errors during ingestion.
+
+  **Note:** For sources created with `CREATE SOURCE`, NOT NULL constraints cannot be specified in the schema.
 
 - For tables with primary key constraints, if you insert a new data record with an existing key, the new record will overwrite the existing record.
 

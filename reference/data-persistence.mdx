@@ -4,7 +4,11 @@ description: "RisingWave adopts the [Chandy–Lamport algorithm](https://en.wiki
 mode: wide
 ---
 
-When a checkpoint is created, the incremental states of streaming operators and output results are persisted in a durable and highly available remote storage. The default checkpoint interval is 1 seconds.
+When a checkpoint is created, the incremental states of streaming operators and output results are persisted in a durable and highly available remote storage. The default checkpoint interval is 1 second.
+
+<Note>
+This 1-second checkpoint interval controls RisingWave's internal fault tolerance and recovery. For sinks, data is committed to downstream systems at a different frequency controlled by `commit_checkpoint_interval`, which defaults to every 10 checkpoints (approximately 10 seconds) when sink decoupling is enabled. See [Sink decoupling](/delivery/overview#sink-decoupling) for details.
+</Note>
 
 In RisingWave, Compute Nodes perform write batching by buffering dirty states in memory before creating a checkpoint. Dirty states refer to unsaved states since the last checkpoint.
 

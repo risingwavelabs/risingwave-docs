@@ -58,7 +58,15 @@ To disable sink decoupling, set `sink_decouple` as `false` or `disable`, regardl
 SET sink_decouple = false;
 ```
 
-Sink decoupling is enabled by default for **all sinks** in RisingWave.
+Sink decoupling is enabled by default for **all sinks** in RisingWave. When enabled, sinks commit data less frequently to improve stability and reduce load on downstream systems. The commit frequency is controlled by `commit_checkpoint_interval`:
+
+- **Decoupled sinks (default)**: Commit every 10 checkpoints (approximately 10 seconds)
+- **Non-decoupled sinks**: Commit every checkpoint (approximately 1 second)
+- **Iceberg sinks**: Commit every 60 checkpoints (approximately 60 seconds) by default
+
+This means that with sink decoupling enabled, data may take up to 10-60 seconds to become visible in the downstream system, even though RisingWave's internal checkpoints occur every second.
+
+**Note:** Iceberg's exactly-once semantics require sink decoupling to be enabled. If you disable sink decoupling for an Iceberg sink, exactly-once will be automatically disabled.
 
 An internal system table `rw_sink_decouple` is provided to query whether a created sink has enabled sink decoupling or not.
 
@@ -82,6 +90,28 @@ When creating an `upsert` sink, note whether or not you need to specify the prim
 * If the downstream system supports primary keys and the table in the downstream system has a primary key, you must specify the primary key with the `primary_key` field when creating an upsert JDBC sink.
 * If the downstream system supports primary keys but the table in the downstream system has no primary key, then RisingWave does not allow users to create an upsert sink. A primary key must be defined in the table in the downstream system.
 * If the downstream system does not support primary keys, then users must define the primary key when creating an upsert sink.
+
+## Delivery semantics
+
+Different sink connectors provide different delivery guarantees:
+
+### Exactly-once semantics
+
+- **Iceberg**: Supports exactly-once delivery when `is_exactly_once = true` (the default). Requires sink decoupling to be enabled.
+
+### At-least-once semantics
+
+The following sinks guarantee at-least-once delivery. Events may be redelivered in case of failures:
+
+- **AWS Kinesis**: Due to PutRecords API limitations, provides at-least-once delivery and eventual consistency
+- **Elasticsearch**: At-least-once with possible redeliveries during failures
+- **NATS**: At-least-once with possible redeliveries during failures
+- **Kafka**: Non-transactional writes with at-least-once guarantees via retries
+- **Most other sinks**: Unless otherwise specified, sinks provide at-least-once semantics
+
+<Note>
+For append-only sinks, at-least-once semantics mean duplicate records may appear. For upsert sinks, duplicates are naturally deduplicated by the primary key in the downstream system.
+</Note>
 
 ## Sink buffering behavior
 

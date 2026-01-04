@@ -6,6 +6,14 @@ sidebarTitle: Apache Kafka
 
 A sink is an external target that you can send data to. To stream data out of RisingWave, you need to create a sink. Use the `CREATE SINK` statement to create a sink. You can create a sink with data from a materialized view or a table. RisingWave only supports writing messages in non-transactional mode.
 
+## Delivery semantics
+
+The Kafka sink provides **at-least-once delivery** guarantees. RisingWave will retry failed sends, which may result in duplicate messages being written to Kafka topics during failures or retries.
+
+For upsert sinks, duplicates are naturally handled by Kafka consumers through primary key deduplication. For append-only sinks, downstream consumers should handle potential duplicates.
+
+To enable idempotent producer behavior at the Kafka level (preventing duplicates due to broker acknowledgment issues), you can set `properties.enable.idempotence = true`. Note that this provides idempotence for individual sends but does not guarantee end-to-end exactly-once when combined with RisingWave's checkpoint mechanism.
+
 ## Syntax
 
 ```sql

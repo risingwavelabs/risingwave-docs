@@ -108,4 +108,16 @@ meta_cache_capacity_mb = 1600
 
 The remaining memory (16GB - 4.8GB - 1.6GB - reserved memory 16GB \* 0.3) is used for executing serving queries. We call it "compute memory". If a batch query is resource-intensive and its runtime memory consumption exceeds the available compute memory, it will terminate itself automatically before triggering an out-of-memory (OOM) error.
 
+### Spilling behavior
+
+Before terminating, batch executors will attempt to spill intermediate results to disk when memory pressure is high. Operations that support spilling include:
+
+- Hash joins
+- Hash aggregations
+- Large sorting operations
+
+Spilling temporarily writes data to the directory specified by `RW_BATCH_SPILL_DIR` (default: `/tmp/`). While spilling prevents OOM, it significantly impacts query performance due to disk I/O overhead.
+
+If spilling is insufficient to keep memory usage within limits, the query will terminate. To prevent this, either reduce cache sizes to increase compute memory, or distribute the query across multiple nodes using `SET QUERY_MODE TO distributed`.
+
 While we don't recommend executing OLAP-style batch queries that require a large amount of input data, you can adjust the configuration if such a query is needed and the default configuration leaves too little compute memory. Feel free to allocate less memory for the block cache and meta cache to increase the compute memory.
