@@ -73,7 +73,26 @@ The generated column is created in RisingWave and will not be accessed through t
 
 <Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
+</Note>
 
+## Connector-specific FORMAT requirements
+
+Different connectors have specific FORMAT and ENCODE requirements:
+
+- **CDC connectors** (e.g., `mysql-cdc`, `postgres-cdc`): Must use `FORMAT DEBEZIUM ENCODE JSON` (or `FORMAT PLAIN ENCODE JSON` for CDC source jobs). The FORMAT clause can be omitted as it defaults to the required format.
+
+- **Nexmark connector**: Must use `FORMAT NATIVE ENCODE NATIVE`. The FORMAT clause can be omitted.
+
+- **Datagen connector**: Defaults to `FORMAT NATIVE ENCODE NATIVE`, but other formats can be specified.
+
+- **Iceberg connector**: Uses `FORMAT NONE ENCODE NONE` (self-describing format). The FORMAT clause can be omitted.
+
+- **Other connectors** (Kafka, Kinesis, Pulsar, etc.): Require explicit FORMAT and ENCODE specification based on the actual data format.
+
+If you specify an incompatible FORMAT for a connector, you will receive a parser error indicating the expected format.
+
+<Note>
+NOT NULL constraints are not supported in source schemas. If you need NOT NULL enforcement, use `CREATE TABLE` with a connector instead.
 </Note>
 ## Watermarks
 

@@ -1,0 +1,69 @@
+---
+title: "Backfill"
+description: "Understand how RisingWave initializes materialized views from existing data."
+---
+
+## Overview
+
+When you create a materialized view (MV) on top of existing tables or sources, RisingWave must first compute the initial state by processing all existing data. This process is called **backfill**. After backfill completes, the MV transitions to incremental processing, where it continuously updates as new data arrives.
+
+## Backfill strategies
+
+RisingWave automatically selects a backfill strategy based on the MV definition and upstream data sources:
+
+### Snapshot backfill
+
+Used when creating MVs on tables with a consistent snapshot. The executor:
+1. Takes a snapshot of the upstream table at a specific epoch
+2. Scans the snapshot data in batches
+3. Applies the query transformation
+4. Writes results to the MV state
+5. Transitions to incremental mode once the snapshot is fully processed
+
+### Arrangement backfill
+
+Used for complex queries requiring joins or aggregations during backfill. This strategy:
+- Maintains intermediate state during backfill
+- Handles updates to upstream tables during backfill
+- Ensures consistency through barrier alignment
+
+### No-shuffle backfill
+
+Optimized strategy that avoids data redistribution when upstream and downstream parallelism match and data distribution is compatible.
+
+## Monitoring backfill progress
+
+Backfill progress is tracked per fragment and reported to the meta service. You can monitor progress through:
+
+- RisingWave Dashboard: View fragment-level progress
+- System tables: Query `rw_catalog.rw_ddl_progress` (if available)
+- Logs: Search for "backfill" in compute node logs
+
+Progress is reported as a percentage of rows processed relative to the total snapshot size.
+
+## Performance considerations
+
+### Resource allocation
+
+Backfill can be resource-intensive, especially for large upstream tables:
+- **CPU**: Backfill executors compete with regular streaming executors for CPU
+- **Memory**: Snapshot data and intermediate state consume memory
+- **Storage I/O**: Reading snapshot data and writing MV state generates I/O load
+
+### Concurrent backfills
+
+The `max_concurrent_creating_streaming_jobs` system parameter (default: 1) limits how many backfills can run simultaneously. This prevents resource exhaustion when creating multiple MVs at once.
+
+### Backfill and recovery
+
+If a compute node fails during backfill, RisingWave will resume backfill from the last completed checkpoint, not from the beginning. This is possible because:
+- Backfill progress is persisted in the meta store
+- Barriers coordinate progress across all fragments
+- State is checkpointed regularly during backfill
+
+## Best practices
+
+- Create MVs during low-traffic periods to minimize resource contention
+- Monitor barrier latency during backfill; high latency may indicate resource constraints
+- For very large tables, consider creating the MV incrementally using filtered views
+- Use background DDL (`SET BACKGROUND_DDL = true`) for non-blocking MV creation
