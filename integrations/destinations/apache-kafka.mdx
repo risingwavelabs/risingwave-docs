@@ -10,7 +10,8 @@ A sink is an external target that you can send data to. To stream data out of Ri
 
 The Kafka sink provides **at-least-once delivery** guarantees. RisingWave will retry failed sends, which may result in duplicate messages being written to Kafka topics during failures or retries.
 
-For upsert sinks, duplicates are naturally handled by Kafka consumers through primary key deduplication. For append-only sinks, downstream consumers should handle potential duplicates.
+- For upsert sinks, duplicates are naturally handled by Kafka consumers through primary key deduplication.
+- For append-only sinks, downstream consumers should handle potential duplicates.
 
 To enable idempotent producer behavior at the Kafka level (preventing duplicates due to broker acknowledgment issues), you can set `properties.enable.idempotence = true`. Note that this provides idempotence for individual sends but does not guarantee end-to-end exactly-once when combined with RisingWave's checkpoint mechanism.
 

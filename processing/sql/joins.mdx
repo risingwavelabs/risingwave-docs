@@ -27,9 +27,7 @@ The syntax of INNER JOIN is as follows:
 ```
 
 <Note>
-**Performance Tip**: In streaming queries, the optimizer can apply more aggressive optimizations
-when filters are part of the join condition itself (in the `ON` clause) rather than added as
-separate filters afterward. Consider restructuring your query to include filters in `ON` when possible.
+In streaming queries, it’s usually more efficient to put filters in the JOIN ON clause rather than filtering after the join. Consider restructuring your query to include filters in `ON` when possible.
 </Note>
 
 By default, filters that are not part of the join condition are evaluated after the inner join in streaming queries. This reduces extra computation but may hurt performance in some cases. To force filters to be pushed into the join operator in streaming mode, you can enable the following session variable `SET streaming_force_filter_inside_join = true`.
