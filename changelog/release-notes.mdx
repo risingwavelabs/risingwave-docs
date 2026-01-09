@@ -7,6 +7,23 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 Support for certain earlier version will end following the release of v2.7, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
 
+## Important Notice: Legacy Table Migration
+
+In this version, following the refactoring of `sink-into-table`, the system will automatically migrate fragments of all legacy tables to a unified pattern.
+
+- **Migration Process**: Upon upgrading and starting the cluster, a background task will automatically initiate the migration for all tables. You can see meta logs like:
+    - `"migrated table fragments table_id={table_id}"` indicate a successful migration.
+    - `"failed to migrate legacy table fragments"` indicate an error on migration.
+- **Impact**: Migration errors triggering these logs will not affect existing jobs or system availability. The system will continuously retry the migration.
+    - If the migration fails but does not impact your usage, please report the issue via Slack or GitHub issue and wait for bug fix in the next version.
+    - To disable automatic migration, set `enable_legacy_table_migration = false` in the `[meta]` section of your `toml` file (requires meta node restart).
+- **Limitations & Workaround**: You cannot create a new `sink-into-table` or drop an existing one on a table that has not completed migration. If the background migration is stuck or taking too long and you urgently need to perform these DDL operations, you can force a migration by running:
+    ```
+    ALTER TABLE {table_name} ADD COLUMN {col_name} int;
+    ALTER TABLE {table_name} DROP COLUMN {col_name};
+    ```
+    After this, you can use it as a normal table.
+
 ## SQL features
 
 - SQL commands:
