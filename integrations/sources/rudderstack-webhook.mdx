@@ -8,9 +8,19 @@ RudderStack is a Customer Data Platform (CDP) that enables you to collect, route
 
 This guide will walk through the steps to set up RisingWave as a destination for RudderStack webhooks.
 
+<Info>
+New to RisingWave webhooks? Before configuring RudderStack, it's recommended to run a quick local smoke test to confirm your RisingWave webhook listener is reachable and your table is ingesting events. See [Webhook endpoint](/integrations/sources/webhook#webhook-endpoint) and [Quick local smoke test](/integrations/sources/webhook#quick-local-smoke-test-no-upstream-saas-required).
+</Info>
+
 ## 1. Create a table in RisingWave
 
 Next, create a table configured to accept webhook data from RudderStack.
+
+```sql
+-- Optional (recommended): store the shared secret as a RisingWave secret.
+-- If you don't have access to secrets, skip this and use the raw-string example below.
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
 
 ```sql
 create table wbhtable (

@@ -10,9 +10,19 @@ HubSpot webhooks are not available on all HubSpot plans. You must have the appro
 
 This guide will walk through the steps to set up RisingWave as a destination for HubSpot webhooks.
 
+<Info>
+New to RisingWave webhooks? Before configuring HubSpot, it's recommended to run a quick local smoke test to confirm your RisingWave webhook listener is reachable and your table is ingesting events. See [Webhook endpoint](/integrations/sources/webhook#webhook-endpoint) and [Quick local smoke test](/integrations/sources/webhook#quick-local-smoke-test-no-upstream-saas-required).
+</Info>
+
 ## 1. Create a table in RisingWave
 
 Next, create a table configured to accept webhook data from HubSpot.
+
+```sql
+-- Optional (recommended): store the shared secret as a RisingWave secret.
+-- If you don't have access to secrets, skip this and use the raw-string example below.
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
 
 ```sql
 CREATE TABLE wbhtable (
@@ -25,7 +35,7 @@ CREATE TABLE wbhtable (
   encode(
     sha256(
       convert_to(
-        (test_secret || 'POST' || 'http://127.0.0.1:4560/webhook/dev/public/' || convert_from(data, 'utf8'))
+        (test_secret || 'POST' || 'https://<HOST>/webhook/<database>/<schema_name>/<table_name>' || convert_from(data, 'utf8'))
       , 'UTF8'
       )
     ) 
@@ -40,10 +50,14 @@ CREATE TABLE wbhtable (
 | `is_batched` | Optional, set to `true` to enable batch ingestion of multiple JSON lines in a single request. |
 | `SECRET <secret>` | Use an existing [secret](/operate/manage-secrets) to verify incoming webhook requests. This is optional. You can also use a raw string to verify.|
 | `headers->>'...'` | Extracts the signature provided by HubSpot in the `x-hubspot-signature` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
-| `encode(...)` | Computes the expected signature by concatenating the secret, HTTP method (`POST`), RisingWave Webhook URL (`http://127.0.0.1:4560/webhook/dev/public/` in this example), and the request body converted from UTF-8 `data`. It then takes a `SHA-256` hash of this string and encodes it in hex. |
+| `encode(...)` | Computes the expected signature by concatenating the secret, HTTP method (`POST`), RisingWave webhook URL, and the request body converted from UTF-8 `data`. It then takes a `SHA-256` hash of this string and encodes it in hex. |
 | `secure_compare(...)` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. The `secure_compare()` function compares two strings in a fixed amount of time, regardless of whether they are equal or not, ensuring that the comparison is secure and resistant to timing attacks. |
 
 In HubSpot Webhook, several request validation methods are available, including v1, v2, v3, and API Key–based authentication. Each version employs a different approach to generating and verifying signatures, and may store the signature in a distinct header field. The SQL example above illustrates how to validate a signature generated using the v2 method.
+
+<Warning>
+For HubSpot signature validation (v2/v3), the URL string used in the `secure_compare(...)` expression must match the exact webhook URL HubSpot calls (scheme/host/path, and whether there is a trailing slash). If they differ, validation will fail.
+</Warning>
 
 If you prefer to use an API key, you can simply include a key-value pair in the HTTP headers and validate against that value instead. For comprehensive details on all supported validation methods, refer to [HubSpot’s official documentation](https://developers.hubspot.com/beta-docs/guides/apps/authentication/validating-requests).
 
@@ -59,7 +73,7 @@ CREATE TABLE wbhtable (
   encode(
     sha256(
       convert_to(
-        ('TEST_WEBHOOK' || 'POST' || 'http://127.0.0.1:4560/webhook/dev/public/' || convert_from(data, 'utf8'))
+        ('TEST_WEBHOOK' || 'POST' || 'https://<HOST>/webhook/<database>/<schema_name>/<table_name>' || convert_from(data, 'utf8'))
       , 'UTF8'
       )
     ) 
