@@ -1,0 +1,123 @@
+---
+title: "Ingest data with Events API (HTTP)"
+description: "Use the RisingWave Events API to ingest JSON/NDJSON over HTTP and execute SQL through an HTTP endpoint."
+sidebarTitle: "Events API"
+---
+
+RisingWave **Events API** is a lightweight HTTP API layer for ingesting data into RisingWave. It provides:
+
+- **Simple HTTP ingestion** into RisingWave tables (`POST /v1/events`)
+- **SQL execution over HTTP** for DDL/DML (`POST /v1/sql`)
+
+The project lives at [risingwavelabs/events-api](https://github.com/risingwavelabs/events-api).
+
+<Info>
+If you want an ingestion endpoint built into RisingWave itself (and need provider-style webhook signature validation), see [Ingest data from webhook](/integrations/sources/webhook).
+</Info>
+
+## When to use Events API
+
+Use Events API when you want:
+
+- **App → RisingWave over HTTP** without introducing Kafka or another message broker.
+- **NDJSON ingestion** (one JSON object per line) to push many events in one request.
+- **A single service** that can both create tables (via HTTP SQL) and ingest events.
+
+## Prerequisites
+
+- A running RisingWave instance.
+- Network access from Events API to RisingWave.
+- A RisingWave DSN (Postgres-compatible connection string) for `EVENTS_API_RW_DSN`.
+
+## Compare with RisingWave webhook connector
+
+| Option | What you run | How you ingest | Best for |
+| --- | --- | --- | --- |
+| RisingWave webhook connector | RisingWave (webhook listener enabled) | `connector = 'webhook'` tables | SaaS webhooks + request validation/signatures |
+| Events API | RisingWave + Events API service | `POST /v1/events?name=<table>` | General event ingestion, NDJSON, simple HTTP ingestion |
+
+## Key endpoints
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /v1/sql` | Execute SQL statements (DDL/DML). |
+| `POST /v1/events?name=<table>` | Ingest one JSON object, or NDJSON (one JSON object per line) into a table. |
+
+## Quick start
+
+### 1. Run Events API
+
+Make sure you have a running RisingWave instance, then start Events API with a RisingWave DSN:
+
+```bash
+docker run --rm \
+  -e EVENTS_API_RW_DSN=postgres://root:@localhost:4566/dev \
+  -p 8000:8000 \
+  --name events-api \
+  risingwavelabs/events-api:v0.1.4
+```
+
+### 2. Create a table via HTTP SQL
+
+```bash
+curl -X POST \
+  -d 'CREATE TABLE clickstream (
+    user_id BIGINT,
+    session_id STRING,
+    page_url STRING,
+    event_type STRING,
+    timestamp TIMESTAMP,
+    referrer STRING,
+    device_type STRING
+  )' \
+  http://localhost:8000/v1/sql
+```
+
+### 3. Ingest events
+
+#### Insert a single JSON event
+
+```bash
+curl -X POST \
+  -d '{"user_id": 12345, "session_id": "sess_abc123", "page_url": "/products/laptop", "event_type": "page_view", "timestamp": "2024-01-15 10:30:00", "referrer": "https://google.com", "device_type": "desktop"}' \
+  'http://localhost:8000/v1/events?name=clickstream'
+```
+
+#### Insert multiple events (NDJSON)
+
+```bash
+curl -X POST \
+  --data-binary @- \
+  'http://localhost:8000/v1/events?name=clickstream' << 'EOF'
+{"user_id": 12345, "session_id": "sess_abc123", "page_url": "/products/laptop", "event_type": "page_view", "timestamp": "2024-01-15 10:30:00", "referrer": "https://google.com", "device_type": "desktop"}
+{"user_id": 12345, "session_id": "sess_abc123", "page_url": "/products/laptop", "event_type": "click", "timestamp": "2024-01-15 10:30:15", "referrer": "", "device_type": "desktop"}
+{"user_id": 67890, "session_id": "sess_xyz789", "page_url": "/products/phone", "event_type": "page_view", "timestamp": "2024-01-15 10:31:00", "referrer": "https://twitter.com", "device_type": "mobile"}
+EOF
+```
+
+### 4. Query the ingested data
+
+```bash
+curl -X POST \
+  -d 'SELECT * FROM clickstream ORDER BY timestamp DESC LIMIT 10' \
+  http://localhost:8000/v1/sql
+```
+
+## Configuration
+
+Events API can be configured via environment variables.
+
+| Variable | Description | Default | Required |
+| --- | --- | --- | --- |
+| `EVENTS_API_PORT` | HTTP server port | `8000` | No |
+| `EVENTS_API_HOST` | HTTP server host | `0.0.0.0` | No |
+| `EVENTS_API_RW_DSN` | RisingWave connection string | - | **Yes** |
+| `EVENTS_API_DEBUG_ENABLE` | Enable debug/profiling endpoints | `false` | No |
+| `EVENTS_API_DEBUG_PORT` | Debug server port | `8777` | No |
+
+## Production notes
+
+- **Networking**: Deploy Events API where it can reach RisingWave via the DSN you provide.
+- **Security**: If you expose Events API to the public internet, put it behind a gateway/reverse proxy and enforce authentication/authorization and rate limiting.
+- **Schema**: Events API inserts into existing RisingWave tables. Create tables first (for example, through `POST /v1/sql`).
+
