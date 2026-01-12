@@ -33,6 +33,8 @@ Below is a complete list of source connectors in RisingWave. Click a connector n
 | [Azure Blob](/integrations/sources/azure-blob)   | Latest               |
 | [NATS JetStream](/integrations/sources/nats-jetstream) |                      |
 | [MQTT](/integrations/sources/mqtt)          |                      |
+| [Webhook](/integrations/sources/webhook)    | Built-in             |
+| [Events API (HTTP)](/integrations/sources/events-api) | External service |
 | [Apache Iceberg](/ingestion/sources/iceberg) |                   |
 | [Load generator (datagen)](/ingestion/sources/datagen) | Built-in             |
 
@@ -43,6 +45,13 @@ For information on supported data formats and encodings, and whether you need to
 **What it is**: Real-time, continuous data ingestion from streaming sources that automatically updates as new data arrives.
 
 **When to use**: For real-time analytics, event-driven applications, live dashboards, and when you need immediate data freshness.
+
+### Option: HTTP ingestion (Webhook / Events API)
+
+If you want to ingest events over HTTP without introducing Kafka or another message broker, you can use one of these options:
+
+- **Webhook connector**: RisingWave serves as the webhook destination and ingests requests into `connector = 'webhook'` tables (supports provider-style request validation/signatures). See [Ingest data from webhook](/integrations/sources/webhook).
+- **Events API**: Run a standalone service that ingests JSON/NDJSON over HTTP and can execute SQL over HTTP. See [Events API](/integrations/sources/events-api).
 
 ### Example: Kafka streaming ingestion
 
@@ -278,6 +287,8 @@ CREATE TABLE test_users (
 | **Apache Iceberg** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
 | **Datagen** | ✅ | ❌ | ❌ | Test data generation only |
 | **Direct INSERT** | ❌ | ✅ | ⚠️ | Manual insertion; periodic via external tools |
+| **Webhook** | ✅ | ✅ | ⚠️ | Push-based HTTP ingestion; best for SaaS webhooks + request validation/signatures |
+| **Events API (HTTP)** | ✅ | ✅ | ⚠️ | Run Events API service; supports NDJSON ingestion and SQL over HTTP |
 
 **Legend:**
 - ✅ **Natively Supported**: Built-in support for this ingestion method.

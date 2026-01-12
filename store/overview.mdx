@@ -1,17 +1,77 @@
 ---
-title: "Storing data in RisingWave"
-sidebarTitle: "Store data"
-description: Learn how to store data persistently inside RisingWave.
+title: "Storage"
+sidebarTitle: "Storage"
+description: Learn how RisingWave stores data (Hummock and Iceberg) and where persisted data lives.
 ---
 
-This topic explains how to store data in RisingWave. Whenever you create either a materialized view or a table, RisingWave will persist the internal data inside object store (e.g., Amazon S3).
+This page explains **what it means to “store data” in RisingWave**, where the persisted data lives, and how to choose between RisingWave’s two storage options.
 
-RisingWave offers two types of storages: row-based storage (default), and columnar-based storage (Apache Iceberg).
+## What gets stored (and what doesn’t)
 
-## Row-based storage
+RisingWave persists data for:
 
-By default, tables and materialized views are stored in row-based storage, using a specialized storage engine called [Hummock](https://risingwave.com/blog/hummock-a-storage-engine-designed-for-stream-processing/). The row-based storage will automatically cache data in local memory in order to get optimal storage. The row-based storage is good at serving ad-hoc point and short-range access. But it’s not optimized for long-range access and full-table scans.
+- **Tables**
+- **Materialized views (MVs)**
 
-## Columnar-based storage
+By contrast, a **Source** is just a connection to an external system and **does not store data inside RisingWave**. If you want RisingWave to keep a durable copy of ingested data, use a connector-backed table (`CREATE TABLE ... WITH (connector=...)`).
 
-RisingWave offers columnar-based storage. Instead of using proprietary format, RisingWave stores analytical data based on Apache Iceberg. For more details, see [Apache Iceberg storage overview](/iceberg/overview).
+For a practical comparison, see [CREATE SOURCE vs. CREATE TABLE](/ingestion/create-source-vs-create-table) and [Source, Table, MV, and Sink](/get-started/source-table-mv-sink).
+
+## Where the data is persisted
+
+When you create tables or MVs, RisingWave persists their internal state in your configured **object store** (for example, Amazon S3). Compute nodes may cache hot data locally for performance, but the durable copy is stored in the object store.
+
+## Two storage options
+
+RisingWave offers two ways to persist data:
+
+- **Row-based storage (default)** via the Hummock storage engine
+- **Columnar storage** using **Apache Iceberg**
+
+### Quick guide: which one should I use?
+
+| Workload / requirement | Recommended storage |
+| --- | --- |
+| Low-latency point lookups, “latest state”, frequent updates/deletes | **Row-based (Hummock)** |
+| Streaming pipelines with MVs that need fast incremental maintenance | **Row-based (Hummock)** |
+| Large scans, long-range analytics, and lakehouse interoperability | **Iceberg (columnar)** |
+| Need to query the same dataset from other engines (Spark/Trino/etc.) | **Iceberg (columnar)** |
+
+## Row-based storage (Hummock)
+
+By default, tables and materialized views are stored in row-based storage using [Hummock](https://risingwave.com/blog/hummock-a-storage-engine-designed-for-stream-processing/), a storage engine designed for streaming updates.
+
+**Best for**:
+
+- Serving **up-to-date results** with low latency.
+- Workloads dominated by **point queries** and **short-range scans**.
+- Pipelines with frequent incremental updates (CDC, upserts, streaming aggregations).
+
+**Trade-offs**:
+
+- Not optimized for very large **full-table scans** compared with columnar formats.
+
+## Columnar storage (Apache Iceberg)
+
+RisingWave can store analytical datasets in Apache Iceberg, a widely adopted columnar table format in the lakehouse ecosystem.
+
+**Best for**:
+
+- Analytical queries that scan lots of data (reporting, dashboards, ad-hoc BI).
+- Sharing the same tables with external engines that understand Iceberg.
+
+To learn how Iceberg storage works in RisingWave and how to manage it, see:
+
+- [Apache Iceberg storage overview](/iceberg/overview)
+- [Create and manage internal Iceberg tables](/iceberg/internal-iceberg-tables)
+
+## Common patterns
+
+- **Retain raw data + compute derived results**: Ingest into a table for durable retention, then build MVs for continuously maintained aggregations.
+- **Explore first, persist later**: Start with `CREATE SOURCE` for quick exploration; switch to a connector-backed table when you need durability or performance.
+- **Hybrid analytics**: Keep operational/serving state in Hummock, and keep large analytical datasets (or shared lakehouse tables) in Iceberg.
+
+## What’s next?
+
+- If you’re choosing between connector objects, start with [CREATE SOURCE vs. CREATE TABLE](/ingestion/create-source-vs-create-table).
+- If you want to expose results to tools and applications, see [Access overview](/serve/overview).
