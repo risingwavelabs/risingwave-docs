@@ -79,15 +79,8 @@ Please distinguish between the parameters set in the FORMAT and ENCODE options a
 
 Different connectors have specific FORMAT and ENCODE requirements:
 
-- **CDC connectors** (e.g., `mysql-cdc`, `postgres-cdc`): Must use `FORMAT DEBEZIUM ENCODE JSON` (or `FORMAT PLAIN ENCODE JSON` for CDC source jobs). The FORMAT clause can be omitted as it defaults to the required format.
-
-- **Nexmark connector**: Must use `FORMAT NATIVE ENCODE NATIVE`. The FORMAT clause can be omitted.
-
-- **Datagen connector**: Defaults to `FORMAT NATIVE ENCODE NATIVE`, but other formats can be specified.
-
-- **Iceberg connector**: Uses `FORMAT NONE ENCODE NONE` (self-describing format). The FORMAT clause can be omitted.
-
-- **Other connectors** (Kafka, Kinesis, Pulsar, etc.): Require explicit FORMAT and ENCODE specification based on the actual data format.
+- For specialized connectors (CDC, Nexmark, Datagen, Iceberg), the FORMAT and ENCODE clauses are handled automatically and should be omitted.
+- For other connectors** (Kafka, Kinesis, Pulsar, etc.), you need to explicitly specify FORMAT and ENCODE specification based on the actual data format.
 
 If you specify an incompatible FORMAT for a connector, you will receive a parser error indicating the expected format.
 
