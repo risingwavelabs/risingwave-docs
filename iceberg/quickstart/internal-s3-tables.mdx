@@ -1,0 +1,141 @@
+---
+title: "Internal Iceberg tables with Amazon S3 Tables"
+sidebarTitle: "Internal + S3 Tables"
+description: "Create a RisingWave-managed (internal) Iceberg table using Amazon S3 Tables as the REST catalog."
+---
+
+This quickstart demonstrates how to create and use an **internal Iceberg table** (RisingWave-managed) with **Amazon S3 Tables** as the Iceberg REST catalog.
+
+## Prerequisites
+
+- A running RisingWave cluster (self-hosted or RisingWave Cloud) and access to run SQL.
+- **AWS CLI** configured with credentials (AK/SK).
+- An existing **S3 table bucket ARN** (customer-managed table bucket).
+- An existing **namespace** in that table bucket (for example, `demo_ns`).
+
+<Tip>
+If you don’t have a table bucket yet, you can create one with AWS CLI (S3 Tables must be available in your region).
+See [Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli).
+</Tip>
+
+## Demo: create and manage Iceberg tables in RisingWave
+
+### Set variables
+
+If you created the table bucket + namespace using AWS CLI by following [Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli), you should already have `REGION`, `TABLE_BUCKET_ARN`, and `NAMESPACE`.
+
+```bash
+export AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY"
+export REGION="..."
+export TABLE_BUCKET_ARN="..."
+export NAMESPACE="..."
+export RW_TABLE="${RW_TABLE:-rw_demo_table}"
+
+export CATALOG_URI="https://s3tables.${REGION}.amazonaws.com/iceberg"
+```
+
+### Start `psql` and pass parameters
+
+This command opens an interactive `psql` session with variables preloaded. After it connects, **paste the SQL blocks below**.
+
+```bash
+psql -h localhost -p 4566 -d dev -U root \
+  -v ak="'$AWS_ACCESS_KEY_ID'" \
+  -v sk="'$AWS_SECRET_ACCESS_KEY'" \
+  -v region="'$REGION'" \
+  -v wh="'$TABLE_BUCKET_ARN'" \
+  -v ns="$NAMESPACE" \
+  -v tb="$RW_TABLE" \
+  -v uri="'$CATALOG_URI'"
+```
+
+### Step 1: Create the Iceberg connection
+
+```sql
+CREATE CONNECTION s3tables_conn WITH (
+  type = 'iceberg',
+
+  -- S3 Tables uses a table bucket ARN as the warehouse
+  warehouse.path = :wh,
+
+  -- Catalog: S3 Tables REST endpoint + SigV4
+  catalog.type = 'rest',
+  catalog.uri = :uri,
+  catalog.rest.signing_region = :region,
+  catalog.rest.signing_name = 's3tables',
+  catalog.rest.sigv4_enabled = true,
+
+  -- AWS credentials
+  s3.region = :region,
+  s3.access.key = :ak,
+  s3.secret.key = :sk,
+  enable_config_load = false
+);
+
+SET iceberg_engine_connection = 'public.s3tables_conn';
+```
+
+### Step 2: Create the internal Iceberg table
+
+```sql
+CREATE SCHEMA IF NOT EXISTS :"ns";
+
+CREATE TABLE IF NOT EXISTS :"ns".:"tb" (
+  user_id INT,
+  event_type VARCHAR,
+  event_ts TIMESTAMPTZ,
+  PRIMARY KEY (user_id, event_ts)
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+
+### Step 3: Write and query
+
+```sql
+
+INSERT INTO :"ns".:"tb" VALUES
+  (1, 'login',  '2026-01-01 10:00:00Z'),
+  (1, 'click',  '2026-01-01 10:01:00Z'),
+  (2, 'login',  '2026-01-01 11:00:00Z');
+
+SELECT * FROM :"ns".:"tb" ORDER BY event_ts;
+```
+
+### Use DuckDB to query data
+
+```
+duckdb -c "
+INSTALL aws;
+INSTALL httpfs;
+INSTALL iceberg;
+LOAD aws;
+LOAD httpfs;
+LOAD iceberg;
+
+-- Use AWS credential chain from your environment (AWS CLI config, env vars, etc.)
+CREATE SECRET (TYPE s3, PROVIDER credential_chain);
+
+-- Attach S3 Tables table bucket as an Iceberg catalog in DuckDB
+ATTACH '${TABLE_BUCKET_ARN}' AS s3t (TYPE iceberg, ENDPOINT_TYPE s3_tables);
+
+SELECT * FROM s3t.${NAMESPACE}.${RW_TABLE} ORDER BY user_id;
+"
+```
+
+### Cleanup (optional)
+
+```sql
+DROP TABLE IF EXISTS :"ns".:"tb";
+DROP SCHEMA IF EXISTS :"ns";
+DROP CONNECTION IF EXISTS s3tables_conn;
+```
+
+## What you just built
+
+- RisingWave created and manages an Iceberg table, while S3 Tables acts as the REST catalog service.
+- Your table is addressable by Iceberg engines through the same S3 Tables catalog and table bucket.
+
+For reference, see [Amazon S3 Tables catalog](/iceberg/catalogs/s3-tables).
+

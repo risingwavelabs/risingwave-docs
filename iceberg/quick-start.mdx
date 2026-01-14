@@ -1,152 +1,35 @@
 ---
-title: "Quick start: Build a streaming lakehouse"
+title: "Quick start: Iceberg in 10 minutes (AWS)"
 sidebarTitle: "Quick start"
-description: "Build a streaming lakehouse with RisingWave and Apache Iceberg. This quick start guides you through streaming data from RisingWave into an Iceberg table and querying it from DuckDB using a REST catalog."
+description: "Five runnable quickstarts for using Iceberg with RisingWave on AWS: internal tables (built-in catalog / S3 Tables / Glue) and external tables (S3 Tables / Glue)."
 ---
-This tutorial is based on the [RisingWave, Lakekeeper, Iceberg, and DuckDB demo](https://github.com/risingwavelabs/awesome-stream-processing/tree/main/07-iceberg-demos/risingwave_lakekeeper_iceberg_duckdb) from our `awesome-stream-processing` repository. For more details, please refer to the original demo.
+This quick start section contains five **runnable** recipes that show how to use Apache Iceberg with RisingWave on AWS.
 
-## Prerequisites
+You can choose between:
 
-Before you start, ensure you have the following tools installed:
+- **Internal Iceberg tables** (RisingWave manages the table lifecycle; data is stored as Iceberg in an object store)
+- **External Iceberg tables** (tables are managed outside RisingWave; RisingWave reads/writes through the Iceberg connector)
 
-*   **Docker** and **Docker Compose**: For running the services.
-*   **psql**: The PostgreSQL interactive terminal for connecting to RisingWave.
+## Pick a path
 
-## Start the stack
+### Internal Iceberg tables
 
-First, clone the demo repository and start the services using Docker Compose.
+- [Internal Iceberg tables with built-in catalog](/iceberg/quickstart/internal-built-in-catalog)
+- [Internal Iceberg tables with Amazon S3 Tables](/iceberg/quickstart/internal-s3-tables)
+- [Internal Iceberg tables with AWS Glue](/iceberg/quickstart/internal-glue)
 
-```bash
-git clone https://github.com/risingwavelabs/awesome-stream-processing.git
-cd awesome-stream-processing/07-iceberg-demos/risingwave_lakekeeper_iceberg_duckdb
+### External Iceberg tables
 
-# Launch demo stack
-docker compose up -d
-```
+- [External Iceberg tables with Amazon S3 Tables](/iceberg/quickstart/external-s3-tables)
+- [External Iceberg tables with AWS Glue](/iceberg/quickstart/external-glue)
 
-This will start RisingWave, Lakekeeper, and MinIO.
+## Notes
 
-## Connect to RisingWave and stream to Iceberg
+- These quickstarts assume you already have **AWS credentials (AK/SK)** and **AWS CLI** configured.
+- For the full parameter reference, see:
+  - [Object storage configuration](/iceberg/object-storage)
+  - [Catalog configuration](/iceberg/catalogs)
 
-Connect to RisingWave using `psql`:
-
-```bash
-psql -h localhost -p 4566 -d dev -U root
-```
-
-Create a REST catalog connection to Lakekeeper and MinIO:
-
-```sql
-CREATE CONNECTION lakekeeper_catalog_conn
-WITH (
-    type = 'iceberg',
-    catalog.type = 'rest',
-    catalog.uri = 'http://lakekeeper:8181/catalog/',
-    warehouse.path = 'risingwave-warehouse',
-    s3.access.key = 'hummockadmin',
-    s3.secret.key = 'hummockadmin',
-    s3.path.style.access = 'true',
-    s3.endpoint = 'http://minio-0:9301',
-    s3.region = 'us-east-1'
-);
-```
-
-This command registers the Lakekeeper REST catalog and the MinIO object storage as a connection in RisingWave, allowing it to manage Iceberg tables.
-
-Set it as the default Iceberg connection:
-
-```sql
-SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
-```
-
-Create an Iceberg-native table in RisingWave:
-
-```sql
-CREATE TABLE customer_profile (
-  customer_id INT PRIMARY KEY,
-  full_name   VARCHAR,
-  email       VARCHAR,
-  phone       VARCHAR,
-  status      VARCHAR,
-  city        VARCHAR,
-  created_at  TIMESTAMPTZ,
-  updated_at  TIMESTAMPTZ
-)
--- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
-WITH (commit_checkpoint_interval = 1)
-ENGINE = iceberg;
-```
-
-You've now created an Iceberg-native table directly in RisingWave. Any data streamed into this table will be committed to the Iceberg format in MinIO.
-
-Insert some data into the table:
-
-```sql
-INSERT INTO customer_profile (
-  customer_id, full_name, email, phone, status, city, created_at, updated_at)
-VALUES
-  (1, 'Alex Johnson', 'alex.johnson@example.com', '+1-212-555-0101', 'active', 'New York','2025-08-15 09:12:00-04','2025-08-18 14:30:00-04'),
-  (2, 'Maria Garcia', 'maria.garcia@example.com', '+1-415-555-0102', 'active', 'San Francisco','2025-08-16 08:05:00-07','2025-08-19 10:45:00-07'),
-  (3, 'Ethan Brown',  'ethan.brown@example.com',  '+1-312-555-0103', 'suspended','Chicago','2025-08-17 11:10:00-05','2025-08-17 11:10:00-05');
-```
-
-Verify that the data has been inserted:
-
-```sql
-SELECT * FROM customer_profile;
-```
-
-At this point, the data is not only available for querying within RisingWave but is also persisted in the Iceberg format in your MinIO storage.
-
-## Query the Iceberg table from DuckDB
-
-The Iceberg table you created is not locked into RisingWave. To demonstrate this, let's query the `customer_profile` table using a different engine, DuckDB.
-
-First, install the DuckDB CLI:
-
-```bash
-curl https://install.duckdb.org | sh
-```
-
-For DuckDB to reach MinIO, map `minio-0` to `127.0.0.1` in your `/etc/hosts` file:
-
-```bash
-echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
-```
-
-Launch DuckDB:
-
-```bash
-~/.duckdb/cli/latest/duckdb
-```
-
-Install the required extensions:
-
-```sql
-INSTALL aws;
-INSTALL httpfs;
-INSTALL iceberg;
-```
-
-Configure DuckDB to connect to MinIO:
-
-```sql
-SET s3_region = 'us-east-1';
-SET s3_endpoint = 'http://minio-0:9301';
-SET s3_access_key_id = 'hummockadmin';
-SET s3_secret_access_key = 'hummockadmin';
-SET s3_url_style = 'path';
-SET s3_use_ssl = false;
-```
-
-Attach the Lakekeeper REST catalog and query the table:
-
-```sql
-ATTACH 'risingwave-warehouse' AS lakekeeper_catalog (
-  TYPE ICEBERG,
-  ENDPOINT 'http://127.0.0.1:8181/catalog/',
-  AUTHORIZATION_TYPE 'none'
-);
-
-SELECT * FROM lakekeeper_catalog.public.customer_profile;
-```
+<Tip>
+Want to try the original end-to-end demo stack (Lakekeeper + MinIO + DuckDB)? See the tutorial in our `awesome-stream-processing` repo: [RisingWave, Lakekeeper, Iceberg, and DuckDB demo](https://github.com/risingwavelabs/awesome-stream-processing/tree/main/07-iceberg-demos/risingwave_lakekeeper_iceberg_duckdb).
+</Tip>

@@ -1,0 +1,135 @@
+---
+title: "External Iceberg tables with Amazon S3 Tables"
+sidebarTitle: "External + S3 Tables"
+description: "Write to and read from an externally managed Iceberg table in Amazon S3 Tables using RisingWave's Iceberg connector."
+---
+
+This quickstart shows how to use an **externally managed** Iceberg table stored in **Amazon S3 Tables**:
+
+- Deliver data **to** the table with `CREATE SINK` (Iceberg connector)
+- Read data **from** the same table with `CREATE SOURCE`
+
+All steps are runnable with **AWS CLI + RisingWave SQL**.
+
+## Prerequisites
+
+- A running RisingWave cluster (self-hosted or RisingWave Cloud) and access to run SQL.
+- **AWS CLI** configured with credentials (AK/SK).
+- Amazon S3 Tables is available in your region.
+
+<Tip>
+If you’re new to S3 Tables, follow this first to create a table bucket/namespace/table using AWS CLI:
+[Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli).
+</Tip>
+
+## Step 1: Create the external Iceberg table in S3 Tables (AWS CLI)
+
+Follow: [Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli).
+
+This quickstart assumes you created:
+
+- `NAMESPACE = demo_ns`
+- `TABLE = demo_table`
+- schema: `id int, name string, value int`
+
+## Step 2: Deliver data and read it back (RisingWave)
+
+### Set variables
+
+```bash
+# Required
+export REGION="${REGION:-us-east-1}"
+export TABLE_BUCKET_ARN="arn:aws:s3tables:${REGION}:123456789012:bucket/your-table-bucket"
+export AWS_ACCESS_KEY_ID="..."
+export AWS_SECRET_ACCESS_KEY="..."
+export NAMESPACE="${NAMESPACE:-demo_ns}"
+export TABLE="${TABLE:-demo_table}"
+```
+
+### Run in RisingWave (psql)
+
+```bash
+psql -h localhost -p 4566 -d dev -U root \
+  -v ON_ERROR_STOP=1 \
+  -v ak="'$AWS_ACCESS_KEY_ID'" \
+  -v sk="'$AWS_SECRET_ACCESS_KEY'" \
+  -v region="'$REGION'" \
+  -v wh="'$TABLE_BUCKET_ARN'" \
+  -v ns="'$NAMESPACE'" \
+  -v tb="'$TABLE'" <<'SQL'
+CREATE TABLE local_events (
+  id INT,
+  name VARCHAR,
+  value INT
+);
+
+CREATE SINK to_s3tables_events FROM local_events
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+
+  warehouse.path = :wh,
+  s3.region = :region,
+  s3.access.key = :ak,
+  s3.secret.key = :sk,
+  enable_config_load = false,
+
+  catalog.type = 'rest',
+  catalog.uri = 'https://s3tables.' || :region || '.amazonaws.com/iceberg',
+  catalog.rest.signing_region = :region,
+  catalog.rest.signing_name = 's3tables',
+  catalog.rest.sigv4_enabled = true,
+
+  database.name = :ns,
+  table.name = :tb,
+
+  commit_checkpoint_interval = 1
+);
+
+INSERT INTO local_events VALUES
+  (1, 'a', 100),
+  (2, 'b', 200),
+  (3, 'c', 300);
+
+CREATE SOURCE s3tables_events_src
+WITH (
+  connector = 'iceberg',
+  warehouse.path = :wh,
+
+  s3.region = :region,
+  s3.access.key = :ak,
+  s3.secret.key = :sk,
+  enable_config_load = false,
+
+  catalog.type = 'rest',
+  catalog.uri = 'https://s3tables.' || :region || '.amazonaws.com/iceberg',
+  catalog.rest.signing_region = :region,
+  catalog.rest.signing_name = 's3tables',
+  catalog.rest.sigv4_enabled = true,
+
+  database.name = :ns,
+  table.name = :tb
+);
+
+SELECT * FROM s3tables_events_src ORDER BY id;
+SQL
+```
+
+### Cleanup (optional)
+
+```bash
+psql -h localhost -p 4566 -d dev -U root \
+  -v ON_ERROR_STOP=1 <<'SQL'
+DROP SOURCE IF EXISTS s3tables_events_src;
+DROP SINK IF EXISTS to_s3tables_events;
+DROP TABLE IF EXISTS local_events;
+SQL
+```
+
+## What you just built
+
+- A table that is **managed by Amazon S3 Tables** (catalog + storage), not by RisingWave.
+- RisingWave acting as both a **writer** (`SINK`) and a **reader** (`SOURCE`) through the Iceberg connector.
+
+For reference, see [Amazon S3 Tables catalog](/iceberg/catalogs/s3-tables) and [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg).
+

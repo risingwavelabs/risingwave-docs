@@ -1,0 +1,184 @@
+---
+title: "Create Amazon S3 Tables with AWS CLI"
+sidebarTitle: "Create S3 Tables (AWS CLI)"
+description: "A beginner-friendly, runnable guide to create an Amazon S3 Tables table bucket, namespace, and Iceberg table using AWS CLI, then verify with DuckDB."
+---
+
+This guide is for **new Amazon S3 Tables users**. You’ll create:
+
+- a **table bucket** (not a normal S3 bucket)
+- a **namespace** (similar to a database)
+- an **Iceberg table** (with a simple schema)
+
+Then you’ll verify the table by querying it with **DuckDB**.
+
+## Prerequisites
+
+- **AWS CLI v2** installed and configured with credentials (AK/SK), plus permissions to use S3 Tables.
+- A region that supports **Amazon S3 Tables**.
+- (Optional) `duckdb` installed locally for verification.
+
+## Key concepts
+
+- **Table bucket**: the top-level container in S3 Tables. It has an ARN like:
+  - `arn:aws:s3tables:<region>:<account-id>:bucket/<table-bucket-name>`
+- **Namespace**: a logical container inside a table bucket (think “database”).
+  - Namespace name is restricted: **lowercase letters, digits, underscore**.
+- **Table**: an Iceberg table inside a namespace.
+
+## Step-by-step: create bucket + namespace + table
+
+### Step 0: Set variables
+
+```bash
+set -euo pipefail
+
+# Pick a region that supports S3 Tables
+export REGION="${REGION:-us-east-1}"
+
+# Names: namespace must be lowercase letters/digits/underscore only
+export NAMESPACE="${NAMESPACE:-demo_ns}"
+export TABLE="${TABLE:-demo_table}"
+
+export ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+export BUCKET_NAME="demo-s3tables-${ACCOUNT_ID}-$(date +%s)"
+
+echo "Region: $REGION"
+echo "Table bucket name: $BUCKET_NAME"
+```
+
+### Step 1: Verify your AWS CLI supports `s3tables`
+
+```bash
+aws s3tables help >/dev/null
+```
+
+### Step 2: Create a table bucket
+
+```bash
+# Create an S3 Tables table bucket (NOT a regular S3 bucket)
+export TABLE_BUCKET_ARN="$(
+  aws s3tables create-table-bucket \
+    --name "$BUCKET_NAME" \
+    --region "$REGION" \
+    --query arn --output text
+)"
+
+echo "TABLE_BUCKET_ARN=$TABLE_BUCKET_ARN"
+```
+
+Confirm that it worked:
+
+```bash
+aws s3tables list-table-buckets --region "$REGION"
+```
+
+### Step 3: Create a namespace
+
+```bash
+aws s3tables create-namespace \
+  --table-bucket-arn "$TABLE_BUCKET_ARN" \
+  --namespace "$NAMESPACE" \
+  --region "$REGION" >/dev/null
+```
+
+Confirm that it worked:
+
+```bash
+aws s3tables list-namespaces \
+  --table-bucket-arn "$TABLE_BUCKET_ARN" \
+  --region "$REGION"
+```
+
+### Step 4: Create a table schema file (Iceberg)
+
+```bash
+cat > /tmp/mytabledefinition.json <<EOF
+{
+  "tableBucketARN": "$TABLE_BUCKET_ARN",
+  "namespace": "$NAMESPACE",
+  "name": "$TABLE",
+  "format": "ICEBERG",
+  "metadata": {
+    "iceberg": {
+      "schema": {
+        "fields": [
+          {"name": "id", "type": "int", "required": true},
+          {"name": "name", "type": "string"},
+          {"name": "value", "type": "int"}
+        ]
+      }
+    }
+  }
+}
+EOF
+```
+
+### Step 5: Create the Iceberg table
+
+```bash
+aws s3tables create-table \
+  --region "$REGION" \
+  --cli-input-json file:///tmp/mytabledefinition.json
+```
+
+Confirm that it worked:
+
+```bash
+aws s3tables list-tables \
+  --table-bucket-arn "$TABLE_BUCKET_ARN" \
+  --namespace "$NAMESPACE" \
+  --region "$REGION"
+```
+
+## Verify by querying with DuckDB
+
+This step is useful if you want a quick “does the table exist?” validation locally.
+
+```bash
+duckdb -c "
+INSTALL aws;
+INSTALL httpfs;
+INSTALL iceberg;
+LOAD aws;
+LOAD httpfs;
+LOAD iceberg;
+
+-- Use AWS credential chain from your environment (AWS CLI config, env vars, etc.)
+CREATE SECRET (TYPE s3, PROVIDER credential_chain);
+
+-- Attach S3 Tables table bucket as an Iceberg catalog in DuckDB
+ATTACH '${TABLE_BUCKET_ARN}' AS s3t (TYPE iceberg, ENDPOINT_TYPE s3_tables);
+
+SELECT * FROM s3t.${NAMESPACE}.${TABLE} ORDER BY id;
+"
+```
+
+## Cleanup
+
+Run the following when you’re done:
+
+```bash
+aws s3tables delete-table \
+  --table-bucket-arn "$TABLE_BUCKET_ARN" \
+  --namespace "$NAMESPACE" \
+  --name "$TABLE" \
+  --region "$REGION"
+
+aws s3tables delete-namespace \
+  --table-bucket-arn "$TABLE_BUCKET_ARN" \
+  --namespace "$NAMESPACE" \
+  --region "$REGION"
+
+aws s3tables delete-table-bucket \
+  --table-bucket-arn "$TABLE_BUCKET_ARN" \
+  --region "$REGION"
+```
+
+## Next: use this table in RisingWave
+
+- If you want RisingWave to create **internal** Iceberg tables while using S3 Tables as the catalog, see:
+  - [Internal Iceberg tables with Amazon S3 Tables](/iceberg/quickstart/internal-s3-tables)
+- If you want RisingWave to **write to** or **read from** this table as an external table, see:
+  - [External Iceberg tables with Amazon S3 Tables](/iceberg/quickstart/external-s3-tables)
+

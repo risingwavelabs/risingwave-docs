@@ -94,13 +94,17 @@ For more details on the available catalog options, see [Iceberg catalog configur
     ```sql
     CREATE CONNECTION s3_tables_conn WITH (
         type = 'iceberg',
-        warehouse.path = 's3://DOC-EXAMPLE-BUCKET/my-table-bucket/',
-        s3.region = 'us-east-1',
+        -- S3 Tables uses a table bucket ARN as the warehouse path
+        warehouse.path = 'arn:aws:s3tables:<your-region>:<account-id>:bucket/<bucket-name>',
+        s3.region = '<your-region>',
+        s3.access.key = 'your-key',
+        s3.secret.key = 'your-secret',
+        enable_config_load = false,
         catalog.type = 'rest',
-        catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/tables',
-        catalog.rest.signing_region = 'us-east-1',
+        catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+        catalog.rest.signing_region = '<your-region>',
         catalog.rest.signing_name = 's3tables',
-        catalog.rest.sigv4_enabled = 'true'
+        catalog.rest.sigv4_enabled = true
     );
     ```
     </Tab>
