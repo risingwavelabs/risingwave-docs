@@ -4,59 +4,55 @@ sidebarTitle: "External + S3 Tables"
 description: "Write to and read from an externally managed Iceberg table in Amazon S3 Tables using RisingWave's Iceberg connector."
 ---
 
-This quickstart shows how to use an **externally managed** Iceberg table stored in **Amazon S3 Tables**:
-
-- Deliver data **to** the table with `CREATE SINK` (Iceberg connector)
-- Read data **from** the same table with `CREATE SOURCE`
-
-All steps are runnable with **AWS CLI + RisingWave SQL**.
+This quickstart demonstrates how to deliver data to, and query from, an **externally managed** Iceberg table stored in **Amazon S3 Tables**.
 
 ## Prerequisites
 
 - A running RisingWave cluster (self-hosted or RisingWave Cloud) and access to run SQL.
 - **AWS CLI** configured with credentials (AK/SK).
 - Amazon S3 Tables is available in your region.
+- An existing S3 Tables Iceberg table.
 
 <Tip>
-If you’re new to S3 Tables, follow this first to create a table bucket/namespace/table using AWS CLI:
+If you don’t have a table bucket / namespace / table yet, create them by following
 [Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli).
 </Tip>
 
-## Step 1: Create the external Iceberg table in S3 Tables (AWS CLI)
-
-Follow: [Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli).
-
-This quickstart assumes you created:
-
-- `NAMESPACE = demo_ns`
-- `TABLE = demo_table`
-- schema: `id int, name string, value int`
-
-## Step 2: Deliver data and read it back (RisingWave)
+## Demo: deliver to and read from an external Iceberg table in RisingWave
 
 ### Set variables
 
+If you created the table bucket + namespace using AWS CLI by following [Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli), you should already have `REGION`, `TABLE_BUCKET_ARN`, and `NAMESPACE`, amd `TABLE`.
+
 ```bash
-# Required
-export REGION="${REGION:-us-east-1}"
-export TABLE_BUCKET_ARN="arn:aws:s3tables:${REGION}:123456789012:bucket/your-table-bucket"
-export AWS_ACCESS_KEY_ID="..."
-export AWS_SECRET_ACCESS_KEY="..."
-export NAMESPACE="${NAMESPACE:-demo_ns}"
-export TABLE="${TABLE:-demo_table}"
+export AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY"
+export REGION="..."
+export TABLE_BUCKET_ARN="..."
+export NAMESPACE="..."
+export TABLE="..."
+
+export CATALOG_URI="https://s3tables.${REGION}.amazonaws.com/iceberg"
 ```
 
-### Run in RisingWave (psql)
+### Start `psql` and pass parameters
+
+This command opens an interactive `psql` session with variables preloaded.
 
 ```bash
 psql -h localhost -p 4566 -d dev -U root \
-  -v ON_ERROR_STOP=1 \
   -v ak="'$AWS_ACCESS_KEY_ID'" \
   -v sk="'$AWS_SECRET_ACCESS_KEY'" \
   -v region="'$REGION'" \
   -v wh="'$TABLE_BUCKET_ARN'" \
   -v ns="'$NAMESPACE'" \
-  -v tb="'$TABLE'" <<'SQL'
+  -v tb="'$TABLE'" \
+  -v uri="'$CATALOG_URI'"
+```
+
+### Step 1: Create a sink to the external table
+
+```sql
 CREATE TABLE local_events (
   id INT,
   name VARCHAR,
@@ -68,6 +64,8 @@ WITH (
   connector = 'iceberg',
   type = 'append-only',
 
+  force_append_only = 'true',
+
   warehouse.path = :wh,
   s3.region = :region,
   s3.access.key = :ak,
@@ -75,7 +73,7 @@ WITH (
   enable_config_load = false,
 
   catalog.type = 'rest',
-  catalog.uri = 'https://s3tables.' || :region || '.amazonaws.com/iceberg',
+  catalog.uri = :uri,
   catalog.rest.signing_region = :region,
   catalog.rest.signing_name = 's3tables',
   catalog.rest.sigv4_enabled = true,
@@ -83,15 +81,24 @@ WITH (
   database.name = :ns,
   table.name = :tb,
 
+  -- Faster visibility (1-second latency) for this quickstart
   commit_checkpoint_interval = 1
 );
+```
 
+### Step 2: Insert some rows
+
+```sql
 INSERT INTO local_events VALUES
   (1, 'a', 100),
   (2, 'b', 200),
   (3, 'c', 300);
+```
 
-CREATE SOURCE s3tables_events_src
+### Step 3: Create a source and query the external table
+
+```sql
+CREATE SOURCE s3tables_events_src (*)
 WITH (
   connector = 'iceberg',
   warehouse.path = :wh,
@@ -102,7 +109,7 @@ WITH (
   enable_config_load = false,
 
   catalog.type = 'rest',
-  catalog.uri = 'https://s3tables.' || :region || '.amazonaws.com/iceberg',
+  catalog.uri = :uri,
   catalog.rest.signing_region = :region,
   catalog.rest.signing_name = 's3tables',
   catalog.rest.sigv4_enabled = true,
@@ -112,18 +119,35 @@ WITH (
 );
 
 SELECT * FROM s3tables_events_src ORDER BY id;
-SQL
+```
+
+### Use DuckDB to query data
+
+```
+duckdb -c "
+INSTALL aws;
+INSTALL httpfs;
+INSTALL iceberg;
+LOAD aws;
+LOAD httpfs;
+LOAD iceberg;
+
+-- Use AWS credential chain from your environment (AWS CLI config, env vars, etc.)
+CREATE SECRET (TYPE s3, PROVIDER credential_chain);
+
+-- Attach S3 Tables table bucket as an Iceberg catalog in DuckDB
+ATTACH '${TABLE_BUCKET_ARN}' AS s3t (TYPE iceberg, ENDPOINT_TYPE s3_tables);
+
+SELECT * FROM s3t.${NAMESPACE}.${TABLE} ORDER BY id;
+"
 ```
 
 ### Cleanup (optional)
 
-```bash
-psql -h localhost -p 4566 -d dev -U root \
-  -v ON_ERROR_STOP=1 <<'SQL'
+```sql
 DROP SOURCE IF EXISTS s3tables_events_src;
 DROP SINK IF EXISTS to_s3tables_events;
 DROP TABLE IF EXISTS local_events;
-SQL
 ```
 
 ## What you just built
