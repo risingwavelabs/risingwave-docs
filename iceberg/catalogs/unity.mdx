@@ -14,11 +14,19 @@ For a complete list of all catalog-related parameters, see the main [Catalog con
 
 ## Example
 
-To create a sink that writes to a Databricks Unity Catalog table, set `catalog.type` to `'rest'` with `vended_credentials = true` and provide your Unity Catalog REST endpoint and credentials. Note that currently, only `append-only` sinks are supported for this integration.
-
 <Note>
 `vended_credentials` is added in v2.7.0. For more information, see [Vended credentials](/iceberg/catalogs/rest#vended-credentials).
 </Note>
+
+<Tabs>
+  <Tab title="Internal tables (not supported)">
+  Databricks Unity Catalog integration is intended for **Databricks-managed external Iceberg tables**.
+  At the moment, RisingWave supports **writing via `CREATE SINK`** for this integration, but it is not intended for creating RisingWave-managed internal Iceberg tables via `ENGINE = iceberg`.
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
+  To write to a Databricks Unity Catalog table, set `catalog.type = 'rest'` with `vended_credentials = true` and provide your Unity Catalog REST endpoint and credentials.
+  Note that currently, only `append-only` sinks are supported for this integration.
 
 ```sql
 CREATE SINK databricks_uc_sink FROM my_source
@@ -38,18 +46,10 @@ WITH (
   catalog.scope='all-apis'
 );
 ```
-
-<Tabs>
-  <Tab title="Internal tables (not supported)">
-  Databricks Unity Catalog integration is intended for **Databricks-managed external Iceberg tables**.
-  At the moment, RisingWave supports **writing via `CREATE SINK`** for this integration, but it is not intended for creating RisingWave-managed internal Iceberg tables via `ENGINE = iceberg`.
-  </Tab>
-
-  <Tab title="Write (CREATE SINK)">
-  The sink example above shows how to write to a Unity Catalog table.
   </Tab>
 
   <Tab title="Read (not supported)">
   Currently, this integration is documented for writing (sinking) only. To ingest Iceberg tables, use supported catalogs for `CREATE SOURCE`, such as Glue/REST/Hive, or see the general [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg) guide.
   </Tab>
 </Tabs>
+\ No newline at end of file
