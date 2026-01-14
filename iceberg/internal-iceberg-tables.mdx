@@ -24,11 +24,19 @@ You can also set the optional `commit_checkpoint_interval` parameter to control 
 
 When you create a `CONNECTION`, you specify the object storage backend where the table data will be stored. You also specify the catalog that will manage the table's metadata.
 
+<Note>
+For S3 credentials (applies to all catalogs):
+- If `enable_config_load = false`: you must provide `s3.access.key` and `s3.secret.key` (you may also set `s3.iam_role_arn`).
+- If `enable_config_load = true`: don’t provide `s3.access.key`/`s3.secret.key` (you may set `s3.iam_role_arn`, or rely on the role already available in your environment/config).
+
+See [Object storage configuration](/iceberg/object-storage).
+</Note>
+
 For more details on the available catalog options, see [Iceberg catalog configuration](/iceberg/catalogs).
 
 <Tabs>
     <Tab title="Built-in catalog">
-    For the simplest setup, use RisingWave's built-in JDBC-based catalog. This requires no external dependencies.
+    For the simplest setup, use RisingWave's built-in JDBC-based catalog (no separate catalog service to run).
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
         type = 'iceberg',
@@ -103,7 +111,7 @@ For more details on the available catalog options, see [Iceberg catalog configur
 
 Create an internal Iceberg table using the `ENGINE = iceberg` clause.
 
-To create Iceberg tables, RisingWave needs to know which Iceberg `CONNECTION` to use (this connection contains both the object storage settings and the catalog settings). You can either set a default connection for the current session, or specify the connection per table.
+To create Iceberg tables, RisingWave needs to know which Iceberg `CONNECTION` to use (this connection contains both the object storage settings and the catalog settings). Choose **one** option below.
 
 ```sql
 -- Option 1: Set a default connection for the session
