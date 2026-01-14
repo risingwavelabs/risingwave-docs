@@ -12,8 +12,36 @@ For a complete list of all catalog-related parameters, see the main [Catalog con
 
 ## Example
 
-To create a sink that uses a JDBC catalog, set `catalog.type` to `'jdbc'` and provide the `catalog.uri` for your database, along with credentials.
+<Tabs>
+  <Tab title="Internal tables (recommended)">
+```sql
+CREATE CONNECTION jdbc_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false,
 
+    catalog.type = 'jdbc',
+    catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg_db',
+    catalog.jdbc.user = 'user',
+    catalog.jdbc.password = 'password'
+);
+
+SET iceberg_engine_connection = 'public.jdbc_conn';
+
+-- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
+CREATE TABLE my_internal_iceberg_table (
+  id INT PRIMARY KEY,
+  name VARCHAR
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
 ```sql
 CREATE SINK my_jdbc_sink FROM my_mv WITH (
     connector = 'iceberg',
@@ -31,3 +59,25 @@ CREATE SINK my_jdbc_sink FROM my_mv WITH (
     table.name = 'my_table'
 );
 ```
+  </Tab>
+
+  <Tab title="Read (CREATE SOURCE)">
+```sql
+CREATE SOURCE my_jdbc_source
+WITH (
+    connector = 'iceberg',
+    catalog.type = 'jdbc',
+    catalog.uri = 'jdbc:postgresql://postgres:5432/iceberg_db',
+    catalog.jdbc.user = 'user',
+    catalog.jdbc.password = 'password',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```
+  </Tab>
+</Tabs>
+

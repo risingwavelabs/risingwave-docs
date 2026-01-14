@@ -12,13 +12,40 @@ For a complete list of all catalog-related parameters, see the main [Catalog con
 
 ## Example
 
-To use an AWS Glue catalog, set `catalog.type = 'glue'`. You also need S3 access for the Iceberg warehouse (`warehouse.path`).
+Examples for using an AWS Glue catalog with internal Iceberg tables, sinks, and sources.
 
-There are **two** ways to provide AWS credentials:
+<Tabs>
+  <Tab title="Internal tables (recommended)">
+  Use Glue as the catalog for RisingWave-managed (internal) Iceberg tables by creating an Iceberg `CONNECTION`, then creating tables with `ENGINE = iceberg`.
 
 ```sql
--- Option 1: Access key / secret key (enable_config_load = false)
--- Note: you may also set s3.iam_role_arn (optional).
+CREATE CONNECTION glue_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false,
+
+    catalog.type = 'glue',
+    catalog.name = 'my_glue_catalog',
+    glue.region = 'us-west-2'
+);
+
+SET iceberg_engine_connection = 'public.glue_conn';
+
+-- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
+CREATE TABLE my_internal_iceberg_table (
+  id INT PRIMARY KEY,
+  name VARCHAR
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
+```sql
 CREATE SINK my_glue_sink FROM my_mv WITH (
     connector = 'iceberg',
     type = 'upsert',
@@ -35,26 +62,29 @@ CREATE SINK my_glue_sink FROM my_mv WITH (
     table.name = 'my_table'
 );
 ```
+  </Tab>
 
+  <Tab title="Read (CREATE SOURCE)">
 ```sql
--- Option 2: IAM role (enable_config_load = true)
--- Prereq: grant Glue and S3 permissions to your IAM role, then make sure the machine running this SQL
--- can assume that role (via env/config). You can also specify the role explicitly with s3.iam_role_arn (optional).
-CREATE SINK my_glue_sink FROM my_mv WITH (
+CREATE SOURCE my_glue_source
+WITH (
     connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    database.name = 'my_db',
+    table.name = 'my_table',
+
     catalog.type = 'glue',
     catalog.name = 'my_glue_catalog',
-    warehouse.path = 's3://my-bucket/warehouse/',
-    s3.region = 'us-west-2',
     glue.region = 'us-west-2',
-    enable_config_load = true,
-    s3.iam_role_arn = 'arn:aws:iam::123456789012:role/MyS3Role', -- optional if already in env/config
-    database.name = 'my_db',
-    table.name = 'my_table'
+
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false
 );
 ```
+  </Tab>
+</Tabs>
 
 ## Optional: Use separate permissions for S3 and Glue
 

@@ -22,7 +22,40 @@ New to S3 Tables and need to create a table bucket / namespace / table first? Se
 
 For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
 
-**Example `CREATE SINK` with S3 Tables:**
+<Tabs>
+  <Tab title="Internal tables (recommended)">
+  Use S3 Tables as the catalog for RisingWave-managed (internal) Iceberg tables by creating an Iceberg `CONNECTION`, then creating tables with `ENGINE = iceberg`.
+
+```sql
+CREATE CONNECTION s3_tables_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 'arn:aws:s3tables:<your-region>:<account-id>:bucket/<bucket-name>',
+    s3.region = '<your-region>',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false,
+
+    catalog.type = 'rest',
+    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+    catalog.rest.signing_region = '<your-region>',
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables'
+);
+
+SET iceberg_engine_connection = 'public.s3_tables_conn';
+
+-- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
+CREATE TABLE my_internal_iceberg_table (
+  id INT PRIMARY KEY,
+  name VARCHAR,
+  value INT
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
 ```sql
 CREATE SINK my_s3_tables_sink FROM my_mv
 WITH (
@@ -42,3 +75,26 @@ WITH (
     table.name = '<your-table-name>'
 );
 ```
+  </Tab>
+
+  <Tab title="Read (CREATE SOURCE)">
+```sql
+CREATE SOURCE my_s3_tables_source
+WITH (
+    connector = 'iceberg',
+    warehouse.path = 'arn:aws:s3tables:<your-region>:<account-id>:bucket/<bucket-name>',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    s3.region = '<your-region>',
+    catalog.type = 'rest',
+    catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+    catalog.rest.signing_region = '<your-region>',
+    catalog.rest.sigv4_enabled = true,
+    catalog.rest.signing_name = 's3tables',
+    database.name = '<your-database-name>',
+    table.name = '<your-table-name>'
+);
+```
+  </Tab>
+</Tabs>
+
