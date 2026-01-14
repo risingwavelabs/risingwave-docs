@@ -143,7 +143,9 @@ Supported partitioning strategies include by column, by multiple columns, and by
 
 ## Work with internal tables
 
-Once created, an internal Iceberg table behaves like any other table in RisingWave.
+Once created, you can work with an internal Iceberg table using familiar SQL (insert, query, materialized views).
+
+One important difference: **new writes become queryable only after an Iceberg commit**. By default, Iceberg commits happen about every **60 seconds** (controlled by `commit_checkpoint_interval`).
 
 ### Ingest data
 
@@ -153,21 +155,20 @@ You can ingest data using standard `INSERT` statements or by streaming data from
 -- Manual inserts
 INSERT INTO user_events VALUES (1, 'login', '2024-01-01 10:00:00Z');
 
--- Stream data from a Kafka source into the table
-CREATE SOURCE sales_src (
-  item_id INT,
-  customer_id INT,
-  price DOUBLE,
-  ts TIMESTAMP
+-- Stream data from a Kafka source into the same table
+CREATE SOURCE user_events_src (
+  user_id INT,
+  event_type VARCHAR,
+  timestamp TIMESTAMPTZ
 ) WITH (
   connector = 'kafka',
-  topic = 'sales_events',
+  topic = 'user_events',
   properties.bootstrap.server = 'kafka:9092'
 ) FORMAT PLAIN ENCODE JSON;
 
-CREATE SINK to_sales_events INTO sales_events AS
-SELECT item_id, customer_id, price, ts
-FROM sales_src;
+CREATE SINK to_user_events INTO user_events AS
+SELECT user_id, event_type, timestamp
+FROM user_events_src;
 ```
 
 ### Query data
@@ -176,6 +177,7 @@ Query the table directly with `SELECT` or use it as a source for a materialized 
 
 ```sql
 -- Ad hoc query
+-- Note: you may need to wait for the next Iceberg commit (default ~60s) to see recent writes.
 SELECT * FROM user_events WHERE event_type = 'login';
 
 -- Create a materialized view
@@ -188,7 +190,7 @@ GROUP BY user_id;
 
 ### Time travel
 
-Query historical snapshots of the table using `FOR SYSTEM_TIME AS OF` or `FOR SYSTEM_VERSION AS OF`.
+Time travel queries work on committed Iceberg snapshots. Make sure at least one Iceberg commit has happened before using these queries.
 
 ```sql
 -- Query a snapshot by timestamp
