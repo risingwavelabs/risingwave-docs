@@ -38,7 +38,7 @@ CREATE SINK my_glue_sink FROM my_mv WITH (
 
 ```sql
 -- Option 2: IAM role (enable_config_load = true)
--- Prereq: grant S3 permissions to your IAM role, then make sure the machine running this SQL
+-- Prereq: grant Glue and S3 permissions to your IAM role, then make sure the machine running this SQL
 -- can assume that role (via env/config). You can also specify the role explicitly with s3.iam_role_arn (optional).
 CREATE SINK my_glue_sink FROM my_mv WITH (
     connector = 'iceberg',
@@ -95,7 +95,7 @@ CREATE SINK sink_t FROM t WITH (
 
 ```sql
 -- Option 2 (separate IAM roles): enable_config_load = true
--- Prereq: the machine running this SQL can assume the roles (via env/config),
+-- Prereq: grant Glue and S3 permissions to your IAM role, then make sure the machine running this SQL can assume the roles (via env/config),
 -- or specify the roles explicitly with s3.iam_role_arn and glue.iam_role_arn.
 CREATE SINK sink_t FROM t WITH (
     connector = 'iceberg',
