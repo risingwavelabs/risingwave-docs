@@ -121,6 +121,8 @@ Barriers are a fundamental mechanism for synchronization and consistency in Risi
 
 RisingWave by default generates a barrier every second and ingests it into the source operator (e.g., operators that read data from upstream) among regular input data. The barrier serves multiple purposes when it flows through each operator, e.g., triggering the computation of the delta between the current barrier and the last barrier, flushing new states into the storage engine, determining the completion of a checkpoint, etc.
 
+Not familiar with barriers/checkpoints? See [Data persistence](/reference/data-persistence#what-are-barriers-and-checkpoints).
+
 In a perfect world, the barrier latency should stay at 1 second. But in reality, we may observe two phenomena in general:
 
 1. The barrier latency keeps climbing and never enters a stabilized phase. At the same time, the number of barriers also keeps increasing. This implies that the system is in serious congestion, i.e., the current resource falls short of handling the workload. We likely need to increase CPU or memory resources by checking the other metrics mentioned above. See [Troubleshooting - High Latency](/performance/troubleshoot-high-latency). Also, see [Workload Analysis](/performance/workload-analysis) for a deeper understanding of how backpressure impacts barrier latency.
