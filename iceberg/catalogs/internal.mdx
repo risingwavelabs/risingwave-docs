@@ -6,6 +6,16 @@ description: "Use RisingWave's built-in catalog to create and manage internal Ic
 
 RisingWave includes a built-in Iceberg catalog for internal Iceberg tables. It uses the same **metastore database** that RisingWave is configured with (via its metadata backend) as a JDBC-compliant Iceberg catalog, so you don’t need to deploy or manage a separate catalog service.
 
+<Note>
+**Prerequisite:** The built-in catalog (`hosted_catalog = true`) requires RisingWave’s metastore backend to be **PostgreSQL or MySQL**. **SQLite is not supported** for internal Iceberg tables with the built-in catalog.
+
+- **Docker Compose** uses PostgreSQL as the default metastore backend. See [Docker Compose deployment](/deploy/risingwave-docker-compose#customize-meta-store).
+- **Kubernetes (Helm)** can use PostgreSQL as the metastore backend (including the bundled PostgreSQL option). See [Deploy RisingWave with Helm](/deploy/risingwave-k8s-helm).
+- **RisingWave Cloud** provides a dedicated metastore for managed projects. See [Scale a project manually](/cloud/scale-a-project-manually).
+
+If you use **Standalone mode**, RisingWave uses embedded SQLite for the metastore by default, so the built-in catalog is not supported by default. See [Standalone mode](/operate/rw-standalone-mode).
+</Note>
+
 ## How it works (high level)
 
 When you create an internal Iceberg table, there are two kinds of state involved:
