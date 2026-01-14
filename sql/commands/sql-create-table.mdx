@@ -130,6 +130,10 @@ Watermarks on non-append-only tables (tables with primary keys) and the `WITH TT
 
 When you add `WITH TTL` to a watermark on a table, RisingWave treats rows whose event time is at or below the watermark as expired. Late changes (INSERT/UPDATE/DELETE) for those rows are ignored, and table state is cleaned based on event time. This cleanup only affects the table itself and does not delete previously computed results in downstream materialized views. If you need downstream cleanup, use a [Temporal Filter](/processing/sql/temporal-filters) in the downstream query.
 
+<Note>
+Watermark advancement is non-deterministic, and TTL cleanup is performed asynchronously during compaction. Do not assume a strict cutoff (for example, that all data before time T has been removed). Visibility and modification of expired data are timing-dependent and therefore undefined.
+</Note>
+
 ```sql
 CREATE TABLE deposits_src (
   trx_id VARCHAR PRIMARY KEY,
