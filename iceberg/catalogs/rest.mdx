@@ -61,8 +61,7 @@ CREATE SINK my_rest_sink FROM my_mv WITH (
 
   <Tab title="Read (CREATE SOURCE)">
 ```sql
-CREATE SOURCE my_rest_source
-WITH (
+CREATE SOURCE my_rest_source WITH (
     connector = 'iceberg',
     warehouse.path = 's3://my-bucket/warehouse/',
     database.name = 'my_db',
@@ -89,9 +88,10 @@ Vended credentials allow the REST catalog server to provide temporary credential
 
 To enable vended credentials, set `vended_credentials = true` along with `catalog.type = 'rest'`:
 
-```sql Example: Source
-CREATE SOURCE iceberg_t
-WITH (
+**Example: Source**
+
+```sql
+CREATE SOURCE iceberg_t WITH (
     connector = 'iceberg',
     s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
     s3.region = 'ap-southeast-2',
@@ -101,12 +101,14 @@ WITH (
     catalog.uri = 'http://127.0.0.1:8181/catalog',
     warehouse.path = '<warehouse_name>',
     database.name = 'ns',
-    table.name = 't',
+    table.name = 't'
 );
 ```
 
-```sql Example: Sink
-CREATE SINK sink_t from t WITH (
+**Example: Sink**
+
+```sql
+CREATE SINK sink_t FROM t WITH (
     connector = 'iceberg',
     type = 'append-only',
     force_append_only = 'true',
@@ -119,9 +121,9 @@ CREATE SINK sink_t from t WITH (
     warehouse.path = '<warehouse_name>',
     database.name = 'ns',
     table.name = 't',
-    create_table_if_not_exists='true',
+    create_table_if_not_exists = 'true',
     -- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
-    commit_checkpoint_interval = 1,
+    commit_checkpoint_interval = 1
 );
 ```
 
