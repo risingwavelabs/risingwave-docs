@@ -22,7 +22,11 @@ The built-in catalog stores Iceberg metadata in RisingWave’s metastore databas
 export AWS_REGION=us-west-2
 export ICEBERG_BUCKET=my-iceberg-demo-bucket
 
-aws s3 mb "s3://${ICEBERG_BUCKET}" --region "${AWS_REGION}"
+# If AWS_REGION is us-east-1, omit --create-bucket-configuration.
+aws s3api create-bucket \
+  --bucket "${ICEBERG_BUCKET}" \
+  --region "${AWS_REGION}" \
+  --create-bucket-configuration "LocationConstraint=${AWS_REGION}"
 ```
 
 ## Step 2: Create an Iceberg `CONNECTION` (built-in catalog)
@@ -56,7 +60,7 @@ CREATE TABLE user_events (
   PRIMARY KEY (user_id, event_ts)
 )
 WITH (
-  -- Faster visibility for this quickstart (default is ~60s)
+  -- Faster visibility (1-second latency) for this demo
   commit_checkpoint_interval = 1
 )
 ENGINE = iceberg;
