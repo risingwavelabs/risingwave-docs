@@ -3,9 +3,11 @@ title: "Temporal filters"
 description: Temporal filters allow you to filter data based on time intervals, which are used to retrieve data within a specific time range.
 ---
 
-Temporal filters will enable you to filter data based on a particular time, such as the current time, a specific date, or a range of dates. By using temporal filters, you can ensure that your queries only return data relevant to the period you are interested in, making your data analysis more accurate and efficient. The records that become out of the time range defined by the temporal filter will be deleted from the storage and the storage space will be reclaimed.
+Temporal filters will enable you to filter data based on a particular time, such as the current time, a specific date, or a range of dates. By using temporal filters, you can ensure that your queries only return data relevant to the period you are interested in, making your data analysis more accurate and efficient. Records that fall out of the time range defined by the temporal filter are deleted from storage, and a retraction is emitted downstream, so downstream materialized views always reflect only the current time period.
 
-They can be used to provide Time To Live (TTL) functionality for RisingWave's Materialized Views.
+<Note>
+If you only want to clean table state while keeping downstream materialized views stable (TTL semantics), use a watermark with `WITH TTL` on the table instead. See [Watermarks](/processing/watermarks) and [CREATE TABLE](/sql/commands/sql-create-table#watermark-based-ttl-event-time).
+</Note>
 
 ## Syntax
 

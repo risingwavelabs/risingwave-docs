@@ -30,12 +30,14 @@ Watermarks can be generated directly on sources.
 The syntax of the `WATERMARK` clause in RisingWave is as follows:
 
 ```sql
-WATERMARK FOR column_name as expr
+WATERMARK FOR column_name AS expr [WITH TTL]
 ```
 
 `column_name` is a column that is created when generating the source, usually the event time column.
 
 `expr` specifies the watermark generation strategy. The return type of the watermark must be of type `timestamp`. A watermark will be updated if the return value is greater than the current watermark.
+
+When `WITH TTL` is specified on a table, RisingWave treats rows whose event time is at or below the watermark as expired. Late changes (INSERT/UPDATE/DELETE) for those rows are ignored, and table state is cleaned based on event time. This cleanup only affects the table itself and does not delete previously computed results in downstream materialized views.
 
 For example, the watermark generation strategy can be specified as:
 
@@ -86,4 +88,20 @@ CREATE SOURCE s2 (
     order_time AS (detail).order_time,
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH ( ... );
+```
+
+The following query enables event-time TTL for a table with a primary key by adding `WITH TTL` to the watermark definition.
+
+```sql
+CREATE TABLE deposits_src (
+    trx_id VARCHAR PRIMARY KEY,
+    created_at TIMESTAMP,
+    deposit_status VARCHAR,
+    WATERMARK FOR created_at AS created_at - INTERVAL '5' DAY WITH TTL
+) WITH (
+    connector = 'kafka',
+    topic = 'deposits',
+    properties.bootstrap.server = 'broker:29092',
+    scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
 ```
