@@ -31,7 +31,7 @@ For example, given this original SQL:
 create table t(key int, payload jsonb);
 explain create materialized view m1 as 
   select payload->>'id' as id,
-  (select array_agg(value) from (select jsonb_array_elements(payload->'elements') as value)) as elements
+  (select array_agg(value->>'subField' order by ordinality) from jsonb_array_elements(payload->'elements') with ordinality as value) as elements
 from t;
 ```
 
