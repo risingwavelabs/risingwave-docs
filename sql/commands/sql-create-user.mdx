@@ -45,6 +45,31 @@ The `jwks_url` and `issuer` parameters are mandatory. On the other hand, `other_
 `kid` and `alg` are required in the header of JWT, and `kid` is also required in the JWKs returned by the JWKS server. All parameters set in user creation (except `jwks_url`) will be checked in the claims of JWT. Any mismatch will deny the login process.
 </Note>
 
+### OAuth audience validation
+
+<Note>
+Added in v2.7.0.
+</Note>
+
+When using OAuth authentication, the JWT payload must contain an `aud` (audience) claim with the value `urn:risingwave:cluster:your_cluster_id`, where `your_cluster_id` is the ID of your RisingWave cluster. This ensures that tokens are only accepted by the intended cluster.
+
+To get your cluster ID, use the [`rw_cluster_id()`](/sql/functions/sys-info#rw-cluster-id) function:
+
+```sql
+SELECT rw_cluster_id();
+```
+
+The JWT payload should include the audience claim in the following format:
+
+```json
+{
+  "aud": "urn:risingwave:cluster:your_cluster_id",
+  "iss": "your-issuer",
+  "exp": 1234567890,
+  ...
+}
+```
+
 ## Examples
 
 ### Create a user account and switch to it

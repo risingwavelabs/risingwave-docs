@@ -1,83 +1,70 @@
 ---
-title: "Access and use your processed data"
-sidebarTitle: Overview
-description: "RisingWave allows you to access and use insights from your streaming data immediately. It also functions like any other database, allowing you to access batch or raw data that you've inserted."
+title: "Access"
+sidebarTitle: Access
+description: Learn how to query and integrate with RisingWave using SQL, visualization tools, FDW, and client libraries.
 ---
 
-This section explains how to access and interact with data in RisingWave.
+This page explains the main ways to **read results from RisingWave**, from simple SQL queries to integrations with existing tools.
 
-RisingWave offers several methods for serving results, catering to various use cases, from ad-hoc analysis to application integration.
+## Quick guide: choose an access method
 
-## Access data with `SELECT` statements
+| If you want to... | Use... |
+| --- | --- |
+| Explore data, build dashboards, or serve query APIs | **SQL over Postgres protocol** (`SELECT`) |
+| Query RisingWave from an existing PostgreSQL database | **PostgreSQL FDW** |
+| Connect BI / visualization tools | **Visualization tools** (Postgres-compatible) |
+| Build event-driven apps in Python | **Python SDK** |
 
-You can query data directly from RisingWave using standard SQL `SELECT` statements against sources, tables or materialized views. This method is ideal for ad-hoc analysis, exploring the latest data, and integrating with applications or visualization tools that need to pull data.
+<Tip>
+If you’re deciding what to persist before you serve it, see [Storage overview](/store/overview) and [CREATE SOURCE vs. CREATE TABLE](/ingestion/create-source-vs-create-table).
+</Tip>
 
-These queries are handled by RisingWave's **Serving Nodes**, which act as a PostgreSQL-compatible frontend designed to serve queries with high concurrency and low latency. You can connect to them with `psql` or any other PostgreSQL-compatible client. RisingWave is compatible with [many data visualization tools](/integrations/visualization/overview), including:
+## Query with SQL (`SELECT`)
 
-- [Beekeeper Studio](/integrations/visualization/beekeeper-studio)
-- [DBeaver](/integrations/visualization/dbeaver)
-- [Grafana](/integrations/visualization/grafana)
-- [Looker](/integrations/visualization/looker)
-- [Metabase](/integrations/visualization/metabase)
-- [Superset](/integrations/visualization/superset)
+RisingWave is **PostgreSQL-compatible** on the wire protocol, so you can connect using `psql` and standard Postgres drivers. You can run `SELECT` queries against:
 
-**Key features**:
+- **Tables and materialized views** (data stored in RisingWave)
+- **Sources** (reads from the external system; not stored in RisingWave)
 
-- Uses familiar SQL syntax.
-- Provides immediate access to the most up-to-date results.
-- Offers flexibility to filter, aggregate, and join data.
+<Note>
+For production dashboards and APIs, prefer querying **materialized views** (pre-computed results) over scanning raw streams repeatedly.
+</Note>
 
-**Example**: Retrieve the latest aggregated results from a materialized view.
+### How queries are served
 
-## Integrate with PostgreSQL via foreign data wrapper (FDW)
+Queries are handled by RisingWave’s **Serving Nodes**, a Postgres-compatible frontend optimized for high concurrency and low latency.
 
-RisingWave seamlessly integrates with existing PostgreSQL ecosystems through its Foreign Data Wrapper (FDW) functionality. Access data in RisingWave's tables and materialized views as if it were part of your PostgreSQL database. This allows you to leverage existing PostgreSQL tools and workflows.
+For a curated list of supported tool integrations, see [Visualization tools](/integrations/visualization/overview).
 
-For details, see [Integrate with other databases](/serve/risingwave-as-postgres-fdw).
+## Query from PostgreSQL via FDW
 
-**Key features**:
+If your ecosystem is centered around PostgreSQL, you can use PostgreSQL’s foreign data wrapper to query RisingWave tables/MVs as if they were local to Postgres.
 
-- Enables unified access to RisingWave and PostgreSQL data.
-- Allows you to use existing PostgreSQL tools and applications.
-- Simplifies integration into existing data infrastructure.
-- Performance: While FDW offers convenience, it may introduce some performance overhead compared to directly accessing RisingWave. RisingWave pushes down filters in `WHERE` clauses to optimize data retrieval. However, complex SELECT statements with joins, aggregations, or `LIMIT` clauses are processed in PostgreSQL after fetching the data from RisingWave.
+**Use FDW when**:
 
-**Example**: Join data in a PostgreSQL table with a continuously updated materialized view in RisingWave.
+- You want a single query surface in PostgreSQL.
+- You need to join Postgres tables with continuously updated results in RisingWave.
 
-## Subscribe to real-time updates
+**Performance note**: FDW is convenient but can add overhead; complex joins/aggregations may execute in Postgres after data is fetched. RisingWave pushes down filters in `WHERE` clauses where possible.
 
-RisingWave's subscription feature allows you to receive a continuous stream of updates from a materialized view directly, without needing an external message queue. This includes both existing data in the materialized view when the subscription is created and subsequent changes. You can choose to retrieve the full dataset or only incremental changes from a specific point using a subscription cursor.
+See: [Integrate with PostgreSQL via foreign data wrapper (FDW)](/serve/risingwave-as-postgres-fdw).
 
-For details, see [Real-time updates via subscriptions](/serve/subscription).
+## Connect visualization tools
 
-**Key features**:
+Most visualization tools can connect to RisingWave using the Postgres protocol (host/port/user/db). Start here:
 
-- Provides real-time data updates directly from RisingWave.
-- Allows retrieving full or incremental data using a cursor.
-- Requires fewer components and less maintenance than external event stores.
+- [Visualization tools overview](/integrations/visualization/overview)
 
-**Example**: Subscribe to a materialized view that tracks website user activity to power a live dashboard, receiving updates directly from RisingWave.
+## Access programmatically (SDK & client libraries)
 
-## Access programmatically via SDK and client libraries
+- **Python SDK**: Build event-driven apps with [Python SDK](/python-sdk/intro) (`risingwave-py`).
+- **Client libraries**: Use standard Postgres drivers; see [Client Libraries](/client-libraries/overview).
 
-RisingWave provides a [Python SDK](/python-sdk/intro) [`risingwave-py`](https://pypi.org/project/risingwave-py/) to help you develop event-driven applications. The SDK offers a simple way to access data, subscribe to changes, and define event handlers for tables and materialized views.
+## Production guidance: isolate serving from streaming
 
-Additionally, since RisingWave is compatible with Postgres, you can use standard PostgreSQL drivers to interact with RisingWave from your applications.
+By default, compute nodes can run both streaming jobs and ad-hoc queries. If you see resource contention (e.g., heavy dashboard queries impacting streaming latency), consider splitting the workloads:
 
-Client libraries in various languages allow developers to interact with RisingWave programmatically and execute `SELECT` statements within their applications.
+- **Serving Nodes**: handle ad-hoc queries
+- **Streaming Nodes**: handle stream processing
 
-For the list of available client libraries, see [Client Libraries](/client-libraries/overview).
-
-**Example**: Use the Python client library to fetch the latest results from a materialized view and display them in a financial data analysis application.
-
-## Isolate serving and streaming workloads
-
-For production environments with demanding workloads, you can configure dedicated nodes for serving and streaming to prevent resource contention. By default, Compute Nodes in RisingWave are hybrid and handle both types of workloads. However, running resource-intensive ad-hoc queries can impact the performance of ongoing streaming jobs.
-
-To ensure stability and performance, you can set up dedicated **Serving Nodes** to handle only ad-hoc queries and **Streaming Nodes** to handle only stream processing. This separation provides workload isolation, allowing you to scale each component independently based on your specific needs.
-
-For detailed instructions, see [Set up a dedicated Compute Node](/operate/dedicated-compute-node).
-
-## Choose the right method
-
-From the methods described above, select the one that best fits your needs, considering factors like data access patterns, integration requirements, and team expertise. RisingWave ensures consistency across all methods.
+See: [Set up a dedicated Compute Node](/operate/dedicated-compute-node).

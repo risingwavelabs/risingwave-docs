@@ -3,16 +3,17 @@ title: "CREATE SOURCE"
 description: "A source is a resource that RisingWave can read data from. You can create a source in RisingWave using the `CREATE SOURCE` command."
 ---
 
-For the full list of the sources we support, see [Supported sources](/ingestion/sources).
+For the full list of the sources we support, see [Supported sources](/ingestion/overview#supported-sources).
 
-If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. Or if you need to create the primary key (which is required by some formats like FORMAT UPSERT/DEBEZIUM), you have to use `CREATE TABLE` too. For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
+If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. For most CDC formats (FORMAT DEBEZIUM, MAXWELL, CANAL), you must use `CREATE TABLE` to properly handle updates and deletes. For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
 
 Regardless of whether the data is persisted in RisingWave, you can create materialized views to perform analysis or data transformations.
 
 ## Syntax
 
-```js
+```sql
 CREATE SOURCE [ IF NOT EXISTS ] source_name (
+    [PRIMARY KEY (col_name, ...)],
     col_name data_type [ AS generation_expression ],
     ...
    [ watermark_clause ]
@@ -67,16 +68,87 @@ The generated column is created in RisingWave and will not be accessed through t
 | _generation\_expression_          | The expression for the generated column. For details about generated columns, see [Generated columns](/sql/query-syntax/generated-columns).                                                                                                                                        |
 | _watermark\_clause_               | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For details about watermarks, refer to [Watermarks](/processing/watermarks).                                                                                                |
 | **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/extract-metadata-from-sources).                                                                                                                                          |
-| **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/ingestion/sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
+| **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/ingestion/overview#supported-sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
 | **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats and encoding options](/ingestion/formats-and-encoding-options).                                                                                      |
 
 <Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
+</Note>
 
+## Connector-specific FORMAT requirements
+
+Different connectors have specific FORMAT and ENCODE requirements:
+
+- For specialized connectors (CDC, Nexmark, Datagen, Iceberg), the FORMAT and ENCODE clauses are handled automatically and should be omitted.
+- For other connectors** (Kafka, Kinesis, Pulsar, etc.), you need to explicitly specify FORMAT and ENCODE specification based on the actual data format.
+
+If you specify an incompatible FORMAT for a connector, you will receive a parser error indicating the expected format.
+
+<Note>
+NOT NULL constraints are not supported in source schemas. If you need NOT NULL enforcement, use `CREATE TABLE` with a connector instead.
 </Note>
 ## Watermarks
 
 RisingWave supports generating watermarks when creating a source. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. The [WATERMARK](/processing/watermarks) clause should be used within the `schema_definition`. For more information on how to create a watermark, see [Watermarks](/processing/watermarks).
+
+## Upsert sources
+
+You can create sources with `FORMAT UPSERT` to handle streams with updates and deletes based on a primary key. When using `FORMAT UPSERT`, you must:
+
+- Include the `INCLUDE KEY` clause to specify a key column
+- Define a `PRIMARY KEY` using the key column
+
+```sql Example
+CREATE SOURCE upsert_source (
+    PRIMARY KEY (rw_key),
+    id INT,
+    name VARCHAR,
+    age INT
+)
+INCLUDE KEY AS rw_key
+WITH (
+    connector='kafka',
+    topic='user_updates',
+    properties.bootstrap.server='localhost:9092'
+)
+FORMAT UPSERT ENCODE JSON;
+```
+
+**Recommended usage patterns**
+
+1. **Simple ETL with filtering and transformation:**
+   ```sql
+   CREATE SINK filtered_sink INTO target_table AS
+   SELECT 
+       id,
+       UPPER(name) AS name,
+       age
+   FROM upsert_source
+   WHERE age >= 18;
+   ```
+
+2. **Materialize to enable stateful operations:**
+    ```sql
+    -- Create a materialized view to hold a clean subset of data
+    CREATE MATERIALIZED VIEW valid_users_mv AS
+    SELECT 
+        id, 
+        LOWER(email) AS email,
+        age,
+        country_code
+    FROM upsert_source
+    WHERE email IS NOT NULL
+      AND age >= 18;
+
+    -- Now you can perform aggregations on the cleaned state
+    SELECT country_code, COUNT(*) 
+    FROM valid_users_mv 
+    GROUP BY country_code;
+    ```
+
+<Note>
+Upsert sources emit **upsert streams**, which do not contain old values for `UPDATE` operations. Therefore, stateful operators like JOINs, aggregations, and window functions do not work on an upsert source. Attempting to do so will result in errors like `"upsert stream is not supported as input of ..."`.
+</Note>
 
 ## Change Data Capture (CDC)
 
@@ -129,7 +201,7 @@ This leads to increased resource usage and potential inconsistencies:
 
 With shared sources, when using the `CREATE SOURCE` statement:
 - It will instantiate a single `SourceExecutor` immediately. 
-- All materialized views referencing the same source share the `SourceExecutor`.
+- All materialized views referencing the same source share the `SourceExecutor`, thus the same start offset and consumption progress.
 - The downstream materialized views will only forwards data from the upstream sources, instead of consuming from Kafka independently.
 
 This improves resource utilization and consistency.
@@ -144,6 +216,7 @@ When creating a materialized view, RisingWave backfills historical data from Kaf
 
 - To monitoring backfill progress, use the [SHOW JOBS](/sql/commands/sql-show-jobs) command or check `Kafka Consumer Lag Size` in the Grafana dashboard (under `Streaming`).
 
+<Note>Even if a source is created with `scan.startup.mode` set to `latest`, a materialized view may still backfill from the offset resolved at source creation time. To start from the current latest offset, drop and recreate the source.</Note>
 
 <Note>If you set up a retention policy or if the external system can only be accessed once (like message queues), and the data is no longer available, any newly created materialized views won’t be able to backfill the complete historical data. This can lead to inconsistencies with earlier materialized views.</Note>
 

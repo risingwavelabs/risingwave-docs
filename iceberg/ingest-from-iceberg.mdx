@@ -54,7 +54,7 @@ DESCRIBE my_iceberg_source;
 | `connector` | Required. For Iceberg sources, it must be `'iceberg'` | `'iceberg'` |
 | `database.name` | Required. The Iceberg database/namespace name. | `'analytics'` |
 | `table.name` | Required. The Iceberg table name. | `'user_events'` |
-| `commit_checkpoint_interval` | Optional. Determines the commit frequency (RisingWave commits every N checkpoints). | `60` |
+| `commit_checkpoint_interval` | Optional. Determines the Iceberg commit frequency. Default: `60` (about **60 seconds** in the default configuration). | `60` |
 
 You also need to specify catalog and object storage parameters in the `CREATE SOURCE` statement. Because these parameters are shared across all Iceberg objects—sources, sinks, and internal Iceberg tables—they are documented separately.
 
@@ -93,6 +93,7 @@ For batch-style workloads where you need to periodically reload an entire Iceber
 
 - The external Iceberg table supports mutable data (updates and deletes).
 - You need a point-in-time snapshot of the entire table.
+- You want to apply Iceberg deletes (PositionDeletes and EqualityDeletes) for accurate query results.
 - Periodic full reloads fit your use case better than continuous streaming.
 
 ### Create a refreshable table
@@ -124,6 +125,10 @@ CREATE TABLE iceberg_batch_table (
 
 RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `stream_refresh_scheduler_interval_sec` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
 
+<Note>
+If you omit `refresh_interval_sec`, the table will only refresh when you manually execute `REFRESH TABLE`, giving you complete control over when data is loaded.
+</Note>
+
 ### Manual refresh
 
 You can manually trigger a refresh at any time using the `REFRESH TABLE` command:
@@ -131,6 +136,20 @@ You can manually trigger a refresh at any time using the `REFRESH TABLE` command
 ```sql
 REFRESH TABLE iceberg_batch_table;
 ```
+
+### Monitor delete files
+
+You can verify discovered delete files via the `rw_iceberg_files` system catalog:
+
+```sql
+SELECT * FROM rw_iceberg_files 
+WHERE source_name = '__iceberg_source_iceberg_batch_table';
+```
+
+This query shows all data and delete files associated with the table. The `content` column indicates the file type:
+- `Data`: Regular data files
+- `PositionDeletes`: Position-based delete files
+- `EqualityDeletes`: Equality-based delete files
 
 ### Monitor refresh status
 

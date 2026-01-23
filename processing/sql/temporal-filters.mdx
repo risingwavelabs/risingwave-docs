@@ -108,7 +108,7 @@ However, due to delays caused by the network or other phases, it is not guarante
 ```
 
 <Note>
-Currently, RisingWave's optimizer cannot ensure the temporal filter's predicate pushdown. Please add the temporal filter in the `FROM` clause as a sub-query, like the SQL example, instead of writing the temporal filter in the query's top `WHERE` clause.
+RisingWave's optimizer cannot always push temporal filters down to the source. To guarantee the temporal filter is applied early (reducing state size), wrap the source with the filter in a subquery in the `FROM` clause, rather than placing the filter in the outer `WHERE` clause. This pattern ensures the filter is evaluated before the join, not after.
 
 </Note>
 <Note>

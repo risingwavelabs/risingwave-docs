@@ -95,6 +95,10 @@ Additionally, the Meta Node manages the lifecycle of streaming jobs, including t
 
 - For recovery and compaction: the Meta Node recreates actors on the Streaming Node, starting from the last checkpoint snapshot to maintain consistency. The Meta Node manages compaction by generating compaction tasks, assigning them to Compactor Nodes, and updating the meta store's metadata upon task completion.
 
+<Note>
+New to barriers and checkpoints? A **barrier** is a periodic sync marker; a **checkpoint** is a global consistent snapshot created from barriers. By default, RisingWave generates one barrier every **1 second** (`barrier_interval_ms = 1000`). See [Data persistence](/reference/data-persistence#what-are-barriers-and-checkpoints).
+</Note>
+
 ## Compactor Node
 
 RisingWave employs a **Log Structured Merge (LSM) Tree** storage model, meaning that all data operations are handled in an append-only manner, even deletions are represented as tombstone records. The storage is **tiered**, organized hierarchically from L0 to L6 (or potentially more levels). The data is initially written to L0 and progressively compacted into higher levels (L0 → L1 → L2, etc.). As a result, hot data resides in lower levels (frequently accessed), while cold data migrates to higher levels (less frequently accessed).

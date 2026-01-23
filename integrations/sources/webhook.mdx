@@ -10,53 +10,101 @@ RisingWave can serve as a webhook destination, directly accepting HTTP requests 
 
 This direct integration eliminates the need for an intermediary message broker like Kafka. Instead of setting up and maintaining an extra Kafka cluster, you can directly send data to RisingWave to process it in real-time, which enables efficient data ingestion and stream processing without extra infrastructure.
 
+<Info>
+Looking for a standalone HTTP service to ingest app events (JSON/NDJSON) into RisingWave, or to execute SQL over HTTP? See [Events API](/integrations/sources/events-api).
+</Info>
+
 ## Creating a webhook table in RisingWave
 
-To utilize webhook sources in RisingWave, you need to create a table configured to accept webhook requests. Below is a basic example of how to set up such a table:
+To utilize webhook sources in RisingWave, you need to create a table configured to accept webhook requests.
+
+If you're new to webhooks, start with the local smoke test below (no upstream SaaS required). Once your endpoint works end-to-end, pick one of the validation options (secret vs raw string) based on your subscription and security requirements.
+
+### Webhook endpoint
+
+Webhook requests should be sent to:
+
+`http://<HOST>:4560/webhook/<database>/<schema>/<table>`
+
+The default listening port is `4560`. Replace `<schema>` with `public` if you didn't create the table under a custom schema.
+
+### Quick local smoke test (no upstream SaaS required)
+
+If you can access RisingWave's webhook listener and SQL endpoint (for example, via local deployment or port-forwarding), you can do a quick end-to-end test with `curl`:
+
+1. Create a demo table that accepts requests with header `signature: 1` (a minimal local-test validation; replace with real signature/HMAC validation for production).
 
 ```sql
--- Create a secret to store the webhook validation key. Note that this is optional but recommended. 
--- Alternatively you can use a raw string (without specifying `SECRET <secret>`).
-CREATE SECRET test_secret WITH (backend = 'meta') AS 'secret_value'; 
-
 CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
-  connector = 'webhook',
-  [ is_batched = true ]
-) VALIDATE SECRET test_secret AS secure_compare(
-  headers->>'{header of signature}',
-  {signature generation expressions}
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'signature',
+  '1'
 );
 ```
 
-| Parameter or clause | Description |
-| :---------- | :------------ |
-| `CREATE SECRET` | Securely stores a secret value in RisingWave for request validation. |
-| `CREATE TABLE` | Defines a table with a JSONB column to store webhook payload data. |
-| `connector` | Configures the table to accept incoming HTTP webhook requests. |
-| `is_batched` | Optional, set to `true` to enable batch ingestion of multiple JSON lines in a single request. |
-| `VALIDATE SECRET...AS...` | Authenticates requests using the stored secret and signature comparison. |
-| `secure_compare()` | Validates requests by matching the header signature against the computed signature, ensuring only authenticated requests are processed. Note `secure_compare(...)` is the only supported validation function for webhook tables. |
-| `header_of_signature` | Specifies which HTTP header contains the incoming signature. |
-| `signature_generation_expressions` | Expression to compute the expected signature using the secret and payload. |
+2. Send one event to RisingWave.
 
-<Note>
-`is_batched` is added in v2.5.0 and is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
-</Note>
+```bash
+# Replace localhost/dev/public/wbhtable with your HOST/DB/SCHEMA/TABLE.
+curl -v -X POST http://localhost:4560/webhook/dev/public/wbhtable \
+  -H "Content-Type: application/json" \
+  -H "signature: 1" \
+  -d '{"event":"user.signup","data":{"user_id":"123"}}'
+```
 
-Currently, secret management is a premium feature. You can also use raw string for verification. The following example use raw string `'secret_value'` to compute signature.
+3. Query the table to verify ingestion.
 
 ```sql
-create table wbhtable (
+SELECT * FROM wbhtable;
+```
+
+### Request validation (optional but recommended)
+
+RisingWave supports validating incoming webhook requests using `secure_compare(...)`. You can either store your shared key as a RisingWave secret, or embed it directly as a SQL string literal.
+
+<Warning>
+Secret management is a premium feature. If you don't have access to secrets, use Option B (SQL string literal) instead.
+</Warning>
+
+#### Option A: use a RisingWave secret
+
+```sql
+-- Create a secret to store the shared key.
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
+
+```sql
+CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
-  connector = 'webhook',
-) VALIDATE AS secure_compare(
-  headers->>'x-hub-signature',
-  'sha1=' || encode(hmac('secret_value', data, 'sha1'), 'hex')
+  connector = 'webhook'
+) VALIDATE SECRET test_secret AS secure_compare(
+  headers->>'authorization',
+  test_secret
 );
 ```
+
+#### Option B: use a SQL string literal (raw string)
+
+```sql
+CREATE TABLE wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'authorization',
+  'TEST_WEBHOOK'
+);
+```
+
+<Info>
+In `headers->>'...'`, always use the lower-case header name (for example, `authorization`). If you use a different casing, validation may fail.
+</Info>
+
+For providers that sign payloads (for example, GitHub/Segment), the second argument of `secure_compare(...)` is typically an expression that computes the expected signature from the secret/raw string and the request body (`data`). See the provider-specific guides below for copy/paste-ready examples.
 
 ## Supported webhook sources and authentication methods
 RisingWave has been verified to work with the following webhook sources and authentication methods:
@@ -137,7 +185,7 @@ Example: risingwave.default.svc.cluster.local:4560
 Format: <service name>.<namespace>.svc.<cluster domain>:4560
 ```
 
-### Test webhook locally
+### Test webhook locally using Helm
 
 To test the webhook locally using Helm, first install a Helm release using the example command provided in [Helm Chart](/integrations/sources/webhook#helm-chart).
 

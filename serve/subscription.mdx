@@ -1,12 +1,20 @@
 ---
-title: "Real-time updates via subscriptions"
-sidebarTitle: "Real-time updates via subscriptions"
+title: "Subscribe to real-time updates"
+sidebarTitle: "Subscribe to real-time updates"
 description: Subscribe to real-time updates from tables and materialized views without external event stores like Kafka. Retrieve full or incremental data changes with minimal maintenance overhead.
 ---
 
 The data from a subscription includes both the existing data in the table at the time of subscription creation and the incremental change records in the table after the subscription is created. You can use the method of creating a subscription cursor to retrieve the full data set or the incremental data set after a specified starting point.
 
 This feature allows you to monitor all data changes without relying on external event stores like Kafka. Compared to the Kafka sink or other event store sinks, a subscription requires fewer components and thus, less maintenance.
+
+## TL;DR (for first-time users)
+
+- **I want incremental updates from now on**: declare a subscription cursor with `SINCE now()/proctime()`.
+- **I want the full snapshot first, then incremental updates**: declare a subscription cursor with `FULL`.
+- **I want to resume after a restart (no duplicates, no data loss)**: persist `rw_timestamp` and resume with `SINCE <rw_timestamp>`.
+
+> Tip: Incremental data is only available within the subscription's `retention` window. If you resume from an old timestamp outside the window, the data is no longer accessible.
 
 ## Manage subscription
 
@@ -52,7 +60,7 @@ A subscription cursor is a unit used to consume data from a subscription. In Ris
 
 In RisingWave, the subscription cursor allows you to specify a specific starting point within the subscription data. After creating the subscription cursor, you can use a loop to fetch and consume data starting from that point onwards. Results returned by the cursor are sorted by primary key. A subscription can have multiple subscription cursors, each consuming different ranges or intervals of data from the subscription.
 
-### Syntax[](#syntax "Direct link to Syntax")
+### Syntax
 
 The syntax of creating a subscription cursor is as follows:
 
@@ -68,7 +76,17 @@ Below are the available choices for `since_clause`. If you don’t specify the `
 2. `since begin()` : The returned data will include the oldest incremental data available, typically starting from the beginning of the subscription's retention period.
 3. `since unix_ms` : Starts reading from the first time point greater than or equal to the specified `unix_ms` value. It's important to note that the `unix_ms` value should fall within the range of `now() - subscription's retention` and `now`.
 
-If you specify `FULL` instead of the `since_clause`, the subscription cursor starts consuming data from stock.
+If you specify `FULL` instead of the `since_clause`, the subscription cursor starts consuming from the existing snapshot (the data that already exists at the time you declare the cursor), then continues to return incremental changes.
+
+### What does the cursor return?
+
+Each row returned by `FETCH` contains:
+
+- The columns of the subscribed table/materialized view
+- An `op` column describing the change type (`Insert`, `UpdateInsert`, `UpdateDelete`, `Delete`)
+- A `rw_timestamp` column (Unix timestamp in milliseconds) indicating when the change was written
+
+`rw_timestamp` is also the **progress token** you should persist if you want to resume consumption (see [Exactly-once delivery](#exactly-once-delivery)).
 
 ### Fetch from cursor
 
@@ -79,10 +97,12 @@ FETCH from cursor function is supported in the PSQL simple query mode and extend
 #### Non-blocking data fetch
 
 ```sql
-FETCH NEXT/n FROM cursor_name;
+FETCH NEXT FROM cursor_name;
 ```
 
-Fetch the next row or up to N rows from the cursor. If fewer than N rows are available, it will return whatever is available immediately without waiting. This also means that if there are no rows available (i.e., the latest data has been reached), an empty result will be returned immediately.
+Fetch the next row from the cursor. If there are no rows available (i.e., the latest data has been reached), an empty result is returned immediately.
+
+To fetch multiple rows, call `FETCH NEXT` repeatedly in a loop.
 
 ```sql
 FETCH NEXT FROM cur;
@@ -99,7 +119,7 @@ In the example above, the `op` column in the result indicates the type of change
 #### Blocking data fetch
 
 ```sql
-FETCH NEXT/n FROM cursor_name WITH (timeout = '1s');
+FETCH NEXT FROM cursor_name WITH (timeout = '1s');
 ```
 
 Fetch up to N rows from the cursor with a specified timeout. The `timeout` value should be a string in the interval format. In this case, the fetch statement will return when either N rows have been fetched or the timeout occurs. If the timeout occurs, whatever has been read up to that point will be returned. Here are two scenarios to trigger the timeout:
@@ -205,6 +225,13 @@ For this feature, you only need to use [the Postgres driver](/client-libraries/o
 
 Here’s an example using Python and [psycopg2](https://pypi.org/project/psycopg2/).
 
+Before running the code below, make sure you have created a subscription, for example:
+
+```sql
+-- Replace the table name and subscription name with yours.
+CREATE SUBSCRIPTION sub_users FROM users WITH (retention = '1D');
+```
+
 ```py
 import psycopg2
 import time
@@ -235,7 +262,7 @@ def main():
                 time.sleep(1)
                 continue
 
-						# Replace with your event handling logic
+            # Replace with your event handling logic
             print("Row fetched:", row)
 
     finally:
@@ -276,7 +303,7 @@ CREATE TABLE IF NOT EXISTS subscription_progress (
 
 Here's an example python code for retrieving and updating the consumption progress:
 
-```sql
+```py
 def get_last_progress(conn, sub_name):
     with conn.cursor() as cur:
         cur.execute("SELECT progress FROM subscription_progress WHERE sub_name = %s", (sub_name,))
@@ -285,14 +312,18 @@ def get_last_progress(conn, sub_name):
 
 def update_progress(conn, sub_name, progress):
     with conn.cursor() as cur:
-        cur.execute("INSERT INTO subscription_progress (sub_name, progress)", (sub_name, progress, progress))
-        cur.execute("FLUSH")
+        cur.execute(
+            "INSERT INTO subscription_progress (sub_name, progress) VALUES (%s, %s);",
+            (sub_name, progress),
+        )
+        # Ensure the progress is durable and visible for subsequent reads.
+        cur.execute("FLUSH;")
         conn.commit()
 ```
 
 The client needs to retrieve the last progress during bootstrapping and periodically store the progress.
 
-```sql
+```py
 # Fetch the last progress from subscription_progress table
 last_progress = get_last_progress(conn, sub_name)
 
@@ -307,7 +338,12 @@ with conn.cursor() as cur:
     while True:
         cur.execute("FETCH NEXT FROM cur")
         row = cur.fetchone()
-        last_progress = row[0]  # 'rw_timestamp' is the progress indicator
+        if row is None:
+            continue
+
+        # 'rw_timestamp' is the progress indicator.
+        # In the examples above, it's the last column of the returned row.
+        last_progress = row[-1]
 
         ...
 

@@ -10,6 +10,8 @@ sidebarTitle: Overview
 
 To stream data out of RisingWave, you must create a sink. A sink is an external target that you can send data to. Use the [CREATE SINK](/sql/commands/sql-create-sink) statement to create a sink. You need to specify what data to be exported, the format, and the sink parameters.
 
+If you prefer a **pull-based** approach (no sink connector / no external message queue) and want your application to consume changes directly via the Postgres protocol, see [Subscribe to real-time updates](/serve/subscription).
+
 Sinks become visible right after you create them, regardless of the backfilling status. Therefore, it's important to understand that the data in the sinks may not immediately reflect the latest state of their upstream sources due to the latency of the sink, connector, and backfilling process. To determine whether the process is complete and the data in the sink is consistent, refer to [Monitor statement progress](/operate/monitor-statement-progress).
 
 Currently, RisingWave supports the following sink connectors:
@@ -58,7 +60,15 @@ To disable sink decoupling, set `sink_decouple` as `false` or `disable`, regardl
 SET sink_decouple = false;
 ```
 
-Sink decoupling is enabled by default for **all sinks** in RisingWave.
+Sink decoupling is enabled by default for **all sinks** in RisingWave. When enabled, sinks commit data less frequently to improve stability and reduce load on downstream systems. The commit frequency is controlled by `commit_checkpoint_interval`:
+
+- **Decoupled sinks (default)**: Commit every 10 checkpoints (approximately 10 seconds)
+- **Non-decoupled sinks**: Commit every checkpoint (approximately 1 second)
+- **Iceberg sinks**: Commit every 60 checkpoints (approximately 60 seconds) by default
+
+This means that with sink decoupling enabled, data may take up to 10-60 seconds to become visible in the downstream system, even though RisingWave's internal checkpoints occur every second.
+
+<Note>Iceberg's exactly-once semantics require sink decoupling to be enabled. If you disable sink decoupling for an Iceberg sink, exactly-once will be automatically disabled.</Note>
 
 An internal system table `rw_sink_decouple` is provided to query whether a created sink has enabled sink decoupling or not.
 
@@ -83,11 +93,52 @@ When creating an `upsert` sink, note whether or not you need to specify the prim
 * If the downstream system supports primary keys but the table in the downstream system has no primary key, then RisingWave does not allow users to create an upsert sink. A primary key must be defined in the table in the downstream system.
 * If the downstream system does not support primary keys, then users must define the primary key when creating an upsert sink.
 
+## Delivery semantics
+
+Different sink connectors provide different delivery guarantees:
+
+### Exactly-once semantics
+
+- **Iceberg**: Supports exactly-once delivery when `is_exactly_once = true` (the default). Requires sink decoupling to be enabled.
+
+### At-least-once semantics
+
+The following sinks guarantee at-least-once delivery. Events may be redelivered in case of failures:
+
+- **AWS Kinesis**: Due to PutRecords API limitations, provides at-least-once delivery and eventual consistency
+- **Elasticsearch**: At-least-once with possible redeliveries during failures
+- **NATS**: At-least-once with possible redeliveries during failures
+- **Kafka**: Non-transactional writes with at-least-once guarantees via retries
+- **Most other sinks**: Unless otherwise specified, sinks provide at-least-once semantics
+
+<Note>
+For append-only sinks, at-least-once semantics mean duplicate records may appear. For upsert sinks, duplicates are naturally deduplicated by the primary key in the downstream system.
+</Note>
+
 ## Sink buffering behavior
 
 A sink will buffer incoming data within each barrier interval if the stream's internal primary key (stream key) differs from the user-defined sink primary key and the sink is not `append-only`. This mismatch can cause update events for the same sink key to be split across multiple upstream fragments in a distributed execution, leading to out-of-order operations if sent directly. Buffering allows the sink to compact and reorder updates so that delete events are emitted before insert events, ensuring correct semantics. 
 
 If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or `force_append_only`, no buffering is performed and the sink emits changes immediately as they arrive.
+
+### Force compaction
+
+You can set the `force_compaction` option to `true` to enable buffering and compaction even when the stream key matches the sink primary key exactly. This allows you to:
+
+- Reduce the number of output messages by compacting updates within each barrier interval
+- Emit at most one update per key within a barrier interval, simplifying downstream logic
+
+Example:
+
+```sql
+CREATE SINK sink_t_force_compaction FROM t_force_compaction WITH (
+  connector = 'kafka',
+  properties.bootstrap.server = 'message_queue:29092',
+  topic = 'test-rw-force-compaction-sink',
+  force_compaction = 'true',
+  primary_key = 'id'
+) FORMAT UPSERT ENCODE JSON;
+```
 
 ## Sink data in parquet or json format
 

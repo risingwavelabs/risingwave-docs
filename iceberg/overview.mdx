@@ -9,6 +9,14 @@ In [internally managed Iceberg tables](/iceberg/ov-internal), RisingWave manages
 
 In [externally managed Iceberg tables](/iceberg/ov-external), RisingWave connects to Iceberg tables managed by external systems. RisingWave can both read from and write to these tables, enabling seamless data exchange across different environments.
 
+Rule of thumb: **Internal tables → `CONNECTION` + `ENGINE = iceberg`**. **External tables → `SOURCE` (read) / `SINK` (write)**.
+
+| Concept | When / what (internal vs external) | Key SQL |
+|---|---|---|
+| `CONNECTION` | **Internal** — save Iceberg **catalog + object storage** config for `ENGINE = iceberg`. See [Internal Iceberg tables](/iceberg/internal-iceberg-tables). | `CREATE CONNECTION` + `SET iceberg_engine_connection = 'schema.conn'` |
+| `SINK` | **External** — write streaming results **to an external Iceberg table**. See [Deliver to external Iceberg](/iceberg/deliver-to-iceberg). | `CREATE SINK ... WITH (connector = 'iceberg', ...)` |
+| `SOURCE` | **External** — read an **external Iceberg table** into RisingWave. See [Ingest from external Iceberg](/iceberg/ingest-from-iceberg). | `CREATE SOURCE ... WITH (connector = 'iceberg', ...)` |
+
 ## RisingWave in a medallion architecture
 
 RisingWave bridges **real-time streaming systems** with **Iceberg-based data lakes**.
@@ -19,7 +27,7 @@ It functions as the **continuous ingestion, transformation, and maintenance serv
 
 ## Next steps
 
-- [Quick start: Build a streaming lakehouse](/iceberg/quick-start)
+- [Quick start: Iceberg in 10 minutes (AWS)](/iceberg/quick-start)
 - [Review supported Iceberg features](/iceberg/iceberg-feature-support)
 - Learn more about the [internal Iceberg tables](/iceberg/ov-internal) and [external Iceberg tables](/iceberg/ov-external).
 - [Create and manage internal Iceberg tables](/iceberg/internal-iceberg-tables)

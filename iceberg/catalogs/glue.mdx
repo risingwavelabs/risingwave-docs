@@ -12,158 +12,252 @@ For a complete list of all catalog-related parameters, see the main [Catalog con
 
 ## Example
 
-To create a sink that uses an AWS Glue catalog, set `catalog.type` to `'glue'` and provide your S3 warehouse path and AWS credentials.
+Examples for using an AWS Glue catalog with internal Iceberg tables, sinks, and sources.
+
+<Tabs>
+  <Tab title="Internal tables (recommended)">
+  Use Glue as the catalog for RisingWave-managed (internal) Iceberg tables by creating an Iceberg `CONNECTION`, then creating tables with `ENGINE = iceberg`.
 
 ```sql
-CREATE SINK my_glue_sink FROM my_mv WITH (
-    connector = 'iceberg',
-    type = 'upsert',
-    primary_key = 'id',
-    catalog.type = 'glue',
+CREATE CONNECTION glue_conn WITH (
+    type = 'iceberg',
+
     warehouse.path = 's3://my-bucket/warehouse/',
+
+    catalog.type = 'glue',
+    catalog.name = 'my_glue_catalog',
+    glue.region = 'us-west-2',
+
     s3.region = 'us-west-2',
     s3.access.key = '...',
     s3.secret.key = '...',
-    database.name = 'my_db',
-    table.name = 'my_table'
+    enable_config_load = false
 );
-```
 
-If you prefer not to specify AWS credentials, you can set `enable_config_load = true` to load them from environment variables instead (self-hosted environments only).
+SET iceberg_engine_connection = 'public.glue_conn';
+
+-- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
+CREATE TABLE my_internal_iceberg_table (
+  id INT PRIMARY KEY,
+  name VARCHAR
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
+  Deliver data from RisingWave to a Glue-managed Iceberg table using `CREATE SINK`.
 
 ```sql
 CREATE SINK my_glue_sink FROM my_mv WITH (
     connector = 'iceberg',
     type = 'upsert',
     primary_key = 'id',
-    catalog.type = 'glue',
+
     warehouse.path = 's3://my-bucket/warehouse/',
-    enable_config_load = true, -- Load AWS credentials and region from environment variables
     database.name = 'my_db',
-    table.name = 'my_table'
+    create_table_if_not_exists = 'true',
+    table.name = 'my_table',
+
+    catalog.type = 'glue',
+    catalog.name = 'my_glue_catalog',
+    glue.region = 'us-west-2',
+
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false
 );
 ```
+  </Tab>
 
-## Using IAM roles with Glue catalog
+  <Tab title="Read (CREATE SOURCE)">
+  Ingest data from a Glue-managed Iceberg table into RisingWave using `CREATE SOURCE`.
+
+```sql
+CREATE SOURCE my_glue_source WITH (
+    connector = 'iceberg',
+
+    warehouse.path = 's3://my-bucket/warehouse/',
+    database.name = 'my_db',
+    table.name = 'my_table',
+
+    catalog.type = 'glue',
+    catalog.name = 'my_glue_catalog',
+    glue.region = 'us-west-2',
+
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false
+);
+```
+  </Tab>
+</Tabs>
+
+## Optional: Use separate permissions for S3 and Glue
 
 <Note>
-Added in v2.7.0.
+Support for `glue.*` IAM role parameters was added in v2.7.0.
 </Note>
 
-RisingWave provides two ways to authenticate with AWS Glue and S3 when using the Iceberg connector. This enables tighter security by allowing distinct IAM roles or credentials for each service.
+By default, if Glue-specific credentials/role are not provided, RisingWave falls back to using the S3 credentials/role.
 
-### Separate S3 and Glue credentials
+If you want to use different permissions for S3 and Glue, you can configure them separately. This still follows the same two authentication methods as above:
 
-You can configure S3 and Glue with independent credentials, using either access keys or IAM roles for each service.
+<Tabs>
+  <Tab title="Internal tables (CONNECTION)">
+```sql
+-- Option 1 (separate AK/SK): enable_config_load = false
+CREATE CONNECTION glue_conn WITH (
+    type = 'iceberg',
+    catalog.type = 'glue',
+    catalog.name = 'demo',
+    warehouse.path = 's3://my-bucket/warehouse/',
 
-```sql Example of creating sink
+    -- S3 credentials
+    s3.region = 'ap-southeast-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+
+    -- Glue credentials (optional; otherwise falls back to S3)
+    glue.region = 'ap-southeast-2',
+    glue.access.key = '...',
+    glue.secret.key = '...',
+
+    enable_config_load = false
+);
+```
+
+```sql
+-- Option 2 (separate IAM roles): enable_config_load = true
+-- Prereq: grant Glue and S3 permissions to your IAM roles, then make sure the machine running this SQL can assume the roles (via env/config),
+-- or specify the roles explicitly with s3.iam_role_arn and glue.iam_role_arn.
+CREATE CONNECTION glue_conn WITH (
+    type = 'iceberg',
+    catalog.type = 'glue',
+    catalog.name = 'demo',
+    warehouse.path = 's3://my-bucket/warehouse/',
+
+    -- S3 role (optional if already in env/config)
+    s3.region = 'ap-southeast-2',
+    s3.iam_role_arn = 'arn:aws:iam::123456789012:role/MyS3Role',
+
+    -- Glue role (optional; otherwise falls back to S3 role)
+    glue.region = 'ap-southeast-2',
+    glue.iam_role_arn = 'arn:aws:iam::123456789012:role/MyGlueRole',
+
+    enable_config_load = true
+);
+```
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
+```sql
+-- Option 1 (separate AK/SK): enable_config_load = false
 CREATE SINK sink_t FROM t WITH (
     connector = 'iceberg',
     type = 'append-only',
     force_append_only = 'true',
 
-    database.name = 'demo',
-    table.name = 't',
+    catalog.type = 'glue',
     catalog.name = 'demo',
-    catalog.type = 'glue',
-    warehouse.path = 'your_bucket',
-
-    -- S3 credentials or role
-    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
-    s3.region = 'ap-southeast-2',
-    s3.access.key = 'xxx',
-    s3.secret.key = 'xxx',
-    s3.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
-
-    -- Glue credentials or role
-    glue.region = 'ap-southeast-2',
-    glue.access.key = 'xxx',
-    glue.secret.key = 'xxx',
-    glue.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
-
-    commit_checkpoint_interval = 1,
-    create_table_if_not_exists = 'true'
-);
-```
-
-```sql Example of creating source
-CREATE SOURCE iceberg_t_source WITH (
-    connector = 'iceberg',
-
-    -- S3 credentials or role
-    s3.region = 'ap-southeast-2',
-    s3.access.key = 'xxx',
-    s3.secret.key = 'xxx',
-    s3.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
-
-    -- Glue credentials or role
-    glue.region = 'ap-southeast-2',
-    glue.access.key = 'xxx',
-    glue.secret.key = 'xxx',
-    glue.iam_role_arn = 'arn:aws:iam::xxx:role/Admin',
-
-    s3.path.style.access = 'true',
-
-    catalog.type = 'glue',
-    warehouse.path = 'your_bucket',
+    warehouse.path = 's3://my-bucket/warehouse/',
     database.name = 'demo',
-    table.name = 't'
+    create_table_if_not_exists = 'true',
+    table.name = 't',
+
+    -- S3 credentials
+    s3.region = 'ap-southeast-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+
+    -- Glue credentials (optional; otherwise falls back to S3)
+    glue.region = 'ap-southeast-2',
+    glue.access.key = '...',
+    glue.secret.key = '...',
+
+    enable_config_load = false
 );
 ```
 
-If Glue-specific parameters are not provided, the connector falls back to using S3 credentials for backward compatibility.
-
-### Assume roles for S3 and Glue with `enable_config_load`
-
-When `enable_config_load = true` is enabled, RisingWave loads AWS config/credentials from the environment and assumes the IAM roles specified for S3 and Glue.
-
-```sql Example of creating sink
+```sql
+-- Option 2 (separate IAM roles): enable_config_load = true
+-- Prereq: grant Glue and S3 permissions to your IAM roles, then make sure the machine running this SQL can assume the roles (via env/config),
+-- or specify the roles explicitly with s3.iam_role_arn and glue.iam_role_arn.
 CREATE SINK sink_t FROM t WITH (
     connector = 'iceberg',
     type = 'append-only',
     force_append_only = 'true',
 
+    catalog.type = 'glue',
+    catalog.name = 'demo',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    database.name = 'demo',
+    create_table_if_not_exists = 'true',
+    table.name = 't',
+
+    -- S3 role (optional if already in env/config)
+    s3.region = 'ap-southeast-2',
+    s3.iam_role_arn = 'arn:aws:iam::123456789012:role/MyS3Role',
+
+    -- Glue role (optional; otherwise falls back to S3 role)
+    glue.region = 'ap-southeast-2',
+    glue.iam_role_arn = 'arn:aws:iam::123456789012:role/MyGlueRole',
+
+    enable_config_load = true
+);
+```
+  </Tab>
+
+  <Tab title="Read (CREATE SOURCE)">
+```sql
+-- Option 1 (separate AK/SK): enable_config_load = false
+CREATE SOURCE source_t WITH (
+    connector = 'iceberg',
+    catalog.type = 'glue',
+    catalog.name = 'demo',
+    warehouse.path = 's3://my-bucket/warehouse/',
     database.name = 'demo',
     table.name = 't',
-    catalog.name = 'demo',
-    catalog.type = 'glue',
-    warehouse.path = 'your_path',
 
-    -- Assume role for S3
-    s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
+    -- S3 credentials
     s3.region = 'ap-southeast-2',
-    s3.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
+    s3.access.key = '...',
+    s3.secret.key = '...',
 
-    -- Assume role for Glue
+    -- Glue credentials (optional; otherwise falls back to S3)
     glue.region = 'ap-southeast-2',
-    glue.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
+    glue.access.key = '...',
+    glue.secret.key = '...',
 
-    enable_config_load = true,
-
-    commit_checkpoint_interval = 1,
-    create_table_if_not_exists = 'true'
+    enable_config_load = false
 );
 ```
 
-```sql Example of creating source
-CREATE SOURCE iceberg_t_source WITH (
+```sql
+-- Option 2 (separate IAM roles): enable_config_load = true
+-- Prereq: grant Glue and S3 permissions to your IAM roles, then make sure the machine running this SQL can assume the roles (via env/config),
+-- or specify the roles explicitly with s3.iam_role_arn and glue.iam_role_arn.
+CREATE SOURCE source_t WITH (
     connector = 'iceberg',
-
-    -- Assume role for S3
-    s3.region = 'ap-southeast-2',
-    s3.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
-
-    -- Assume role for Glue
-    glue.region = 'ap-southeast-2',
-    glue.iam_role_arn = 'arn:aws:iam::xxxx:role/Admin',
-
-    enable_config_load = true,
-
-    s3.path.style.access = 'true',
-
     catalog.type = 'glue',
-    warehouse.path = 'your_path',
+    catalog.name = 'demo',
+    warehouse.path = 's3://my-bucket/warehouse/',
     database.name = 'demo',
-    table.name = 't'
+    table.name = 't',
+
+    -- S3 role (optional if already in env/config)
+    s3.region = 'ap-southeast-2',
+    s3.iam_role_arn = 'arn:aws:iam::123456789012:role/MyS3Role',
+
+    -- Glue role (optional; otherwise falls back to S3 role)
+    glue.region = 'ap-southeast-2',
+    glue.iam_role_arn = 'arn:aws:iam::123456789012:role/MyGlueRole',
+
+    enable_config_load = true
 );
 ```
+  </Tab>
+</Tabs>

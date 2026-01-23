@@ -33,6 +33,19 @@ Both modes have their unique advantages. Here are some considerations:
 
 **Flexibility**: The streaming mode is less flexible to changes in query requirements. The ad-hoc query usually is created on-the-fly to fulfill immediate and specific information needs. Unlike predefined queries, ad-hoc queries are generated in real-time based on your current requirements. They are commonly used in data analysis, decision-making, and exploratory data tasks, where flexibility and quick access to information are crucial.
 
+### Query execution modes
+
+When executing ad-hoc batch queries with `SELECT`, you can control the execution mode using the `QUERY_MODE` session variable:
+
+- `distributed` (default): Distributes query execution across multiple compute nodes for better parallelism. Use this for complex queries over large datasets.
+- `local`: Executes the query on a single node. Use this for simple queries or when network overhead is a concern.
+- `auto`: Lets RisingWave choose the appropriate mode based on query characteristics.
+
+```sql
+SET QUERY_MODE TO distributed;
+SELECT * FROM large_table WHERE condition;
+```
+
 ## Examples
 
 ### Create a table
