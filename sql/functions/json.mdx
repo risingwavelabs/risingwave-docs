@@ -37,26 +37,27 @@ from t;
 
 We can see the query plan contains a join for subplan execution:
 ```
-                                                                                             QUERY PLAN                                                                                              
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                         QUERY PLAN                                                                                                         
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  StreamMaterialize { columns: [id, elements, t._row_id(hidden), t.payload(hidden)], stream_key: [t._row_id, t.payload], pk_columns: [t._row_id, t.payload], pk_conflict: NoCheck }
- └─StreamProject { exprs: [JsonbAccessStr(t.payload, 'id':Varchar) as $expr1, array_agg(JsonbArrayElements(JsonbAccess($0, 'elements':Varchar))) filter(IsNotNull(1:Int32)), t._row_id, t.payload] }
+ └─StreamProject { exprs: [JsonbAccessStr(t.payload, 'id':Varchar) as $expr3, array_agg($expr1 order_by($expr2 ASC)) filter(IsNotNull(1:Int32)), t._row_id, t.payload] }
    └─StreamHashJoin { type: LeftOuter, predicate: t.payload IS NOT DISTINCT FROM t.payload }
      ├─StreamExchange { dist: HashShard(t.payload) }
      │ └─StreamTableScan { table: t, columns: [payload, _row_id] }
-     └─StreamProject { exprs: [t.payload, array_agg(JsonbArrayElements(JsonbAccess($0, 'elements':Varchar))) filter(IsNotNull(1:Int32))] }
-       └─StreamHashAgg { group_key: [t.payload], aggs: [array_agg(JsonbArrayElements(JsonbAccess($0, 'elements':Varchar))) filter(IsNotNull(1:Int32)), count] }
+     └─StreamProject { exprs: [t.payload, array_agg($expr1 order_by($expr2 ASC)) filter(IsNotNull(1:Int32))] }
+       └─StreamHashAgg { group_key: [t.payload], aggs: [array_agg($expr1 order_by($expr2 ASC)) filter(IsNotNull(1:Int32)), count] }
          └─StreamHashJoin { type: LeftOuter, predicate: t.payload IS NOT DISTINCT FROM t.payload }
            ├─StreamProject { exprs: [t.payload] }
            │ └─StreamHashAgg { group_key: [t.payload], aggs: [count] }
            │   └─StreamExchange { dist: HashShard(t.payload) }
            │     └─StreamTableScan { table: t, columns: [payload, _row_id] }
-           └─StreamProject { exprs: [t.payload, JsonbArrayElements(JsonbAccess($0, 'elements':Varchar)), 1:Int32, projected_row_id] }
+           └─StreamProject { exprs: [t.payload, JsonbAccessStr(JsonbArrayElements(JsonbAccess($0, 'elements':Varchar)), 'subField':Varchar) as $expr1, (projected_row_id + 1:Int64) as $expr2, 1:Int32, projected_row_id] }
              └─StreamProjectSet { select_list: [$0, JsonbArrayElements(JsonbAccess($0, 'elements':Varchar))] }
                └─StreamProject { exprs: [t.payload] }
                  └─StreamHashAgg { group_key: [t.payload], aggs: [count] }
                    └─StreamExchange { dist: HashShard(t.payload) }
                      └─StreamTableScan { table: t, columns: [payload, _row_id] }
+(18 rows)
 ```
 
 If we rewrite it with array_transform, the plan is greatly simplified:
