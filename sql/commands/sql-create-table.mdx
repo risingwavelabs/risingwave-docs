@@ -92,8 +92,8 @@ CREATE TABLE [ IF NOT EXISTS ] table_name (
 | data\_type                        | The data type of a column. With the struct data type, you can create a nested table. Elements in a nested table need to be enclosed with angle brackets (\<>).                                                                                                                                                                                                                                           |
 | DEFAULT                           | The DEFAULT clause allows you to assign a default value to a column. This default value is used when a new row is inserted, and no explicit value is provided for that column. default\_expr is any constant value or variable-free expression that does not reference other columns in the current table or involve subqueries. The data type of default\_expr must match the data type of the column. |
 | generation\_expression            | The expression for the generated column. For details about generated columns, see [Generated columns](/sql/query-syntax/generated-columns).                                                                                                                                                                                                                                                   |
-| watermark\_clause                 | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For the watermark clause to be valid, the table must be an append-only table. That is, the APPEND ONLY option must be specified. This restriction only applies to a table. For details about watermarks, See [Watermarks](#watermarks) below for more.           |
-| APPEND ONLY                       | When this option is specified, the table will be created as an append-only table. An append-only table cannot have primary keys. UPDATE and DELETE statements are not valid for append-only tables. See [Watermarks](#append-only) below for more.                                                                            |
+| watermark\_clause                 | A clause that defines the watermark for a timestamp column. The syntax is `WATERMARK FOR column_name AS expr [WITH TTL]`. Watermarks enable event-time processing. `WITH TTL` enables time-based cleanup for the table based on the watermark. For details about watermarks, see [Watermarks](#watermarks) below for more.           |
+| APPEND ONLY                       | When this option is specified, the table will be created as an append-only table. An append-only table cannot have primary keys. UPDATE and DELETE statements are not valid for append-only tables. See [Append only](#append-only) below for more.                                                                            |
 | ON CONFLICT                       | Specify the alternative action when the newly inserted record brings a violation of PRIMARY KEY constraint on the table. See [PK conflict behavior](#pk-conflict-behavior) below for more information.                                                                                                                                                                                                  |
 | **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/extract-metadata-from-sources).                                                                                                                                                                                                                                                     |
 | **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See the [Data ingestion](/ingestion/overview) page for the full list of supported source as well as links to specific connector pages detailing the syntax for each source.                                                                                                                                       |
@@ -108,8 +108,8 @@ Please distinguish between the parameters set in the FORMAT and ENCODE options a
 
 The append-only table does not support delete or update operations, nor does it support non-append-only upstream connectors. There are two main reasons for using append-only tables:
 
-- Certain features are exclusively available for append-only tables, such as watermark and TTL (Time-To-Live).
-- Streaming jobs created downstream from append-only tables can leverage their append-only property to optimize performance. 
+- Streaming jobs created downstream from append-only tables can leverage their append-only property to optimize performance.
+- Append-only tables are a good fit for append-only event streams where a primary key is not needed.
 
 
 ## Use Iceberg table engine
@@ -118,17 +118,53 @@ In a `CREATE TABLE` statement, you can specify `ENGINE = iceberg` to store table
 
 ## Watermarks
 
-RisingWave supports generating watermarks when creating an append-only streaming table. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. For more information on the syntax on how to create a watermark, see [Watermarks](/processing/watermarks).
+RisingWave supports generating watermarks when creating a streaming table. Watermarks are like markers or signals that track the progress of event time, allowing you to process events within their corresponding time windows. For more information on the syntax on how to create a watermark, see [Watermarks](/processing/watermarks).
 
-## TTL of append-only table
+You can add `WITH TTL` to the watermark definition to enable time-based cleanup for the table. See [Watermark-based TTL](#watermark-based-ttl-event-time) below.
 
-Data in an append-only table cannot be deleted with `DELETE` statements. Therefore, RisingWave provides TTL (Time-To-Live) feature to automatically clean up expired data in the table. 
-However, please note that this cleanup only applies to the data within the table itself—it does not affect downstream materialized views or other streaming jobs. If you need to clean up data in downstream materialized views used in queries, you should use a [Temporal Filter](/processing/sql/temporal-filters) in the downstream streaming job.
+<Note>
+Watermarks on non-append-only tables (tables with primary keys) and the `WITH TTL` option are available since v2.8.0.
+</Note>
+
+## Watermark-based TTL (event time)
+
+When you add `WITH TTL` to a watermark on a table, RisingWave treats rows whose event time is at or below the watermark as expired. Late changes (INSERT/UPDATE/DELETE) for those rows are ignored, and table state is cleaned based on event time. This cleanup only affects the table itself and does not delete previously computed results in downstream materialized views. If you need downstream cleanup, use a [Temporal Filter](/processing/sql/temporal-filters) in the downstream query.
+
+<Note>
+TTL cleanup is best-effort and happens asynchronously during compaction. Because watermark advancement is data-driven and non-deterministic, RisingWave does not guarantee a precise cutoff time (for example, that all data before time T is removed). Expired rows may remain visible or writable for a period of time, and the outcome of such operations is undefined.
+</Note>
 
 ```sql
-CREATE TABLE t (
-    ...
-) APPEND ONLY WITH (retention_seconds = 86400);
+CREATE TABLE deposits_src (
+  trx_id VARCHAR PRIMARY KEY,
+  created_at TIMESTAMP,
+  deposit_status VARCHAR,
+  WATERMARK FOR created_at AS created_at - INTERVAL '5' DAY WITH TTL
+)
+WITH (
+  connector = 'kafka',
+  topic = 'deposits',
+  properties.bootstrap.server = 'broker:29092',
+  scan.startup.mode = 'earliest'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+You can also implement processing-time TTL with a generated `PROCTIME()` column and a watermark on that column.
+
+```sql
+CREATE TABLE events (
+  user_id VARCHAR,
+  action VARCHAR,
+  pt TIMESTAMPTZ AS PROCTIME(),
+  WATERMARK FOR pt AS pt - INTERVAL '1' DAY WITH TTL
+) APPEND ONLY
+WITH (
+  connector = 'kafka',
+  topic = 'events',
+  properties.bootstrap.server = 'broker:29092'
+)
+FORMAT PLAIN ENCODE JSON;
 ```
 
 ## PK conflict behavior
