@@ -12,8 +12,36 @@ For a complete list of all catalog-related parameters, see the main [Catalog con
 
 ## Example
 
-To create a sink that uses a REST catalog, set `catalog.type` to `'rest'` and provide the `catalog.uri` for your REST catalog service.
+Examples for using a REST catalog with internal Iceberg tables, sinks, and sources.
 
+<Tabs>
+  <Tab title="Internal tables (recommended)">
+```sql
+CREATE CONNECTION rest_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false,
+
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181'
+);
+
+SET iceberg_engine_connection = 'public.rest_conn';
+
+-- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
+CREATE TABLE my_internal_iceberg_table (
+  id INT PRIMARY KEY,
+  name VARCHAR
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
 ```sql
 CREATE SINK my_rest_sink FROM my_mv WITH (
     connector = 'iceberg',
@@ -26,9 +54,30 @@ CREATE SINK my_rest_sink FROM my_mv WITH (
     s3.access.key = '...',
     s3.secret.key = '...',
     database.name = 'my_db',
+    create_table_if_not_exists = 'true',
     table.name = 'my_table'
 );
 ```
+  </Tab>
+
+  <Tab title="Read (CREATE SOURCE)">
+```sql
+CREATE SOURCE my_rest_source WITH (
+    connector = 'iceberg',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    database.name = 'my_db',
+    table.name = 'my_table',
+
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...'
+);
+```
+  </Tab>
+</Tabs>
 
 ## Vended credentials
 
@@ -40,9 +89,10 @@ Vended credentials allow the REST catalog server to provide temporary credential
 
 To enable vended credentials, set `vended_credentials = true` along with `catalog.type = 'rest'`:
 
-```sql Example: Source
-CREATE SOURCE iceberg_t
-WITH (
+**Example: Source**
+
+```sql
+CREATE SOURCE iceberg_t WITH (
     connector = 'iceberg',
     s3.endpoint = 'https://s3.ap-southeast-2.amazonaws.com',
     s3.region = 'ap-southeast-2',
@@ -52,12 +102,14 @@ WITH (
     catalog.uri = 'http://127.0.0.1:8181/catalog',
     warehouse.path = '<warehouse_name>',
     database.name = 'ns',
-    table.name = 't',
+    table.name = 't'
 );
 ```
 
-```sql Example: Sink
-CREATE SINK sink_t from t WITH (
+**Example: Sink**
+
+```sql
+CREATE SINK sink_t FROM t WITH (
     connector = 'iceberg',
     type = 'append-only',
     force_append_only = 'true',
@@ -70,8 +122,9 @@ CREATE SINK sink_t from t WITH (
     warehouse.path = '<warehouse_name>',
     database.name = 'ns',
     table.name = 't',
-    create_table_if_not_exists='true',
-    commit_checkpoint_interval = 1,
+    create_table_if_not_exists = 'true',
+    -- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
+    commit_checkpoint_interval = 1
 );
 ```
 

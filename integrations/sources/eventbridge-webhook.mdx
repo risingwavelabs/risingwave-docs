@@ -9,9 +9,19 @@ Amazon EventBridge is a serverless event bus service that enables you to easily 
 
 This guide will walk through the steps to set up RisingWave as a destination for Amazon EventBridge webhooks.
 
+<Info>
+New to RisingWave webhooks? Before configuring EventBridge, it's recommended to run a quick local smoke test to confirm your RisingWave webhook listener is reachable and your table is ingesting events. See [Webhook endpoint](/integrations/sources/webhook#webhook-endpoint) and [Quick local smoke test](/integrations/sources/webhook#quick-local-smoke-test-no-upstream-saas-required).
+</Info>
+
 ## 1. Create a table in RisingWave
 
 Next, create a table configured to accept webhook data from Amazon EventBridge.
+
+```sql
+-- Optional (recommended): store the API key value as a RisingWave secret.
+-- If you don't have access to secrets, skip this and use the raw-string example below.
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
 
 ```sql
 create table wbhtable (

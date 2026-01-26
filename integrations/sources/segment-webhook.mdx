@@ -8,9 +8,19 @@ Segment is a Customer Data Platform (CDP) that collects event data from various 
 
 This guide will walk through the steps to set up RisingWave as a destination for Segment webhooks.
 
+<Info>
+New to RisingWave webhooks? Before configuring Segment, it's recommended to run a quick local smoke test to confirm your RisingWave webhook listener is reachable and your table is ingesting events. See [Webhook endpoint](/integrations/sources/webhook#webhook-endpoint) and [Quick local smoke test](/integrations/sources/webhook#quick-local-smoke-test-no-upstream-saas-required).
+</Info>
+
 ## 1. Create a table in RisingWave
 
 Create a table configured to accept webhook data from Segment.
+
+```sql
+-- Optional (recommended): store the shared secret as a RisingWave secret.
+-- If you don't have access to secrets, skip this and use the raw-string example below.
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
 
 ```sql
 CREATE TABLE wbhtable (
@@ -97,7 +107,7 @@ Review your settings, click **Next** and specify a name.
 
 ## 3. Push data from Segment via webhook
 
-With the webhook configured, Segment will automatically send HTTP POST requests to your RisingWave webhook URL whenever the specified events occur (e.g., pushes to the repository). RisingWave will receive these requests, validate the signatures, and insert the payload data into the target table.
+With the webhook configured, Segment will automatically send HTTP POST requests to your RisingWave webhook URL whenever the configured events occur. RisingWave will receive these requests, validate the signatures, and insert the payload data into the target table.
 
 ## 4. Further event processing
 

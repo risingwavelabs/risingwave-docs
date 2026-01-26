@@ -45,7 +45,7 @@ You can deploy this configuration using one of two methods:
    <Tab title="Enable credential vending">
    Since v2.7.0, RisingWave supports credential vending protocol, allowing RisingWave to obtain temporary object storage credentials directly from Lakekeeper. Make sure to set `catalog.type = 'rest'` and `vended_credentials = true`.
 
-   ```sql Example
+   ```sql
    CREATE CONNECTION lakekeeper_catalog_conn
    WITH (
       type = 'iceberg',
@@ -58,7 +58,7 @@ You can deploy this configuration using one of two methods:
    </Tab>
    <Tab title="Specify S3 credentials manually">
    You can continue to specify S3 credentials manually as before.
-   ```sql Example
+   ```sql
    CREATE CONNECTION lakekeeper_catalog_conn
    WITH (
        type = 'iceberg',
@@ -83,6 +83,7 @@ You can deploy this configuration using one of two methods:
 
 3. Create an internal Iceberg table.
    ```sql
+   -- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
    CREATE TABLE t_lakekeeper_basic(
        id INT PRIMARY KEY,
        name VARCHAR,
@@ -98,11 +99,11 @@ You can deploy this configuration using one of two methods:
        (1, 'alice', 100),
        (2, 'bob', 200),
        (3, 'charlie', 300);
-   FLUSH;
    ```
 
 5. Query the table to verify the data.
    ```sql
+   -- Note: For `ENGINE = iceberg`, data becomes visible only after an Iceberg commit.
    SELECT * FROM t_lakekeeper_basic;
    ```
 
@@ -165,7 +166,7 @@ Ensure your Kubernetes environment is configured with Helm by following the [ins
     - **Region**: `us-east-1`
 
 9. Connect to RisingWave and run the test queries.
-   ```bash Connect to RisingWave
+   ```bash
    psql -h localhost -p 4567 -d dev -U root
    ```
 
@@ -175,7 +176,7 @@ Ensure your Kubernetes environment is configured with Helm by following the [ins
    <Tab title="Enable credential vending">
    Since v2.7.0, RisingWave supports credential vending protocol, allowing RisingWave to obtain temporary object storage credentials directly from Lakekeeper. Make sure to set `catalog.type = 'rest'` and `vended_credentials = true`.
 
-   ```sql Example
+   ```sql
    CREATE CONNECTION lakekeeper_catalog_conn
    WITH (
       type = 'iceberg',
@@ -188,7 +189,7 @@ Ensure your Kubernetes environment is configured with Helm by following the [ins
    </Tab>
    <Tab title="Specify S3 credentials manually">
    You can continue to specify S3 credentials manually as before.
-   ```sql Example
+   ```sql
    CREATE CONNECTION lakekeeper_catalog_conn
    WITH (
       type = 'iceberg',
@@ -211,6 +212,7 @@ Ensure your Kubernetes environment is configured with Helm by following the [ins
    set iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
 
    create table t_lakekeeper_basic(id int primary key, name varchar, v bigint)
+   -- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
    with(commit_checkpoint_interval = 1) engine = iceberg;
 
    insert into t_lakekeeper_basic values(1, 'alice', 100), (2, 'bob', 200), (3, 'charlie', 300);

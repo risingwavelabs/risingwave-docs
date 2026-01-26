@@ -37,3 +37,30 @@ Therefore, they are cost-effective to create.
 We encourage users to detect the patterns in batch queries and create indexes if the pattern occurs frequently or/and a batch query is slow.
 
 You can check the [Indexes](/processing/indexes) page for more details on how to create and use indexes.
+
+## Memory management for batch queries
+
+### Spilling to disk
+
+When batch queries process large amounts of data that exceed available memory, RisingWave automatically spills intermediate results to disk to prevent out-of-memory errors. This spilling behavior applies to memory-intensive operations like:
+
+- Large hash joins
+- Hash aggregations with high cardinality
+- Sorting operations on large datasets
+
+The spill directory can be configured using the `RW_BATCH_SPILL_DIR` environment variable (default: `/tmp/`). Spilling trades memory for disk I/O, so queries may slow down when spilling occurs.
+
+### Compute memory limits
+
+On serving-only Compute Nodes, the available memory for query execution (compute memory) is calculated as:
+
+```
+Compute Memory = Total Memory - Block Cache - Meta Cache - Reserved Memory (30%)
+```
+
+If a batch query's memory consumption approaches this limit and spilling is insufficient, the query will automatically terminate to prevent node-level OOM. To handle larger queries:
+
+1. Reduce block cache and meta cache sizes in node configuration
+2. Use query modes (`SET QUERY_MODE TO distributed`) to distribute memory load
+3. Break complex queries into smaller steps using materialized views
+4. Add appropriate indexes to reduce data scanned

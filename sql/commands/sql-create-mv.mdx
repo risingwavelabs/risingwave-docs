@@ -17,7 +17,10 @@ AS select_query;
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | mv_name          | The name of the materialized view to be created.                                                                                                         |
 | select_query     | A SELECT query that retrieves data for the materialized view. See [SELECT](/sql/commands/sql-select) for the syntax and examples of the SELECT command. |
-| WITH clause     | Specifies optional parameters for the materialized view. For example, [`source_rate_limit`](/troubleshoot/troubleshoot-oom#oom-when-creating-materialized-views) to set the ingestion rate, and [`backfill_order`](/sql/commands/sql-create-mv#backfill-behavior-and-controls) to control the backfill order. |
+| WITH clause     | Specifies optional parameters for the materialized view. Common options include:
+  - `source_rate_limit`: Throttle ingestion rate during backfill to prevent OOM
+  - `backfill_order`: Control the backfill sequence across upstream relations (technical preview)
+  - See [troubleshooting](/troubleshoot/troubleshoot-oom#oom-when-creating-materialized-views) for more details. |
 
 <Note>
 Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/sql/identifiers).

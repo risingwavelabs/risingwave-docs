@@ -8,9 +8,17 @@ sidebarTitle: Overview
 
 ### Get an overview of the cluster
 
-RisingWave Dashboard is the built-in dashboard of RisingWave. From RisingWave Dashboard, you can get an overview of your RisingWave cluster, including the objects that you have created, streaming or batch job execution details. The objects you can view include sources, tables, materialized views, indexes, internal tables, and sinks. For the fragment graph, the dashboard allows easy monitoring of the back-pressure rate through a color bar that varies in color and width based on the rate.
+RisingWave Dashboard is the built-in web UI of RisingWave, implemented as a Next.js application. From RisingWave Dashboard, you can:
 
-You can access RisingWave Dashboard at `http://localhost:5691` by default.
+- View catalog objects: sources, tables, materialized views, indexes, internal tables, sinks, views, subscriptions, and functions
+- Monitor streaming execution with fragment graphs showing back-pressure rates (color-coded visualization)
+- Inspect batch task execution
+- Debug with await tree dumps, heap profiling, and distributed plan visualization
+- View streaming relation graphs and internal table structures
+
+**Accessing the Dashboard**
+
+By default, the dashboard is served by the meta node at `http://localhost:5691`. The meta node serves the dashboard as static HTML files (built from the Next.js source). You can configure the dashboard address via the `--dashboard-host` flag or `RW_DASHBOARD_HOST` environment variable when starting the meta node.
 
 **Alternative: RisingWave Console**
 
@@ -25,7 +33,9 @@ You can monitor the performance metrics of a RisingWave cluster, including the u
 
 RisingWave uses Prometheus for collecting data, and Grafana for visualization and alerting. This monitoring stack requires configuration. To configure the monitoring stack, follow the steps detailed in [Monitor a RisingWave cluster](/operate/monitor-risingwave-cluster).
 
-After you complete the configuration, go to [http://localhost:3000](http://localhost:3000) to access Grafana from a local machine, or `http://<client_address>:3000` to access Grafana from a different host, where `<client_address>` is the IP address of the machine running the Grafana service. When prompted, enter the default credentials (username: `admin`; password: `prom-operator`).
+After you complete the configuration, go to [http://localhost:3000](http://localhost:3000) to access Grafana from a local machine, or `http://<client_address>:3000` to access Grafana from a different host, where `<client_address>` is the IP address of the machine running the Grafana service.
+
+When using the Kubernetes operator deployment, the default Grafana credentials are typically `admin` / `prom-operator` (set by the prometheus-operator). If you deployed Grafana manually, consult your Grafana configuration for credentials.
 
 There are 2 built-in dashboards in the official release.
 

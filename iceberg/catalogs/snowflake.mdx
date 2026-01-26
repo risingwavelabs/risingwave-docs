@@ -14,18 +14,24 @@ For a complete list of all catalog-related parameters, see the main [Catalog con
 
 ## Example
 
-To create a source that reads from a Snowflake-managed Iceberg table, set `catalog.type` to `'snowflake'` and provide your Snowflake connection details.
+Snowflake catalog is **read-only** in RisingWave and can only be used for **creating Iceberg sources** (`CREATE SOURCE`).
 
 ```sql
 CREATE SOURCE my_snowflake_source
 WITH (
     connector = 'iceberg',
+
+    warehouse.path = '<warehouse_path>',
+    database.name = '<your_database>',
+    table.name = '<your_table>',
+
     catalog.type = 'snowflake',
     catalog.uri = 'jdbc:snowflake://<account_identifier>.snowflakecomputing.com/',
     catalog.jdbc.user = '<your_username>',
-    catalog.jdbc.password = '<your_password>',
-    warehouse.path = '<warehouse_path>',
-    database.name = '<your_database>',
-    table.name = '<your_table>'
+    catalog.jdbc.password = '<your_password>'
 );
 ```
+
+<Note>
+Snowflake catalog does not support `CREATE CONNECTION` (internal Iceberg tables) or `CREATE SINK` in RisingWave.
+</Note>

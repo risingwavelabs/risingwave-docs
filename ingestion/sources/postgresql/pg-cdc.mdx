@@ -91,6 +91,10 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 | `publication.name`    | The name of the PostgreSQL publication to use. Defaults to `'rw_publication'`.                                                                                                                                                  | No       |
 | `publication.create.enable` | Whether to automatically create the publication if it doesn't exist. Defaults to `true`.                                                                                                                              | No       |
 | `auto.schema.change`  | Set to `true` to enable automatic replication of DDL changes from Postgres. Defaults to `false`.                                                                                                                            | No       |
+
+<Note>
+For PostgreSQL CDC sources, RisingWave manages the publication and replication slot automatically. By default, RisingWave will create the publication and slot if they don't exist (`publication.create.enable = 'true'`). If you want to use an existing publication, set `publication.create.enable = 'false'`. This is useful when the RisingWave database user doesn't have `CREATE PUBLICATION` permissions.
+</Note>
 | `ssl.mode`            | SSL/TLS encryption mode. Accepted values: `disabled`, `preferred`, `required`, `verify-ca`, `verify-full`. Defaults to `disabled`.                                                                       | No       |
 | `ssl.root.cert`       | The PEM-encoded root certificate for `verify-ca` or `verify-full` mode. Use a [secret](/operate/manage-secrets).                                                                                                          | No       |
 | `postgres.is.aws.rds` | Set to `true` to specify that the upstream database is AWS RDS. This enhances RDS detection and supports scenarios that use a custom DNS endpoint. The default value is `false`. | No       |

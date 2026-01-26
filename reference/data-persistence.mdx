@@ -4,7 +4,53 @@ description: "RisingWave adopts the [Chandy–Lamport algorithm](https://en.wiki
 mode: wide
 ---
 
-When a checkpoint is created, the incremental states of streaming operators and output results are persisted in a durable and highly available remote storage. The default checkpoint interval is 1 seconds.
+When a checkpoint is created, the incremental states of streaming operators and output results are persisted in a durable and highly available remote storage. The default checkpoint interval is 1 second.
+
+## What are barriers and checkpoints?
+
+If you're new to stream processing, the terms **barrier** and **checkpoint** can be confusing. Here’s a simple way to think about them in RisingWave:
+
+- **Barrier**: A periodic “sync marker” that RisingWave injects into the streaming dataflow. It travels through operators along with your data and is used to coordinate consistent progress (for example, triggering state flush and checkpoint completion).
+- **Checkpoint**: A “global consistent snapshot” of the whole streaming system, created when a barrier has been processed consistently across the system. Checkpoints are what RisingWave uses for durability and recovery.
+
+### Default timing
+
+By default:
+
+- `barrier_interval_ms = 1000` → RisingWave generates a barrier every **1 second**.
+- `checkpoint_frequency = 1` → RisingWave creates a checkpoint every **1 barrier**.
+
+So the default checkpoint interval is about **1 second**.
+
+### How to view or change the timing (usually NOT needed)
+
+Most users should keep the defaults. Changing barrier/checkpoint settings can affect latency, throughput, and system load.
+
+- View the current values:
+
+```sql
+SHOW PARAMETERS;
+```
+
+- Change global defaults:
+
+```sql
+ALTER SYSTEM SET barrier_interval_ms = 1000;   -- milliseconds
+ALTER SYSTEM SET checkpoint_frequency = 1;     -- one checkpoint per N barriers
+```
+
+- Change per database:
+
+```sql
+ALTER DATABASE <your_db> SET barrier_interval_ms = 1000;
+ALTER DATABASE <your_db> SET checkpoint_frequency = 1;
+```
+
+For details about these parameters, see [View and configure system parameters](/operate/view-configure-system-parameters) and [`ALTER DATABASE ... SET`](/sql/commands/sql-alter-database#set).
+
+<Note>
+This 1-second checkpoint interval controls RisingWave's internal fault tolerance and recovery. For sinks, data is committed to downstream systems at a different frequency controlled by `commit_checkpoint_interval`, which defaults to every 10 checkpoints (approximately 10 seconds) when sink decoupling is enabled. See [Sink decoupling](/delivery/overview#sink-decoupling) for details.
+</Note>
 
 In RisingWave, Compute Nodes perform write batching by buffering dirty states in memory before creating a checkpoint. Dirty states refer to unsaved states since the last checkpoint.
 

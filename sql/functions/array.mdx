@@ -440,6 +440,7 @@ SELECT v1, item, ord FROM example, unnest(v2) WITH ORDINALITY AS foo(item, ord);
 ```
 </Tab>
 </Tabs>
+Note: If you're using `unnest` for row-level processing, followed by an `array_agg` aggregation, it can incur additional overhead due to subplan execution. Use `EXPLAIN` to examine your query plan, and see if there are unexpected JOINs in your query. If so, please consider rewriting with `array_transform` to perform your mapping logic to avoid the subplan execution.
 
 ## Array operators[](#array-operators "Direct link to Array operators")
 

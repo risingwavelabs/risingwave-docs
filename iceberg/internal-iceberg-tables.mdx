@@ -20,15 +20,22 @@ An Iceberg `CONNECTION` defines the catalog and object storage configuration.
 
 You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based built-in catalog, set `hosted_catalog` to `true`.
 
-You can also set the optional `commit_checkpoint_interval` parameter to control the commit frequency. The default is `60`, which means RisingWave commits data every 60 checkpoints. You can adjust this value based on your requirements.
+You can also set the optional `commit_checkpoint_interval` parameter to control the **Iceberg commit frequency**. The default is `60`, which means RisingWave commits changes to Iceberg about every **60 seconds** in the default configuration. You can adjust this value based on your freshness and performance requirements.
 
 When you create a `CONNECTION`, you specify the object storage backend where the table data will be stored. You also specify the catalog that will manage the table's metadata.
+
+<Note>
+For S3 credentials (applies to all catalogs):
+- If `enable_config_load = false`: you must provide `s3.access.key` and `s3.secret.key` (you may also set `s3.iam_role_arn`).
+- If `enable_config_load = true`: don’t provide `s3.access.key`/`s3.secret.key` (you may set `s3.iam_role_arn`, or rely on the role already available in your environment/config).
+
+See [Object storage configuration](/iceberg/object-storage).
+</Note>
 
 For more details on the available catalog options, see [Iceberg catalog configuration](/iceberg/catalogs).
 
 <Tabs>
     <Tab title="Built-in catalog">
-    For the simplest setup, use RisingWave's built-in JDBC-based catalog. This requires no external dependencies.
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
         type = 'iceberg',
@@ -42,7 +49,6 @@ For more details on the available catalog options, see [Iceberg catalog configur
     For more details, see [Built-in catalog](/iceberg/catalogs/internal).
     </Tab>
     <Tab title="JDBC catalog">
-    To connect to an external JDBC catalog like PostgreSQL:
     ```sql
     CREATE CONNECTION my_iceberg_conn WITH (
         type = 'iceberg',
@@ -86,13 +92,17 @@ For more details on the available catalog options, see [Iceberg catalog configur
     ```sql
     CREATE CONNECTION s3_tables_conn WITH (
         type = 'iceberg',
-        warehouse.path = 's3://DOC-EXAMPLE-BUCKET/my-table-bucket/',
-        s3.region = 'us-east-1',
+        -- S3 Tables uses a table bucket ARN as the warehouse path
+        warehouse.path = 'arn:aws:s3tables:<your-region>:<account-id>:bucket/<bucket-name>',
+        s3.region = '<your-region>',
+        s3.access.key = 'your-key',
+        s3.secret.key = 'your-secret',
+        enable_config_load = false,
         catalog.type = 'rest',
-        catalog.uri = 'https://s3tables.us-east-1.amazonaws.com/tables',
-        catalog.rest.signing_region = 'us-east-1',
+        catalog.uri = 'https://s3tables.<your-region>.amazonaws.com/iceberg',
+        catalog.rest.signing_region = '<your-region>',
         catalog.rest.signing_name = 's3tables',
-        catalog.rest.sigv4_enabled = 'true'
+        catalog.rest.sigv4_enabled = true
     );
     ```
     </Tab>
@@ -101,11 +111,13 @@ For more details on the available catalog options, see [Iceberg catalog configur
 
 ### Step 2: Create an internal Iceberg table
 
-Create an internal Iceberg table using the `ENGINE = iceberg` clause and associate it with your connection. To simplify creation, you can set a default connection for your session.
+Create an internal Iceberg table using the `ENGINE = iceberg` clause.
+
+To create Iceberg tables, RisingWave needs to know which Iceberg `CONNECTION` to use (this connection contains both the object storage settings and the catalog settings). Choose **one** option below.
 
 ```sql
 -- Option 1: Set a default connection for the session
-SET iceberg_engine_connection = 'my_iceberg_conn';
+SET iceberg_engine_connection = 'public.my_iceberg_conn';
 
 CREATE TABLE user_events (
     user_id INT,
@@ -113,7 +125,9 @@ CREATE TABLE user_events (
     timestamp TIMESTAMPTZ,
     PRIMARY KEY (user_id, timestamp)
 ) ENGINE = iceberg;
+```
 
+```sql
 -- Option 2: Specify the connection explicitly
 CREATE TABLE user_events (
     user_id INT,
@@ -121,7 +135,7 @@ CREATE TABLE user_events (
     timestamp TIMESTAMPTZ,
     PRIMARY KEY (user_id, timestamp)
 ) ENGINE = iceberg
-  WITH (connection = 'my_iceberg_conn');
+  WITH (connection = 'public.my_iceberg_conn');
 ```
 
 You can also define a partition strategy in the `WITH` clause to optimize query performance.
@@ -141,7 +155,9 @@ Supported partitioning strategies include by column, by multiple columns, and by
 
 ## Work with internal tables
 
-Once created, an internal Iceberg table behaves like any other table in RisingWave.
+Once created, you can work with an internal Iceberg table using familiar SQL (insert, query, materialized views).
+
+One important difference: **new writes become queryable only after an Iceberg commit**. By default, Iceberg commits happen about every **60 seconds** (controlled by `commit_checkpoint_interval`).
 
 ### Ingest data
 
@@ -151,21 +167,20 @@ You can ingest data using standard `INSERT` statements or by streaming data from
 -- Manual inserts
 INSERT INTO user_events VALUES (1, 'login', '2024-01-01 10:00:00Z');
 
--- Stream data from a Kafka source into the table
-CREATE SOURCE sales_src (
-  item_id INT,
-  customer_id INT,
-  price DOUBLE,
-  ts TIMESTAMP
+-- Stream data from a Kafka source into the same table
+CREATE SOURCE user_events_src (
+  user_id INT,
+  event_type VARCHAR,
+  timestamp TIMESTAMPTZ
 ) WITH (
   connector = 'kafka',
-  topic = 'sales_events',
+  topic = 'user_events',
   properties.bootstrap.server = 'kafka:9092'
 ) FORMAT PLAIN ENCODE JSON;
 
-CREATE SINK to_sales_events INTO sales_events AS
-SELECT item_id, customer_id, price, ts
-FROM sales_src;
+CREATE SINK to_user_events INTO user_events AS
+SELECT user_id, event_type, timestamp
+FROM user_events_src;
 ```
 
 ### Query data
@@ -174,6 +189,7 @@ Query the table directly with `SELECT` or use it as a source for a materialized 
 
 ```sql
 -- Ad hoc query
+-- Note: you may need to wait for the next Iceberg commit (default ~60s) to see recent writes.
 SELECT * FROM user_events WHERE event_type = 'login';
 
 -- Create a materialized view
@@ -186,7 +202,7 @@ GROUP BY user_id;
 
 ### Time travel
 
-Query historical snapshots of the table using `FOR SYSTEM_TIME AS OF` or `FOR SYSTEM_VERSION AS OF`.
+Time travel queries work on committed Iceberg snapshots. Make sure at least one Iceberg commit has happened before using these queries.
 
 ```sql
 -- Query a snapshot by timestamp
@@ -211,6 +227,7 @@ CREATE TABLE t_partition (
     PRIMARY KEY (v1, v2, v3, v4)
 )
 WITH (
+    -- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
     commit_checkpoint_interval = 1,
     partition_by = 'truncate(4,v2),bucket(5,v1)'
 )
