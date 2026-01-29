@@ -1,0 +1,17 @@
+name: Update Mintlify Project
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  update-mintlify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Project
+        run: |
+          curl --request POST \
+            --url https://api.mintlify.com/v1/project/update/66e14ea9d394192900ae6972 \
+            --header 'Authorization: Bearer ${{ secrets.MINTIFY_SECRET_KEY }}'
