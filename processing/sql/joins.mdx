@@ -26,6 +26,10 @@ The syntax of INNER JOIN is as follows:
 <table_expression> NATURAL [ INNER ] JOIN <table_expression>;
 ```
 
+<Note>
+In streaming queries, it’s usually more efficient to put filters in the JOIN ON clause rather than filtering after the join. Consider restructuring your query to include filters in `ON` when possible.
+</Note>
+
 By default, filters that are not part of the join condition are evaluated after the inner join in streaming queries. This reduces extra computation but may hurt performance in some cases. To force filters to be pushed into the join operator in streaming mode, you can enable the following session variable `SET streaming_force_filter_inside_join = true`.
 
 ```sql Example
@@ -353,7 +357,7 @@ select fact.* FROM fact JOIN dimension FOR SYSTEM_TIME AS OF PROCTIME() ON fact.
 ### Isolating high-amplification joins
 
 <Note>
-Added in v2.5.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage.
+Added in v2.5.0. It is currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage, with some known performance issues and bugs tracked [here](https://github.com/risingwavelabs/risingwave/issues/20408).
 </Note>
 
 High join amplification in streaming queries can cause significant backpressure on downstream operators. To mitigate this, you can enable unaligned joins using:

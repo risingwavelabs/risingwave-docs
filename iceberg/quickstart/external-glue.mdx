@@ -1,0 +1,127 @@
+---
+title: "External Iceberg tables with AWS Glue"
+sidebarTitle: "External + Glue"
+description: "Create an external Iceberg table with AWS Glue + S3, then write to it and read from it in RisingWave using the Iceberg connector."
+---
+
+This quickstart shows how to use an **externally managed** Iceberg table with **AWS Glue Data Catalog**:
+
+- Create the Iceberg table outside RisingWave (using **Amazon Athena**)
+- Deliver data **to** the table with `CREATE SINK`
+- Read data **from** the same table with `CREATE SOURCE`
+
+All steps are runnable with **AWS CLI + RisingWave SQL**.
+
+## Prerequisites
+
+- A running RisingWave cluster (self-hosted or RisingWave Cloud) and access to run SQL.
+- **AWS CLI** configured with credentials (AK/SK).
+- Access to **AWS Glue**, **S3**, and **Athena** in a region where Athena engine v3 is available.
+
+## Step 1: Create an S3 bucket and Glue database
+
+```bash
+export AWS_REGION=us-west-2
+export ICEBERG_BUCKET=my-iceberg-demo-bucket
+export GLUE_DB=rw_quickstart
+
+aws s3 mb "s3://${ICEBERG_BUCKET}" --region "${AWS_REGION}"
+
+# Athena needs an output location for query results
+export ATHENA_OUTPUT="s3://${ICEBERG_BUCKET}/athena-results/"
+
+aws glue create-database \
+  --region "${AWS_REGION}" \
+  --database-input "{\"Name\":\"${GLUE_DB}\"}"
+```
+
+## Step 2: Create an Iceberg table in Glue (via Athena)
+
+Create the table:
+
+```bash
+aws athena start-query-execution \
+  --region "${AWS_REGION}" \
+  --query-string "CREATE TABLE ${GLUE_DB}.rw_events (id int, event_type string, event_ts timestamp) LOCATION 's3://${ICEBERG_BUCKET}/warehouse/${GLUE_DB}/rw_events/' TBLPROPERTIES ('table_type'='ICEBERG')" \
+  --result-configuration "OutputLocation=${ATHENA_OUTPUT}"
+```
+
+Optionally insert some rows (so you can see data immediately when reading in RisingWave):
+
+```bash
+aws athena start-query-execution \
+  --region "${AWS_REGION}" \
+  --query-string "INSERT INTO ${GLUE_DB}.rw_events VALUES (100,'seed','2026-01-01 00:00:00'),(101,'seed','2026-01-01 00:01:00')" \
+  --result-configuration "OutputLocation=${ATHENA_OUTPUT}"
+```
+
+<Note>
+For production usage, you should check the Athena query execution status before continuing. For brevity, this quickstart omits polling.
+</Note>
+
+## Step 3: Deliver data to the Glue-managed Iceberg table (RisingWave)
+
+```sql
+CREATE TABLE local_events (
+  id INT,
+  event_type VARCHAR,
+  event_ts TIMESTAMP
+);
+
+CREATE SINK to_glue_events FROM local_events
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+
+  warehouse.path = 's3://my-iceberg-demo-bucket/warehouse/',
+  s3.region = 'us-west-2',
+  s3.access.key = 'YOUR_AWS_ACCESS_KEY_ID',
+  s3.secret.key = 'YOUR_AWS_SECRET_ACCESS_KEY',
+  enable_config_load = false,
+
+  catalog.type = 'glue',
+  glue.region = 'us-west-2',
+
+  database.name = 'rw_quickstart',
+  table.name = 'rw_events',
+
+  commit_checkpoint_interval = 1
+);
+```
+
+Insert some rows (the sink will deliver them to the Iceberg table):
+
+```sql
+INSERT INTO local_events VALUES
+  (1, 'login',  '2026-01-01 10:00:00'),
+  (2, 'click',  '2026-01-01 10:01:00'),
+  (3, 'logout', '2026-01-01 10:02:00');
+```
+
+## Step 4: Read the same table back as an Iceberg source
+
+```sql
+CREATE SOURCE glue_events_src
+WITH (
+  connector = 'iceberg',
+  warehouse.path = 's3://my-iceberg-demo-bucket/warehouse/',
+  database.name = 'rw_quickstart',
+  table.name = 'rw_events',
+
+  catalog.type = 'glue',
+  s3.region = 'us-west-2',
+  s3.access.key = 'YOUR_AWS_ACCESS_KEY_ID',
+  s3.secret.key = 'YOUR_AWS_SECRET_ACCESS_KEY',
+  enable_config_load = false
+);
+
+SELECT * FROM glue_events_src ORDER BY event_ts;
+```
+
+## What you just built
+
+- An Iceberg table whose metadata is managed by **AWS Glue** and data lives on **S3**.
+- RisingWave acting as both a **writer** (`SINK`) and a **reader** (`SOURCE`) through the Iceberg connector.
+
+For reference, see [AWS Glue catalog](/iceberg/catalogs/glue), [Deliver data to Iceberg tables](/iceberg/deliver-to-iceberg), and [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg).
+

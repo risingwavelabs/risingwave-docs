@@ -8,9 +8,19 @@ GitHub webhook allows you to build or set up integrations that subscribe to cert
 
 This guide will walk through the steps to set up RisingWave as a destination for GitHub webhooks.
 
+<Info>
+New to RisingWave webhooks? Before configuring GitHub, it's recommended to run a quick local smoke test to confirm your RisingWave webhook listener is reachable and your table is ingesting events. See [Webhook endpoint](/integrations/sources/webhook#webhook-endpoint) and [Quick local smoke test](/integrations/sources/webhook#quick-local-smoke-test-no-upstream-saas-required).
+</Info>
+
 ## 1. Create a table in RisingWave
 
 Next, create a table configured to accept webhook data from GitHub.
+
+```sql
+-- Optional (recommended): store the shared secret as a RisingWave secret.
+-- If you don't have access to secrets, skip this and use the raw-string example below.
+CREATE SECRET test_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+```
 
 ```sql
 CREATE TABLE wbhtable (
@@ -19,7 +29,7 @@ CREATE TABLE wbhtable (
   connector = 'webhook',
   [ is_batched = true ]
 ) VALIDATE SECRET test_secret AS secure_compare(
-  headers->>'x-hub-signature-256', ## Example value: `sha256=f37a93a68fef1505d75e920a15d0543199557be72d2182e5cf8c15d7f9a6260f`
+  headers->>'x-hub-signature-256', -- Example header value: `sha256=f37a93a68fef1505d75e920a15d0543199557be72d2182e5cf8c15d7f9a6260f`
   'sha256=' || encode(hmac(test_secret, data, 'sha256'), 'hex')
 );
 ```
@@ -44,7 +54,7 @@ CREATE TABLE wbhtable (
   data JSONB
 ) WITH (
   connector = 'webhook'
-) VALIDATE SECRET test_secret AS secure_compare(
+) VALIDATE AS secure_compare(
   headers->>'x-hub-signature',
   'sha1=' || encode(hmac('TEST_WEBHOOK', data, 'sha1'), 'hex')
 );

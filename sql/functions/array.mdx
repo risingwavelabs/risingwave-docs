@@ -385,6 +385,63 @@ unnest(Array[Array[1,3,4,5],Array[2,3]]) →
 3
 ```
 
+#### Best practices
+
+When using the `unnest` function, consider the following performance-optimized patterns:
+
+**For aggregation:** If you want to unnest an array and then aggregate the values back to a scalar, consider using functions like `array_sum` directly against the array. This approach is preferred over using `unnest` and then `sum` to aggregate. Pure functions like `array_sum` have much better performance than relational level aggregation, which introduces additional states.
+
+**For unnesting:** If you want to unnest the array only, use `unnest` in the SELECT clause directly instead of in a correlated subquery. Correlated subqueries introduce additional states, which impacts performance. When you need to add ordinality to each unnested row, you can use `unnest` together with `generate_series`.
+
+Given this example table:
+
+```sql
+CREATE TABLE example (v1 int, v2 int[]);
+INSERT INTO example VALUES (1, array[5,6,7]);
+```
+
+**For aggregation:**
+
+<Tabs>
+<Tab title="✅ Recommended">
+Use array aggregate functions directly:
+
+```sql
+SELECT v1, array_sum(v2) AS sum FROM example;
+```
+</Tab>
+
+<Tab title="❌ Not recommended">
+Avoid using unnest in correlated subqueries for aggregation:
+
+```sql
+SELECT v1, (SELECT sum(item) FROM unnest(example.v2) AS item) AS sum FROM example;
+```
+</Tab>
+</Tabs>
+
+**For array elements with ordinality:**
+
+<Tabs>
+<Tab title="✅ Recommended">
+Use `generate_series` with `unnest`:
+
+```sql
+SELECT v1, unnest(v2) AS item, generate_series(1, array_length(v2), 1) AS ord FROM example;
+```
+
+</Tab>
+
+<Tab title="❌ Not recommended">
+Avoid using `WITH ORDINALITY`:
+
+```sql
+SELECT v1, item, ord FROM example, unnest(v2) WITH ORDINALITY AS foo(item, ord);
+```
+</Tab>
+</Tabs>
+Note: If you're using `unnest` for row-level processing, followed by an `array_agg` aggregation, it can incur additional overhead due to subplan execution. Use `EXPLAIN` to examine your query plan, and see if there are unexpected JOINs in your query. If so, please consider rewriting with `array_transform` to perform your mapping logic to avoid the subplan execution.
+
 ## Array operators[](#array-operators "Direct link to Array operators")
 
 ### `array @> array -> boolean`[](#array--array---boolean "Direct link to array--array---boolean")

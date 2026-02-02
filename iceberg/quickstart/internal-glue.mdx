@@ -1,0 +1,88 @@
+---
+title: "Internal Iceberg tables with AWS Glue"
+sidebarTitle: "Internal + Glue"
+description: "Create a RisingWave-managed (internal) Iceberg table using AWS Glue Data Catalog."
+---
+
+This quickstart creates an **internal Iceberg table** (RisingWave-managed) backed by **AWS S3**, using **AWS Glue Data Catalog** to manage Iceberg metadata.
+
+## Prerequisites
+
+- A running RisingWave cluster (self-hosted or RisingWave Cloud) and access to run SQL.
+- **AWS CLI** configured with credentials (AK/SK).
+- An S3 bucket for your Iceberg warehouse.
+- Permissions to use Glue (at minimum: create/read databases and tables).
+
+## Step 1: Create the S3 bucket and a Glue database
+
+Pick a schema/namespace name. In this quickstart we use `rw_quickstart`.
+
+```bash
+export AWS_REGION=us-west-2
+export ICEBERG_BUCKET=my-iceberg-demo-bucket
+export GLUE_DB=rw_quickstart
+
+aws s3 mb "s3://${ICEBERG_BUCKET}" --region "${AWS_REGION}"
+
+aws glue create-database \
+  --region "${AWS_REGION}" \
+  --database-input "{\"Name\":\"${GLUE_DB}\"}"
+```
+
+## Step 2: Create an Iceberg `CONNECTION` (Glue catalog)
+
+Run the following in RisingWave (replace placeholders):
+
+```sql
+CREATE CONNECTION glue_conn WITH (
+  type = 'iceberg',
+
+  -- S3 warehouse (Iceberg data files)
+  warehouse.path = 's3://my-iceberg-demo-bucket/warehouse/',
+  s3.region = 'us-west-2',
+  s3.access.key = 'YOUR_AWS_ACCESS_KEY_ID',
+  s3.secret.key = 'YOUR_AWS_SECRET_ACCESS_KEY',
+  enable_config_load = false,
+
+  -- Catalog: AWS Glue
+  catalog.type = 'glue',
+  glue.region = 'us-west-2'
+);
+```
+
+## Step 3: Create and write to an internal Iceberg table
+
+```sql
+SET iceberg_engine_connection = 'public.glue_conn';
+
+CREATE SCHEMA IF NOT EXISTS rw_quickstart;
+SET search_path TO rw_quickstart;
+
+CREATE TABLE user_events (
+  user_id INT,
+  event_type VARCHAR,
+  event_ts TIMESTAMPTZ,
+  PRIMARY KEY (user_id, event_ts)
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+
+Insert some rows and query them:
+
+```sql
+INSERT INTO user_events VALUES
+  (1, 'login',  '2026-01-01 10:00:00Z'),
+  (1, 'click',  '2026-01-01 10:01:00Z'),
+  (2, 'login',  '2026-01-01 11:00:00Z');
+
+SELECT * FROM user_events ORDER BY event_ts;
+```
+
+## What you just built
+
+- RisingWave manages the table lifecycle.
+- Glue stores the table metadata; data files live under `warehouse.path` in S3.
+
+For reference, see [AWS Glue catalog](/iceberg/catalogs/glue).
+

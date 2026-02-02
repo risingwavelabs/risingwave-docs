@@ -112,6 +112,19 @@
                         ]
                       },
                       {
+                        "group": "Webhooks & Events API",
+                        "pages": [
+                          "integrations/sources/webhook",
+                          "integrations/sources/opentelemetry-webhook",
+                          "integrations/sources/events-api",
+                          "integrations/sources/github-webhook",
+                          "integrations/sources/segment-webhook",
+                          "integrations/sources/hubspot-webhook",
+                          "integrations/sources/eventbridge-webhook",
+                          "integrations/sources/rudderstack-webhook"
+                        ]
+                      },
+                      {
                         "group": "Change Data Capture",
                         "pages": [
                           "ingestion/cdc-with-risingwave",
@@ -152,71 +165,54 @@
                         "group": "Apache Kafka",
                         "pages": [
                           "ingestion/sources/kafka",
-                          "ingestion/sources/kafka-config"
+                          "ingestion/sources/kafka-config",
+                          {
+                            "group": "Managed/Hosted Kafka",
+                            "pages": [
+                              "integrations/sources/amazon-msk",
+                              "integrations/sources/automq-kafka",
+                              "integrations/sources/confluent-cloud",
+                              "integrations/sources/instaclustr-kafka",
+                              "integrations/sources/redhat-amq-streams",
+                              "integrations/sources/warpstream"
+                            ]
+                          }
                         ]
                       },
                       "ingestion/sources/iceberg",
                       {
-                        "group": "All other connectors",
+                        "group": "Database tables (non-CDC)",
                         "pages": [
-                          "ingestion/sources",
+                          "integrations/sources/postgresql-table",
+                          "integrations/sources/mysql-table"
+                        ]
+                      },
+                      {
+                        "group": "Object storage",
+                        "pages": [
+                          "integrations/sources/azure-blob",
+                          "integrations/sources/google-cloud-storage",
+                          "integrations/sources/s3"
+                        ]
+                      },
+                      {
+                        "group": "Other messaging platforms",
+                        "pages": [
+                          "integrations/sources/google-pub-sub",
+                          "integrations/sources/kinesis",
                           {
-                            "group": "Webhooks",
+                            "group": "MQTT",
                             "pages": [
-                              "integrations/sources/webhook",
-                              "integrations/sources/github-webhook",
-                              "integrations/sources/segment-webhook",
-                              "integrations/sources/hubspot-webhook",
-                              "integrations/sources/eventbridge-webhook",
-                              "integrations/sources/rudderstack-webhook"
+                              "integrations/sources/mqtt",
+                              "integrations/sources/coreflux-broker",
+                              "integrations/sources/emqx",
+                              "integrations/sources/hivemq"
                             ]
                           },
-                          {
-                            "group": "Databases",
-                            "pages": [
-                              "integrations/sources/postgresql-table",
-                              "integrations/sources/mysql-table"
-                            ]
-                          },
-                          {
-                            "group": "Object storage",
-                            "pages": [
-                              "integrations/sources/azure-blob",
-                              "integrations/sources/google-cloud-storage",
-                              "integrations/sources/s3"
-                            ]
-                          },
-                          {
-                            "group": "Messaging platforms",
-                            "pages": [
-                              "integrations/sources/google-pub-sub",
-                              {
-                                "group": "Kafka",
-                                "pages": [
-                                  "integrations/sources/amazon-msk",
-                                  "integrations/sources/automq-kafka",
-                                  "integrations/sources/confluent-cloud",
-                                  "integrations/sources/instaclustr-kafka",
-                                  "integrations/sources/redhat-amq-streams",
-                                  "integrations/sources/warpstream"
-                                ]
-                              },
-                              "integrations/sources/kinesis",
-                              {
-                                "group": "MQTT",
-                                "pages": [
-                                  "integrations/sources/mqtt",
-                                  "integrations/sources/coreflux-broker",
-                                  "integrations/sources/emqx",
-                                  "integrations/sources/hivemq"
-                                ]
-                              },
-                              "integrations/sources/nats-jetstream",
-                              "integrations/sources/pulsar",
-                              "integrations/sources/redpanda",
-                              "integrations/sources/solace"
-                            ]
-                          }
+                          "integrations/sources/nats-jetstream",
+                          "integrations/sources/pulsar",
+                          "integrations/sources/redpanda",
+                          "integrations/sources/solace"
                         ]
                       }
                     ]
@@ -253,14 +249,14 @@
                       "processing/time-travel-queries"
                     ]
                   },
-                  "store/overview",
                   {
-                    "group": "Serve data",
+                    "group": "Store and access data",
                     "pages": [
+                      "store/overview",
                       "serve/overview",
-                      "serve/subscription",
+                      "serve/risingwave-as-postgres-fdw",
                       {
-                        "group": "Query from visualization tools",
+                        "group": "Visualization tools",
                         "pages": [
                           "integrations/visualization/overview",
                           "integrations/visualization/bytebase",
@@ -271,14 +267,14 @@
                           "integrations/visualization/metabase",
                           "integrations/visualization/superset"
                         ]
-                      },
-                      "serve/risingwave-as-postgres-fdw"
+                      }
                     ]
                   },
                   {
                     "group": "Deliver data",
                     "pages": [
                       "delivery/overview",
+                      "serve/subscription",
                       "integrations/destinations/apache-iceberg",
                       "integrations/destinations/apache-kafka",
                       "integrations/destinations/clickhouse",
@@ -581,7 +577,16 @@
                 "group": "Interact with Apache Iceberg",
                 "pages": [
                   "iceberg/overview",
-                  "iceberg/quick-start",
+                  {
+                    "group": "Quickstarts",
+                    "pages": [
+                      "iceberg/quick-start",
+                      "iceberg/quickstart/internal-built-in-catalog",
+                      "iceberg/quickstart/internal-s3-tables",
+                      "iceberg/quickstart/external-s3-tables",
+                      "iceberg/quickstart/s3-tables-aws-cli"
+                    ]
+                  },
                   "iceberg/iceberg-feature-support",
                   {
                     "group": "Internal Iceberg tables",
@@ -603,11 +608,11 @@
                     "pages": [
                       "iceberg/catalogs",
                       "iceberg/catalogs/internal",
+                      "iceberg/catalogs/s3-tables",
                       "iceberg/catalogs/glue",
                       "iceberg/catalogs/jdbc",
                       "iceberg/catalogs/rest",
                       "iceberg/catalogs/lakekeeper",
-                      "iceberg/catalogs/s3-tables",
                       "iceberg/catalogs/hive",
                       "iceberg/catalogs/snowflake",
                       "iceberg/catalogs/unity"
@@ -619,23 +624,23 @@
                   "iceberg/maintenance",
                   "iceberg/compaction-benchmark",
                   {
-                    "group": "Nimtable",
-                    "pages": [
-                      "iceberg/nimtable/overview",
-                      "iceberg/nimtable/get-started",
-                      "iceberg/nimtable/manage-catalogs",
-                      "iceberg/nimtable/browse-and-query",
-                      "iceberg/nimtable/maintenance",
-                      "iceberg/nimtable/ops"
-                    ]
-                  },
-                  {
                     "group": "Integrations",
                     "pages": [
                       "iceberg/integ-databricks",
                       "iceberg/integ-snowflake"
                     ]
                   }
+                ]
+              },
+              {
+                "group": "Nimtable: Iceberg o11y platform",
+                "pages": [
+                  "iceberg/nimtable/overview",
+                  "iceberg/nimtable/get-started",
+                  "iceberg/nimtable/manage-catalogs",
+                  "iceberg/nimtable/browse-and-query",
+                  "iceberg/nimtable/maintenance",
+                  "iceberg/nimtable/ops"
                 ]
               }
             ]
@@ -960,6 +965,10 @@
   },
   "redirects": [
     {
+      "source": "/iceberg/s3-tables-aws-cli",
+      "destination": "/iceberg/quickstart/s3-tables-aws-cli"
+    },
+    {
       "source": "/release-notes",
       "destination": "/changelog/release-notes"
     },
@@ -1018,6 +1027,10 @@
     {
       "source": "/ingestion/sources/iceberg-config",
       "destination": "/iceberg/create-manage-native-iceberg-tables"
+    },
+    {
+      "source": "/ingestion/sources",
+      "destination": "/ingestion/overview#supported-sources"
     },
     {
       "source": "/get-started/rw-premium-edition-intro",

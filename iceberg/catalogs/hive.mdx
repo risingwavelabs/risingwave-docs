@@ -16,8 +16,36 @@ For a complete list of all catalog-related parameters, see the main [Catalog con
 
 ## Example
 
-To create a sink that uses a Hive Metastore catalog, set `catalog.type` to `'hive'` and provide the `catalog.uri` for your metastore service.
+Examples for using a Hive Metastore catalog with internal Iceberg tables, sinks, and sources.
 
+<Tabs>
+  <Tab title="Internal tables (recommended)">
+```sql
+CREATE CONNECTION hive_conn WITH (
+    type = 'iceberg',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    enable_config_load = false,
+
+    catalog.type = 'hive',
+    catalog.uri = 'thrift://hive-metastore:9083'
+);
+
+SET iceberg_engine_connection = 'public.hive_conn';
+
+-- `commit_checkpoint_interval` controls Iceberg commit frequency. Default: about every 60 seconds; set to 1 for faster commits and visibility.
+CREATE TABLE my_internal_iceberg_table (
+  id INT PRIMARY KEY,
+  name VARCHAR
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
+```
+  </Tab>
+
+  <Tab title="Write (CREATE SINK)">
 ```sql
 CREATE SINK my_hive_sink FROM my_mv WITH (
     connector = 'iceberg',
@@ -30,6 +58,26 @@ CREATE SINK my_hive_sink FROM my_mv WITH (
     s3.access.key = '...',
     s3.secret.key = '...',
     database.name = 'my_db',
+    create_table_if_not_exists = 'true',
     table.name = 'my_table'
 );
 ```
+  </Tab>
+
+  <Tab title="Read (CREATE SOURCE)">
+```sql
+CREATE SOURCE my_hive_source
+WITH (
+    connector = 'iceberg',
+    catalog.type = 'hive',
+    catalog.uri = 'thrift://hive-metastore:9083',
+    warehouse.path = 's3://my-bucket/warehouse/',
+    s3.region = 'us-west-2',
+    s3.access.key = '...',
+    s3.secret.key = '...',
+    database.name = 'my_db',
+    table.name = 'my_table'
+);
+```
+  </Tab>
+</Tabs>

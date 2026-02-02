@@ -3,9 +3,15 @@ title: "Monitor a RisingWave cluster"
 description: "If you run RisingWave in a Kubernetes cluster, you can monitor its performance, including the usage of resources like CPU, memory, and network, and the status of different nodes."
 ---
 
-You can monitor your RisingWave cluster using various tools including Prometheus and Grafana, or through the [RisingWave Console](/risingwave-console/manage-monitor-clusters), which provides a built-in monitoring interface for cluster health, node status, and performance metrics. The console also offers diagnostic collection and metadata snapshot management for comprehensive cluster observability.
+You can monitor your RisingWave cluster using multiple approaches:
 
-## Install the monitoring stack
+1. **Built-in RisingWave Dashboard**: Web UI served by the meta node at port 5691 (by default), providing cluster overview, catalog inspection, and fragment graphs. See [Troubleshooting Overview - Dashboard](/troubleshoot/overview#get-an-overview-of-the-cluster) for details.
+
+2. **Prometheus + Grafana**: For detailed performance metrics and alerting. RisingWave exposes Prometheus metrics endpoints on each component (compute, meta, frontend, compactor). This page describes how to set up the Prometheus/Grafana monitoring stack.
+
+3. **RisingWave Console** (separate product): An enhanced on-premise UI with additional features like risectl command execution, automated diagnostics, and metadata snapshot management. See [RisingWave Console documentation](/risingwave-console/introduction) for details.
+
+## Monitoring with Prometheus and Grafana
 
 To monitor a RisingWave cluster, you can use the monitoring stack in the `RisingWave-Operator` repository. The stack includes Prometheus for collecting data, Grafana for visualization and alerting, and other necessary resources.
 

@@ -4,28 +4,44 @@ sidebarTitle: "Built-in catalog"
 description: "Use RisingWave's built-in catalog to create and manage internal Iceberg tables with zero external dependencies."
 ---
 
-RisingWave includes a built-in Iceberg catalog that simplifies the creation and management of internal Iceberg tables. It utilizes RisingWave’s internal PostgreSQL-compatible metastore to serve as a standard Iceberg JDBC catalog, removing the need for you to deploy or manage any external catalog services.
-
-This is the simplest way to get started with internal Iceberg tables in RisingWave.
+RisingWave includes a built-in Iceberg catalog for internal Iceberg tables. It uses the same **metastore database** that RisingWave is configured with (via its metadata backend) as a JDBC-compliant Iceberg catalog, so you don’t need to deploy or manage a separate catalog service.
 
 <Note>
-You can use this catalog configuration when creating a `CONNECTION` for managing internal Iceberg tables.
+**Prerequisite:** The built-in catalog (`hosted_catalog = true`) requires RisingWave’s metastore backend to be **PostgreSQL or MySQL**. **SQLite is not supported** for internal Iceberg tables with the built-in catalog.
+
+If you use **Standalone mode**, RisingWave uses embedded SQLite for the metastore by default, so the built-in catalog is not supported by default. See [Standalone mode](/operate/rw-standalone-mode).
 </Note>
 
-## How it works
+## How it works (high level)
 
-When you create an internal Iceberg table using a connection with `hosted_catalog = true`, RisingWave automatically manages the Iceberg metadata within its own metastore.
+When you create an internal Iceberg table, there are two kinds of state involved:
 
-- **JDBC endpoint**: The metastore exposes a JDBC endpoint that is compatible with the Iceberg JDBC catalog specification.
-- **External access**: Because it uses a standard protocol, external query engines like Spark or Trino can connect to this endpoint to discover and query the Iceberg tables that RisingWave manages.
+- **Data files**: Stored in your object storage (S3 / GCS / Azure Blob / etc.).
+- **Iceberg metadata**: Managed by an **Iceberg catalog** — a metadata service that tracks the table schema, snapshots, and data file locations. In this guide, the “catalog” is RisingWave’s **built-in catalog** (`hosted_catalog = true`), and the metadata is stored in RisingWave’s configured metastore database (PostgreSQL or MySQL).
 
-## Create and test your table
+With the **built-in catalog**, you set `hosted_catalog = true` in an Iceberg `CONNECTION`, and RisingWave manages the Iceberg metadata in its own metastore.
 
-To use the built-in catalog, you create a `CONNECTION` with `hosted_catalog = true` and then create an internal Iceberg table.
+Because the built-in catalog is JDBC-compliant, external engines like Spark or Trino can connect to it and query the same Iceberg tables (using the same catalog endpoint and the same object storage).
 
-### 1. Create a connection
+## Create and test an internal Iceberg table
 
-Define a connection that specifies your object storage backend. This example uses AWS S3.
+### Step 1: Create an Iceberg connection (built-in catalog)
+
+<Note>
+A `CONNECTION` is simply a **saved config profile** in RisingWave.
+
+You create it once with `CREATE CONNECTION ...`, and then reuse it by name:
+
+- Set a default for the session: `SET iceberg_engine_connection = 'schema.connection_name'`
+- Or bind it on a table: `WITH (connection = 'schema.connection_name')`
+</Note>
+
+An Iceberg `CONNECTION` stores two things in one place:
+
+- Object storage settings (for the data files), such as `warehouse.path` and `s3.*`.
+- Catalog settings (for metadata). For the built-in catalog, this is `hosted_catalog = true`.
+
+Example (AWS S3):
 
 ```sql
 CREATE CONNECTION built_in_catalog_conn WITH (
@@ -40,30 +56,50 @@ CREATE CONNECTION built_in_catalog_conn WITH (
 
 For details on configuring other storage backends, see [Object storage configuration](/iceberg/object-storage).
 
-### 2. Set the default connection
+### Step 2: Bind the connection (choose ONE)
 
-Set the default connection for your session to simplify table creation.
+When you create `ENGINE = iceberg` tables, RisingWave needs to know **which Iceberg `CONNECTION` to use**. You have two equivalent options:
+
+- **Option A (recommended for beginners)**: Set a session default, so you don’t need to repeat the connection on every table.
+- **Option B**: Specify the connection on each table.
+
+The connection name format is `schema_name.connection_name` (for example, `public.built_in_catalog_conn`).
+
+#### Option A: Set a session default and create a table
 
 ```sql
+-- 1) Set the default connection for this session
 SET iceberg_engine_connection = 'public.built_in_catalog_conn';
-```
 
-### 3. Create and query the table
-
-Create an internal Iceberg table and write data to it.
-
-```sql
--- Create a table
+-- 2) Create an internal Iceberg table (no need to specify connection again)
 CREATE TABLE my_iceberg_table (
     id INT PRIMARY KEY,
     name VARCHAR
 ) ENGINE = iceberg;
 
--- Insert data
+-- 3) Insert data.
+-- Note: For `ENGINE = iceberg`, data becomes visible only after an Iceberg commit.
+-- By default, Iceberg commits about every 60 seconds.
 INSERT INTO my_iceberg_table VALUES (1, 'alice'), (2, 'bob');
-FLUSH;
+-- Wait about 60 seconds, then query:
+SELECT * FROM my_iceberg_table;
+```
 
--- Query the data
+#### Option B: Specify the connection on the table
+
+```sql
+-- Create an internal Iceberg table and bind it to a connection explicitly
+CREATE TABLE my_iceberg_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+) ENGINE = iceberg
+  WITH (connection = 'public.built_in_catalog_conn');
+
+-- Insert data.
+-- Note: For `ENGINE = iceberg`, data becomes visible only after an Iceberg commit.
+-- By default, Iceberg commits about every 60 seconds.
+INSERT INTO my_iceberg_table VALUES (1, 'alice'), (2, 'bob');
+-- Wait about 60 seconds, then query:
 SELECT * FROM my_iceberg_table;
 ```
 
@@ -71,5 +107,5 @@ SELECT * FROM my_iceberg_table;
   title="Complete Guide: Create and manage internal Iceberg tables"
   href="/iceberg/internal-iceberg-tables#create-an-internal-iceberg-table"
 >
-  For a complete, step-by-step guide to creating and working with internal Iceberg tables, see this topic.
+  For more details (partitioning, maintenance, external access, limitations), see this topic.
 </Card>

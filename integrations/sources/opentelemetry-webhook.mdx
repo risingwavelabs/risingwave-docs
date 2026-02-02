@@ -1,0 +1,148 @@
+---
+title: "Ingest OpenTelemetry data (OTel) into RisingWave"
+description: "Use OpenTelemetry Collector to send traces, metrics, and logs into RisingWave over HTTP via the Webhook connector (no Kafka)."
+sidebarTitle: "OpenTelemetry (OTel)"
+---
+
+OpenTelemetry (OTel) is a standard for collecting telemetry data such as **traces**, **metrics**, and **logs**.
+
+This guide shows how to use **RisingWave as an HTTP ingestion endpoint** for OpenTelemetry by combining:
+
+- RisingWave **Webhook connector** (`connector = 'webhook'`)
+- OpenTelemetry Collector **OTLP/HTTP exporter** (`otlphttp`) with `encoding: json`
+
+This approach is lightweight and **does not require Kafka**.
+
+<Info>
+If you want a standalone HTTP ingestion service (JSON/NDJSON) and SQL-over-HTTP, see [Events API](/integrations/sources/events-api).
+</Info>
+
+## How it works
+
+Data flow:
+
+1. Your apps/agents send telemetry to the **OpenTelemetry Collector**.
+2. The Collector exports telemetry as **JSON over HTTP** (OTLP/HTTP JSON) to RisingWave.
+3. RisingWave receives the HTTP POST requests on the webhook listener (default port `4560`) and stores each request body as a row in a webhook table (`data JSONB`).
+4. You build **materialized views** to parse, filter, and aggregate the telemetry in real time.
+
+## Prerequisites
+
+- A running RisingWave cluster with the **webhook listener enabled**.
+  - Default webhook port: `4560`
+  - Webhook endpoint format: `http://<HOST>:4560/webhook/<database>/<schema>/<table>`
+  - See: [Ingest data from webhook](/integrations/sources/webhook#webhook-endpoint)
+- An OpenTelemetry Collector that can reach the RisingWave webhook endpoint.
+
+## 1. Create webhook tables in RisingWave
+
+Create one table per signal type. Each table stores the incoming request body in a `JSONB` column.
+
+```sql
+CREATE TABLE otel_traces (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+);
+
+CREATE TABLE otel_metrics (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+);
+
+CREATE TABLE otel_logs (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+);
+```
+
+<Note>
+Webhook tables currently support `JSONB` payload columns. See: [Ingest data from webhook](/integrations/sources/webhook).
+</Note>
+
+### Optional: request validation
+
+For production, validate incoming requests so only authenticated senders can write into your tables. RisingWave supports `VALIDATE ... secure_compare(...)`.
+
+See: [Request validation](/integrations/sources/webhook#request-validation-optional-but-recommended).
+
+## 2. Configure OpenTelemetry Collector to export to RisingWave (OTLP/HTTP JSON)
+
+Configure an `otlphttp` exporter and point its endpoints to your RisingWave webhook tables:
+
+- `http://<rw-host>:4560/webhook/<db>/<schema>/otel_traces`
+- `http://<rw-host>:4560/webhook/<db>/<schema>/otel_metrics`
+- `http://<rw-host>:4560/webhook/<db>/<schema>/otel_logs`
+
+### Example: collector config from the demo (metrics)
+
+The following example is taken from the `09-otel-demos` demo setup. It scrapes Prometheus metrics and exports them to RisingWave over HTTP.
+
+Source:
+- [`09-otel-demos/docker-compose.yaml`](https://github.com/risingwavelabs/awesome-stream-processing/blob/mike/otel-demos/09-otel-demos/docker-compose.yaml)
+- [`09-otel-demos/otel/config.yaml`](https://raw.githubusercontent.com/risingwavelabs/awesome-stream-processing/mike/otel-demos/09-otel-demos/otel/config.yaml)
+
+```yaml
+receivers:
+  prometheus:
+    config:
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 1m
+      scrape_configs:
+        - job_name: rwstandalone
+          static_configs:
+            - targets: ["rw-svc:1250"]
+
+exporters:
+  otlphttp:
+    encoding: json
+    compression: none
+    traces_endpoint: http://rw-svc:4560/webhook/dev/public/otel_traces
+    metrics_endpoint: http://rw-svc:4560/webhook/dev/public/otel_metrics
+    logs_endpoint: http://rw-svc:4560/webhook/dev/public/otel_logs
+    profiles_endpoint: http://rw-svc:4560/webhook/dev/public/otel_profiles
+
+processors:
+  batch: {}
+
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: []
+      exporters: [otlphttp]
+```
+
+<Tip>
+The demo exports only the **metrics** pipeline. To ingest traces and logs, add corresponding receivers (for example `otlp`) and define `traces:` / `logs:` pipelines exporting to the same `otlphttp` exporter.
+</Tip>
+
+## 3. Verify ingestion
+
+Once your Collector is running and exporting to RisingWave, query the tables:
+
+```sql
+SELECT COUNT(*) FROM otel_metrics;
+```
+
+To inspect the raw payload shape:
+
+```sql
+SELECT data FROM otel_metrics LIMIT 1;
+```
+
+## 4. Analyze telemetry with materialized views
+
+OTLP/HTTP JSON payloads are nested. A common workflow is:
+
+1. Start by inspecting a few rows in `otel_traces` / `otel_metrics` / `otel_logs`.
+2. Extract the fields you care about using JSON operators (`->`, `->>`) into a **materialized view**.
+3. Build dashboards/alerts by querying the materialized views.
+
+<Note>
+For high-volume pipelines, consider transforming telemetry in the Collector (for example, to flatten fields) before exporting to RisingWave. This reduces JSON parsing work inside RisingWave.
+</Note>
+

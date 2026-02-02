@@ -3,7 +3,7 @@ title: "CREATE SOURCE"
 description: "A source is a resource that RisingWave can read data from. You can create a source in RisingWave using the `CREATE SOURCE` command."
 ---
 
-For the full list of the sources we support, see [Supported sources](/ingestion/sources).
+For the full list of the sources we support, see [Supported sources](/ingestion/overview#supported-sources).
 
 If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. For most CDC formats (FORMAT DEBEZIUM, MAXWELL, CANAL), you must use `CREATE TABLE` to properly handle updates and deletes. For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
 
@@ -68,12 +68,24 @@ The generated column is created in RisingWave and will not be accessed through t
 | _generation\_expression_          | The expression for the generated column. For details about generated columns, see [Generated columns](/sql/query-syntax/generated-columns).                                                                                                                                        |
 | _watermark\_clause_               | A clause that defines the watermark for a timestamp column. The syntax is WATERMARK FOR column\_name as expr. For details about watermarks, refer to [Watermarks](/processing/watermarks).                                                                                                |
 | **INCLUDE** clause                | Extract fields not included in the payload as separate columns. For more details on its usage, see [INCLUDE clause](/ingestion/extract-metadata-from-sources).                                                                                                                                          |
-| **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/ingestion/sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
+| **WITH** clause                   | Specify the connector settings here if trying to store all the source data. See [Supported sources](/ingestion/overview#supported-sources) for the full list of supported source as well as links to specific connector pages detailing the syntax for each source. |
 | **FORMAT** and **ENCODE** options | Specify the data format and the encoding format of the source data. To learn about the supported data formats, see [Data formats and encoding options](/ingestion/formats-and-encoding-options).                                                                                      |
 
 <Note>
 Please distinguish between the parameters set in the FORMAT and ENCODE options and those set in the WITH clause. Ensure that you place them correctly and avoid any misuse.
+</Note>
 
+## Connector-specific FORMAT requirements
+
+Different connectors have specific FORMAT and ENCODE requirements:
+
+- For specialized connectors (CDC, Nexmark, Datagen, Iceberg), the FORMAT and ENCODE clauses are handled automatically and should be omitted.
+- For other connectors** (Kafka, Kinesis, Pulsar, etc.), you need to explicitly specify FORMAT and ENCODE specification based on the actual data format.
+
+If you specify an incompatible FORMAT for a connector, you will receive a parser error indicating the expected format.
+
+<Note>
+NOT NULL constraints are not supported in source schemas. If you need NOT NULL enforcement, use `CREATE TABLE` with a connector instead.
 </Note>
 ## Watermarks
 
@@ -189,7 +201,7 @@ This leads to increased resource usage and potential inconsistencies:
 
 With shared sources, when using the `CREATE SOURCE` statement:
 - It will instantiate a single `SourceExecutor` immediately. 
-- All materialized views referencing the same source share the `SourceExecutor`.
+- All materialized views referencing the same source share the `SourceExecutor`, thus the same start offset and consumption progress.
 - The downstream materialized views will only forwards data from the upstream sources, instead of consuming from Kafka independently.
 
 This improves resource utilization and consistency.
@@ -204,6 +216,7 @@ When creating a materialized view, RisingWave backfills historical data from Kaf
 
 - To monitoring backfill progress, use the [SHOW JOBS](/sql/commands/sql-show-jobs) command or check `Kafka Consumer Lag Size` in the Grafana dashboard (under `Streaming`).
 
+<Note>Even if a source is created with `scan.startup.mode` set to `latest`, a materialized view may still backfill from the offset resolved at source creation time. To start from the current latest offset, drop and recreate the source.</Note>
 
 <Note>If you set up a retention policy or if the external system can only be accessed once (like message queues), and the data is no longer available, any newly created materialized views won’t be able to backfill the complete historical data. This can lead to inconsistencies with earlier materialized views.</Note>
 

@@ -1,0 +1,159 @@
+---
+title: "External Iceberg tables with Amazon S3 Tables"
+sidebarTitle: "External + S3 Tables"
+description: "Write to and read from an externally managed Iceberg table in Amazon S3 Tables using RisingWave's Iceberg connector."
+---
+
+This quickstart demonstrates how to deliver data to, and query from, an **externally managed** Iceberg table stored in **Amazon S3 Tables**.
+
+## Prerequisites
+
+- A running RisingWave cluster (self-hosted or RisingWave Cloud) and access to run SQL.
+- **AWS CLI** configured with credentials (AK/SK).
+- Amazon S3 Tables is available in your region.
+- An existing S3 Tables Iceberg table.
+
+<Tip>
+If you don’t have a table bucket / namespace / table yet, create them by following
+[Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli).
+</Tip>
+
+## Demo: deliver to and read from an external Iceberg table in RisingWave
+
+### Set variables
+
+If you created the table bucket + namespace using AWS CLI by following [Create Amazon S3 Tables with AWS CLI](/iceberg/quickstart/s3-tables-aws-cli), you should already have `REGION`, `TABLE_BUCKET_ARN`, and `NAMESPACE`, amd `TABLE`.
+
+```bash
+export AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY"
+export REGION="..."
+export TABLE_BUCKET_ARN="..."
+export NAMESPACE="..."
+export TABLE="..."
+
+export CATALOG_URI="https://s3tables.${REGION}.amazonaws.com/iceberg"
+```
+
+### Start `psql` and pass parameters
+
+This command opens an interactive `psql` session with variables preloaded.
+
+```bash
+psql -h localhost -p 4566 -d dev -U root \
+  -v ak="'$AWS_ACCESS_KEY_ID'" \
+  -v sk="'$AWS_SECRET_ACCESS_KEY'" \
+  -v region="'$REGION'" \
+  -v wh="'$TABLE_BUCKET_ARN'" \
+  -v ns="'$NAMESPACE'" \
+  -v tb="'$TABLE'" \
+  -v uri="'$CATALOG_URI'"
+```
+
+### Step 1: Create a sink to the external table
+
+```sql
+CREATE TABLE local_events (
+  id INT,
+  name VARCHAR,
+  value INT
+);
+
+CREATE SINK to_s3tables_events FROM local_events
+WITH (
+  connector = 'iceberg',
+  type = 'append-only',
+
+  force_append_only = 'true',
+
+  warehouse.path = :wh,
+  s3.region = :region,
+  s3.access.key = :ak,
+  s3.secret.key = :sk,
+  enable_config_load = false,
+
+  catalog.type = 'rest',
+  catalog.uri = :uri,
+  catalog.rest.signing_region = :region,
+  catalog.rest.signing_name = 's3tables',
+  catalog.rest.sigv4_enabled = true,
+
+  database.name = :ns,
+  table.name = :tb,
+
+  -- Faster visibility (1-second latency) for this demo
+  commit_checkpoint_interval = 1
+);
+```
+
+### Step 2: Insert some rows
+
+```sql
+INSERT INTO local_events VALUES
+  (1, 'a', 100),
+  (2, 'b', 200),
+  (3, 'c', 300);
+```
+
+### Step 3: Create a source and query the external table
+
+```sql
+CREATE SOURCE s3tables_events_src (*)
+WITH (
+  connector = 'iceberg',
+  warehouse.path = :wh,
+
+  s3.region = :region,
+  s3.access.key = :ak,
+  s3.secret.key = :sk,
+  enable_config_load = false,
+
+  catalog.type = 'rest',
+  catalog.uri = :uri,
+  catalog.rest.signing_region = :region,
+  catalog.rest.signing_name = 's3tables',
+  catalog.rest.sigv4_enabled = true,
+
+  database.name = :ns,
+  table.name = :tb
+);
+
+SELECT * FROM s3tables_events_src ORDER BY id;
+```
+
+### Use DuckDB to query data
+
+```
+duckdb -c "
+INSTALL aws;
+INSTALL httpfs;
+INSTALL iceberg;
+LOAD aws;
+LOAD httpfs;
+LOAD iceberg;
+
+-- Use AWS credential chain from your environment (AWS CLI config, env vars, etc.)
+CREATE SECRET (TYPE s3, PROVIDER credential_chain);
+
+-- Attach S3 Tables table bucket as an Iceberg catalog in DuckDB
+ATTACH '${TABLE_BUCKET_ARN}' AS s3t (TYPE iceberg, ENDPOINT_TYPE s3_tables);
+
+SELECT * FROM s3t.${NAMESPACE}.${TABLE} ORDER BY id;
+"
+```
+
+### Cleanup (optional)
+
+```sql
+DROP SOURCE IF EXISTS s3tables_events_src;
+DROP SINK IF EXISTS to_s3tables_events;
+DROP TABLE IF EXISTS local_events;
+```
+
+## What you just built
+
+- A table that is **managed by Amazon S3 Tables** (catalog + storage), not by RisingWave.
+- RisingWave acting as both a **writer** (`SINK`) and a **reader** (`SOURCE`) through the Iceberg connector.
+
+For reference, see [Amazon S3 Tables catalog](/iceberg/catalogs/s3-tables) and [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg).
+

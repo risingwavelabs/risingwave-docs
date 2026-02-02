@@ -3,7 +3,7 @@ title: "Back up and restore meta service"
 description: "This guide introduces how to back up meta service data and restore from a backup."
 ---
 
-A meta snapshot is a backup of meta service's data at a specific point in time. Meta snapshots are persisted in S3-compatible storage.
+A meta snapshot is a backup of meta service's data at a specific point in time. Meta snapshots are persisted in object storage. RisingWave supports multiple object storage backends including S3, MinIO, Google Cloud Storage (GCS), Alibaba Cloud OSS, Huawei Cloud OBS, Azure Blob Storage, HDFS, WebHDFS, and local filesystem.
 
 ## Set backup parameters
 
@@ -12,6 +12,8 @@ Before you can create a meta snapshot, you need to set the `backup_storage_url` 
 <Warning>
 Be careful not to set the `backup_storage_url` and `backup_storage_directory` when there are snapshots. However, it's not strictly forbidden. If you insist on doing so, please note the snapshots taken before the setting will all be invalidated and cannot be used in restoration anymore.
 </Warning>
+
+If these parameters are not explicitly set, RisingWave will automatically initialize them from your state store configuration: `backup_storage_url` will default to your `state_store` URL (or "memory" if using in-memory state store), and `backup_storage_directory` will default to `{data_directory}/backup`.
 
 To learn about how to configure system parameters, see [How to configure system parameters](/operate/view-configure-system-parameters#how-to-configure-system-parameters).
 
@@ -42,17 +44,19 @@ risectl meta backup-meta
 The following SQL command lists existing meta snapshots:
 
 ```sql
-SELECT meta_snapshot_id FROM rw_catalog.rw_meta_snapshot;
+SELECT meta_snapshot_id, hummock_version_id, remarks, rw_version FROM rw_catalog.rw_meta_snapshot;
 ```
 
 Example output:
 
 ```bash
- meta_snapshot_id
+ meta_snapshot_id | hummock_version_id | remarks | rw_version
 ------------------
-                3
-                4
+                3 |                123 | manual  | v2.0.0
+                4 |                456 | NULL    | v2.0.1
 ```
+
+The `rw_catalog.rw_meta_snapshot` catalog also includes a `state_table_info` field containing detailed state table information in JSON format.
 
 ## Delete a meta snapshot
 
@@ -107,6 +111,17 @@ If the cluster has been using a SQL database as meta store backend, follow these
       * `--backup-storage-directory backup_data`.
       * `--hummock-storage-url s3://state_bucket`. Note that the `hummock+` prefix is stripped.
       * `--hummock-storage-directory state_data`.
+
+   Additional optional parameters:
+   - `--dry-run`: Print the target snapshot without restoring (default: false)
+   - `--read-attempt-timeout-ms`: Read timeout for object store operations (default: 600000)
+   - `--read-retry-attempts`: Maximum retry attempts for object store reads (default: 3)
+   - `--validate-integrity`: Verify all referenced objects exist in object store (default: false)
+   - `--overwrite-hummock-storage-endpoint`: Overwrite storage endpoint system parameters (default: false)
+   - `--overwrite-backup-storage-url`: Override backup storage URL in restored meta store
+   - `--overwrite-backup-storage-directory`: Override backup storage directory in restored meta store
+   - `--sql-url-params`: Additional SQL connection parameters (e.g., `sslmode=disable`)
+
 4. Configure meta service to use the new meta store.
 
 ### etcd as meta store backends
@@ -154,4 +169,15 @@ If the cluster has been using etcd as meta store backend, follow these steps to 
       * `--backup-storage-directory backup_data`.
       * `--hummock-storage-url s3://state_bucket`. Note that the `hummock+` prefix is stripped.
       * `--hummock-storage-directory state_data`.
+
+   Additional optional parameters:
+   - `--dry-run`: Print the target snapshot without restoring (default: false)
+   - `--read-attempt-timeout-ms`: Read timeout for object store operations (default: 600000)
+   - `--read-retry-attempts`: Maximum retry attempts for object store reads (default: 3)
+   - `--validate-integrity`: Verify all referenced objects exist in object store (default: false)
+   - `--overwrite-hummock-storage-endpoint`: Overwrite storage endpoint system parameters (default: false)
+   - `--overwrite-backup-storage-url`: Override backup storage URL in restored meta store
+   - `--overwrite-backup-storage-directory`: Override backup storage directory in restored meta store
+   - `--sql-url-params`: Additional SQL connection parameters (e.g., `sslmode=disable`)
+
 4. Configure meta service to use the new meta store.
