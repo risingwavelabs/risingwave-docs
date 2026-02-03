@@ -7,7 +7,7 @@ description: "Understand copy-on-write (CoW) and merge-on-read (MoR) write modes
 RisingWave supports two write modes for Iceberg sinks and tables, allowing you to balance write performance, read performance, and data consistency based on your use case.
 
 - **Merge-on-read (MoR)**: Prioritizes write performance by writing updates and deletes to separate delta files, which are merged with base files at read time. This is the default mode.
-- **Copy-on-write (CoW)**: Prioritizes read performance by rewriting data files to apply updates and deletes. **Note:** Copy-on-write is only supported for upsert sinks and tables. Append-only sinks must use merge-on-read.
+- **Copy-on-write (CoW)**: Prioritizes read performance by rewriting data files to apply updates and deletes.
 
 ## Merge-on-read (MoR)
 
@@ -119,7 +119,7 @@ WITH (
 Choose the write mode that best fits your workload and query patterns.
 
 <Note>
-**For append-only workloads**: Merge-on-read is always used as it is strictly better than copy-on-write for append-only data. Copy-on-write provides no benefit when there are no updates or deletes to eagerly compact, and has worse write performance.
+**For append-only workloads**: Merge-on-read is required as it is strictly better than copy-on-write for append-only data. Copy-on-write provides no benefit when there are no updates or deletes to eagerly compact, and has worse write performance.
 </Note>
 
 *   **Use Merge-on-Read (MoR) if**:
