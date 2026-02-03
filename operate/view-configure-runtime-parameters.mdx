@@ -141,18 +141,18 @@ When `streaming_parallelism` is set to `ADAPTIVE` (the default), you can control
 
 - **AUTO** or **FULL**: Uses all available CPU cores in the resource group. This maximizes resource utilization for high-throughput workloads.
 - **BOUNDED(N)**: Limits parallelism to a maximum of N. For example, `BOUNDED(4)` ensures the job uses at most 4 parallel workers.
-- **RATIO(R)**: Uses a ratio of available cores, where R is a decimal between 0 and 1. For example, `RATIO(0.5)` uses half of the available cores.
+- **RATIO(R)**: Uses a ratio of available cores, where R is a decimal greater than 0 and less than or equal to 1. For example, `RATIO(0.5)` uses half of the available cores.
 - **DEFAULT**: Falls back to the session or system-level strategy setting.
 
 ### Examples
 
-Set a global strategy for all streaming jobs:
+Set a system-wide strategy for all streaming jobs (applies to new sessions):
 
 ```sql
 ALTER SYSTEM SET adaptive_parallelism_strategy TO 'BOUNDED(4)';
 ```
 
-Set a session-level strategy:
+Set a session-level strategy (applies within the current session):
 
 ```sql
 SET streaming_parallelism_strategy = 'RATIO(0.5)';
@@ -179,3 +179,4 @@ CREATE TABLE my_table (id INT, value VARCHAR);
 - If you set a fixed parallelism value (e.g., `SET streaming_parallelism = 4`), the strategy settings are ignored.
 - Job-specific strategy parameters (e.g., `streaming_parallelism_strategy_for_table`) take precedence over the global `streaming_parallelism_strategy`.
 - The strategy is persisted with the streaming job at creation time and remains effective even if system-level settings change later.
+- Note: The system-level parameter is named `adaptive_parallelism_strategy` (use with `ALTER SYSTEM SET`), while session-level parameters are named `streaming_parallelism_strategy*` (use with `SET`).
