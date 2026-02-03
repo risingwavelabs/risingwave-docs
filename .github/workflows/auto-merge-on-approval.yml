@@ -140,24 +140,20 @@ jobs:
                 ref: pr.head.sha,
               });
 
-              // Check if any status is failing or pending
-              if (combinedStatus.data.state === "pending") {
-                core.info("Required status checks are still pending.");
+              // Only proceed if combined status is success (handles pending, failure, error states)
+              if (combinedStatus.data.state !== "success") {
+                core.info(`Combined status is not success (current state: ${combinedStatus.data.state}).`);
                 return;
               }
 
-              if (combinedStatus.data.state === "failure") {
-                core.info("Required status checks have failed.");
-                return;
-              }
-
-              // Check if any check runs are not successful
+              // Check if any check runs are not successful (must be completed with success conclusion)
               const nonSuccessfulRuns = checkRuns.data.check_runs.filter(
                 (run) => run.status !== "completed" || run.conclusion !== "success"
               );
 
               if (nonSuccessfulRuns.length > 0) {
-                core.info(`Some check runs are not successful: ${nonSuccessfulRuns.map(r => r.name).join(", ")}`);
+                const details = nonSuccessfulRuns.map(r => `${r.name} (status: ${r.status}, conclusion: ${r.conclusion})`).join(", ");
+                core.info(`Some check runs are not successful: ${details}`);
                 return;
               }
 
