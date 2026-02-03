@@ -21,6 +21,7 @@ description: "An overview of RisingWave's support for Apache Iceberg features, i
 | Apr 2025 | Support AWS S3 Tables, Snowflake Catalog, and Databricks Catalog tntegration |
 | May 2025 | Support exactly-once for Iceberg writer |
 | Sep 2025 | Support CoW mode for Iceberg Table Engine and Iceberg compaction  |
+| Jan 2026 | Support schema change for exactly-once Iceberg sink |
 
 ## Feature comparison
 
@@ -33,7 +34,7 @@ The following table compares RisingWave with other ETL/ELT tools for Iceberg, su
 | Interface | Postgres-compatible | Spark SQL/Java/Python | Flink SQL/Java/Python | no code |
 | Position | ETL/ELT | ETL/ELT | ETL/ELT | ELT only |
 | Exactly-once | Yes (decoupled with checkpoint) | No | Yes (no buffering, coupled with checkpoint) | No |
-| Schema evolution (ELT case, e.g., replicating Postgres to Iceberg) | Partially | No | Partially
+| Schema evolution (ELT case, e.g., replicating Postgres to Iceberg) | Yes (supports ADD COLUMN with exactly-once) | No | Partially
 (with Flink CDC integration) | No |
 | Data source support | [Rich](/ingestion/overview#supported-sources) (CDC, message queues, batch, webhook, etc) | Rich | Rich | Richest |
 | Iceberg compaction | Yes, using our own engine. Support both MoR (merge-on-read) and CoW (copy-on-write). | Yes, in Databricks managed Iceberg tables | Yes, in Confluent Tableflow | Yes |
