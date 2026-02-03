@@ -148,7 +148,13 @@ jobs:
 
               // Check if any check runs are not successful (must be completed with success conclusion)
               const nonSuccessfulRuns = checkRuns.data.check_runs.filter(
-                (run) => run.status !== "completed" || run.conclusion !== "success"
+                (run) => {
+                  // Not completed yet
+                  if (run.status !== "completed") return true;
+                  // Completed but conclusion is not success (includes null, skipped, cancelled, etc.)
+                  if (run.conclusion !== "success") return true;
+                  return false;
+                }
               );
 
               if (nonSuccessfulRuns.length > 0) {
