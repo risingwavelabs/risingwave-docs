@@ -1,0 +1,109 @@
+name: Assign Copilot to new issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign Copilot coding agent
+        uses: actions/github-script@v7
+        env:
+          COPILOT_ASSIGN_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+        with:
+          github-token: ${{ secrets.COPILOT_ASSIGN_TOKEN || github.token }}
+          script: |
+            if (!process.env.COPILOT_ASSIGN_TOKEN) {
+              core.warning("COPILOT_ASSIGN_TOKEN is not set; a user token with Copilot enabled is required.");
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const issueNumber = context.issue.number;
+            const headers = {
+              "GraphQL-Features": "issues_copilot_assignment_api_support,coding_agent_model_selection",
+            };
+
+            try {
+              const repoQuery = `query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  id
+                  defaultBranchRef { name }
+                  suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) {
+                    nodes {
+                      login
+                      __typename
+                      ... on Bot { id }
+                      ... on User { id }
+                    }
+                  }
+                }
+              }`;
+
+              const repoResp = await github.request("POST /graphql", {
+                query: repoQuery,
+                variables: { owner, repo },
+                headers,
+              });
+
+              const repository = repoResp.data?.data?.repository;
+              const nodes = repository?.suggestedActors?.nodes ?? [];
+              const copilot = nodes.find((node) => node.login === "copilot-swe-agent");
+              const repositoryId = repository?.id;
+              const baseRef = repository?.defaultBranchRef?.name || "main";
+
+              if (!copilot?.id) {
+                core.warning("Copilot coding agent not available; ensure it is enabled and token is Copilot-enabled.");
+                return;
+              }
+
+              const issueQuery = `query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) { id }
+                }
+              }`;
+
+              const issueResp = await github.request("POST /graphql", {
+                query: issueQuery,
+                variables: { owner, repo, number: issueNumber },
+                headers,
+              });
+
+              const issueId = issueResp.data?.data?.repository?.issue?.id;
+              if (!issueId) {
+                core.warning("Unable to resolve issue node ID.");
+                return;
+              }
+
+              const assignMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!, $agentAssignment: AgentAssignmentInput) {
+                addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds, agentAssignment: $agentAssignment }) {
+                  assignable { __typename }
+                }
+              }`;
+
+              const agentAssignment = repositoryId
+                ? {
+                    targetRepositoryId: repositoryId,
+                    baseRef,
+                  }
+                : null;
+
+              await github.request("POST /graphql", {
+                query: assignMutation,
+                variables: {
+                  assignableId: issueId,
+                  assigneeIds: [copilot.id],
+                  agentAssignment,
+                },
+                headers,
+              });
+
+              core.info("Assigned Copilot coding agent to issue.");
+            } catch (error) {
+              core.warning(`Unable to assign Copilot coding agent: ${error.message}`);
+            }
