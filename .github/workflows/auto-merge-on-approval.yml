@@ -151,13 +151,13 @@ jobs:
                 return;
               }
 
-              // Check if any check runs are failing or pending
-              const failedOrPending = checkRuns.data.check_runs.filter(
-                (run) => run.status !== "completed" || run.conclusion !== "success"
+              // Check if any check runs are not successful
+              const nonSuccessfulRuns = checkRuns.data.check_runs.filter(
+                (run) => run.status !== "completed" || (run.status === "completed" && run.conclusion !== "success")
               );
 
-              if (failedOrPending.length > 0) {
-                core.info(`Some check runs are not successful: ${failedOrPending.map(r => r.name).join(", ")}`);
+              if (nonSuccessfulRuns.length > 0) {
+                core.info(`Some check runs are not successful: ${nonSuccessfulRuns.map(r => r.name).join(", ")}`);
                 return;
               }
 
