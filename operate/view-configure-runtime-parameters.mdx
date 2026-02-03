@@ -52,6 +52,12 @@ Below is the detailed information about the parameters you may see after using t
 | streaming_parallelism_for_index      | default/1,2,3,... | Specific parallelism for indexes. If set to `default`, it will fall back to the global `streaming_parallelism`. |
 | streaming_parallelism_for_sink       | default/1,2,3,... | Specific parallelism for sinks. If set to `default`, it will fall back to the global `streaming_parallelism`. |
 | streaming_parallelism_for_source     | default/1,2,3,... | Specific parallelism for sources. If set to `default`, it will fall back to the global `streaming_parallelism`. |
+| streaming_parallelism_strategy | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Global adaptive parallelism strategy for streaming jobs. Determines how parallelism is computed for adaptive parallelism. <ul><li>`default`: Inherits from system-level setting.</li><li>`AUTO` or `FULL`: Uses all available CPU cores in the resource group.</li><li>`BOUNDED(N)`: Limits parallelism to a maximum of N (e.g., `BOUNDED(4)`).</li><li>`RATIO(R)`: Uses a ratio of available cores, where R is between 0 and 1 (e.g., `RATIO(0.5)` uses half of available cores).</li></ul> This setting only applies when `streaming_parallelism` is set to `ADAPTIVE`. Fixed parallelism values override this strategy. |
+| streaming_parallelism_strategy_for_table | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for tables. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
+| streaming_parallelism_strategy_for_materialized_view | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for materialized views. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
+| streaming_parallelism_strategy_for_index | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for indexes. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
+| streaming_parallelism_strategy_for_sink | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for sinks. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
+| streaming_parallelism_strategy_for_source | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for sources. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
 | streaming_max_parallelism                  | 256                             | The maximum parallelism allowed for streaming queries. For more information, see [Configuring maximum parallelism](/deploy/k8s-cluster-scaling#configuring-maximum-parallelism).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | streaming_enable_delta_join           | true/false                      | Enable delta join for streaming queries. Defaults to false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | streaming_enable_bushy_join           | true/false                      | Enable bushy join for streaming queries. Defaults to true.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -126,3 +132,50 @@ You can also use the [ALTER SYSTEM SET](/sql/commands/sql-alter-system) command 
 ```sql Syntax
 ALTER SYSTEM SET session_param_name TO session_param_value;
 ```
+
+## Adaptive parallelism strategies
+
+When `streaming_parallelism` is set to `ADAPTIVE` (the default), you can control how parallelism is computed using adaptive parallelism strategies. These strategies provide fine-grained control over how streaming jobs utilize available CPU cores.
+
+### Strategy types
+
+- **AUTO** or **FULL**: Uses all available CPU cores in the resource group. This maximizes resource utilization for high-throughput workloads.
+- **BOUNDED(N)**: Limits parallelism to a maximum of N. For example, `BOUNDED(4)` ensures the job uses at most 4 parallel workers.
+- **RATIO(R)**: Uses a ratio of available cores, where R is a decimal between 0 and 1. For example, `RATIO(0.5)` uses half of the available cores.
+- **DEFAULT**: Falls back to the session or system-level strategy setting.
+
+### Examples
+
+Set a global strategy for all streaming jobs:
+
+```sql
+ALTER SYSTEM SET adaptive_parallelism_strategy TO 'BOUNDED(4)';
+```
+
+Set a session-level strategy:
+
+```sql
+SET streaming_parallelism_strategy = 'RATIO(0.5)';
+```
+
+Set specific strategies for different job types:
+
+```sql
+SET streaming_parallelism_strategy_for_table = 'FULL';
+SET streaming_parallelism_strategy_for_materialized_view = 'BOUNDED(8)';
+SET streaming_parallelism_strategy_for_sink = 'RATIO(0.3)';
+```
+
+Create a table with a specific strategy:
+
+```sql
+SET streaming_parallelism_strategy_for_table = 'BOUNDED(2)';
+CREATE TABLE my_table (id INT, value VARCHAR);
+```
+
+### Important notes
+
+- Adaptive parallelism strategies only apply when `streaming_parallelism` is set to `ADAPTIVE`.
+- If you set a fixed parallelism value (e.g., `SET streaming_parallelism = 4`), the strategy settings are ignored.
+- Job-specific strategy parameters (e.g., `streaming_parallelism_strategy_for_table`) take precedence over the global `streaming_parallelism_strategy`.
+- The strategy is persisted with the streaming job at creation time and remains effective even if system-level settings change later.
