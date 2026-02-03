@@ -83,6 +83,7 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
+            const reviewer = context.payload.review?.user?.login;
 
             if (!pr || pr.state !== "open") {
               core.info("Pull request is not open.");
@@ -99,6 +100,73 @@ jobs:
               return;
             }
 
+            // Check reviewer permissions
+            if (!reviewer) {
+              core.info("Missing reviewer context.");
+              return;
+            }
+
+            let permission = "none";
+            try {
+              const response = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: reviewer,
+              });
+              permission = response.data.permission;
+            } catch (error) {
+              core.warning(`Unable to resolve reviewer permission: ${error.message}`);
+              return;
+            }
+
+            const allowed = new Set(["admin", "maintain", "write"]);
+            if (!allowed.has(permission)) {
+              core.info(`Reviewer ${reviewer} does not have maintainer permissions to merge.`);
+              return;
+            }
+
+            // Check required status checks
+            try {
+              const combinedStatus = await github.rest.repos.getCombinedStatusForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: pr.head.sha,
+              });
+
+              // Get check runs as well (for Actions checks)
+              const checkRuns = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: pr.head.sha,
+              });
+
+              // Check if any status is failing or pending
+              if (combinedStatus.data.state === "pending") {
+                core.info("Required status checks are still pending.");
+                return;
+              }
+
+              if (combinedStatus.data.state === "failure") {
+                core.info("Required status checks have failed.");
+                return;
+              }
+
+              // Check if any check runs are failing or pending
+              const failedOrPending = checkRuns.data.check_runs.filter(
+                (run) => run.status !== "completed" || run.conclusion !== "success"
+              );
+
+              if (failedOrPending.length > 0) {
+                core.info(`Some check runs are not successful: ${failedOrPending.map(r => r.name).join(", ")}`);
+                return;
+              }
+
+            } catch (error) {
+              core.warning(`Unable to check status: ${error.message}`);
+              return;
+            }
+
+            // All checks passed, proceed with merge
             try {
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
@@ -106,6 +174,7 @@ jobs:
                 pull_number: pr.number,
                 merge_method: "merge",
               });
+              core.info(`Successfully merged PR #${pr.number}`);
             } catch (error) {
               core.warning(`Merge failed: ${error.message}`);
             }
