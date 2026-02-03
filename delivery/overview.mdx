@@ -93,6 +93,25 @@ When creating an `upsert` sink, note whether or not you need to specify the prim
 * If the downstream system supports primary keys but the table in the downstream system has no primary key, then RisingWave does not allow users to create an upsert sink. A primary key must be defined in the table in the downstream system.
 * If the downstream system does not support primary keys, then users must define the primary key when creating an upsert sink.
 
+### Ignore delete messages
+
+You can set the `ignore_delete` option to `true` to drop DELETE messages and convert UPDATE messages to INSERT messages in both `append-only` and `upsert` sink types. This is useful when the downstream system cannot handle deletes or when you want to preserve all historical states.
+
+The `force_append_only` option is kept as a backward-compatible alias for `ignore_delete`.
+
+Example:
+
+```sql
+CREATE SINK sink_name FROM source_name WITH (
+  connector = 'kafka',
+  properties.bootstrap.server = 'message_queue:29092',
+  topic = 'test-topic',
+  type = 'upsert',
+  primary_key = 'id',
+  ignore_delete = 'true'
+) FORMAT UPSERT ENCODE JSON;
+```
+
 ## Delivery semantics
 
 Different sink connectors provide different delivery guarantees:
@@ -119,7 +138,7 @@ For append-only sinks, at-least-once semantics mean duplicate records may appear
 
 A sink will buffer incoming data within each barrier interval if the stream's internal primary key (stream key) differs from the user-defined sink primary key and the sink is not `append-only`. This mismatch can cause update events for the same sink key to be split across multiple upstream fragments in a distributed execution, leading to out-of-order operations if sent directly. Buffering allows the sink to compact and reorder updates so that delete events are emitted before insert events, ensuring correct semantics. 
 
-If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or `force_append_only`, no buffering is performed and the sink emits changes immediately as they arrive.
+If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or has `ignore_delete` enabled, no buffering is performed and the sink emits changes immediately as they arrive.
 
 ### Force compaction
 
