@@ -1,0 +1,19 @@
+name: Auto-assign Issues to Copilot
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  assign-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Assign issue to copilot
+        run: |
+          gh issue edit ${{ github.event.issue.number }} --add-assignee "@copilot"
+        env:
+          GH_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
