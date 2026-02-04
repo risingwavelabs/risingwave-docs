@@ -54,12 +54,50 @@ WITH (
 | `commit_retry_num`| No| The number of times to retry a failed commit. Default: `8`. |
 | `create_table_if_not_exists` | No | If `true`, RisingWave creates the external Iceberg table automatically when it does not exist. Default: `false`. |
 | `partition_by` | No | Specify partitioning using column names or transformations. Supported transformations include `identity`, `truncate(n)`, `bucket(n)`, `year`, `month`, `day`, `hour`, and `void`. Multiple columns can be separated by commas. Example: `partition_by = 'truncate(4,v2),bucket(5,v1)'`. For more details on Iceberg partitioning, see [Partition transforms](https://iceberg.apache.org/spec/#partition-transforms). |
+| `auto.schema.change` | No | Set to `true` to enable automatic schema evolution. When enabled, RisingWave automatically propagates schema changes (e.g., adding columns) from the upstream source to the Iceberg table. This feature works with exactly-once semantics (`is_exactly_once = 'true'`). Currently supports `ADD COLUMN` operations. Default: `false`. |
 
 For detailed storage and catalog configuration:
 - **Object storage**: [Object storage configuration](/iceberg/object-storage)
 - **Catalogs**: [Catalog configuration](/iceberg/catalogs)
 
 You can configure `commit_checkpoint_interval` and `commit_retry_num` to manage commit frequency and retry behavior.
+
+## Schema evolution
+
+RisingWave supports automatic schema evolution for Iceberg sinks, allowing schema changes from upstream sources to be automatically propagated to the target Iceberg table. This feature works with exactly-once semantics.
+
+To enable schema evolution, set `auto.schema.change = 'true'` when creating the sink:
+
+```sql
+CREATE SINK my_iceberg_sink FROM upstream_source
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'glue',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    auto.schema.change = 'true',
+    is_exactly_once = 'true'
+);
+```
+
+### Supported operations
+
+Currently, RisingWave supports the following schema change operations:
+- **ADD COLUMN**: Automatically adds new columns to the Iceberg table when they are added to the upstream source.
+
+### How it works
+
+When schema evolution is enabled:
+1. RisingWave detects schema changes in the upstream source
+2. Schema changes are committed to the Iceberg table atomically
+3. The sink handles both data commits and schema commits, ensuring consistency
+4. In exactly-once mode, RisingWave ensures that schema changes are applied exactly once, even in the presence of failures
+
+Schema changes are committed separately from data changes but are coordinated to maintain consistency. The system checks whether schema changes have already been applied to avoid duplicate schema updates during recovery.
 
 ## Table maintenance
 
