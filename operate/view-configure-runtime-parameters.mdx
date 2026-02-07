@@ -47,6 +47,7 @@ Below is the detailed information about the parameters you may see after using t
 | query_epoch                                 | 0                               | Select as of specific epoch. Sets the historical epoch for querying data. If 0, querying latest data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | timezone                                     | UTC                             | Session timezone. Defaults to UTC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | streaming_parallelism                       | ADAPTIVE/0,1,2,...              | If `STREAMING_PARALLELISM` is non-zero, CREATE MATERIALIZED VIEW/TABLE/INDEX will use it as streaming parallelism. The value will be bounded at `STREAMING_MAX_PARALLELISM`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| streaming_parallelism_for_backfill   | default/1,2,3,... | Specific parallelism for backfill operations in streaming jobs. If set to `default`, it will fall back to the global `streaming_parallelism`. The job automatically switches to normal streaming parallelism after backfill completes. |
 | streaming_parallelism_for_table      | default/1,2,3,... | Specific parallelism for tables. If set to `default`, it will fall back to the global `streaming_parallelism`. |
 | streaming_parallelism_for_materialized_view | default/1,2,3,... | Specific parallelism for materialized views. If set to `default`, it will fall back to the global `streaming_parallelism`. |
 | streaming_parallelism_for_index      | default/1,2,3,... | Specific parallelism for indexes. If set to `default`, it will fall back to the global `streaming_parallelism`. |
@@ -126,3 +127,33 @@ You can also use the [ALTER SYSTEM SET](/sql/commands/sql-alter-system) command 
 ```sql Syntax
 ALTER SYSTEM SET session_param_name TO session_param_value;
 ```
+
+## Usage examples
+
+### Configuring backfill parallelism
+
+The `streaming_parallelism_for_backfill` parameter allows you to specify different parallelism for backfill operations versus normal streaming. This is useful for optimizing resource utilization during the initial data loading phase.
+
+```sql Example
+SET STREAMING_PARALLELISM = 3;
+SET STREAMING_PARALLELISM_FOR_BACKFILL = 2;
+SET BACKFILL_RATE_LIMIT = 1;
+SET BACKGROUND_DDL = true;
+
+CREATE TABLE t(v int);
+INSERT INTO t SELECT * FROM generate_series(1, 10);
+
+CREATE MATERIALIZED VIEW m AS SELECT * FROM t;
+
+-- While backfill is running, check parallelism
+SHOW JOBS;
+SELECT name, parallelism FROM rw_fragment_parallelism WHERE name = 'm';
+-- Output: parallelism = 2 (using streaming_parallelism_for_backfill)
+
+-- After backfill completes, check parallelism again
+SHOW JOBS;
+SELECT name, parallelism FROM rw_fragment_parallelism WHERE name = 'm';
+-- Output: parallelism = 3 (switched to streaming_parallelism)
+```
+
+The materialized view uses parallelism of 2 during the backfill phase, then automatically switches to parallelism of 3 after backfill completes.
