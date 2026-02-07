@@ -93,6 +93,33 @@ When creating an `upsert` sink, note whether or not you need to specify the prim
 * If the downstream system supports primary keys but the table in the downstream system has no primary key, then RisingWave does not allow users to create an upsert sink. A primary key must be defined in the table in the downstream system.
 * If the downstream system does not support primary keys, then users must define the primary key when creating an upsert sink.
 
+## Ignoring DELETE operations
+
+You can use the `ignore_delete` option to prevent DELETE operations from being sent to the downstream sink. When enabled, the sink will process INSERT and UPDATE operations normally but ignore DELETE operations. This is useful to prevent accidental data deletion in downstream systems.
+
+The `ignore_delete` option is supported for:
+- `append-only` sinks (specified with `type = 'append-only'` or `FORMAT PLAIN`)
+- `upsert` sinks (specified with `type = 'upsert'` or `FORMAT UPSERT`)
+
+The `ignore_delete` option is **NOT** supported for:
+- `debezium` (retract) sinks
+
+To enable this option, add `ignore_delete = 'true'` in the `WITH` clause when creating a sink:
+
+```sql Example
+CREATE SINK my_sink FROM my_table
+WITH (
+    connector = 'kafka',
+    topic = 'my_topic',
+    properties.bootstrap.server = 'localhost:9092',
+    ignore_delete = 'true'
+) FORMAT UPSERT ENCODE JSON;
+```
+
+<Note>
+The `force_append_only` option is a legacy alias for `ignore_delete` and is maintained for backward compatibility. You should only specify one of these options, not both.
+</Note>
+
 ## Delivery semantics
 
 Different sink connectors provide different delivery guarantees:
@@ -119,7 +146,7 @@ For append-only sinks, at-least-once semantics mean duplicate records may appear
 
 A sink will buffer incoming data within each barrier interval if the stream's internal primary key (stream key) differs from the user-defined sink primary key and the sink is not `append-only`. This mismatch can cause update events for the same sink key to be split across multiple upstream fragments in a distributed execution, leading to out-of-order operations if sent directly. Buffering allows the sink to compact and reorder updates so that delete events are emitted before insert events, ensuring correct semantics. 
 
-If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or `force_append_only`, no buffering is performed and the sink emits changes immediately as they arrive.
+If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or with `ignore_delete` enabled, no buffering is performed and the sink emits changes immediately as they arrive.
 
 ### Force compaction
 
@@ -157,8 +184,8 @@ WITH (
     s3.endpoint_url = 'https://{config['S3_ENDPOINT']}'
     s3.path = '',
     type = 'append-only',
-    force_append_only='true'
-) FORMAT PLAIN ENCODE PARQUET(force_append_only='true');
+    ignore_delete='true'
+) FORMAT PLAIN ENCODE PARQUET(ignore_delete='true');
 ```
 
 <Note>
@@ -215,7 +242,7 @@ WITH (
     rollover_seconds = '10',
     type = 'append-only',
     path_partition_prefix = 'day'
-) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
+) FORMAT PLAIN ENCODE PARQUET (ignore_delete=true);
 ```
 
 In this example, if the number of rows in the file exceeds 100, or if writing has continued for more than 10 seconds, the writing of this file will be completed.

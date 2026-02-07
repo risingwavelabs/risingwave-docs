@@ -48,7 +48,7 @@ WITH (
 | `database.name` | Yes | The name of the target Iceberg database. |
 | `table.name`| Yes| The name of the target Iceberg table.|
 | `primary_key`| Yes, if `type` is `upsert` | A comma-separated list of columns that form the primary key. |
-| `force_append_only`| No | If `true`, converts an `upsert` stream to `append-only`. Updates become inserts and deletes are ignored. Default: `false`. |
+| `ignore_delete`| No | If `true`, converts an `upsert` stream to `append-only`. Updates become inserts and deletes are ignored. Default: `false`. For backward compatibility, `force_append_only` can be used as an alias. |
 | `is_exactly_once`| No | Set to `true` to enable exactly-once delivery semantics. This provides stronger consistency but may impact performance. Default: `true`. <br/><br/> Exactly-once delivery requires [sink decoupling](/delivery/overview#sink-decoupling) to be enabled (the default behavior). If you `SET sink_decouple = false;`, exactly-once semantics will be automatically disabled for the sink.|
 | `commit_checkpoint_interval`| No | Controls how often RisingWave commits to Iceberg. Default: `60` (about every 60 seconds in the default configuration). |
 | `commit_retry_num`| No| The number of times to retry a failed commit. Default: `8`. |
