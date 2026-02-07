@@ -31,7 +31,8 @@ WITH (
 | table.name                    | Name of the target table |
 | database                      | Snowflake database name |
 | schema                        | Snowflake schema name |
-| write.target.interval.seconds   | Interval in seconds for scheduled writes (default: 3600) |
+| write.target.interval.seconds   | Interval in seconds for triggering writes to the target table (default: 3600) |
+| write.intermediate.interval.seconds | Interval in seconds for triggering writes to intermediate storage (default: 1800) |
 | warehouse                     | Snowflake warehouse name |
 | jdbc.url                       | JDBC URL to connect to Snowflake |
 | username                      | Snowflake username |
@@ -179,7 +180,9 @@ In `upsert` mode, performance is optimized through the use of an intermediate ta
 
 - An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
 
-- Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting.
+- Data is written to intermediate storage (S3) at intervals defined by `write.intermediate.interval.seconds` (default: 1800 seconds).
+
+- Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting (default: 3600 seconds).
 
 - By default, an S3 bucket is required to achieve optimal ingestion performance into the intermediate table.
 
