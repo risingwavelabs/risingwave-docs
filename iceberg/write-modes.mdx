@@ -13,7 +13,7 @@ RisingWave supports two write modes for Iceberg sinks and tables, allowing you t
 
 In merge-on-read mode, updates and deletes are written to separate delta files (delete files) instead of rewriting existing data files. When the data is queried, the engine merges the base data files with the delete files on the fly to produce the latest view.
 
-This is the default write mode in RisingWave.
+This is the default write mode in RisingWave and is **required** for append-only sinks and tables.
 
 ### How it works
 
@@ -58,6 +58,10 @@ WITH (
 ```
 
 ## Copy-on-write (CoW)
+
+<Warning>
+Copy-on-write mode is **only supported for upsert sinks and tables**. Append-only sinks must use merge-on-read mode. Attempting to create an append-only sink with `write_mode = 'copy-on-write'` will result in an error.
+</Warning>
 
 In copy-on-write mode, updates and deletes are handled by rewriting the data files that contain the affected rows. This ensures that every snapshot presents a clean, delete-free view of the data, optimizing read performance for external consumers.
 
@@ -114,12 +118,18 @@ WITH (
 
 Choose the write mode that best fits your workload and query patterns.
 
+<Note>
+**For append-only workloads**: Merge-on-read is required as it is strictly better than copy-on-write for append-only data. Copy-on-write provides no benefit when there are no updates or deletes to eagerly compact, and has worse write performance.
+</Note>
+
 *   **Use Merge-on-Read (MoR) if**:
     *   Your primary concern is write performance and low ingestion latency.
     *   Downstream query engines can efficiently process delete files.
     *   Workloads are write-heavy with frequent updates or deletes.
+    *   Your sink is append-only (required for append-only sinks).
 
 *   **Use Copy-on-Write (CoW) if**:
+    *   Your sink or table is upsert (not available for append-only).
     *   Your primary concern is read performance.
     *   Downstream consumers do not efficiently handle delete files.
     *   You can tolerate higher write amplification and ingestion latency.
@@ -129,10 +139,11 @@ Choose the write mode that best fits your workload and query patterns.
 
 | Feature | Merge-on-Read (MoR) | Copy-on-Write (CoW) |
 |---|---|---|
+| **Supported for** | Append-only and upsert sinks/tables | Upsert sinks/tables only |
 | **Primary goal** | Optimize write performance | Optimize read performance |
 | **Write amplification** | Low (writes delta files) | High (data files are rewritten) |
 | **Read performance** | Slower (requires merging data and delete files) | Faster (no merge needed at read time) |
 | **Ingestion latency** | Lower (writes are faster) | Higher (due to compaction) |
 | **Storage overhead** | Higher (stores base and delta files) | Lower (no separate delete files) |
 | **Default mode** | Yes | No |
-| **Ideal for** | Write-heavy workloads, real-time ingestion | Read-heavy workloads, BI dashboards |
+| **Ideal for** | Write-heavy workloads, real-time ingestion, append-only data | Read-heavy upsert workloads, BI dashboards |
