@@ -162,7 +162,7 @@ The real power for continuous analysis comes from creating *Materialized Views (
 **Critical requirement: `CREATE SUBSCRIPTION`**
 
 *   *Why?* Streaming MVs and Sinks in RisingWave update incrementally by consuming change streams (changelogs) from their upstream sources (tables or MVs). For an MV/Sink in `database_A` to react to ongoing changes in a table/MV from `database_B`, it needs durable, cross-boundary access to the changelog of the source object in `database_B`.
-*   *How?* The `CREATE SUBSCRIPTION` command makes this change stream persistently available across databases. *Before* creating an MV or Sink that reads from a table or MV in another database, you *must first create at least one subscription* for that specific upstream object *in the source database*. The upstream object must also have a primary key defined.
+*   *How?* The [`CREATE SUBSCRIPTION`](/sql/commands/sql-create-subscription) command makes this change stream persistently available across databases. *Before* creating an MV or Sink that reads from a table or MV in another database, you *must first create at least one subscription* for that specific upstream object *in the source database*. The upstream object must also have a primary key defined.
 *   *Verification:* RisingWave verifies the existence of these necessary log stores (enabled by subscriptions) for all cross-database upstreams during `CREATE MATERIALIZED VIEW` or `CREATE SINK` operations.
 
 **Example workflow:**
