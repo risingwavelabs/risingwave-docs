@@ -1,0 +1,120 @@
+---
+title: "CREATE SUBSCRIPTION"
+description: "Use the `CREATE SUBSCRIPTION` command to create a subscription for real-time updates from a table or materialized view."
+---
+
+A subscription allows you to subscribe to real-time updates from tables and materialized views without external event stores like Kafka. You can retrieve full or incremental data changes with minimal maintenance overhead.
+
+For more details about subscriptions and how to use them, see [Subscribe to real-time updates](/serve/subscription).
+
+## Syntax
+
+```sql
+CREATE SUBSCRIPTION [ IF NOT EXISTS ] subscription_name 
+FROM table_or_mv_name 
+WITH (
+    retention = 'duration'
+);
+```
+
+## Parameters
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **IF NOT EXISTS** | Creates the subscription only if a subscription with the same name does not already exist. If a subscription with the same name already exists, no error is thrown. |
+| _subscription\_name_ | The name of the subscription to be created. |
+| _table\_or\_mv\_name_ | The name of the table or materialized view to subscribe to. |
+| **retention** | The duration for which incremental data will be retained. Must be specified as a string in interval format (e.g., `'1D'`, `'2h'`, `'30m'`). Any incremental data that exceeds this retention duration will be automatically deleted and will no longer be accessible. |
+
+## Examples
+
+### Create a subscription with 1-day retention
+
+```sql
+-- Create a table
+CREATE TABLE events (
+    event_id INT PRIMARY KEY,
+    user_id INT,
+    event_type VARCHAR,
+    timestamp TIMESTAMPTZ
+);
+
+-- Create a subscription
+CREATE SUBSCRIPTION events_sub 
+FROM events 
+WITH (retention = '1D');
+```
+
+### Create a subscription from a materialized view
+
+```sql
+-- Create a materialized view
+CREATE MATERIALIZED VIEW user_activity AS
+SELECT 
+    user_id,
+    COUNT(*) as event_count,
+    MAX(timestamp) as last_event_time
+FROM events
+GROUP BY user_id;
+
+-- Create a subscription
+CREATE SUBSCRIPTION user_activity_sub 
+FROM user_activity 
+WITH (retention = '2h');
+```
+
+### Create a subscription with IF NOT EXISTS
+
+```sql
+CREATE SUBSCRIPTION IF NOT EXISTS metrics_sub 
+FROM metrics_table 
+WITH (retention = '7D');
+```
+
+## Usage notes
+
+- The `FROM` clause must specify either a table or a materialized view.
+- The `retention` parameter determines how long incremental data is kept. Data older than the retention period is automatically deleted.
+- After creating a subscription, you need to create a subscription cursor to consume data from it. See [Subscription cursor](/serve/subscription#subscription-cursor) for details.
+- Subscriptions provide exactly-once delivery guarantees when properly implemented with progress tracking. See [Exactly-once delivery](/serve/subscription#exactly-once-delivery) for details.
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="Subscribe to real-time updates"
+    icon="rotate"
+    iconType="solid"
+    href="/serve/subscription"
+    horizontal
+  >
+    Learn more about subscriptions and how to use them
+  </Card>
+  <Card
+    title="ALTER SUBSCRIPTION"
+    icon="sliders"
+    iconType="solid"
+    href="/sql/commands/sql-alter-subscription"
+    horizontal
+  >
+    Modify an existing subscription
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTIONS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscriptions"
+    horizontal
+  >
+    List all subscriptions
+  </Card>
+  <Card
+    title="DROP SUBSCRIPTION"
+    icon="trash"
+    iconType="solid"
+    href="/serve/subscription#drop-subscription"
+    horizontal
+  >
+    Remove a subscription
+  </Card>
+</CardGroup>
