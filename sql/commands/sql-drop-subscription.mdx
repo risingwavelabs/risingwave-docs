@@ -1,0 +1,73 @@
+---
+title: "DROP SUBSCRIPTION"
+description: "Use the `DROP SUBSCRIPTION` command to remove a subscription if you no longer need to receive data updates."
+---
+
+## Syntax
+
+```sql
+DROP SUBSCRIPTION [ IF EXISTS ] [schema_name.]subscription_name [ CASCADE ];
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _schema\_name_ | The schema of the subscription that you want to remove. You can use [SHOW SCHEMAS](/sql/commands/sql-show-schemas) to get a list of all available schemas. If you don't specify a schema, the specified subscription in the default schema `public` will be removed. |
+| _subscription\_name_ | The name of the subscription to remove. |
+| **CASCADE** option | If this option is specified, all objects that depend on the subscription will be dropped. This includes all subscription cursors. |
+
+## Examples
+
+This statement removes the subscription `sub_users` in the default schema `public`:
+
+```sql
+DROP SUBSCRIPTION sub_users;
+```
+
+This statement removes the subscription `sub_orders` in the schema `rw_schema`:
+
+```sql
+DROP SUBSCRIPTION IF EXISTS rw_schema.sub_orders;
+```
+
+This statement removes the subscription and all dependent objects:
+
+```sql
+DROP SUBSCRIPTION sub_users CASCADE;
+```
+
+## Notes
+
+- Dropping a subscription will also remove all associated subscription cursors.
+- Use the `IF EXISTS` clause to avoid errors if the subscription doesn't exist.
+- Use the `CASCADE` option to automatically drop dependent objects.
+
+## See also
+
+<CardGroup>
+  <Card
+    title="CREATE SUBSCRIPTION"
+    icon="plus"
+    iconType="solid"
+    href="/sql/commands/sql-create-subscription"
+  >
+    Create a subscription
+  </Card>
+  <Card
+    title="ALTER SUBSCRIPTION"
+    icon="pen"
+    iconType="solid"
+    href="/sql/commands/sql-alter-subscription"
+  >
+    Modify a subscription
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTIONS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscriptions"
+  >
+    List all subscriptions
+  </Card>
+</CardGroup>

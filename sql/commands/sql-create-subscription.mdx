@@ -1,0 +1,106 @@
+---
+title: "CREATE SUBSCRIPTION"
+description: "Use the `CREATE SUBSCRIPTION` command to create a subscription to receive real-time updates from a table or materialized view."
+---
+
+A subscription allows you to subscribe to data changes in a table or materialized view and consume them using subscription cursors. This feature enables real-time data streaming without requiring external event stores like Kafka.
+
+## Syntax
+
+```sql
+CREATE SUBSCRIPTION [ IF NOT EXISTS ] subscription_name 
+FROM table_or_mv_name 
+WITH (
+    retention = 'duration'
+);
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _subscription\_name_ | The name of the subscription to create. |
+| _table\_or\_mv\_name_ | The name of the table or materialized view to subscribe to. |
+| **retention** | Required. The duration for which incremental data will be retained, specified as a string in interval format (e.g., '1D', '2h', '30m'). Incremental data older than this retention period will be automatically deleted and no longer accessible. |
+
+## Examples
+
+Create a subscription on a table with 1-day retention:
+
+```sql Example
+CREATE TABLE users (
+    id int PRIMARY KEY,
+    name varchar,
+    age int
+);
+
+CREATE SUBSCRIPTION sub_users FROM users WITH (retention = '1D');
+```
+
+Create a subscription on a materialized view:
+
+```sql Example
+CREATE MATERIALIZED VIEW active_users AS 
+SELECT * FROM users WHERE age >= 18;
+
+CREATE SUBSCRIPTION sub_active_users FROM active_users WITH (retention = '12h');
+```
+
+## Usage
+
+After creating a subscription, you need to declare a subscription cursor to consume the data. For example:
+
+```sql Example
+-- Get full snapshot then incremental updates
+DECLARE cur SUBSCRIPTION CURSOR FOR sub_users FULL;
+
+-- Get only incremental updates from now
+DECLARE cur SUBSCRIPTION CURSOR FOR sub_users SINCE now();
+
+-- Fetch data from the cursor
+FETCH NEXT FROM cur;
+```
+
+## Notes
+
+- Subscriptions work with both tables and materialized views.
+- The retention period determines how far back you can resume consumption. If you try to resume from a timestamp older than the retention window, the data will no longer be available.
+- A subscription can have multiple cursors, each consuming different ranges of data.
+- Each row returned by a subscription cursor includes the table/view columns plus an `op` column (Insert, UpdateInsert, UpdateDelete, Delete) and an `rw_timestamp` column.
+
+## See also
+
+<CardGroup>
+  <Card
+    title="Subscribe to real-time updates"
+    icon="rotate"
+    iconType="solid"
+    href="/serve/subscription"
+  >
+    Complete guide to subscriptions
+  </Card>
+  <Card
+    title="DROP SUBSCRIPTION"
+    icon="trash"
+    iconType="solid"
+    href="/sql/commands/sql-drop-subscription"
+  >
+    Remove a subscription
+  </Card>
+  <Card
+    title="ALTER SUBSCRIPTION"
+    icon="pen"
+    iconType="solid"
+    href="/sql/commands/sql-alter-subscription"
+  >
+    Modify a subscription
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTIONS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscriptions"
+  >
+    List all subscriptions
+  </Card>
+</CardGroup>
