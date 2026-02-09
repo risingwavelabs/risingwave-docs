@@ -1,0 +1,114 @@
+---
+title: "CREATE SUBSCRIPTION"
+description: "Use the `CREATE SUBSCRIPTION` command to create a subscription to a table or materialized view for consuming real-time updates."
+---
+
+The `CREATE SUBSCRIPTION` command creates a subscription that allows you to consume data changes from a table or materialized view. Subscriptions enable you to monitor all data changes without relying on external event stores like Kafka.
+
+The data from a subscription includes both the existing data in the table at the time of subscription creation and the incremental change records after the subscription is created.
+
+## Syntax
+
+```sql
+CREATE SUBSCRIPTION [ IF NOT EXISTS ] subscription_name 
+FROM { table_name | materialized_view_name } 
+WITH (
+    retention = 'duration'
+);
+```
+
+## Parameters
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| _subscription\_name_ | The name of the subscription to create. If a schema name is given (for example, CREATE SUBSCRIPTION \<schema>.\<subscription> ...), then the subscription is created in the specified schema. Otherwise it is created in the current schema. |
+| **FROM** clause | Specifies the source table or materialized view to subscribe to. |
+| _table\_name_ | The name of the table to subscribe to. |
+| _materialized\_view\_name_ | The name of the materialized view to subscribe to. |
+| **WITH** clause | Required. Specifies subscription configuration parameters. |
+| _retention_ | **Required**. A string in interval format (e.g., '1D', '2h', '30m') that specifies the duration for which incremental data will be retained. Any incremental data that exceeds the specified retention duration will be automatically deleted and will no longer be accessible. |
+
+## Examples
+
+### Create a subscription from a table
+
+```sql
+-- Create a table
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY,
+    user_id INT,
+    amount DECIMAL(10,2),
+    order_time TIMESTAMP
+);
+
+-- Create a subscription with 1 day retention
+CREATE SUBSCRIPTION orders_sub FROM orders WITH (retention = '1D');
+```
+
+### Create a subscription from a materialized view
+
+```sql
+-- Create a materialized view
+CREATE MATERIALIZED VIEW order_summary AS
+SELECT user_id, COUNT(*) as order_count, SUM(amount) as total_amount
+FROM orders
+GROUP BY user_id;
+
+-- Create a subscription with 2 hour retention
+CREATE SUBSCRIPTION order_summary_sub FROM order_summary WITH (retention = '2h');
+```
+
+### Using IF NOT EXISTS
+
+```sql
+-- Only create the subscription if it doesn't already exist
+CREATE SUBSCRIPTION IF NOT EXISTS user_events_sub FROM user_events WITH (retention = '12h');
+```
+
+## Usage notes
+
+- After creating a subscription, use [`DECLARE`](/serve/subscription#subscription-cursor) to create a subscription cursor for consuming data.
+- The `retention` parameter determines how long incremental data is kept. If you try to resume from a timestamp older than the retention window, that data will no longer be accessible.
+- A subscription can have multiple cursors, each consuming different ranges or intervals of data.
+- Subscriptions require fewer components than Kafka sinks or other event store sinks, resulting in less maintenance overhead.
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="Subscribe to real-time updates"
+    icon="rotate"
+    iconType="solid"
+    href="/serve/subscription"
+    horizontal
+  >
+    Learn more about subscriptions and how to consume data
+  </Card>
+  <Card
+    title="ALTER SUBSCRIPTION"
+    icon="pen"
+    iconType="solid"
+    href="/sql/commands/sql-alter-subscription"
+    horizontal
+  >
+    Modify a subscription
+  </Card>
+  <Card
+    title="DROP SUBSCRIPTION"
+    icon="trash"
+    iconType="solid"
+    href="/sql/commands/sql-drop-subscription"
+    horizontal
+  >
+    Remove a subscription
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTIONS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscriptions"
+    horizontal
+  >
+    List all subscriptions
+  </Card>
+</CardGroup>

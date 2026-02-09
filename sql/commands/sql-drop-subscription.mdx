@@ -1,0 +1,76 @@
+---
+title: "DROP SUBSCRIPTION"
+description: "Use the `DROP SUBSCRIPTION` command to remove a subscription if you no longer need to consume data changes."
+---
+
+## Syntax
+
+```sql
+DROP SUBSCRIPTION [ IF EXISTS ] [schema_name.]subscription_name [ CASCADE ];
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _schema\_name_ | The schema of the subscription that you want to remove. You can use [SHOW SCHEMAS](/sql/commands/sql-show-schemas) to get a list of all available schemas. If you don't specify a schema, the specified subscription in the default schema `public` will be removed. |
+| _subscription\_name_ | The name of the subscription to remove. |
+| **IF EXISTS** | Do not return an error if the subscription does not exist. |
+| **CASCADE** option | If this option is specified, all objects that depend on the subscription will be dropped. |
+
+## Examples
+
+This statement removes the subscription `orders_sub` in the default schema `public`:
+
+```sql
+DROP SUBSCRIPTION orders_sub;
+```
+
+This statement removes the subscription `events_sub` in the schema `analytics`:
+
+```sql
+DROP SUBSCRIPTION IF EXISTS analytics.events_sub;
+```
+
+This statement removes the subscription and any dependent objects:
+
+```sql
+DROP SUBSCRIPTION orders_sub CASCADE;
+```
+
+## Usage notes
+
+- Dropping a subscription will also remove all associated subscription cursors.
+- If you have active cursors consuming from the subscription, they will be terminated when the subscription is dropped.
+
+## See also
+
+<CardGroup>
+  <Card
+    title="CREATE SUBSCRIPTION"
+    icon="plus"
+    iconType="solid"
+    href="/sql/commands/sql-create-subscription"
+    horizontal
+  >
+    Create a subscription
+  </Card>
+  <Card
+    title="ALTER SUBSCRIPTION"
+    icon="pen"
+    iconType="solid"
+    href="/sql/commands/sql-alter-subscription"
+    horizontal
+  >
+    Modify a subscription
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTIONS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscriptions"
+    horizontal
+  >
+    List all subscriptions
+  </Card>
+</CardGroup>
