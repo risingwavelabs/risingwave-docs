@@ -1,0 +1,34 @@
+---
+title: "CREATE SUBSCRIPTION"
+description: "Use the `CREATE SUBSCRIPTION` command to create a subscription. A subscription allows you to subscribe to real-time updates from tables and materialized views without external event stores like Kafka."
+---
+
+## Syntax
+
+```sql
+CREATE SUBSCRIPTION subscription_name FROM table_or_mv_name WITH (
+    retention = 'duration'
+);
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _subscription\_name_ | The name of the subscription to create. |
+| _table\_or\_mv\_name_ | The name of the table or materialized view to subscribe to. |
+| _retention_ | The duration for which incremental data will be retained, provided as a string in the format of an interval (e.g., '1D', '2h', '30m'). Any incremental data that exceeds the specified retention duration will be automatically deleted and will no longer be accessible. |
+
+## Example
+
+```sql
+-- Create a subscription on a table
+CREATE SUBSCRIPTION sub_users FROM users WITH (retention = '1D');
+
+-- Create a subscription on a materialized view
+CREATE SUBSCRIPTION sub_mv FROM my_materialized_view WITH (retention = '2h');
+```
+
+## Related topics
+
+For more information about subscriptions, including how to create subscription cursors, fetch data, and manage subscriptions, see [Subscribe to real-time updates](/serve/subscription).
