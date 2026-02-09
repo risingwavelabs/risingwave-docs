@@ -1,0 +1,113 @@
+---
+title: "CREATE SUBSCRIPTION"
+description: "Use the `CREATE SUBSCRIPTION` command to create a subscription to a table or materialized view. Subscriptions allow you to receive real-time updates without external event stores."
+---
+
+A subscription enables you to monitor data changes in a table or materialized view. The subscription retains both the existing snapshot and incremental changes within a specified retention period.
+
+## Syntax
+
+```sql
+CREATE SUBSCRIPTION [ IF NOT EXISTS ] subscription_name 
+FROM { table_name | mv_name } 
+WITH ( retention = 'duration' );
+```
+
+## Parameters
+
+| Parameter          | Description                                                                                                                                                                     |
+| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| _subscription_name_ | The name of the subscription to be created.                                                                                                                                    |
+| _table_name_       | The name of the table to subscribe to.                                                                                                                                         |
+| _mv_name_          | The name of the materialized view to subscribe to.                                                                                                                             |
+| **retention**      | The duration for which incremental data will be retained. Specified as a string in interval format (e.g., `'1D'`, `'2h'`, `'30m'`). Incremental data older than this duration is automatically deleted. |
+
+## Notes
+
+- The `FROM` clause must specify either a table or a materialized view.
+- The `retention` parameter is required and determines how long incremental changes are kept.
+- Once created, you can declare subscription cursors to consume data from the subscription. See [Subscribe to real-time updates](/serve/subscription).
+
+<Note>
+Names and unquoted identifiers are case-insensitive. Therefore, you must double-quote any of these fields for them to be case-sensitive. See also [Identifiers](/sql/identifiers).
+</Note>
+
+## Examples
+
+### Create a subscription from a table
+
+```sql
+-- Create a table
+CREATE TABLE users (
+    user_id INT PRIMARY KEY,
+    name VARCHAR,
+    age INT
+);
+
+-- Create a subscription with 1-day retention
+CREATE SUBSCRIPTION user_changes FROM users WITH (retention = '1D');
+```
+
+### Create a subscription from a materialized view
+
+```sql
+-- Create a materialized view
+CREATE MATERIALIZED VIEW active_users AS
+SELECT user_id, name, age
+FROM users
+WHERE age >= 18;
+
+-- Create a subscription with 2-hour retention
+CREATE SUBSCRIPTION active_user_changes FROM active_users WITH (retention = '2h');
+```
+
+### Create a subscription if it doesn't exist
+
+```sql
+-- Only create if subscription doesn't already exist
+CREATE SUBSCRIPTION IF NOT EXISTS order_updates FROM orders WITH (retention = '1D');
+```
+
+### Consume from a subscription
+
+After creating a subscription, declare a cursor to consume the data:
+
+```sql
+-- Declare a cursor for full snapshot followed by incremental updates
+DECLARE cur SUBSCRIPTION CURSOR FOR user_changes FULL;
+
+-- Fetch data from the cursor
+FETCH NEXT FROM cur;
+```
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="Subscribe to real-time updates"
+    icon="rotate"
+    iconType="solid"
+    href="/serve/subscription"
+    horizontal
+  >
+    Complete guide to subscriptions and cursors
+  </Card>
+  <Card
+    title="ALTER SUBSCRIPTION"
+    icon="pen-to-square"
+    iconType="solid"
+    href="/sql/commands/sql-alter-subscription"
+    horizontal
+  >
+    Modify an existing subscription
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTIONS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscriptions"
+    horizontal
+  >
+    List all subscriptions
+  </Card>
+</CardGroup>
