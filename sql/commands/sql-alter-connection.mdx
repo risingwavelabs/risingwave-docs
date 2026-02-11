@@ -30,7 +30,7 @@ This clause updates a connection's connector properties online and propagates th
 | Parameter or clause | Description                                                                                                                               |
 | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
 | **CONNECTOR WITH**  | Updates the connection's connector properties. Changes are applied atomically and propagated to all dependent sources and sinks. |
-| _property\_name_    | The connector property to update. Use the same format as in [`CREATE CONNECTION`](/sql/commands/sql-create-connection). For example: `properties.sasl.username = 'dev1'`. Secrets are supported: `properties.bootstrap.server = SECRET my_secret`. |
+| _property\_name_    | The connector property to update. Use the same format as in [`CREATE CONNECTION`](/sql/commands/sql-create-connection).<br/><br/>Example: `properties.sasl.username = 'dev1'`<br/><br/>Secrets are supported: `properties.bootstrap.server = SECRET my_secret` |
 
 #### Permissions
 
@@ -57,7 +57,7 @@ This example shows how to rotate Kafka SASL credentials and brokers using secret
 
 ```sql
 -- Create a secret for the bootstrap broker
-CREATE SECRET s_broker WITH ( backend = 'meta' ) AS 'message_queue_sasl_1:19092';
+CREATE SECRET s_broker WITH ( backend = 'meta' ) AS 'broker1.example.com:9092';
 
 -- Create a Kafka connection using the secret
 CREATE CONNECTION kafka_conn WITH (
@@ -65,8 +65,8 @@ CREATE CONNECTION kafka_conn WITH (
   properties.bootstrap.server = SECRET s_broker,
   properties.security.protocol = 'SASL_PLAINTEXT',
   properties.sasl.mechanism = 'PLAIN',
-  properties.sasl.username = 'dev',
-  properties.sasl.password = 'rw'
+  properties.sasl.username = 'user1',
+  properties.sasl.password = 'password1'
 );
 
 -- Create a table using the connection
@@ -77,11 +77,11 @@ CREATE TABLE t_conn (x INT) WITH (
 ) FORMAT PLAIN ENCODE JSON;
 
 -- Rotate to a new broker and user
-ALTER SECRET s_broker WITH ( backend = 'meta' ) AS 'message_queue_sasl_2:19093';
+ALTER SECRET s_broker WITH ( backend = 'meta' ) AS 'broker2.example.com:9092';
 
 -- Update the connection to use the new username
 ALTER CONNECTION kafka_conn CONNECTOR WITH (
-  properties.sasl.username = 'dev1'
+  properties.sasl.username = 'user2'
 );
 ```
 
