@@ -3,6 +3,10 @@ title: "Update source properties with risectl"
 description: "Use risectl commands to dynamically update source connector properties without recreating sources."
 ---
 
+<Note>
+Added in v2.8.0.
+</Note>
+
 RisingWave supports dynamic updates to source connector properties using `risectl` commands. This allows you to modify source configurations such as broker addresses, security credentials, and performance settings without dropping and recreating sources.
 
 ## Overview
@@ -159,7 +163,7 @@ This command:
 3. Assigns new splits on the next SourceManager tick cycle
 
 <Warning>
-Resetting splits may cause data duplication depending on connector behavior. Use with caution in production environments.
+Resetting splits may cause data duplication. When splits are reset, RisingWave clears the cached split state and re-discovers partitions/splits from the source. Depending on the connector's offset tracking mechanism, this may result in re-consuming some messages. For Kafka sources, if offsets are properly committed, duplication is minimal. However, for sources with less precise offset tracking, more duplicates may occur. Monitor the source after resetting to detect any unexpected behavior.
 </Warning>
 
 ### When to use
@@ -195,11 +199,15 @@ This is an **UNSAFE** operation. Incorrect offsets will cause data inconsistency
 
 ### Offset format by connector
 
-The offset format varies by connector type:
+The offset format varies by connector type. The `inject-source-offsets` command works with multiple connector types, though the offset format differs:
 
 - **Kafka**: `{"partition_id": "offset_value"}`
-- **CDC**: `{"binlog_file": "position"}` or `{"lsn": "value"}`
+- **CDC sources**: `{"binlog_file": "position"}` or `{"lsn": "value"}`
 - **Pulsar**: `{"partition": "message_id"}`
+
+<Note>
+While `inject-source-offsets` supports multiple connector types, `alter-source-properties-safe` currently only supports Kafka connectors.
+</Note>
 
 ### Examples
 
@@ -211,7 +219,7 @@ Inject Kafka offsets:
     --offsets '{"0": "1000", "1": "2000", "2": "1500"}'
 ```
 
-Inject CDC offsets:
+Inject CDC offsets (example format):
 
 ```bash
 ./risedev ctl meta inject-source-offsets \
@@ -277,7 +285,8 @@ Properties can be reverted using the same `alter-source-properties-safe` command
 
 ## Limitations
 
-- Currently only Kafka connector properties are supported. Support for other connectors will be added in future releases.
+- `alter-source-properties-safe` currently only supports Kafka connector properties. Support for other connectors will be added in future releases.
+- `inject-source-offsets` and `reset-source-splits` work with multiple connector types (Kafka, CDC, Pulsar, etc.).
 - The connector type cannot be changed (e.g., cannot change from Kafka to Pulsar).
 - Some properties are validated; invalid values will cause the command to fail.
 
