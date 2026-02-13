@@ -28,6 +28,7 @@ WITH (
 | schema                       | Redshift schema name |
 | table.name                   | Name of the target table |
 | intermediate.table.name      | Name of the intermediate table used for upsert mode. No need to fill this out in append-only mode |
+| intermediate.schema.name     | Schema name for creating the intermediate table. If not configured, defaults to the schema specified in the `schema` setting |
 | auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
 | create_table_if_not_exists   | Create target table if it does not exist |
 | write.target.interval.seconds      | Interval in seconds for scheduled writes (default: 3600) |
@@ -107,6 +108,8 @@ In `upsert` mode, performance is optimized through the use of an intermediate ta
 
 - An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
 
+- You can specify a different schema for the intermediate table using the `intermediate.schema.name` parameter. If not configured, the intermediate table will be created in the same schema as the target table.
+
 - Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting.
 
 - By default, an S3 bucket is required to achieve optimal ingestion performance into the intermediate table.
@@ -160,6 +163,8 @@ CREATE SINK redshift_sink FROM test_table WITH (
 
     -- Intermediate table required for upsert
     intermediate.table.name = '...',
+    -- Optional: specify a different schema for the intermediate table
+    intermediate.schema.name = '...',
     -- Default: 3600 seconds (1 hour)
     write.target.interval.seconds = '...',
 
