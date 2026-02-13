@@ -36,7 +36,7 @@ The `ORDER BY` clause in the `CREATE MATERIALIZED VIEW` statement is allowed but
 
 2. To perform the operations in the background, you can execute `SET BACKGROUND_DDL=true;` before running the `CREATE MATERIALIZED VIEW` statement. See details in [SET BACKGROUND\_DDL](/sql/commands/sql-set-background-ddl).
 
-3. To improve isolation between the backfill phase and streaming phase, you can enable snapshot backfill by setting `SET streaming_use_snapshot_backfill=true;` before creating the materialized view. This helps prevent resource contention between backfilling historical data and processing new streaming data. For more details, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+3. Snapshot backfill is enabled by default to improve isolation between the backfill phase and streaming phase. This helps prevent resource contention between backfilling historical data and processing new streaming data. To disable it if needed, set `SET streaming_use_snapshot_backfill=false;` before creating the materialized view. For more details, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
 
 4. You can specify `backfill_order` in the `WITH` clause to control the backfill order for different upstream relations. Use the `->` operator to define dependencies between tables. The left relation will be fully backfilled before the right relation begins.
 
