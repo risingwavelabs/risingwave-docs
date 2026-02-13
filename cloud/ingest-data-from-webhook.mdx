@@ -1,0 +1,168 @@
+---
+title: "Ingest data from webhook"
+description: "Use managed webhook endpoints in RisingWave Cloud to ingest webhook events directly into your project."
+---
+
+This guide covers webhook ingestion for **managed RisingWave Cloud** projects, where requests are routed through the managed `rwproxy` webhook endpoint.
+
+<Info>
+If you are running self-hosted RisingWave (Operator/Helm/bare metal), use [Ingest data from webhook](/integrations/sources/webhook).
+</Info>
+
+## How managed webhook routing works
+
+In managed RisingWave Cloud, webhook requests are accepted by `rwproxy` over HTTPS and forwarded to your project's frontend webhook listener.
+
+- Public ingress: HTTPS `:443`
+- Webhook path format: `/webhook/<database>/<schema>/<table>`
+- Backend frontend listener: `:4560` (inside the managed cluster)
+
+Tenant routing:
+
+1. Hosted projects: SNI hostname first, then `tenant` query parameter fallback.
+2. BYOC projects: currently use `tenant` query parameter (SNI is not supported).
+
+## Prerequisites
+
+1. A running RisingWave Cloud project.
+2. The tenant identifier of your project (for example, `rwc-g1huxxxxxx-mycluster`).
+3. A webhook table created in your target database/schema.
+
+For details on tenant identifier and project connection details, see [Connection errors](/cloud/connection-errors).
+
+<Warning>
+Current BYOC limitations:
+- SNI is not supported yet. Use `?tenant=<tenant_identifier>` in the webhook URL.
+- TLS certificate verification may fail unless verification is disabled on the sender side. For testing, use `curl -k` (equivalent to `verify-ca=false` behavior).
+</Warning>
+
+## Two setup flows
+
+Use either flow depending on how you prefer to configure webhooks.
+
+### Flow A: Cloud Portal wizard (when available)
+
+If your RisingWave Cloud portal build includes the webhook wizard, you can generate the endpoint URL and cURL request directly in the UI.
+
+<Info>
+In the current `portal` source code, the webhook entry in the Connect page is present but commented out in `portal/src/app/cluster/[id]/[region]/connect/page.tsx`. Availability may depend on your deployment/version.
+</Info>
+
+Wizard steps:
+
+1. Open your project workspace and go to **Connect Your Data**.
+2. Open **Webhook Configuration**.
+3. Select **Database**, **Schema**, and **Table**.
+4. Copy the generated **Webhook Endpoint URL**.
+5. (Optional) Use **Create new webhook table** to generate SQL, preview it, and run it.
+6. Expand **cURL Example** and copy the generated command.
+
+Wizard screenshots:
+
+**Webhook entry in Connect page**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-webhook/webhook-card-in-connect-page.png" />
+</Frame>
+
+**Create webhook table and review generated SQL**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-webhook/webhook-create-table-and-sql-preview.png" />
+</Frame>
+
+**Generated endpoint URL and cURL example**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-webhook/webhook-endpoint-and-curl-example.png" />
+</Frame>
+
+### Flow B: SQL and manual endpoint setup
+
+If you prefer SQL-first setup, create the table manually and then construct the webhook endpoint URL.
+
+#### Step 1: Create a webhook table
+
+Create a table that accepts webhook payloads:
+
+```sql
+CREATE TABLE wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+);
+```
+
+Add validation for production workloads:
+
+```sql
+CREATE SECRET webhook_secret WITH (backend = 'meta') AS 'TEST_WEBHOOK';
+
+CREATE TABLE wbhtable_secure (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+) VALIDATE SECRET webhook_secret AS secure_compare(
+  headers->>'authorization',
+  webhook_secret
+);
+```
+
+For provider-specific validation examples (GitHub, Segment, HubSpot, EventBridge, RudderStack), see [Webhook integrations](/integrations/sources/webhook#supported-webhook-sources-and-authentication-methods).
+
+#### Step 2: Build your webhook endpoint
+
+Use one of these endpoint patterns.
+
+**Option A (hosted projects): tenant in hostname (SNI routing)**
+
+```text
+https://<tenant_identifier>.<project_host>/webhook/<database>/<schema>/<table>
+```
+
+Example:
+
+```text
+https://rwc-g1huxxxxxx-mycluster.<project_host>/webhook/dev/public/wbhtable
+```
+
+**Option B (BYOC projects, required): tenant query parameter**
+
+Use this for BYOC, or when your webhook sender cannot provide SNI.
+
+```text
+https://<project_host>/webhook/<database>/<schema>/<table>?tenant=<tenant_identifier>
+```
+
+Example:
+
+```text
+https://<project_host>/webhook/dev/public/wbhtable?tenant=rwc-g1huxxxxxx-mycluster
+```
+
+<Warning>
+The path must be exactly `/webhook/<database>/<schema>/<table>`. Trailing slashes or extra path segments are rejected.
+</Warning>
+
+#### Step 3: Send a test event
+
+**Hosted projects example**
+
+```bash
+curl -i -X POST "https://<tenant_identifier>.<project_host>/webhook/dev/public/wbhtable" \
+  -H "Content-Type: application/json" \
+  -d '{"event":"user.signup","user_id":"123"}'
+```
+
+**BYOC projects example**
+
+```bash
+curl -k -i -X POST "https://<project_host>/webhook/dev/public/wbhtable?tenant=<tenant_identifier>" \
+  -H "Content-Type: application/json" \
+  -d '{"event":"user.signup","user_id":"123"}'
+```
+
+For hosted projects, use Option A when your sender supports SNI. For BYOC projects, use Option B.
+
+#### Step 4: Verify ingestion
+
+```sql
+SELECT * FROM wbhtable;
+```
