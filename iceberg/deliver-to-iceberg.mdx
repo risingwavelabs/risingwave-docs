@@ -48,6 +48,7 @@ WITH (
 | `database.name` | Yes | The name of the target Iceberg database. |
 | `table.name`| Yes| The name of the target Iceberg table.|
 | `primary_key`| Yes, if `type` is `upsert` | A comma-separated list of columns that form the primary key. |
+| `write_mode` | No | Write mode for the sink. Options: `'merge-on-read'` (default) or `'copy-on-write'`. **Important:** Copy-on-write is only supported for upsert sinks. Append-only sinks must use merge-on-read. See [Write modes](/iceberg/write-modes) for details. |
 | `force_append_only`| No | If `true`, converts an `upsert` stream to `append-only`. Updates become inserts and deletes are ignored. Default: `false`. |
 | `is_exactly_once`| No | Set to `true` to enable exactly-once delivery semantics. This provides stronger consistency but may impact performance. Default: `true`. <br/><br/> Exactly-once delivery requires [sink decoupling](/delivery/overview#sink-decoupling) to be enabled (the default behavior). If you `SET sink_decouple = false;`, exactly-once semantics will be automatically disabled for the sink.|
 | `commit_checkpoint_interval`| No | Controls how often RisingWave commits to Iceberg. Default: `60` (about every 60 seconds in the default configuration). |
