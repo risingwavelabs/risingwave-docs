@@ -23,7 +23,7 @@ RisingWave supports loading data from Snowflake tables using the `adbc_snowflake
 
 ```sql
 CREATE TABLE table_name (
-    primary key (column_name)
+    primary key (order_id)  -- Replace with your actual primary key column(s)
 ) WITH (
     connector = 'adbc_snowflake',
     refresh_mode = 'FULL_RELOAD',
@@ -61,7 +61,7 @@ All parameters are required unless specified otherwise.
 | adbc_snowflake.warehouse     | The Snowflake warehouse to use for queries.                                                                                                                                                                                                      |
 | adbc_snowflake.table         | The name of the Snowflake table to ingest.                                                                                                                                                                                                       |
 | adbc_snowflake.auth_type     | **Optional**. The authentication method. Default is `auth_snowflake` (username/password). Other options: `auth_oauth`, `auth_jwt`, `auth_ext_browser`, `auth_okta`, `auth_mfa`, `auth_pat`, `auth_wif`.                                        |
-| adbc_snowflake.jwt_private_key_path | Required when `adbc_snowflake.auth_type` is `auth_jwt`. Path to the JWT private key file.                                                                                                                                         |
+| adbc_snowflake.jwt_private_key_path | Required when `adbc_snowflake.auth_type` is `auth_jwt`. Local file path on the RisingWave server to the JWT private key file (e.g., `/path/to/key.pem`).                                                                                      |
 
 ## Authentication methods
 
@@ -184,6 +184,7 @@ SELECT * FROM snowflake_orders LIMIT 10;
 You can create materialized views based on the Snowflake data:
 
 ```sql
+-- The columns order_date and total_amount are automatically inferred from the Snowflake table
 CREATE MATERIALIZED VIEW daily_sales AS
 SELECT 
     DATE_TRUNC('day', order_date) AS sale_date,
