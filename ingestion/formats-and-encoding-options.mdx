@@ -265,7 +265,9 @@ When using a file source to read Parquet files, the schema must be defined accor
 | `timestamp(_, None)`    | timestamp    |
 
 <Note>
-Parquet sources require case-sensitive column names. However, PostgreSQL converts unquoted column names to lowercase by default. To preserve case sensitivity when defining the schema, use double quotes around column names.
+By default, Parquet sources require case-sensitive column name matching. However, PostgreSQL converts unquoted column names to lowercase by default. To preserve case sensitivity when defining the schema, use double quotes around column names.
+
+Alternatively, you can set `parquet.case_insensitive = 'true'` in the source connector options to enable case-insensitive column matching. This allows you to use lowercase column names in your schema (e.g., `id`, `name`) even when the Parquet file has mixed-case column names (e.g., `ID`, `Name`). If multiple columns match case-insensitively, the match is ambiguous and ignored.
 </Note>
 
 ## Parameter reference
