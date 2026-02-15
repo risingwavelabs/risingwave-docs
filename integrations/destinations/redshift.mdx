@@ -30,7 +30,8 @@ WITH (
 | intermediate.table.name      | Name of the intermediate table used for upsert mode. No need to fill this out in append-only mode |
 | auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
 | create_table_if_not_exists   | Create target table if it does not exist |
-| write.target.interval.seconds      | Interval in seconds for scheduled writes (default: 3600) |
+| write.target.interval.seconds      | Interval in seconds for triggering writes to the target table (default: 3600) |
+| write.intermediate.interval.seconds | Interval in seconds for triggering writes to intermediate storage (default: 1800) |
 | batch_insert_rows            | Number of rows per batch insert (default: 4096) |
 
 **S3 parameters**
@@ -107,7 +108,9 @@ In `upsert` mode, performance is optimized through the use of an intermediate ta
 
 - An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
 
-- Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting.
+- Data is written to intermediate storage (S3) at intervals defined by `write.intermediate.interval.seconds` (default: 1800 seconds).
+
+- Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting (default: 3600 seconds).
 
 - By default, an S3 bucket is required to achieve optimal ingestion performance into the intermediate table.
 
