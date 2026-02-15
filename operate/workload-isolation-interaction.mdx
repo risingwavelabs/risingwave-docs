@@ -162,20 +162,25 @@ The real power for continuous analysis comes from creating *Materialized Views (
 **Critical requirement: `CREATE SUBSCRIPTION`**
 
 *   *Why?* Streaming MVs and Sinks in RisingWave update incrementally by consuming change streams (changelogs) from their upstream sources (tables or MVs). For an MV/Sink in `database_A` to react to ongoing changes in a table/MV from `database_B`, it needs durable, cross-boundary access to the changelog of the source object in `database_B`.
-*   *How?* The `CREATE SUBSCRIPTION` command makes this change stream persistently available across databases. *Before* creating an MV or Sink that reads from a table or MV in another database, you *must first create at least one subscription* for that specific upstream object *in the source database*. The upstream object must also have a primary key defined.
+*   *How?* The `CREATE SUBSCRIPTION` command makes this change stream persistently available across databases. *Before* creating an MV or Sink that reads from a table or MV in another database, you *must first create at least one subscription* for that specific upstream object *in the source database*. 
+*   *Primary key behavior:* A primary key is not required to create a subscription, but its presence affects changelog behavior:
+    *   **With a primary key:** The changelog tracks changes by key, supporting inserts, updates (as paired delete + insert), and deletes. This is recommended for tables with frequent updates.
+    *   **Without a primary key:** The changelog is append-oriented. Updates are represented as a delete of the full old row followed by an insert of the full new row. This works but may be less efficient for tables with frequent modifications.
 *   *Verification:* RisingWave verifies the existence of these necessary log stores (enabled by subscriptions) for all cross-database upstreams during `CREATE MATERIALIZED VIEW` or `CREATE SINK` operations.
 
-**Example workflow:**
+**Example workflows:**
+
+**Example 1: Subscription on a table with a primary key**
 
 1.  **In the source database (`d1`), create a subscription for the upstream table (`t1`):**
 
     ```sql
     -- Connect to d1
     \c d1;
-    CREATE TABLE t1 (v1 INT PRIMARY KEY); -- Ensure PK exists
+    CREATE TABLE t1 (v1 INT PRIMARY KEY, v2 INT);
 
     -- Create the subscription to enable cross-database access to t1's changelog
-    CREATE subscription sub_t1 FROM t1 WITH (retention = '1D');
+    CREATE SUBSCRIPTION sub_t1 FROM t1 WITH (retention = '1D');
     ```
 
 2.  **In the target database (`d2`), create the cross-database MV:**
@@ -193,6 +198,58 @@ The real power for continuous analysis comes from creating *Materialized Views (
     SELECT t1.v1, t2.v2
     FROM d1.public.t1 -- Reads via sub_t1
     JOIN t2 ON t1.v1 = t2.v2;
+    ```
+
+**Example 2: Subscription on a table without a primary key**
+
+1.  **In the source database (`d1`), create a subscription for a table without a primary key:**
+
+    ```sql
+    -- Connect to d1
+    \c d1;
+    CREATE TABLE events (event_id INT, event_time TIMESTAMP, event_data TEXT);
+
+    -- Create a subscription - works even without a primary key
+    CREATE SUBSCRIPTION sub_events FROM events WITH (retention = '1D');
+    ```
+
+2.  **In the target database (`d2`), create a cross-database MV:**
+
+    ```sql
+    -- Connect to d2
+    \c d2;
+    
+    -- Create an MV that aggregates events from d1
+    CREATE MATERIALIZED VIEW event_count AS 
+    SELECT COUNT(*) as total_events FROM d1.public.events; -- Reads via sub_events
+    ```
+
+**Example 3: Subscription on a materialized view**
+
+1.  **In the source database (`d1`), create a subscription for a materialized view:**
+
+    ```sql
+    -- Connect to d1
+    \c d1;
+    CREATE TABLE raw_data (id INT, value INT);
+    
+    -- Create a materialized view
+    CREATE MATERIALIZED VIEW aggregated_data AS 
+    SELECT id, SUM(value) as total FROM raw_data GROUP BY id;
+
+    -- Create a subscription on the materialized view
+    CREATE SUBSCRIPTION sub_aggregated FROM aggregated_data WITH (retention = '1D');
+    ```
+
+2.  **In the target database (`d2`), use the subscription:**
+
+    ```sql
+    -- Connect to d2
+    \c d2;
+    
+    -- Create an MV that further processes the aggregated data from d1
+    CREATE MATERIALIZED VIEW final_report AS 
+    SELECT * FROM d1.public.aggregated_data WHERE total > 100; -- Reads via sub_aggregated
     ```
 
 <Note>
