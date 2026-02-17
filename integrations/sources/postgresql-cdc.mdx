@@ -547,5 +547,85 @@ SELECT slot_name,
        pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS replicationSlotLag,
        active
 FROM pg_replication_slots;
-
 ```
+
+## Troubleshooting
+
+### Upstream RDS ReadIOPS spikes during streaming backpressure
+
+#### Symptoms
+
+You may observe spikes in AWS RDS `ReadIOPS` metrics on your PostgreSQL or Aurora PostgreSQL source database during CDC ingestion. This typically manifests as:
+
+- Sudden increases in RDS `ReadIOPS` without corresponding increases in application query load
+- CDC replication lag increases in RisingWave
+- Higher latency or barrier intervals in RisingWave streaming jobs
+
+#### Cause
+
+These ReadIOPS spikes are often caused by **downstream streaming backpressure** in RisingWave, not source-side issues. The causal chain is:
+
+1. **Downstream bottleneck**: A streaming job in RisingWave becomes slow (e.g., due to heavy computation, sink slowness, or resource constraints)
+2. **Replication lag**: The CDC connector falls behind the upstream database's WAL (Write-Ahead Log) position
+3. **Catch-up behavior**: When backpressure is relieved, the CDC connector attempts to catch up by reading historical WAL data at high speed
+4. **ReadIOPS spike**: Reading historical WAL data from disk causes increased disk I/O on the RDS instance
+
+This is expected behavior—RDS must read older WAL segments from disk storage when the CDC connector lags behind, resulting in higher ReadIOPS compared to normal streaming replication where data is read from memory.
+
+#### Validation
+
+To validate that ReadIOPS spikes are caused by downstream backpressure:
+
+1. **Check CDC replication lag in RisingWave**: Query the internal state table to see the current CDC offset and compare with the upstream database.
+
+   ```sql
+   -- Find the source's internal table
+   SHOW INTERNAL TABLES;
+   
+   -- Check current CDC offset
+   SELECT * FROM __internal_<source_name>_<source_id>_source_<executor_id>;
+   ```
+
+2. **Check replication lag on upstream PostgreSQL**: Run this query on your PostgreSQL database to see the replication slot lag:
+
+   ```sql
+   SELECT slot_name,
+          pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS raw,
+          pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS replicationSlotLag,
+          active
+   FROM pg_replication_slots;
+   ```
+
+   A large `replicationSlotLag` (e.g., several GB) indicates the CDC connector is behind.
+
+3. **Check RisingWave streaming metrics**: Look for signs of backpressure or high barrier latency in your monitoring dashboards. See [Monitor CDC progress](/ingestion/monitor-cdc-progress) for details.
+
+4. **Correlate timing**: If ReadIOPS spikes coincide with increased replication lag and downstream backpressure events, this confirms the diagnosis.
+
+#### Mitigation
+
+To resolve ReadIOPS spikes caused by streaming backpressure:
+
+1. **Remove downstream bottlenecks**: Identify and resolve the root cause of backpressure in RisingWave:
+   - Check for slow sinks (see [Sources and sinks troubleshooting](/troubleshoot/troubleshoot-source-sink))
+   - Identify compute-intensive streaming jobs
+   - Review barrier latency and checkpoint duration
+
+2. **Scale RisingWave resources**: If RisingWave is resource-constrained, consider:
+   - Scaling out streaming nodes (see [Cluster scaling](/deploy/k8s-cluster-scaling))
+   - Increasing CPU or memory allocation
+   - Adjusting parallelism settings for affected streaming jobs
+
+3. **Monitor recovery**: After addressing bottlenecks, monitor the following to confirm recovery:
+   - Replication lag should decrease as the CDC connector catches up
+   - ReadIOPS should return to baseline levels once lag is cleared
+   - Barrier latency and checkpoint duration should normalize
+
+4. **Preventive measures**: To avoid future occurrences:
+   - Set up monitoring alerts for replication lag and barrier latency
+   - Ensure adequate RisingWave cluster capacity for your workload
+   - Regularly review streaming job performance
+
+<Note>
+If replication lag persists or ReadIOPS remains high after addressing downstream bottlenecks, check for other potential issues such as long-running transactions on the upstream database, insufficient `max_wal_senders` configuration, or network connectivity problems.
+</Note>

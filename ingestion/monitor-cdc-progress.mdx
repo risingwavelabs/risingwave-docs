@@ -150,3 +150,11 @@ SELECT * FROM __internal_my_table_id_streamcdcscan_executor_id;
 <Note>
 RisingWave commits offsets to the upstream database, allowing the database to free up space used by log files (WAL files for PostgreSQL, binlog files for MySQL). This offset commitment happens during checkpoint commits in the CDC source. If there is high checkpoint latency, log files may accumulate on the upstream server.
 </Note>
+
+## Troubleshooting CDC issues
+
+If you observe high replication lag or unusual behavior with your CDC source:
+
+- **For PostgreSQL/AWS RDS users**: If you notice spikes in upstream RDS `ReadIOPS` metrics, this may be caused by downstream streaming backpressure in RisingWave. See [Troubleshooting upstream RDS ReadIOPS spikes](/integrations/sources/postgresql-cdc#upstream-rds-readiops-spikes-during-streaming-backpressure) for diagnosis and mitigation steps.
+
+- **General CDC issues**: Check the [Sources and sinks troubleshooting](/troubleshoot/troubleshoot-source-sink) guide for common source and sink problems.
