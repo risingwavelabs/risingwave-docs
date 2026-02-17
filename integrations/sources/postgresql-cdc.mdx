@@ -582,7 +582,8 @@ To validate that ReadIOPS spikes are caused by downstream backpressure:
    -- Find the source's internal table
    SHOW INTERNAL TABLES;
    
-   -- Check current CDC offset
+   -- Check current CDC offset (replace with your actual internal table name)
+   -- Example: __internal_pg_mydb_1_source_2
    SELECT * FROM __internal_<source_name>_<source_id>_source_<executor_id>;
    ```
 
@@ -627,5 +628,8 @@ To resolve ReadIOPS spikes caused by streaming backpressure:
    - Regularly review streaming job performance
 
 <Note>
-If replication lag persists or ReadIOPS remains high after addressing downstream bottlenecks, check for other potential issues such as long-running transactions on the upstream database, insufficient `max_wal_senders` configuration, or network connectivity problems.
+If replication lag persists or ReadIOPS remains high after addressing downstream bottlenecks, check for other potential issues such as:
+- Long-running transactions on the upstream database
+- Insufficient `max_wal_senders` configuration (ensure it's at least equal to the number of CDC tables; default is 10 for self-hosted PostgreSQL and 20 for RDS PostgreSQL 13+)
+- Network connectivity or bandwidth problems between RisingWave and the source database
 </Note>
