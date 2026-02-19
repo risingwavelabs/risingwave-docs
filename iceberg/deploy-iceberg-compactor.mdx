@@ -1,0 +1,194 @@
+---
+title: "Deploy a dedicated Iceberg compactor"
+sidebarTitle: "Deploy Iceberg compactor"
+description: "Learn how to deploy and size a dedicated compactor node for RisingWave's built-in Iceberg maintenance when using internal Iceberg tables (ENGINE = iceberg)."
+---
+
+RisingWave's built-in Iceberg maintenance — including automatic compaction and snapshot expiration — runs on the compactor node. When you enable `enable_compaction = true` on an internal Iceberg table or Iceberg sink, the compactor node executes those background maintenance tasks.
+
+<Warning>
+**Dedicated compactor required for automatic Iceberg maintenance**
+
+Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. Without a compactor, automatic Iceberg maintenance will not run, small files will accumulate, and query performance will degrade over time.
+</Warning>
+
+## Why a dedicated compactor is needed
+
+When RisingWave writes to Iceberg, it produces many small data files and frequent snapshots. Without compaction:
+
+- Query performance degrades due to excessive file scanning.
+- Storage costs increase from accumulated small files and stale snapshots.
+- Metadata overhead grows with each new snapshot, slowing down catalog operations.
+
+RisingWave's compactor node handles this by periodically merging small files and expiring old snapshots. It uses an embedded Rust/DataFusion engine that can outperform a single-node Apache Spark setup for Iceberg compaction tasks. See the [compaction benchmark](/iceberg/compaction-benchmark) for details.
+
+The compactor node is separate from the compute node and can be scaled independently, so it will not interfere with your streaming workloads.
+
+## Deploy a compactor node
+
+### Kubernetes (Helm)
+
+If you deployed RisingWave using the Helm chart, add or update the `compactorComponent` section in your `values.yaml` file.
+
+#### Minimal configuration
+
+```yaml values.yaml
+compactorComponent:
+  replicas: 1
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: "1"
+      memory: 2Gi
+```
+
+Apply the change:
+
+```bash
+helm upgrade -n risingwave <my-risingwave> risingwavelabs/risingwave -f values.yaml
+```
+
+#### Production configuration
+
+For production workloads with frequent writes or large data volumes, allocate more CPU and memory:
+
+```yaml values.yaml
+compactorComponent:
+  replicas: 1
+  resources:
+    limits:
+      cpu: "8"
+      memory: 16Gi
+    requests:
+      cpu: "4"
+      memory: 8Gi
+```
+
+See [Helm chart configuration](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-pods-of-different-components) for the full list of supported `compactorComponent` fields.
+
+### Kubernetes (Operator)
+
+If you deployed RisingWave using the Kubernetes Operator, add or update the `compactor` section under `spec.components` in your `RisingWave` custom resource.
+
+#### Minimal configuration
+
+```yaml risingwave.yaml
+apiVersion: risingwave.risingwavelabs.com/v1alpha1
+kind: RisingWave
+metadata:
+  name: risingwave
+spec:
+  # ... other fields ...
+  components:
+    compactor:
+      nodeGroups:
+        - name: ""
+          replicas: 1
+          template:
+            spec:
+              resources:
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
+                requests:
+                  cpu: "1"
+                  memory: 2Gi
+```
+
+Apply the change:
+
+```bash
+kubectl apply -f risingwave.yaml
+```
+
+#### Production configuration
+
+```yaml risingwave.yaml
+apiVersion: risingwave.risingwavelabs.com/v1alpha1
+kind: RisingWave
+metadata:
+  name: risingwave
+spec:
+  # ... other fields ...
+  components:
+    compactor:
+      nodeGroups:
+        - name: ""
+          replicas: 1
+          template:
+            spec:
+              resources:
+                limits:
+                  cpu: "8"
+                  memory: 16Gi
+                requests:
+                  cpu: "4"
+                  memory: 8Gi
+```
+
+## Verify the compactor is running
+
+After applying the configuration, check that the compactor Pod is running:
+
+```bash
+# Helm deployment
+kubectl -n risingwave get pods -l app.kubernetes.io/component=compactor
+
+# Operator deployment
+kubectl get pods -l risingwave/component=compactor
+```
+
+The output should show a compactor Pod with status `Running`:
+
+```
+NAME                                     READY   STATUS    RESTARTS   AGE
+risingwave-compactor-8dd799db6-hdjjz     1/1     Running   0          2m
+```
+
+## Sizing guidelines
+
+The right compactor size depends on your write volume and compaction frequency. Use the following guidelines as a starting point.
+
+### Minimum requirements
+
+| Resource | Value |
+|:--|:--|
+| CPU | 1 core |
+| Memory | 2 GB |
+
+This is sufficient for small workloads with infrequent writes (for example, test environments or low-volume pipelines).
+
+### Recommended sizing by workload
+
+| Workload | Write volume | Compaction frequency | CPU | Memory |
+|:--|:--|:--|:--|:--|
+| Light | < 10 GB/day | Hourly (default) | 2 cores | 4 GB |
+| Medium | 10–100 GB/day | Hourly or more frequent | 4 cores | 8 GB |
+| Heavy | > 100 GB/day | Sub-hourly | 8+ cores | 16+ GB |
+
+### Sizing considerations
+
+- **CPU**: Compaction is CPU-intensive due to file reading, sorting, and writing. Allocate more CPU for high write volumes or shorter compaction intervals.
+- **Memory**: The compactor buffers file data in memory during compaction. For large target file sizes (for example, `compaction.target_file_size_mb = 512`), increase memory proportionally.
+- **Replicas**: In most cases, a single compactor replica is sufficient. Consider adding a second replica if the compactor consistently becomes a bottleneck (observable via the [RisingWave monitoring dashboard](/operate/monitor-risingwave-cluster)).
+
+<Tip>
+The [compaction benchmark](/iceberg/compaction-benchmark) tested RisingWave's compaction engine on a 16-core, 64 GB machine against ~193 GB of data (17,000+ small files). For reference, that configuration compacted the dataset significantly faster than a single-node Apache Spark setup.
+</Tip>
+
+### Adjusting compaction frequency
+
+Reducing `compaction_interval_sec` increases how often compaction runs, which keeps tables healthier but increases compactor load. Increase CPU and memory if you lower the interval significantly.
+
+```sql
+-- Run compaction every 30 minutes instead of the default 1 hour
+CREATE TABLE my_table (id INT PRIMARY KEY, name VARCHAR)
+WITH (
+    enable_compaction = true,
+    compaction_interval_sec = 1800
+) ENGINE = iceberg;
+```
+
+For complete maintenance configuration options, see [Iceberg table maintenance](/iceberg/maintenance).
