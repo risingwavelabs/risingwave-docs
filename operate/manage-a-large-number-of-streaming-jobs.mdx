@@ -197,6 +197,102 @@ To rebalance the actor, you can use the alter parallelism statement mentioned ab
 In some references, `/risingwave/bin/risingwave ctl scale horizon --include-workers all` is used to scale out all streaming jobs to avoid the skewed actor distribution. However, this approach may not be sufficient when dealing with a large number of streaming jobs, as it does not consider the `default_parallelism` parameter.
 </Warning>
 
+## Migrate to recommended parallelism defaults
+
+Starting from v2.3.0, RisingWave ships with updated recommended defaults for parallelism strategy. This section explains how to apply those defaults to both future and existing streaming jobs.
+
+### Recommended defaults and scope
+
+The following system parameters represent the recommended defaults:
+
+| Parameter | Recommended value | Description |
+|---|---|---|
+| `streaming_parallelism_strategy_for_source` | `BOUNDED(4)` | Parallelism strategy for newly created sources and tables with connectors. |
+| `streaming_parallelism_strategy_for_table` | `BOUNDED(4)` | Parallelism strategy for newly created tables. |
+| `adaptive_parallelism_strategy` | `BOUNDED(64)` | Cap on adaptive parallelism for all adaptive streaming jobs. |
+
+<Note>
+These settings only affect **newly created** streaming jobs. Existing materialized views, tables, sources, indexes, and sinks are **not** automatically updated. You must issue per-relation `ALTER` statements to apply changes to existing jobs, as described in the following sections.
+</Note>
+
+### Set system defaults for future jobs
+
+Run the following statements to update the system-wide defaults. New streaming jobs created after this point will inherit these values.
+
+```sql
+ALTER SYSTEM SET streaming_parallelism_strategy_for_source = 'BOUNDED(4)';
+ALTER SYSTEM SET streaming_parallelism_strategy_for_table = 'BOUNDED(4)';
+ALTER SYSTEM SET adaptive_parallelism_strategy = 'BOUNDED(64)';
+```
+
+### Migrate existing relations
+
+Existing streaming jobs retain the parallelism they were created with. Use the queries below to inspect current parallelism and generate `ALTER` statements for jobs that deviate from your target values.
+
+**Step 1 — Review current parallelism**
+
+```sql
+SELECT id, name, relation_type, parallelism
+FROM rw_streaming_parallelism
+ORDER BY relation_type, name;
+```
+
+**Step 2 — Generate ALTER statements for sources and tables**
+
+The following query generates `ALTER` statements for sources and tables whose parallelism exceeds the target of 4. Review the generated SQL before executing it.
+
+```sql
+SELECT
+  'ALTER ' || relation_type || ' ' || name || ' SET PARALLELISM = 4;' AS alter_sql
+FROM rw_streaming_parallelism
+WHERE relation_type IN ('table', 'source')
+  AND parallelism NOT LIKE 'BOUNDED(4)%'
+  AND parallelism NOT LIKE 'FIXED(4)%'
+ORDER BY name;
+```
+
+**Step 3 — Generate ALTER statements for other adaptive streaming jobs**
+
+The following query generates `ALTER` statements for materialized views, sinks, and indexes that are still fully adaptive (not yet bounded).
+
+```sql
+SELECT
+  'ALTER ' || relation_type || ' ' || name || ' SET PARALLELISM = adaptive;' AS alter_sql
+FROM rw_streaming_parallelism
+WHERE relation_type IN ('materialized view', 'sink', 'index')
+  AND parallelism = 'ADAPTIVE'
+ORDER BY name;
+```
+
+After review, execute the generated statements one by one or in small batches.
+
+<Note>
+There is no single command that bulk-updates all existing streaming jobs. Each relation requires its own `ALTER` statement.
+</Note>
+
+### Operational safety
+
+Before and after applying parallelism changes, follow these precautions:
+
+- **Check total actor count** before making changes:
+  ```sql
+  SELECT COUNT(*) FROM rw_actors;
+  ```
+  A count above 50,000 indicates the cluster is under heavy load; proceed with extra care.
+
+- **Stage your rollout.** Apply `ALTER` statements to a small subset of jobs first, then observe latency, throughput, and memory usage for a few minutes before proceeding to the rest.
+
+- **Verify after each batch.** Re-run the inspection query from Step 1 to confirm the expected parallelism values are in effect.
+
+- **Check capacity.** Ensure the cluster has sufficient CPU and memory to support the new parallelism before scaling up. Reducing parallelism frees resources; increasing it consumes them.
+
+### Version awareness
+
+- The `adaptive_parallelism_strategy` parameter is available from **v2.3.0** onward.
+- The `streaming_parallelism_strategy_for_source` and `streaming_parallelism_strategy_for_table` parameters are available from **v2.3.0** onward.
+- Clusters upgraded from earlier versions do not automatically inherit the new defaults. Follow the migration steps above after upgrading.
+- For more details on cluster scaling and parallelism policies, see [Cluster scaling](/deploy/k8s-cluster-scaling).
+
 ## Other precautions for too many actors
 
 * Resources of meta store and Meta Node: During recovering or scaling processes,there might be spikes in resource usage on the nodes. If you encounter OOM errors or observe some error logs in the meta, please try to scale up the nodes.
