@@ -47,3 +47,25 @@ SET PARALLELISM { TO | = } parallelism_number;
 -- Set the parallelism of the index "idx_orders" to 3.
 ALTER INDEX idx_orders SET PARALLELISM = 3;
 ```
+
+### `SET BACKFILL_PARALLELISM`
+
+```sql
+ALTER INDEX index_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_number;
+```
+
+This statement controls the degree of parallelism used during the backfill phase of an index. It lets you tune resource usage for backfilling independently from the index's steady-state parallelism.
+
+| Parameter or clause          | Description |
+| :--------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_number_         | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+
+```sql Examples
+-- Set backfill parallelism to a fixed value
+ALTER INDEX idx_orders SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER INDEX idx_orders SET BACKFILL_PARALLELISM = ADAPTIVE;
+```

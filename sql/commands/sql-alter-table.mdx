@@ -311,6 +311,32 @@ ALTER TABLE kafka_source SET source_rate_limit TO 0;
 ALTER TABLE kafka_source SET source_rate_limit TO 1000;
 ```
 
+### `SET BACKFILL_PARALLELISM`
+
+```sql
+ALTER TABLE table_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_number;
+```
+
+This statement controls the degree of parallelism used during the backfill phase of a streaming job. It lets you tune resource usage for backfilling independently from the job's steady-state parallelism.
+
+<Note>
+`SET BACKFILL_PARALLELISM` is not supported for tables using the Iceberg engine.
+</Note>
+
+| Parameter or clause          | Description |
+| :--------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_number_         | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+
+```sql Examples
+-- Set backfill parallelism to a fixed value
+ALTER TABLE t1 SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER TABLE t1 SET BACKFILL_PARALLELISM = ADAPTIVE;
+```
+
 ### `SET BACKFILL_RATE_LIMIT`
 ```sql
 ALTER TABLE table_name
