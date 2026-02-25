@@ -159,7 +159,7 @@ Locality backfill is a premium feature for complex queries. A query plan that us
 Added in v2.8.0.
 </Note>
 
-When enabled, the query optimizer automatically rewrites batch (ad-hoc) queries to scan a matching materialized view instead of the raw base tables. If a query's projection, filter, and aggregation match an existing MV, RisingWave reads the pre-computed result directly—avoiding a full table scan and significantly reducing query latency.
+When enabled, the query optimizer automatically rewrites batch (ad-hoc) queries to scan a matching materialized view instead of the raw base tables. This is particularly useful for backfilling workloads that rely on large one-off or periodic batch queries over historical data, because they can reuse pre-computed results instead of repeatedly rescanning base tables. If a query's `SELECT` list, `WHERE` clause, and `GROUP BY` match an existing MV, RisingWave reads the pre-computed result directly—avoiding a full table scan and significantly reducing query latency.
 
 MV selection is controlled by the session variable `enable_mv_selection` (disabled by default).
 
@@ -182,7 +182,7 @@ CREATE MATERIALIZED VIEW lineitem_summary AS
   GROUP BY l_returnflag, l_linestatus;
 ```
 
-With MV selection enabled, a batch query with the same definition is automatically rewritten to scan `lineitem_summary` rather than `lineitem`:
+With MV selection enabled, a batch query whose `SELECT` list, `WHERE` clause, and `GROUP BY` match the materialized view definition (optionally with an additional `ORDER BY`) is automatically rewritten to scan `lineitem_summary` rather than `lineitem`:
 
 ```sql
 SET enable_mv_selection = true;
@@ -202,7 +202,17 @@ ORDER BY l_returnflag, l_linestatus;
 Use `EXPLAIN` to confirm that the optimizer selected the MV:
 
 ```sql
-EXPLAIN SELECT ...;
+EXPLAIN
+SELECT
+  l_returnflag,
+  l_linestatus,
+  SUM(l_quantity)                                    AS sum_qty,
+  SUM(l_extendedprice * (1 - l_discount))            AS sum_disc_price,
+  COUNT(*)                                           AS count_order
+FROM lineitem
+WHERE l_shipdate <= DATE '1998-12-01' - INTERVAL '71' DAY
+GROUP BY l_returnflag, l_linestatus
+ORDER BY l_returnflag, l_linestatus;
 -- Look for a BatchScan referencing "lineitem_summary" instead of "lineitem"
 ```
 
