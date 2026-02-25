@@ -26,6 +26,7 @@ description: "An overview of RisingWave's support for Apache Iceberg features, i
 | Dec 2025 | Vended credentials for Iceberg REST catalogs |
 | Dec 2025 | Enhanced Iceberg sink compaction strategies (small-files, files-with-delete) |
 | Dec 2025 | Refreshable Iceberg batch tables with scheduled or on-demand refresh |
+| Feb 2026 | Iceberg format v3 with delete vector support (read and write) |
 
 
 ## Feature comparison
@@ -58,7 +59,7 @@ The following table compares RisingWave with other ETL/ELT tools for Iceberg, su
 | Periodic loading (mutable, MoR) | Planned (v2.7) | Supported (via scheduled batch query) | Supported (via scheduled batch query) |
 | Continuous loading (append-only) | Supported | Supported | Supported |
 | Continuous loading (mutable, CoW) | Supported | Partially Supported (streams from new snapshots) | Supported (native changelog stream) |
-| Continuous loading (mutable, MoR) | Not Supported | Not Supported | Partially Supported (streams changes after compaction) |
+| Continuous loading (mutable, MoR) | Supported (v3 delete vectors, added Feb 2026) | Not Supported | Partially Supported (streams changes after compaction) |
 
 ## Key Iceberg features in RisingWave
 
@@ -73,7 +74,7 @@ The following table compares RisingWave with other ETL/ELT tools for Iceberg, su
 | Controllable Commit Frequency | Users can configure commit frequency based on workload and freshness requirements. | Balances performance, cost, and data freshness for diverse workloads. | Kafka / Kafka Connect |
 | Exactly-Once Semantics | Guarantees no duplicate or missing records while respecting primary key constraints from upstream sources. | Maintains strong data consistency and correctness in streaming pipelines. | Flink (no buffering, coupled with checkpoint) |
 | Embedded Log Store | Uses an internal log store (similar to an embedded Kafka) for buffering data before committing. | Enables durability, backpressure handling, and fault-tolerant data delivery. | Kafka / Kafka Connect |
-| Mutable Stream Modes | Supports two modes: MoR and CoW. MoR writes data and delete files for high freshness; CoW writes compacted data files for compatibility. | Offers flexibility to balance freshness and compatibility with different query engines. | - |
+| Mutable Stream Modes | Supports two modes: MoR and CoW. MoR writes data and delete files for high freshness; CoW writes compacted data files for compatibility. Iceberg format v3 introduces delete vectors (Puffin files) as a more efficient alternative to position/equality delete files, supported from Feb 2026. | Offers flexibility to balance freshness and compatibility with different query engines. Format v3 delete vectors reduce read amplification and are natively supported by Spark 4.0+ and Trino 470+. | - |
 | **Reading from Iceberg** | | | |
 | One-time Loading (Append-only) | Loads append-only Iceberg tables once for initial data import or snapshot analysis. | Ideal for bootstrapping analytical pipelines or ad-hoc analysis without maintaining state. | Spark, Flink |
 | One-time Loading (Mutable, CoW) | Loads CoW-style Iceberg tables once, applying overwrite semantics to ensure consistent snapshot reads. | Enables consistent point-in-time analysis for mutable tables. | Spark, Flink |

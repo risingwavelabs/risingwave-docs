@@ -147,3 +147,69 @@ Choose the write mode that best fits your workload and query patterns.
 | **Storage overhead** | Higher (stores base and delta files) | Lower (no separate delete files) |
 | **Default mode** | Yes | No |
 | **Ideal for** | Write-heavy workloads, real-time ingestion, append-only data | Read-heavy upsert workloads, BI dashboards |
+
+## Iceberg format version
+
+<Note>
+Iceberg format v3 (delete vectors) is available from v2.8.0.
+</Note>
+
+By default, RisingWave creates Iceberg tables and sinks using **Iceberg format version 2**. You can opt in to **format version 3**, which represents updates and deletes as _delete vectors_ encoded in [Puffin](https://iceberg.apache.org/puffin-spec/) files rather than as separate position or equality delete files.
+
+| | Format v2 | Format v3 |
+|---|---|---|
+| **Delete representation** | Separate position/equality delete files | Delete vectors (Puffin files co-located with data files) |
+| **MoR read overhead** | Requires joining base files with delete files | Vectorized apply — lower read-time CPU cost |
+| **Write efficiency** | Standard | Higher (smaller, more compact delete metadata) |
+| **Downstream compatibility** | Spark, Trino, Flink, DuckDB, etc. | Spark 4.0+, Trino 470+; check your engine's Iceberg v3 support |
+| **Default** | Yes | No (opt-in via `format_version = 3`) |
+
+### Enable format v3
+
+Set `format_version = 3` when creating an Iceberg table or sink:
+
+```sql
+-- Iceberg table engine with format v3
+CREATE TABLE orders (
+    id     INT PRIMARY KEY,
+    status VARCHAR,
+    amount NUMERIC
+) WITH (
+    format_version = 3,
+    commit_checkpoint_interval = 60
+) ENGINE = iceberg;
+```
+
+```sql
+-- Iceberg sink with format v3
+CREATE SINK orders_sink FROM my_source
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'orders',
+    catalog.type = 'storage',
+    s3.region = 'us-east-1',
+    format_version = 3
+);
+```
+
+### Verify delete vectors are being used
+
+Query the `rw_iceberg_files` system catalog to confirm that Puffin files (delete vectors) are present:
+
+```sql
+SELECT file_format, content, COUNT(*) AS file_count
+FROM rw_iceberg_files
+WHERE schema_name = 'public'
+  AND source_name = '__iceberg_source_orders'
+GROUP BY file_format, content;
+```
+
+When format v3 is active, you will see rows with `file_format = 'puffin'` for deleted rows, and no `EqualityDeletes` or `PositionDeletes` content entries.
+
+<Warning>
+`format_version` is set at table or sink creation time and cannot be changed afterward. Ensure your downstream query engines support Iceberg v3 before enabling this option.
+</Warning>
