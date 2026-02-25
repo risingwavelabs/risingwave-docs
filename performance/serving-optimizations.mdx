@@ -76,8 +76,13 @@ SELECT date_trunc('day', order_time) AS day, SUM(amount) AS total
 FROM orders
 GROUP BY 1
 ORDER BY 1;
--- Look for a BatchScan on "daily_order_totals" instead of "orders"
+
+----
+ BatchExchange { order: [daily_order_totals.day ASC], dist: Single }
+ └─BatchScan { table: daily_order_totals, columns: [day, total] }
 ```
+
+The plan shows a `BatchScan` on `daily_order_totals` — confirming the optimizer rewrote the query to read from the MV instead of scanning and aggregating `orders`.
 
 `enable_mv_selection` is disabled by default. Enable it per session:
 
