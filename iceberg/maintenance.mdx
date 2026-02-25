@@ -13,7 +13,8 @@ When RisingWave streams data into Iceberg, it generates many small data files an
 
 <Note>
 **Version notes**
-- RisingWave introduced Iceberg automatic maintenance (default) in v2.5.0 and added `compaction.type` with the `small-files` and `files-with-delete` compaction types in v2.7.0.  
+- RisingWave introduced Iceberg automatic maintenance (default) in v2.5.0 and added `compaction.type` with the `small-files` and `files-with-delete` compaction types in v2.7.0.
+- `compaction.write_parquet_compression` and `compaction.write_parquet_max_row_group_rows` were added in v2.9.0. The `compaction.target_file_size_mb` parameter now also controls the output file size for sink writes (previously only applied to compaction).
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
 
@@ -60,9 +61,15 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | `compaction.type` | Optional. The compaction strategy: `full`, `small-files`, or `files-with-delete`. Default: `full`. |
 | `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. |
 | `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. |
-| `compaction.target_file_size_mb` | Optional. The target file size in MB for compacted files. |
+| `compaction.target_file_size_mb` | Optional. The target output file size in MB. Applies to both sink writes and compaction. Default: `1024`. |
+| `compaction.write_parquet_compression` | Optional. The Parquet compression codec for output files. Accepted values: `uncompressed`, `snappy`, `gzip`, `lzo`, `brotli`, `lz4`, `zstd`. Default: `snappy`. Supports dynamic updates via `ALTER SINK`. |
+| `compaction.write_parquet_max_row_group_rows` | Optional. The maximum number of rows per Parquet row group. Must be greater than 0. Default: `122880`. Supports dynamic updates via `ALTER SINK`. |
 | `compaction.small_files_threshold_mb` | Optional. For `small-files` compaction type, the threshold size in MB below which files will be compacted. |
 | `compaction.delete_files_count_threshold` | Optional. For `files-with-delete` compaction type, the minimum number of delete files associated with a data file required to trigger compaction. |
+
+<Warning>
+**Deprecated storage config**: The node-level storage config `iceberg_compaction_write_parquet_max_row_group_rows` is deprecated. Use the sink-level parameter `compaction.write_parquet_max_row_group_rows` instead.
+</Warning>
 
 ### Examples
 
