@@ -25,7 +25,7 @@ The adaptive parallelism feature in v1.7.0 ensures that every streaming job can 
 
 ### Configure adaptive parallelism strategy
 
-RisingWave introduces the [system parameter](/operate/view-configure-system-parameters)`adaptive_parallelism_strategy` in v2.3.0 to control how jobs behave when they are of the adaptive type. This provides more granular control over adaptive scheduling behavior.
+RisingWave introduces the [system parameter](/operate/view-configure-system-parameters) `adaptive_parallelism_strategy` in v2.3.0 to control how jobs behave when they are of the adaptive type. This provides more granular control over adaptive scheduling behavior.
 
 The supported values are:
 
@@ -41,11 +41,48 @@ When this parameter is modified, RisingWave sends a local notification to inform
 
 All parallelism values remain subject to the limits of max parallelism and resource groups.
 
-You can also set this parameter using the following syntax:
+You can set this parameter cluster-wide using:
 
 ```sql
 ALTER SYSTEM SET adaptive_parallelism_strategy TO '<strategy>';
 ```
+
+#### Per-job strategy override
+
+<Note>
+Added in v2.8.0.
+</Note>
+
+In addition to the global system parameter, you can override the adaptive parallelism strategy for a specific job at creation time using session variables. The strategy is stored with the job and reapplied automatically whenever the cluster rescales — so it acts as a persistent policy, not a one-time setting.
+
+```sql
+-- Limit this MV to at most 4 actors, regardless of cluster size
+SET streaming_parallelism_strategy_for_materialized_view = 'Bounded(4)';
+CREATE MATERIALIZED VIEW my_low_priority_mv AS SELECT ...;
+
+-- Use 50% of available parallelism for this sink
+SET streaming_parallelism_strategy_for_sink = 'Ratio(0.5)';
+CREATE SINK my_sink INTO my_table AS SELECT ...;
+
+-- Reset to inherit the global strategy
+SET streaming_parallelism_strategy_for_materialized_view = 'default';
+```
+
+The per-job session variables and their defaults are:
+
+| Session variable | Default | Applies to |
+|---|---|---|
+| `streaming_parallelism_strategy_for_materialized_view` | `default` (inherits global) | `CREATE MATERIALIZED VIEW` |
+| `streaming_parallelism_strategy_for_table` | `Bounded(4)` | `CREATE TABLE` |
+| `streaming_parallelism_strategy_for_sink` | `default` (inherits global) | `CREATE SINK` |
+| `streaming_parallelism_strategy_for_source` | `Bounded(4)` | `CREATE SOURCE` |
+| `streaming_parallelism_strategy_for_index` | `default` (inherits global) | `CREATE INDEX` |
+
+Setting a variable to `default` means the job inherits the global `adaptive_parallelism_strategy` system parameter. All values accept the same strategy syntax: `Auto`, `Full`, `Bounded(n)`, or `Ratio(r)`.
+
+<Tip>
+Use per-job overrides to reserve cluster headroom on shared deployments — for example, keep background enrichment jobs at `Bounded(4)` while letting high-priority MVs use `Full`.
+</Tip>
 
 ### Limit the concurrency of creating streaming jobs
 
