@@ -98,6 +98,29 @@ kubectl -n risingwave-operator-system get pods
 
 RisingWave Kubernetes Operator extends the Kubernetes with CRDs (Custom Resource Definitions) to manage RisingWave. That means all you need to do is to create a RisingWave resource in your Kubernetes cluster, and the RisingWave Kubernetes Operator will take care of the rest.
 
+### Resource requests and limits recommendations
+
+For production Kubernetes deployments, we **strongly recommend** setting CPU and memory requests equal to limits for all RisingWave components. This configuration ensures:
+
+* **Predictable scheduling**: Kubernetes can more accurately schedule pods on nodes with sufficient resources
+* **QoS Guaranteed class**: Pods are assigned the highest QoS class, making them less likely to be evicted under resource pressure
+* **Consistent performance**: Prevents CPU throttling and ensures stable memory allocation
+* **Resource isolation**: Better protects workloads from noisy neighbors in multi-tenant clusters
+
+**Recommended configuration pattern:**
+
+```yaml
+resources:
+  limits:
+    cpu: 4
+    memory: 16Gi
+  requests:
+    cpu: 4        # Should equal limits
+    memory: 16Gi  # Should equal limits
+```
+
+For specific resource recommendations by component type, see [Hardware requirements](/deploy/hardware-requirements).
+
 ### Use the example resource files
 
 The RisingWave resource is a custom resource that defines a RisingWave cluster. In [this directory](https://github.com/risingwavelabs/risingwave-operator/blob/main/docs/manifests/risingwave), you can find resource examples that deploy RisingWave with different configurations of metadata store and state backend. Based on your requirements, you can use these resource files directly or as a reference for your customization. The [stable directory](https://github.com/risingwavelabs/risingwave-operator/tree/main/docs/manifests/stable/) contains resource files that we have tested compatibility with the latest released version of the RisingWave Operator:
@@ -377,6 +400,9 @@ spec:
               limits:
                 cpu: 1
                 memory: 2Gi
+              requests:
+                cpu: 1
+                memory: 2Gi
             env:
             - name: HADOOP_CONF_DIR
               value: /var/etc/hadoop/conf
@@ -396,6 +422,9 @@ spec:
           spec:
             resources:
               limits:
+                cpu: 4
+                memory: 16Gi
+              requests:
                 cpu: 4
                 memory: 16Gi
             env:
@@ -419,6 +448,9 @@ spec:
               limits:
                 cpu: 2
                 memory: 4Gi
+              requests:
+                cpu: 2
+                memory: 4Gi
             env:
             - name: HADOOP_CONF_DIR
               value: /var/etc/hadoop/conf
@@ -438,6 +470,9 @@ spec:
           spec:
             resources:
               limits:
+                cpu: 2
+                memory: 4Gi
+              requests:
                 cpu: 2
                 memory: 4Gi
 

@@ -120,6 +120,34 @@ You can monitor the RisingWave cluster using the monitoring stack. For details, 
 
 By editing the configurations in [values.yml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml), you can resize a worker node. The Compactor Node configurations are in the `compactorComponent` section. Configurations for the Meta Node and Serving / Streaming Node are in `metaComponent` and `computeComponent` sections respectively. See [Customize pods of different components](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-pods-of-different-components) for details.
 
+### Resource requests and limits recommendations
+
+For production Kubernetes deployments, we **strongly recommend** setting CPU and memory requests equal to limits for all RisingWave components. This configuration ensures:
+
+* **Predictable scheduling**: Kubernetes can more accurately schedule pods on nodes with sufficient resources
+* **QoS Guaranteed class**: Pods are assigned the highest QoS class, making them less likely to be evicted under resource pressure
+* **Consistent performance**: Prevents CPU throttling and ensures stable memory allocation
+* **Resource isolation**: Better protects workloads from noisy neighbors in multi-tenant clusters
+
+**Recommended configuration pattern:**
+
+```yaml
+# To resize other types of node, please replace the name with
+# computeComponent, or metaComponent.
+compactorComponent:
+  resources:
+    limits:
+      cpu: 2
+      memory: 4Gi
+    requests:
+      cpu: 2        # Should equal limits
+      memory: 4Gi   # Should equal limits
+```
+
+For specific resource recommendations by component type, see [Hardware requirements](/deploy/hardware-requirements).
+
+### Example configuration
+
 ```yaml
 # To resize other types of node, please replace the name with
 # computeComponent, or metaComponent.
@@ -131,9 +159,9 @@ compactorComponent:
       memory: 2Gi
     # The minimum amount of CPU and memory that the Pod is guaranteed to have.
     requests:
-      # 0.1 cores
-      cpu: 100m
-      memory: 64Mi
+      # Should equal limits for production deployments
+      cpu: 1
+      memory: 2Gi
 
 ```
 Please note that increasing the CPU resource will not automatically increase the parallelism of existing materialized views. When scaling up (adding more CPU cores) a Streaming Node, you should perform the scaling by following the instructions in [Cluster scaling](/deploy/k8s-cluster-scaling).
