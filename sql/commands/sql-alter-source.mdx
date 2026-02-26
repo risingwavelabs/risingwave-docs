@@ -171,6 +171,28 @@ SET PARALLELISM { TO | = } parallelism_number;
 ALTER SOURCE s_kafka SET PARALLELISM = 2;
 ```
 
+### `SET BACKFILL_PARALLELISM`
+
+```sql
+ALTER SOURCE source_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_number;
+```
+
+This statement controls the degree of parallelism used during the backfill phase of a source. It lets you tune resource usage for backfilling independently from the source's steady-state parallelism.
+
+| Parameter or clause          | Description |
+| :--------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_number_         | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+
+```sql Examples
+-- Set backfill parallelism to a fixed value
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = ADAPTIVE;
+```
+
 ### `SET SOURCE_RATE_LIMIT`
 
 ```sql
