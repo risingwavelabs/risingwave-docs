@@ -1,0 +1,208 @@
+---
+title: "Version upgrade best practices"
+description: "A practical guide to safely planning, executing, and validating RisingWave version upgrades in production environments."
+sidebarTitle: Upgrade best practices
+---
+
+Upgrading RisingWave in production requires careful preparation to avoid downtime and data inconsistency. Follow the steps in this guide to plan, execute, and validate your upgrade safely.
+
+## Before the upgrade
+
+### Review release notes and breaking changes
+
+Read the [release notes](https://github.com/risingwavelabs/risingwave/releases) for every version between your current version and the target version. Pay attention to:
+
+- Breaking changes in SQL syntax or semantics.
+- Deprecated features or configuration parameters.
+- Changes to connector behavior or format requirements.
+- Required manual migration steps called out in the release notes.
+
+### Verify the upgrade path
+
+RisingWave supports upgrading forward to a higher version. Skipping major versions may be unsupported—check the release notes for any version-specific upgrade requirements. Downgrades are **not supported** and may cause data incompatibility.
+
+### Back up your metadata
+
+Create a meta snapshot before the upgrade to preserve a recovery point:
+
+```bash
+risectl meta backup-meta
+```
+
+For detailed instructions, see [Back up and restore meta service](/operate/meta-backup).
+
+Also capture your current cluster configuration:
+
+```bash
+kubectl get risingwave <cluster-name> -o yaml > risingwave-config-backup.yaml
+```
+
+### Define a maintenance window
+
+Schedule the upgrade during a low-traffic period. Set clear criteria for success and for rolling back:
+
+- **Success criteria:** All pods are running, ingestion resumes, materialized views are current, no elevated error rate.
+- **Rollback trigger:** Any pod fails to reach `Running` state within the expected time, or error rates spike after upgrade.
+
+## Compatibility and safety constraints
+
+- **Forward upgrades only.** Upgrading from an older version to a newer version is supported.
+- **Downgrades are not supported.** Rolling back after a completed upgrade is not guaranteed to be safe. Restore from your pre-upgrade backup instead.
+- **Self-managed Kubernetes rollback** is possible by reverting the container image to the previous version before the upgrade is complete; see [Roll back when necessary](#roll-back-when-necessary) below.
+- **RisingWave Cloud** manages upgrades on your behalf. Contact [RisingWave support](https://www.risingwave.com/slack) if you need to revert a cloud-managed upgrade.
+
+## Execution strategy
+
+### Prefer incremental upgrades
+
+If you need to upgrade across multiple major versions, upgrade one version at a time and validate the cluster at each step before proceeding. This limits the blast radius of any incompatibility.
+
+### Upgrade with Helm
+
+1. Update your local Helm repository cache:
+
+   ```bash
+   helm repo update
+   ```
+
+2. Review available chart versions:
+
+   ```bash
+   helm search repo risingwavelabs/risingwave -l
+   ```
+
+3. Upgrade to the target version:
+
+   ```bash
+   helm upgrade --set image.tag=<target-version> \
+     -f values.yaml \
+     --reuse-values \
+     --version <chart-version> \
+     my-risingwave risingwavelabs/risingwave
+   ```
+
+For full Helm upgrade instructions, see [Upgrade RisingWave in a Kubernetes cluster](/deploy/upgrade-risingwave-k8s#upgrade-risingwave-with-helm).
+
+### Upgrade with the Kubernetes Operator
+
+1. Patch the cluster image to the target version:
+
+   ```bash
+   kubectl patch risingwave <cluster-name> --type='merge' \
+     -p '{"spec": {"image": "ghcr.io/risingwavelabs/risingwave:<target-version>"}}'
+   ```
+
+2. Wait for the upgrade to complete:
+
+   ```bash
+   kubectl wait --for=condition=Upgrading=false risingwave/<cluster-name> --timeout=10m
+   ```
+
+For full Operator upgrade instructions, see [Upgrade RisingWave in a Kubernetes cluster](/deploy/upgrade-risingwave-k8s#upgrade-risingwave-with-the-operator).
+
+### Monitor during rollout
+
+While the upgrade is in progress, watch pod status and logs:
+
+```bash
+# Pod status
+kubectl get pods -l risingwave/name=<cluster-name> -w
+
+# Meta node logs
+kubectl logs -l risingwave/component=meta --tail=100 -f
+```
+
+Check the following during rollout:
+
+- All pods reach `Running` status.
+- No `CrashLoopBackOff` or `Error` states appear.
+- The meta node starts successfully before other components.
+
+## Roll back when necessary
+
+<Warning>
+A rollback is only possible before the upgrade is fully committed. Once all pods are running on the new version, revert from your pre-upgrade backup instead.
+</Warning>
+
+### Self-managed Kubernetes rollback
+
+If any issue arises during the upgrade, revert the image to the previous version:
+
+```bash
+kubectl patch risingwave <cluster-name> --type='merge' \
+  -p '{"spec": {"image": "ghcr.io/risingwavelabs/risingwave:<version-before>"}}'
+```
+
+Wait for pods to return to `Running` status and verify that the cluster is healthy.
+
+If the issue cannot be resolved, restore your metadata from the snapshot you created before the upgrade. See [Back up and restore meta service](/operate/meta-backup).
+
+### RisingWave Cloud
+
+For cloud-managed clusters, contact [RisingWave support](https://www.risingwave.com/slack) for rollback assistance.
+
+## Post-upgrade validation checklist
+
+After the upgrade completes, verify cluster health and workload correctness.
+
+### Cluster health
+
+```bash
+# All pods running
+kubectl get pods -l risingwave/name=<cluster-name>
+
+# Cluster version and status
+kubectl get risingwave <cluster-name>
+```
+
+Expected pod output:
+
+```
+NAME                                    READY   STATUS    RESTARTS   AGE
+risingwave-compactor-...                1/1     Running   0          2m
+risingwave-compute-0                    1/1     Running   0          2m
+risingwave-frontend-...                 1/1     Running   0          2m
+risingwave-meta-0                       1/1     Running   0          2m
+```
+
+### Workload validation
+
+- **Ingestion:** Confirm that sources are consuming messages and lag is decreasing.
+- **Materialized views:** Run queries against key materialized views and compare results to pre-upgrade baselines. Capture sample query results before the upgrade so you have a reference for comparison.
+- **Sinks:** Confirm that sinks are delivering records downstream.
+
+```sql
+-- Check materialized view freshness
+SELECT * FROM <your_materialized_view> LIMIT 10;
+```
+
+### Monitor alerts and logs
+
+Monitor your cluster for a stabilization period (typically 30–60 minutes) after the upgrade:
+
+- Check for elevated error rates in frontend and meta logs.
+- Verify that streaming job latency returns to baseline. See [Troubleshoot high latency](/performance/troubleshoot-high-latency).
+- Review [key metrics](/performance/metrics) such as CPU, memory, and compaction queue depth.
+
+## Operator checklist
+
+Use this checklist as a quick reference before, during, and after each upgrade.
+
+**Pre-upgrade**
+- [ ] Read release notes for all versions between current and target.
+- [ ] Identify and plan for breaking changes.
+- [ ] Create a meta snapshot (`risectl meta backup-meta`).
+- [ ] Export current cluster configuration to a backup file.
+- [ ] Define maintenance window, success criteria, and rollback trigger.
+
+**During upgrade**
+- [ ] Monitor pod status with `kubectl get pods -w`.
+- [ ] Verify meta node starts before proceeding.
+- [ ] Confirm all pods reach `Running` within the expected time.
+
+**Post-upgrade**
+- [ ] All pods show `Running` status with 0 restarts.
+- [ ] Ingestion sources are consuming and lag is stable.
+- [ ] Materialized view queries return expected results.
+- [ ] Sinks are delivering records.
+- [ ] No elevated error rates in logs after 30–60 minutes.
