@@ -34,34 +34,37 @@ CREATE TABLE table_name (
     adbc_snowflake.database = 'database_name',
     adbc_snowflake.schema = 'schema_name',
     adbc_snowflake.warehouse = 'warehouse_name',
-    adbc_snowflake.table = 'table_name'
+    adbc_snowflake.table = 'source_table_in_snowflake'
 );
 ```
 
 <Note>
 **Automatic Schema Inference**
 
-Column definitions are automatically inferred from the Snowflake table and should not be manually specified in the `CREATE TABLE` statement. However, you must specify the primary key if your table requires one.
+Column definitions are automatically inferred from the Snowflake table and should not be manually specified in the `CREATE TABLE` statement. You must specify a primary key when creating a RisingWave table that sources from Snowflake.
 </Note>
 
 ## Parameters
 
-All parameters are required unless specified otherwise.
+Unless specified otherwise, parameters are required.
 
 | Parameter                    | Description                                                                                                                                                                                                                                      |
 | :--------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | connector                    | Must be `adbc_snowflake`.                                                                                                                                                                                                                        |
 | refresh_mode                 | Must be `FULL_RELOAD`. The entire table is re-read on each refresh.                                                                                                                                                                              |
-| refresh_interval_sec         | The refresh interval in seconds. Determines how frequently data is fetched from Snowflake.                                                                                                                                                       |
+| refresh_interval_sec         | **Optional**. The refresh interval in seconds. Determines how frequently data is fetched from Snowflake. If omitted, data is loaded once at table creation and then refreshed only when you run [`REFRESH TABLE`](/sql/commands/sql-refresh-table). |
 | adbc_snowflake.account       | The Snowflake account identifier (e.g., `myaccount.us-east-1` or `myaccount`).                                                                                                                                                                  |
 | adbc_snowflake.username      | The Snowflake username for authentication.                                                                                                                                                                                                       |
-| adbc_snowflake.password      | **Optional**. The password for username/password authentication. Required if using the default `auth_snowflake` authentication type.                                                                                                            |
+| adbc_snowflake.password      | **Optional**. The password for username/password authentication. Required when using username/password authentication (the default auth type).                                                                                                    |
 | adbc_snowflake.database      | The name of the Snowflake database.                                                                                                                                                                                                              |
 | adbc_snowflake.schema        | The Snowflake schema containing the table.                                                                                                                                                                                                       |
 | adbc_snowflake.warehouse     | The Snowflake warehouse to use for queries.                                                                                                                                                                                                      |
 | adbc_snowflake.table         | The name of the Snowflake table to ingest.                                                                                                                                                                                                       |
 | adbc_snowflake.auth_type     | **Optional**. The authentication method. Default is `auth_snowflake` (username/password). Other options: `auth_oauth`, `auth_jwt`, `auth_ext_browser`, `auth_okta`, `auth_mfa`, `auth_pat`, `auth_wif`.                                        |
-| adbc_snowflake.jwt_private_key_path | Required when `adbc_snowflake.auth_type` is `auth_jwt`. Local file path on the RisingWave server to the JWT private key file (e.g., `/path/to/key.pem`).                                                                                      |
+| adbc_snowflake.auth_token    | **Optional**. OAuth token for authentication. Required when `adbc_snowflake.auth_type` is `auth_oauth`.                                                                                                                                        |
+| adbc_snowflake.jwt_private_key_path | **Optional**. Local file path on the RisingWave server to the JWT private key file (e.g., `/path/to/key.pem`). For `auth_jwt`, provide this or `adbc_snowflake.jwt_private_key_pkcs8_value` (provide exactly one of the two).              |
+| adbc_snowflake.jwt_private_key_pkcs8_value | **Optional**. Inline PKCS#8 private key value for JWT authentication. For `auth_jwt`, provide this or `adbc_snowflake.jwt_private_key_path` (provide exactly one of the two).                                                             |
+| adbc_snowflake.jwt_private_key_pkcs8_password | **Optional**. Password for `adbc_snowflake.jwt_private_key_pkcs8_value`, if the private key is encrypted.                                                                                                                                   |
 
 ## Authentication methods
 
@@ -121,7 +124,8 @@ CREATE TABLE my_snowflake_table (
     adbc_snowflake.schema = 'PUBLIC',
     adbc_snowflake.warehouse = 'COMPUTE_WH',
     adbc_snowflake.table = 'ORDERS',
-    adbc_snowflake.auth_type = 'auth_oauth'
+    adbc_snowflake.auth_type = 'auth_oauth',
+    adbc_snowflake.auth_token = 'your_oauth_token'
 );
 ```
 
@@ -196,14 +200,15 @@ GROUP BY DATE_TRUNC('day', order_date);
 
 ## Limitations and requirements
 
-* **Refresh mode**: Only `FULL_RELOAD` mode is supported. The entire table is re-read on each refresh interval.
+* **Refresh mode**: Only `FULL_RELOAD` mode is supported. If `refresh_interval_sec` is set, RisingWave refreshes on that schedule. If it is omitted, refresh manually with [`REFRESH TABLE`](/sql/commands/sql-refresh-table).
+* **Primary key**: You must define a primary key when creating a refreshable Snowflake table.
 * **Schema inference**: Column definitions are automatically inferred from the Snowflake table. Do not manually specify columns in the `CREATE TABLE` statement.
 * **Feature flag**: The Snowflake connector requires the `source-adbc_snowflake` feature to be enabled at compile time. This is enabled by default in official RisingWave builds.
-* **Consistent snapshots**: The connector uses Snowflake's time travel feature to ensure all data is read from the same point in time during a refresh.
+* **Snapshot consistency**: The connector uses Snowflake's time travel feature when available to read data from a consistent point in time; when unavailable (for example, due to Snowflake retention settings), it falls back to reading current table data.
 * **Performance**: For large tables, consider the refresh interval carefully to balance data freshness with query costs in Snowflake.
 
 ## What's next?
 
 * [Sink data to Snowflake](/integrations/destinations/snowflake) - Learn how to write data from RisingWave back to Snowflake
 * [Work with Snowflake and Iceberg](/iceberg/integ-snowflake) - Integrate Snowflake with Apache Iceberg catalogs
-* [Data formats and encoding options](/ingestion/formats-and-encoding-options) - Understand supported data formats
+* [`REFRESH TABLE`](/sql/commands/sql-refresh-table) - Manually refresh a Snowflake table when `refresh_interval_sec` is not set
