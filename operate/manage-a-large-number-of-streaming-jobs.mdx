@@ -47,6 +47,31 @@ You can also set this parameter using the following syntax:
 ALTER SYSTEM SET adaptive_parallelism_strategy TO '<strategy>';
 ```
 
+### Configure per-job-type adaptive parallelism strategies
+
+In addition to the system-level `adaptive_parallelism_strategy`, you can configure adaptive strategies for specific job types at the session level. This provides fine-grained control over how different types of streaming jobs utilize resources.
+
+Set session-level strategies for specific job types:
+
+```sql
+SET streaming_parallelism_strategy = 'BOUNDED(4)';
+SET streaming_parallelism_strategy_for_table = 'RATIO(0.5)';
+SET streaming_parallelism_strategy_for_materialized_view = 'FULL';
+SET streaming_parallelism_strategy_for_sink = 'BOUNDED(2)';
+```
+
+Create jobs with specific strategies:
+
+```sql Example
+SET streaming_parallelism_strategy_for_table = 'BOUNDED(2)';
+CREATE TABLE my_table (id INT, value VARCHAR);
+
+SET streaming_parallelism_strategy_for_materialized_view = 'RATIO(0.5)';
+CREATE MATERIALIZED VIEW my_mv AS SELECT * FROM my_table;
+```
+
+For more details on adaptive parallelism strategies, see [Adaptive parallelism strategies](/operate/view-configure-runtime-parameters#adaptive-parallelism-strategies).
+
 ### Limit the concurrency of creating streaming jobs
 
 If you want to create multiple streaming jobs at once using scripts or tools such as DBT, the [system parameter](/operate/view-configure-system-parameters) `max_concurrent_creating_streaming_jobs` is helpful. It controls the maximum number of streaming jobs created concurrently. However, please do not set it too high, as it may introduce excessive pressure on the cluster.
