@@ -105,6 +105,10 @@ WITH (
 | schema.name         | The schema in the destination database you want to sink to. The default value is public.                                                                                                               |
 | type                | Sink data type. Supported types: <ul><li>`append-only`: Sink data as INSERT operations.</li><li>`upsert`: Sink data as UPDATE, INSERT and DELETE operations.</li></ul>                                                                        |
 | primary\_key        | Required if type is upsert. The primary key of the sink, which should match the primary key of the downstream table.                                                                                             |
+| tcp.keepalive.enable | Enables TCP keepalive for the connection to the downstream database. If not set, the default is `false`. |
+| tcp.keepalive.idle | The time (in seconds) the connection must be idle before the first keepalive probe is sent. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `60`. |
+| tcp.keepalive.interval | The time (in seconds) between consecutive keepalive probes. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `10`. |
+| tcp.keepalive.count | The number of unacknowledged keepalive probes before the connection is considered dead. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `3`. |
 
 ### Parameters (Postgres Native)
 
@@ -130,6 +134,10 @@ There are some [known issues](https://github.com/risingwavelabs/risingwave/issue
 | primary\_key        | Required if type is upsert. The primary key of the sink, which should match the primary key of the downstream table.                                                                                             |
 | ssl_mode | The `ssl.mode` parameter determines the level of SSL/TLS encryption for secure communication with Postgres. Accepted values are `disabled`, `preferred`, `required`, `verify-ca`, and `verify-full`. The default value is `disabled`. <ul><li>When set to `required`, it enforces TLS for establishing a connection; </li><li>When set to `verify-ca`, it verifies that the server is trustworthy by checking the certificate chain up to the root certificate stored on the client;</li><li>When set to `verify-full`, it verifies the certificate and also ensures the server hostname matches the name in the certificate.</li></ul> |
 | ssl_root_cert | Specify the root certificate secret. You must [create secret](/operate/manage-secrets) first and then use it here. |
+| tcp.keepalive.enable | Enables TCP keepalive for the connection to the downstream database. If not set, the default is `false`. |
+| tcp.keepalive.idle | The time (in seconds) the connection must be idle before the first keepalive probe is sent. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `600` (10 minutes). |
+| tcp.keepalive.interval | The time (in seconds) between consecutive keepalive probes. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `10`. |
+| tcp.keepalive.count | The number of unacknowledged keepalive probes before the connection is considered dead. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `3`. |
 
 ## Sink data from RisingWave to PostgreSQL
 
