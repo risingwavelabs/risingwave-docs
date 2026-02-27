@@ -41,23 +41,41 @@ WITH (
 | AS _select\_query_                  | A SELECT query that specifies the data to be output to the sink. Either this query or a `sink_from` clause must be specified. See [SELECT](/sql/commands/sql-select) for the syntax and examples of the SELECT command.                                                                    |
 | type                                | **Required**. Data format. Allowed formats: <ul><li>`append-only`: Output data with insert operations.</li><li>`upsert`: For this type, you need to set corresponding permissions and primary keys based on the [Document of BigQuery](https://cloud.google.com/bigquery/docs/change-data-capture).</li></ul>                   |
 | force\_append\_only                 | **Optional**. If true, forces the sink to be append-only, even if it cannot be.                                                                                                                                                                                                                  |
-| bigquery.local.path                 | **Optional**. The file path leading to the JSON key file located in your local server. Details can be found in [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) under your Google Cloud account. Either `bigquery.local.path` or `bigquery.s3.path` must be specified. |
-| bigquery.s3.path                    | **Optional**. The file path leading to the JSON key file located in S3\. Details can be found in [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) under your Google Cloud account. At least one of `bigquery.local.path` or `bigquery.s3.path` must be specified.      |
+| bigquery.local.path                 | **Optional**. The file path leading to the JSON key file located in your local server. Details can be found in [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) under your Google Cloud account. Exactly one of `bigquery.credentials`, `bigquery.local.path`, or `bigquery.s3.path` must be specified. |
+| bigquery.s3.path                    | **Optional**. The file path leading to the JSON key file located in S3. Details can be found in [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) under your Google Cloud account. Exactly one of `bigquery.credentials`, `bigquery.local.path`, or `bigquery.s3.path` must be specified. If this parameter is used, `aws.credentials.access_key_id`, `aws.credentials.secret_access_key`, and `region` are also required. |
 | bigquery.project                    | **Required**. The BigQuery project ID.                                                                                                                                                                                                                                                           |
 | bigquery.dataset                    | **Required**. The BigQuery dataset ID.                                                                                                                                                                                                                                                           |
 | bigquery.table                      | **Required**. The BigQuery table you want to sink to.                                                                                                                                                                                                                                            |
-| bigquery.credentials | **Optional**. Enter the JSON key credentials as a string (plain JSON or Base64-encoded JSON). At least one of `bigquery.credentials` or `bigquery.local.path` or `bigquery.s3.path` must be specified. |
+| bigquery.credentials | **Optional**. Enter the JSON key credentials as a string (plain JSON or Base64-encoded JSON). Exactly one of `bigquery.credentials`, `bigquery.local.path`, or `bigquery.s3.path` must be specified. |
 | bigquery.retry\_times               | **Optional**. The number of times the system should retry a BigQuery insert operation before ultimately returning an error. Defaults to 5.                                                                                                                                                       |
 | auto\_create                        | **Optional**. Defaults to false. If true, a new table will be automatically created in BigQuery when the specified table is not found.                                                                                                                                                           |
-| aws.credentials.access\_key\_id     | **Optional**. The access key of the S3 file. This must be specified if sinking to an S3 file.                                                                                                                                                                                                    |
-| aws.credentials.secret\_access\_key | **Optional**. The secret access key of the S3 file. This must be specified if sinking to an S3 file.                                                                                                                                                                                             |
-| region                              | **Optional**. The service region of the S3 file. This must be specified if sinking to an S3 file.                                                                                                                                                                                                |
+| aws.credentials.access\_key\_id     | **Optional**. The access key for accessing the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                                      |
+| aws.credentials.secret\_access\_key | **Optional**. The secret access key for accessing the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                               |
+| region                              | **Optional**. The AWS region of the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                                                 |
 
 ## Examples
 
-We can create a BigQuery sink with a local JSON key file.
+RisingWave supports three ways to provide the Google Cloud service account JSON key for authenticating with BigQuery.
 
-```sql
+**Option 1: Inline credentials string**
+
+```sql Example using inline credentials
+CREATE SINK big_query_sink_credentials
+FROM mv1
+WITH (
+    connector = 'bigquery',
+    type = 'append-only',
+    bigquery.credentials= '${bigquery_service_account_json_string}',
+    bigquery.project= '${project_id}',
+    bigquery.dataset= '${dataset_id}',
+    bigquery.table= '${table_id}',
+    force_append_only='true'
+);
+```
+
+**Option 2: Local JSON key file**
+
+```sql Example using a local JSON key file
 CREATE SINK big_query_sink_local
 FROM mv1
 WITH (
@@ -71,9 +89,11 @@ WITH (
 );
 ```
 
-Or we can create a BigQuery sink with an S3 JSON key file.
+**Option 3: JSON key file stored in S3**
 
-```sql
+When the JSON key file is stored in S3, you must also provide the AWS credentials and region to access it.
+
+```sql Example using a JSON key file stored in S3
 CREATE SINK big_query_sink_s3
 FROM mv1
 WITH (
@@ -86,7 +106,7 @@ WITH (
     aws.credentials.access_key_id = '${aws_access_key}',
     aws.credentials.secret_access_key = '${aws_secret_access}',
     region = '${aws_region}',
-    force_append_only='true',
+    force_append_only='true'
 );
 ```
 
