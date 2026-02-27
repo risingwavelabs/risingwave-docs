@@ -129,6 +129,10 @@ WITH (
 | table.name          | **Required**. The table in the destination database you want to sink to.                                                                                                                                                       |
 | type                | Data format. Allowed formats: <ul><li>`append-only`: Output data with insert operations.</li><li>`upsert`: Output data as a changelog stream.</li></ul>           |
 | primary\_key        | Required if type is upsert. The primary key of the downstream table.                                                                                                                                             |
+| tcp.keepalive.enable | Enables TCP keepalive for the connection to the downstream database. If not set, the default is `false`. |
+| tcp.keepalive.idle | The time (in seconds) the connection must be idle before the first keepalive probe is sent. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `60`. |
+| tcp.keepalive.interval | The time (in seconds) between consecutive keepalive probes. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `10`. |
+| tcp.keepalive.count | The number of unacknowledged keepalive probes before the connection is considered dead. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `3`. |
 
 ## Sink data from RisingWave to MySQL
 
