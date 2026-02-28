@@ -14,6 +14,79 @@ _`alter_option`_ depends on the operation you want to perform on the connection.
 
 ## Clause
 
+### `CONNECTOR WITH`
+
+<Note>
+Added in v2.6.0.
+</Note>
+
+```sql
+ALTER CONNECTION connection_name
+    CONNECTOR WITH ( property_name = value [, ...] );
+```
+
+This clause updates a connection's connector properties online and propagates the changes to all dependent sources and sinks that reference the connection.
+
+| Parameter or clause | Description                                                                                                                               |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| **CONNECTOR WITH**  | Updates the connection's connector properties. Changes are applied atomically and propagated to all dependent sources and sinks. |
+| _property\_name_    | The connector property to update. Use the same format as in [`CREATE CONNECTION`](/sql/commands/sql-create-connection).<br/><br/>Example: `properties.sasl.username = 'dev1'`<br/><br/>Secrets are supported: `properties.bootstrap.server = SECRET my_secret` |
+
+#### Permissions
+
+You must have privilege to alter the connection (same privilege checks as other `ALTER` operations on catalog objects).
+
+#### Behavior
+
+When you run `ALTER CONNECTION ... CONNECTOR WITH (...)`:
+
+1. **Catalog update (atomic)**: The meta service updates the connection's stored properties and secret references, then finds all dependent sources and sinks and updates their stored connector options. These updates happen in one transaction.
+
+2. **Validation**: The meta service validates that the altered keys are allowed to be changed online for that connector type, validates the updated connection, and validates each updated dependent source.
+
+3. **Runtime propagation**: The meta service broadcasts a barrier mutation carrying the complete properties for each dependent object. Compute nodes rebuild their stream readers (sources) or sink configurations when they receive the mutation. Running jobs typically pick up the new configuration on the next barrier (usually within seconds).
+
+#### Limitations
+
+- Only a subset of connector fields can be altered online, depending on the connector type. Attempting to change disallowed keys will return an error.
+- `ALTER CONNECTION ... CONNECTOR WITH (...)` does not allow referencing another connection inside the `WITH (...)` options (no nested connection references).
+
+#### Example
+
+This example shows how to rotate Kafka SASL credentials and brokers using secrets:
+
+```sql
+-- Create a secret for the bootstrap broker
+CREATE SECRET s_broker WITH ( backend = 'meta' ) AS 'broker1.example.com:9092';
+
+-- Create a Kafka connection using the secret
+CREATE CONNECTION kafka_conn WITH (
+  type = 'kafka',
+  properties.bootstrap.server = SECRET s_broker,
+  properties.security.protocol = 'SASL_PLAINTEXT',
+  properties.sasl.mechanism = 'PLAIN',
+  properties.sasl.username = 'user1',
+  properties.sasl.password = 'password1'
+);
+
+-- Create a table using the connection
+CREATE TABLE t_conn (x INT) WITH (
+  connector = 'kafka',
+  connection = kafka_conn,
+  topic = 'test_topic'
+) FORMAT PLAIN ENCODE JSON;
+
+-- Rotate to a new broker and user
+ALTER SECRET s_broker WITH ( backend = 'meta' ) AS 'broker2.example.com:9092';
+
+-- Update the connection to use the new username
+ALTER CONNECTION kafka_conn CONNECTOR WITH (
+  properties.sasl.username = 'user2'
+);
+```
+
+After running these commands, the table `t_conn` continues ingesting using the updated connection configuration without needing to be dropped and recreated.
+
 ### `SET SCHEMA`
 
 ```sql
