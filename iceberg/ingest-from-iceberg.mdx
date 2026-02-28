@@ -100,8 +100,7 @@ For batch-style workloads where you need to periodically reload an entire Iceber
 
 ```sql
 CREATE TABLE iceberg_batch_table (
-    id int primary key,
-    name varchar
+    PRIMARY KEY (id)
 ) WITH (
     connector = 'iceberg',
     catalog.type = 'storage',
@@ -115,6 +114,10 @@ CREATE TABLE iceberg_batch_table (
     refresh_interval_sec = '60'          -- Reload every 60 seconds
 );
 ```
+
+<Note>
+Do not define column types in the `CREATE TABLE` statement. RisingWave automatically infers the schema from the Iceberg table. Only specify a `PRIMARY KEY` constraint if the corresponding column exists in the Iceberg table schema.
+</Note>
 
 ### Parameters
 
