@@ -1,14 +1,15 @@
-name: Mintlify Deployment Check
+name: Mintlify Deployment Optional Check
 
 on:
   pull_request:
 
 jobs:
   mintlify-deployment:
-    # Keep this check green on PRs so required checks don't get blocked by
-    # external deployment integrations being skipped.
-    name: Mintlify Deployment
+    # Optional PR signal only: keep a visible check without turning PR merges
+    # into a hard dependency on external deployment integrations.
+    name: Mintlify Deployment (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
-      - name: No-op deployment check for PR
-        run: echo "Mintlify Deployment check passed for pull request"
+      - name: Optional no-op deployment check for PR
+        run: echo "Mintlify Deployment optional check completed for pull request"
