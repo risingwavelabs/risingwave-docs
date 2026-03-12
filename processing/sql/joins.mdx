@@ -43,6 +43,42 @@ SELECT * FROM t, t2 WHERE t.v1 = t2.v3 AND t.v2 > t2.v4 + 1000;
 
 With this setting enabled, the filter `t.v2 > t2.v4 + 1000` is evaluated within the join rather than afterward.
 
+<Note>
+**Watermark propagation and state cleaning for equality joins**
+
+When both tables in an equality join have a `WATERMARK` defined on the join key column(s), RisingWave automatically propagates watermarks through the join and cleans up stale join state based on the watermark. Only the leftmost join key column with watermarks on both sides is used for state cleaning.
+
+This enables the `EMIT ON WINDOW CLOSE` pattern with regular joins, without requiring explicit window functions.
+
+```sql Example
+CREATE TABLE t_left (
+    id INT,
+    ts TIMESTAMPTZ,
+    -- Watermark is defined on `ts`, the join key column
+    WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+) APPEND ONLY;
+
+CREATE TABLE t_right (
+    id INT,
+    ts TIMESTAMPTZ,
+    -- Same watermark column on both sides enables state cleaning
+    WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+) APPEND ONLY;
+
+-- `ts` is the join key column and has watermarks on both sides,
+-- so this join propagates watermarks and cleans up stale state
+CREATE MATERIALIZED VIEW my_join AS
+SELECT l.id, r.id AS r_id, l.ts
+FROM t_left l
+JOIN t_right r ON l.ts = r.ts;
+
+-- EMIT ON WINDOW CLOSE works because watermarks are propagated through the join
+CREATE MATERIALIZED VIEW my_join_eowc AS
+SELECT * FROM my_join
+EMIT ON WINDOW CLOSE;
+```
+</Note>
+
 ### Left outer joins
 
 A left outer join (or simply left join) returns all rows from the left table expression and the matched rows from the right table expression. If no match is found, NULL values will be filled in for columns from the right table.
@@ -246,8 +282,13 @@ ON s1.id = s2.id and s1.ts between s2.ts and s2.ts + INTERVAL '1' MINUTE;
 
 <Note>
 Interval join‘s state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
-
 </Note>
+
+<Warning>
+**Upgrade note (v2.9.0)**
+
+The internal watermark handling mechanism for interval joins (joins combining equality conditions with watermark-based inequality or range conditions) was redesigned in v2.9.0. Existing interval joins created before upgrading to v2.9.0 will have their in-memory cache state cleaning invalidated. Drop and recreate these joins after upgrading to restore correct watermark-based state cleaning.
+</Warning>
 
 ## Process-time temporal joins
 
