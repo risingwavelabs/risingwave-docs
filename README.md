@@ -3,6 +3,14 @@
 
 This repository contains the latest RisingWave documentation. [The old repository](https://github.com/risingwavelabs/risingwave-docs-legacy) now hosts the archived documentation up to v2.0 of RisingWave.
 
+## Need help or found an issue?
+
+If you encounter any issues with RisingWave or have questions, please see our guide on [how to report and reproduce issues](https://docs.risingwave.com/troubleshoot/report-reproduce-issues) for effective bug reporting and support.
+
+You can also:
+- Ask questions in our [Slack Community](https://www.risingwave.com/slack)
+- File issues on [GitHub](https://github.com/risingwavelabs/risingwave/issues/new/choose)
+
 # Documentation structure
 
 Below are the main topic groups. Some groups are elevated to be tabs shown on the top of a documentation page.
