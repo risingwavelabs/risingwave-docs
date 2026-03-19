@@ -1,11 +1,11 @@
 ---
-title: "Architecture"
-description: "This topic covers the main components, their responsibilities, and relationships within our product architecture for developers seeking a deeper understanding of RisingWave."
+title: "RisingWave architecture | Serving, streaming, meta & compactor nodes"
 sidebarTitle: Architecture
+description: "Understand the architecture of the RisingWave streaming database: Serving Nodes for PostgreSQL-compatible queries, Streaming Nodes for real-time computation, Meta Nodes for coordination, and Compactor Nodes for LSM-tree storage optimization."
 mode: wide
 ---
 
-RisingWave has four main components: the Serving Node, Streaming Node, Compactor Node, and Meta Node. At its core, RisingWave is a **unified batch and streaming database**. For a high-level overview, see [What is RisingWave](/get-started/intro).
+RisingWave is a distributed streaming database with a cloud-native architecture consisting of four node types: **Serving Nodes** for PostgreSQL-compatible query serving, **Streaming Nodes** for real-time incremental computation, **Meta Nodes** for cluster coordination and checkpointing, and **Compactor Nodes** for LSM-tree storage optimization. All persistent data is stored in object storage (S3, GCS, Azure Blob), enabling independent scaling of compute and storage. For a high-level overview, see [What is RisingWave](/get-started/intro).
 
 Here is a brief overview of each component:
 
@@ -17,7 +17,7 @@ Here is a brief overview of each component:
 | **Compactor Node** | A background node that optimizes data storage | It performs compaction on the LSM-tree-based storage to improve read performance and reclaim space. |
 
 <Frame>
-  <img src="/images/rw-architecture-v2.png"/>
+  <img src="/images/rw-architecture-v2.png" alt="RisingWave cluster architecture diagram showing Serving Nodes, Streaming Nodes, Meta Node, and Compactor Node with object storage backend"/>
 </Frame>
 
 ## Serving Node
@@ -42,7 +42,7 @@ The iceberg serving engine operates when a table is specified with `engine=icebe
 ### Batch query lifecycle
 
 <Frame>
-  <img src="/images/batch-query-lifecycle.png"/>
+  <img src="/images/batch-query-lifecycle.png" alt="RisingWave batch query lifecycle: parser creates AST, binder resolves objects, optimizer generates execution plan, fragmenter partitions work, scheduler executes in parallel"/>
 </Frame>
 
 When a user submits a query, it first goes to the Serving Node where the parser converts the raw query text into an **Abstract Syntax Tree (AST)**. Next, the binder matches the query elements in the ASTs to actual database objects, creating a **Bound AST**. During this binding step, table names are linked to their actual specifications, and wildcards (*) are expanded to show all physical columns in a table. Finally, the optimizer processes this **Bound AST** through several optimization passes to create a batch execution plan.
@@ -74,7 +74,7 @@ Instead of executing once, the query executes continuously as updates arrive fro
 ### Streaming query lifecycle
 
 <Frame>
-  <img src="/images/stream-query-lifecycle.png"/>
+  <img src="/images/stream-query-lifecycle.png" alt="RisingWave streaming query lifecycle: query parsed and optimized, Meta Node schedules actors on Streaming Nodes, historical data backfilled, then continuous incremental processing begins"/>
 </Frame>
 
 The query will go through the same initial phases as the [Batch query lifecycle](#batch-query-lifecycle). After fragmentation, we diverge from the batch execution path, and send the execution plans to the **Meta Node**.
