@@ -1,0 +1,169 @@
+---
+title: "Set up IAM role assume"
+sidebarTitle: "IAM role assume"
+description: "Configure cross-account S3 access so that RisingWave Cloud can assume an IAM role in your AWS account without sharing long-term credentials."
+---
+
+IAM role assume (also called cross-account role delegation) lets RisingWave Cloud call `sts:AssumeRole` to obtain temporary credentials for your AWS IAM role. This avoids storing long-term access keys and follows AWS security best practices.
+
+Use this method when you want RisingWave Cloud to read from or write to an S3 bucket in **your** AWS account using a role you control.
+
+## How it works
+
+```
+RisingWave Cloud (AWS account: <rw-account-id>)
+  → calls sts:AssumeRole
+  → on: arn:aws:iam::<your-account-id>:role/<your-role>
+  → receives temporary credentials
+  → accesses your S3 bucket
+```
+
+1. You create an IAM role in your AWS account with the required S3 permissions.
+2. You configure the role's trust policy to allow RisingWave Cloud's IAM role ARN to assume it.
+3. You set `s3.assume_role` (or `s3.iam_role_arn`) in your RisingWave SQL statement to the ARN of your role.
+
+## Required cloud metadata values
+
+Before you begin, retrieve the following values from your project's [Cloud metadata](/cloud/cloud-metadata) page in the RisingWave Cloud Console (**Settings** → **Cloud metadata**):
+
+| Metadata field | Where it's used |
+|:---------------|:----------------|
+| **IAM role ARN** | The `Principal.AWS` value in your IAM trust policy |
+| **External ID** | The `sts:ExternalId` condition value in your IAM trust policy (recommended) |
+| **AWS account ID** | Verify that `sts:AssumeRole` calls originate from the correct RisingWave Cloud account |
+
+## Step-by-step setup
+
+### Step 1 — Create an IAM policy for S3 access
+
+Create a policy that grants RisingWave the necessary permissions on your S3 bucket. Replace `<bucket>` and `<prefix>` with your values.
+
+```json Example: S3 read/write policy
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:DeleteObject",
+                "s3:DeleteObjectVersion"
+            ],
+            "Resource": "arn:aws:s3:::<bucket>/<prefix>/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "arn:aws:s3:::<bucket>",
+            "Condition": {
+                "StringLike": {
+                    "s3:prefix": ["<prefix>/*"]
+                }
+            }
+        }
+    ]
+}
+```
+
+### Step 2 — Create an IAM role with the policy attached
+
+1. In the [AWS IAM console](https://console.aws.amazon.com/iam/), create a new role.
+2. Select **Another AWS account** as the trusted entity type.
+3. Enter the **AWS account ID** from Cloud metadata as the trusted account.
+4. Attach the S3 policy created in Step 1.
+
+### Step 3 — Configure the trust policy
+
+After the role is created, update its trust policy to allow the specific RisingWave Cloud IAM role to assume it. Include the external ID as a condition.
+
+Replace `<iam-role-arn>` with the **IAM role ARN** from Cloud metadata, and `<external-id>` with the **External ID** from Cloud metadata.
+
+```json Example: Trust policy with external ID
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "<iam-role-arn>"
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+                "StringEquals": {
+                    "sts:ExternalId": "<external-id>"
+                }
+            }
+        }
+    ]
+}
+```
+
+<Warning>
+Always include the `sts:ExternalId` condition. Without it, any entity in the trusted account can assume your role — this is the [confused deputy problem](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html).
+</Warning>
+
+<Note>
+The `sts:ExternalId` value is a project-specific string. If you delete and recreate your project or create a new project, update this value accordingly.
+</Note>
+
+### Step 4 — Use the role in RisingWave
+
+Set `s3.assume_role` to the ARN of the role you created in Step 2 and set `enable_config_load = 'true'` (RisingWave Cloud only).
+
+```sql Example: Sink using IAM role assume
+CREATE SINK my_sink FROM my_source WITH (
+    connector = 'redshift',             -- or 'snowflake_v2', 'iceberg', etc.
+
+    -- S3 staging
+    s3.bucket_name    = '<your-bucket>',
+    s3.region_name    = '<your-region>',
+    s3.path           = '<your-prefix>',
+
+    -- IAM role assume (no long-term credentials needed)
+    s3.assume_role    = 'arn:aws:iam::<your-account-id>:role/<your-role>',
+    enable_config_load = 'true',
+
+    -- other connector-specific parameters...
+);
+```
+
+For connectors that use `s3.iam_role_arn` instead of `s3.assume_role` (for example, the Iceberg connector), use:
+
+```sql Example: Iceberg connector with IAM role assume
+CREATE SINK my_iceberg_sink FROM my_mv WITH (
+    connector = 'iceberg',
+    type      = 'append-only',
+    -- ...
+    s3.iam_role_arn    = 'arn:aws:iam::<your-account-id>:role/<your-role>',
+    enable_config_load = 'true',
+);
+```
+
+## Verify the setup
+
+After creating the sink or source, run a quick sanity check:
+
+1. **Check that the role is assumable** — in the AWS console, use **IAM → Roles → \<your-role\> → Trust relationships** to confirm the correct principal and condition are present.
+2. **Check S3 permissions** — run an `aws s3 ls s3://<bucket>/<prefix>/` command using the role (via `aws sts assume-role`) to verify read access.
+3. **Check RisingWave logs** — if the sink or source fails, look for `AccessDenied` or `InvalidClientTokenId` errors. These indicate a misconfigured trust policy or incorrect ARN.
+
+## Common errors
+
+| Error | Likely cause | Fix |
+|:------|:-------------|:----|
+| `AccessDenied` when calling `AssumeRole` | The trust policy principal doesn't match the RisingWave Cloud IAM role ARN | Copy the exact IAM role ARN from Cloud metadata and update the trust policy |
+| `AccessDenied` on S3 operations after assuming | The attached S3 policy is missing required actions | Add the missing S3 actions (see Step 1) |
+| `InvalidClientTokenId` | Incorrect AWS account ID in the trust policy | Use the AWS account ID from Cloud metadata |
+| External ID mismatch | The `sts:ExternalId` in the trust policy doesn't match Cloud metadata | Copy the exact External ID from Cloud metadata |
+
+## Related pages
+
+- [Cloud metadata](/cloud/cloud-metadata) — retrieve the IAM role ARN and external ID for your project
+- [PrivateLink connection configuration](/cloud/create-a-connection) — set up private network connectivity
+- [Sink to Amazon Redshift](/integrations/destinations/redshift) — end-to-end example with S3 staging
+- [Sink to Snowflake](/integrations/destinations/snowflake-v2) — end-to-end example with S3 staging
