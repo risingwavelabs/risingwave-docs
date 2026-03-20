@@ -1,0 +1,159 @@
+---
+title: "What is Streaming ETL?"
+sidebarTitle: "Streaming ETL"
+description: "Streaming ETL continuously extracts, transforms, and loads data in real time — replacing batch ETL pipelines with always-fresh results. Learn how RisingWave enables streaming ETL with SQL."
+---
+
+## What is streaming ETL?
+
+Streaming ETL (Extract, Transform, Load) is the continuous process of extracting data from source systems, transforming it in real time, and loading the results into downstream destinations — without waiting for batch schedules. Unlike traditional batch ETL that runs on hourly or daily intervals, streaming ETL processes each event as it arrives, keeping downstream systems always up to date.
+
+## Streaming ETL vs. batch ETL
+
+| | Batch ETL | Streaming ETL |
+| :--- | :--- | :--- |
+| Processing frequency | Scheduled (hourly, daily) | Continuous (event-by-event) |
+| Data freshness | Minutes to hours old | Seconds old |
+| Latency | High | Low |
+| Complexity | Simpler (bounded datasets) | More complex (unbounded streams, ordering, late data) |
+| Tools | Spark, Airflow, dbt | RisingWave, Flink, Kafka Streams + Connect |
+| Best for | Historical reporting, large backfills | Real-time analytics, monitoring, operational systems |
+
+Streaming ETL does not replace batch ETL entirely — batch processing remains valuable for historical backfills, complex cross-dataset joins, and scenarios where real-time freshness is not required. Many organizations use both, with streaming ETL handling the real-time layer and batch ETL handling historical processing.
+
+## A streaming ETL pipeline
+
+A typical streaming ETL pipeline has three stages:
+
+### 1. Extract
+
+Continuously ingest data from source systems:
+- **Database CDC**: Capture row-level changes from PostgreSQL, MySQL, SQL Server, or MongoDB.
+- **Message brokers**: Consume events from Kafka, Pulsar, Kinesis, or MQTT.
+- **Object storage**: Read files from S3, GCS, or Azure Blob.
+- **Webhooks**: Receive push-based events from SaaS applications.
+
+### 2. Transform
+
+Apply real-time transformations to the data:
+- **Filtering**: Remove irrelevant or invalid records.
+- **Enrichment**: Join streaming data with reference tables or other streams.
+- **Aggregation**: Compute running totals, averages, counts, or percentiles.
+- **Deduplication**: Remove duplicate events.
+- **Schema mapping**: Rename, cast, or restructure fields for the target system.
+
+### 3. Load
+
+Deliver transformed results to downstream systems:
+- **Data warehouses**: Snowflake, BigQuery, ClickHouse.
+- **Data lakes**: Apache Iceberg, Delta Lake, S3 (Parquet/JSON).
+- **Databases**: PostgreSQL, MySQL, Elasticsearch, Redis.
+- **Message brokers**: Kafka, Pulsar (for further downstream consumption).
+
+## Streaming ETL with RisingWave
+
+RisingWave enables streaming ETL entirely in SQL — no Java code, no workflow orchestrators, no separate transformation and loading tools.
+
+```sql
+-- Extract: Ingest CDC changes from PostgreSQL
+CREATE TABLE orders (
+  order_id INT PRIMARY KEY,
+  customer_id INT,
+  product_id INT,
+  amount DECIMAL,
+  status VARCHAR,
+  created_at TIMESTAMP
+) WITH (
+  connector = 'postgres-cdc',
+  hostname = 'db.example.com',
+  port = '5432',
+  username = 'repl_user',
+  password = '<your_password>',
+  database.name = 'production',
+  schema.name = 'public',
+  table.name = 'orders'
+);
+
+-- Transform: Aggregate daily revenue per product with enrichment
+CREATE MATERIALIZED VIEW daily_product_revenue AS
+SELECT
+  p.product_name,
+  p.category,
+  DATE_TRUNC('day', o.created_at) AS order_date,
+  SUM(o.amount) AS total_revenue,
+  COUNT(*) AS order_count
+FROM orders o
+JOIN products p ON o.product_id = p.id
+WHERE o.status = 'completed'
+GROUP BY p.product_name, p.category, DATE_TRUNC('day', o.created_at);
+
+-- Load: Sink results to Iceberg for analytics
+CREATE SINK product_revenue_to_iceberg FROM daily_product_revenue
+WITH (
+  connector = 'iceberg',
+  type = 'upsert',
+  primary_key = 'product_name, category, order_date',
+  catalog.type = 'rest',
+  catalog.uri = 'http://iceberg-catalog:8181',
+  database.name = 'analytics',
+  table.name = 'daily_product_revenue'
+);
+```
+
+### Why RisingWave for streaming ETL?
+
+- **All-in-one system**: Extract, transform, and load in a single SQL-based platform — no Kafka Connect, no Airflow, no Flink.
+- **Cascading materialized views**: Build multi-layered transformation pipelines where each layer updates incrementally.
+- **Native CDC**: Connect directly to source databases without Debezium or Kafka.
+- **Multiple destinations**: Sink to Iceberg, Snowflake, PostgreSQL, ClickHouse, Kafka, S3, and many more — simultaneously.
+- **SQL-native**: Any SQL-proficient team member can build and maintain streaming ETL pipelines.
+
+## Common streaming ETL use cases
+
+- **Real-time data warehouse ingestion**: Keep analytics tables fresh with continuous updates instead of nightly batch loads.
+- **CDC-based replication**: Replicate and transform database changes across systems in real time.
+- **Event stream enrichment**: Join clickstream or IoT data with reference tables before loading into analytics systems.
+- **Data lake ingestion**: Continuously write transformed data into Iceberg or Delta Lake tables with automatic compaction.
+- **Cross-system synchronization**: Keep multiple downstream systems (search, cache, analytics) in sync with source-of-truth databases.
+
+## Related topics
+
+- [What is Stream Processing?](/reference/what-is-stream-processing) — Foundations of continuous data processing
+- [What is CDC?](/reference/what-is-cdc) — Native CDC connectors for real-time database replication
+- [Data ingestion](/ingestion/overview) — All ingestion patterns and connectors
+- [Data delivery](/delivery/overview) — Sink connectors and delivery semantics
+
+<head>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is streaming ETL?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Streaming ETL is the continuous process of extracting data from source systems, transforming it in real time, and loading results into downstream destinations — without batch schedules. Unlike batch ETL that runs hourly or daily, streaming ETL processes each event as it arrives, keeping downstream systems always up to date with sub-second latency."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is streaming ETL different from batch ETL?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Batch ETL processes data on a fixed schedule (hourly, daily) with minutes-to-hours latency. Streaming ETL processes data continuously as it arrives with sub-second latency. Batch ETL works on bounded datasets; streaming ETL works on unbounded event streams. Streaming ETL keeps downstream systems always fresh, while batch ETL introduces staleness between runs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does RisingWave enable streaming ETL?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave provides streaming ETL entirely in SQL. It extracts data via native CDC connectors and message broker sources, transforms data with cascading materialized views, and loads results to downstream systems via built-in sink connectors — all in a single system. No Kafka Connect, Airflow, Flink, or application code required."
+          }
+        }
+      ]
+    }
+  </script>
+</head>
