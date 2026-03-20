@@ -1,0 +1,133 @@
+---
+title: "RisingWave vs. Materialize"
+sidebarTitle: "RisingWave vs. Materialize"
+description: "Compare RisingWave and Materialize for stream processing: architecture, SQL compatibility, storage, licensing, materialized views, deployment options, and cost."
+---
+
+We periodically update this article to keep up with the rapidly evolving landscape.
+
+## Summary
+
+|  | Materialize | RisingWave |
+| :--- | :--- | :--- |
+| System category | Operational data warehouse / streaming database | Streaming database |
+| License | Business Source License 1.1 (converts to Apache 2.0 after 4 years) | Apache License 2.0 |
+| Architecture | Timely/Differential Dataflow (Rust) | Cloud-native with Hummock storage engine (Rust) |
+| SQL dialect | PostgreSQL-compatible | PostgreSQL-compatible |
+| Client libraries | PostgreSQL drivers | PostgreSQL drivers |
+| State management | In-memory indexes + durable materialized views | Hummock LSM-tree persisted to object storage |
+| Storage | Blob storage for materialized views; indexes are in-memory only | Object storage (S3, GCS, Azure Blob) for all data |
+| Query serving | From in-memory indexes or durable materialized views | From dedicated Serving Nodes with high concurrency |
+| Deployment | Cloud, self-managed (K8s), or emulator | Docker, Kubernetes, Helm, or RisingWave Cloud |
+| Typical use cases | Real-time dashboards, feature stores, AI agents | Streaming ETL, analytics, monitoring, and online serving |
+
+## Introduction
+
+_Both RisingWave and Materialize are PostgreSQL-compatible streaming databases built in Rust, but they differ in architecture, licensing, and deployment flexibility._
+
+### Materialize
+
+Materialize is an operational database designed as a "live data layer" for real-time analytics and application serving. It is built on Timely Dataflow and Differential Dataflow, which enable incremental computation by processing only deltas (additions and retractions) rather than recalculating from scratch. Materialize provides strict serializability by default.
+
+### RisingWave
+
+RisingWave is an open-source distributed SQL streaming database. It uses a cloud-native architecture with Hummock, an LSM-tree storage engine that persists all data to object storage. RisingWave focuses on reducing the complexity and cost of real-time data processing, with built-in source and sink connectors that eliminate the need for external middleware.
+
+## Licensing
+
+_Materialize uses the Business Source License; RisingWave is fully open source under Apache 2.0._
+
+Materialize is licensed under the Business Source License (BSL) 1.1, which converts to Apache 2.0 after four years. During the BSL period, the license restricts competitive use. The self-managed Community Edition is free but capped at 24 GiB memory and 48 GiB disk. The Enterprise Edition requires a commercial license for unlimited scale.
+
+RisingWave uses the Apache License 2.0 from day one — fully open source with no usage restrictions, no resource caps, and no delayed license conversion.
+
+## Architecture
+
+_Materialize is built on Timely/Differential Dataflow; RisingWave uses a cloud-native decoupled compute-storage architecture._
+
+Materialize processes data using Differential Dataflow, which tracks changes as additions and retractions. It recommends a three-tier architecture: source clusters (ingestion), compute clusters (transformations), and serving clusters (queries). Materialize replicas are for fault tolerance only — each replica performs identical work, so adding replicas does not increase parallel processing throughput.
+
+RisingWave uses a decoupled compute-storage architecture with four node types: Serving Nodes, Streaming Nodes, Meta Nodes, and Compactor Nodes. Each component scales independently. Streaming work is distributed across Streaming Nodes for parallel processing, and Serving Nodes handle ad-hoc queries separately to avoid resource contention.
+
+## State management and storage
+
+_Materialize uses in-memory indexes and durable materialized views; RisingWave persists all state to object storage._
+
+In Materialize, **indexes** store results in memory within a cluster and are updated incrementally. Querying an index is fast but indexes are not durable — they are lost if the cluster restarts. **Materialized views** persist results to durable blob storage and are accessible from any cluster. During hydration (creation or restart), materialized views require memory proportional to both input and output size.
+
+A key limitation: Materialize indexes do not support natural key ordering, which means range queries, ORDER BY, and LIMIT are not optimized.
+
+In RisingWave, all data — tables, materialized views, and streaming state — is persisted to object storage via Hummock. This approach ensures durability without relying on in-memory indexes. RisingWave supports both point queries and range queries efficiently.
+
+## Materialized views
+
+_Both systems support incrementally maintained materialized views, but with different characteristics._
+
+Materialize supports replacement materialized views (modifying definitions while preserving downstream dependencies). Results are persisted to durable storage and incrementally updated. Hydration requires memory proportional to input + output.
+
+RisingWave also supports incrementally maintained materialized views with an important additional feature: **cascading materialized views**. You can build materialized views on top of other materialized views to create multi-layered streaming pipelines entirely in SQL. RisingWave also supports background DDL (`SET BACKGROUND_DDL=true`) to create materialized views without blocking the session.
+
+## Connectors and integrations
+
+_Both systems support CDC and message brokers, but RisingWave has broader sink support._
+
+**Materialize sources**: PostgreSQL CDC, MySQL CDC, Kafka, Redpanda, webhooks, S3.
+
+**RisingWave sources**: PostgreSQL CDC, MySQL CDC, SQL Server CDC, MongoDB CDC, Kafka, Pulsar, Kinesis, MQTT, NATS, Google Pub/Sub, S3, GCS, Azure Blob, webhooks, Iceberg, Snowflake.
+
+**Materialize sinks**: Kafka, S3, Iceberg (via S3 Tables). No native PostgreSQL or JDBC sink — only community workarounds via SUBSCRIBE.
+
+**RisingWave sinks**: Kafka, Iceberg, PostgreSQL, Snowflake, ClickHouse, Elasticsearch, Redis, BigQuery, MySQL, S3, Delta Lake, StarRocks, Doris, and many more.
+
+## Deployment and pricing
+
+_Materialize offers cloud and capped self-managed options; RisingWave offers uncapped open-source deployment and a managed cloud._
+
+| | Materialize | RisingWave |
+| :--- | :--- | :--- |
+| **Cloud (managed)** | Materialize Cloud (on-demand or annual capacity) | RisingWave Cloud |
+| **Self-managed** | Community Edition (24 GiB / 48 GiB cap) or Enterprise (paid) | Open source with no resource caps |
+| **Local dev** | Materialize Emulator (Docker) | Docker Compose or standalone binary |
+| **Infrastructure** | Requires Kubernetes, PostgreSQL metadata DB, blob storage | Kubernetes or Docker; object storage for persistence |
+
+## How to choose?
+
+Choose **Materialize** if:
+- You need strict serializability as a default consistency guarantee.
+- Your primary use case is serving in-memory lookups for AI agents or feature stores.
+- You are comfortable with the BSL license and self-managed resource caps.
+
+Choose **RisingWave** if:
+- You want a fully open-source solution (Apache 2.0) with no resource caps.
+- You need a broader set of source and sink connectors.
+- You want cascading materialized views for multi-layered streaming pipelines.
+- You need flexible deployment options (Docker, Kubernetes, standalone, cloud) without requiring a PostgreSQL metadata database.
+- You want range queries and ORDER BY optimization on stored data.
+- Cost efficiency is a priority — RisingWave's object storage backend avoids large in-memory index costs.
+
+<head>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the difference between RisingWave and Materialize?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Both are PostgreSQL-compatible streaming databases built in Rust. RisingWave is fully open source (Apache 2.0) with a cloud-native architecture storing data in object storage (S3). Materialize uses Business Source License 1.1 and is built on Timely/Differential Dataflow with in-memory indexes. RisingWave has broader connector support and no self-managed resource caps, while Materialize offers strict serializability by default."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is RisingWave or Materialize better for streaming ETL?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave is generally better suited for streaming ETL due to its broader source and sink connector ecosystem, cascading materialized views for multi-layered pipelines, and cost-efficient object storage backend. Materialize is stronger for in-memory serving use cases like feature stores and AI agent data layers."
+          }
+        }
+      ]
+    }
+  </script>
+</head>

@@ -1,0 +1,113 @@
+---
+title: "What is a Sink in RisingWave?"
+sidebarTitle: "Sinks"
+description: "A sink in RisingWave delivers processed streaming data to external systems like Kafka, databases, data lakes, and search engines. Learn how sinks work and which downstream systems are supported."
+---
+
+## What is a sink?
+
+A sink in RisingWave is a connection that continuously delivers processed data to an external downstream system. Sinks are the output stage of a streaming pipeline — they take results from materialized views, tables, or queries and write them to systems like Kafka, PostgreSQL, Iceberg, Snowflake, or Elasticsearch.
+
+When you create a sink with [`CREATE SINK`](/sql/commands/sql-create-sink), RisingWave establishes a persistent connection to the target system and continuously streams updates as the upstream data changes. Sinks do not store data inside RisingWave — they push data out.
+
+## How sinks work
+
+```sql
+-- Create a sink that sends aggregated results to Kafka
+CREATE SINK order_metrics_sink FROM order_metrics
+WITH (
+  connector = 'kafka',
+  topic = 'order-metrics',
+  properties.bootstrap.server = 'broker:9092',
+  type = 'upsert',
+  primary_key = 'product_id'
+) FORMAT UPSERT ENCODE JSON;
+```
+
+A sink can consume from:
+
+- **A materialized view** — most common; delivers continuously updated results.
+- **A table** — delivers the current state and all subsequent changes.
+- **An inline query** — defines the transformation directly in the sink statement.
+
+```sql
+-- Sink from an inline query
+CREATE SINK high_value_orders_sink AS
+SELECT order_id, customer_id, amount
+FROM orders WHERE amount > 1000
+WITH (
+  connector = 'jdbc',
+  jdbc.url = 'jdbc:postgresql://downstream:5432/analytics',
+  table.name = 'high_value_orders',
+  type = 'upsert',
+  primary_key = 'order_id'
+);
+```
+
+## Sink types: append-only vs. upsert
+
+RisingWave supports two sink emission modes:
+
+| Mode | Behavior | Primary key required | Use case |
+| :--- | :--- | :--- | :--- |
+| **Append-only** | Inserts only; no updates or deletes | No | Log-style destinations, event streams |
+| **Upsert** | Inserts, updates, and deletes by primary key | Yes | Database tables, search indexes, key-value stores |
+
+The emission mode depends on the downstream system and the nature of your data. For example, sinking to an Iceberg table typically uses upsert mode, while sinking to a Kafka topic for log analytics might use append-only mode.
+
+## Supported sink connectors
+
+RisingWave supports a broad set of sink connectors:
+
+**Message brokers**: Apache Kafka, Apache Pulsar, Amazon Kinesis, NATS, Google Pub/Sub, MQTT
+
+**Databases**: PostgreSQL, MySQL, ClickHouse, StarRocks, Doris, TiDB, BigQuery, DynamoDB, CockroachDB
+
+**Data lakes**: Apache Iceberg, Delta Lake
+
+**Search and analytics**: Elasticsearch, OpenSearch
+
+**Object storage**: Amazon S3, Google Cloud Storage, Azure Blob Storage
+
+**Data warehouses**: Snowflake
+
+**Key-value stores**: Redis, Cassandra
+
+For the full list, see [Supported sink connectors](/delivery/overview).
+
+## Exactly-once delivery
+
+RisingWave provides exactly-once semantics for sinks through its barrier-based checkpoint mechanism. When a checkpoint completes, all data up to that point is guaranteed to have been delivered to the sink exactly once. This works across all sink connectors, not just Kafka.
+
+## Related topics
+
+- [CREATE SINK](/sql/commands/sql-create-sink) — SQL reference
+- [Delivery overview](/delivery/overview) — Full connector list
+- [Source, Table, MV, and Sink](/get-started/source-table-mv-sink) — Core object comparison
+
+<head>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is a sink in RisingWave?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A sink in RisingWave is a connection that continuously delivers processed streaming data to an external downstream system such as Kafka, PostgreSQL, Iceberg, Snowflake, or Elasticsearch. Sinks push data out of RisingWave and support both append-only and upsert modes with exactly-once delivery semantics."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What downstream systems can RisingWave sink data to?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave supports sinking data to Kafka, Pulsar, Kinesis, PostgreSQL, MySQL, ClickHouse, Snowflake, BigQuery, Apache Iceberg, Delta Lake, Elasticsearch, Redis, S3, and many more. Both append-only and upsert modes are supported depending on the target system."
+          }
+        }
+      ]
+    }
+  </script>
+</head>

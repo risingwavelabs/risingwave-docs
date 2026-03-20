@@ -1,0 +1,127 @@
+---
+title: "What is a Materialized View in RisingWave?"
+sidebarTitle: "Materialized Views"
+description: "A materialized view in RisingWave is an incrementally maintained, always-up-to-date result of a SQL query. Learn how materialized views work, when to use them, and how they differ from traditional database views."
+---
+
+## What is a materialized view?
+
+A materialized view is a database object that stores the pre-computed result of a SQL query. Unlike a regular view, which re-executes the query every time it is accessed, a materialized view persists the result so that queries return instantly without recomputation.
+
+In RisingWave, materialized views are **incrementally maintained in real time**. When new data arrives from sources or tables, RisingWave automatically updates only the affected rows in the materialized view — it does not recompute the entire result from scratch. This makes materialized views in RisingWave fundamentally different from those in traditional databases, which typically use periodic batch refresh.
+
+## How materialized views work in RisingWave
+
+When you create a materialized view with [`CREATE MATERIALIZED VIEW`](/sql/commands/sql-create-mv), RisingWave:
+
+1. **Backfills** all existing data from the referenced tables or sources to produce an initial consistent snapshot.
+2. **Creates a streaming pipeline** that continuously processes new data as it arrives.
+3. **Persists results** to Hummock, RisingWave's LSM-tree storage engine backed by object storage (S3, GCS, Azure Blob).
+4. **Serves queries** from dedicated Serving Nodes with low latency and high concurrency.
+
+```sql
+-- Create a materialized view that tracks order totals per customer
+CREATE MATERIALIZED VIEW customer_order_totals AS
+SELECT customer_id, COUNT(*) AS order_count, SUM(amount) AS total_amount
+FROM orders
+GROUP BY customer_id;
+
+-- Query the materialized view — returns instantly
+SELECT * FROM customer_order_totals WHERE customer_id = 42;
+```
+
+## Cascading materialized views
+
+RisingWave supports **cascading materialized views** — building materialized views on top of other materialized views. This enables multi-layered streaming pipelines entirely in SQL, without external orchestration.
+
+```sql
+-- Layer 1: Aggregate orders per customer
+CREATE MATERIALIZED VIEW customer_totals AS
+SELECT customer_id, SUM(amount) AS total
+FROM orders GROUP BY customer_id;
+
+-- Layer 2: Find high-value customers
+CREATE MATERIALIZED VIEW high_value_customers AS
+SELECT customer_id, total
+FROM customer_totals WHERE total > 10000;
+
+-- Layer 3: Count high-value customers per region
+CREATE MATERIALIZED VIEW high_value_by_region AS
+SELECT r.region, COUNT(*) AS customer_count
+FROM high_value_customers h
+JOIN customers c ON h.customer_id = c.id
+JOIN regions r ON c.region_id = r.id
+GROUP BY r.region;
+```
+
+Each layer updates incrementally when upstream data changes. Cascading materialized views are strongly consistent — downstream views always reflect the latest state of upstream views.
+
+## Materialized views vs. regular views
+
+| Feature | Regular view | Materialized view |
+| :--- | :--- | :--- |
+| Stores data | No — re-executes query on each access | Yes — persists pre-computed results |
+| Query latency | Depends on query complexity | Near-instant (reads from stored results) |
+| Data freshness | Always current (computed on read) | Always current (incrementally updated on write) |
+| Resource usage | CPU cost on every query | CPU cost on data ingestion; minimal on query |
+
+In RisingWave, both regular views ([`CREATE VIEW`](/sql/commands/sql-create-view)) and materialized views are supported. Use regular views for query reuse and abstraction; use materialized views when you need pre-computed, always-fresh results.
+
+## Background DDL
+
+For large datasets, the initial backfill of a materialized view can take time. RisingWave supports **background DDL** to avoid blocking your session:
+
+```sql
+SET BACKGROUND_DDL = true;
+CREATE MATERIALIZED VIEW large_mv AS SELECT ...;
+-- Session is not blocked; check progress with SHOW JOBS
+```
+
+## When to use materialized views
+
+- **Real-time dashboards**: Pre-compute aggregations so dashboards load instantly.
+- **Streaming ETL**: Transform and enrich data as it arrives, then sink results to downstream systems.
+- **Monitoring and alerting**: Continuously compute metrics and trigger alerts on threshold crossings.
+- **Feature engineering**: Maintain up-to-date feature vectors for machine learning models.
+- **Online serving**: Serve pre-joined, pre-aggregated data to applications with low-latency queries.
+
+## Related topics
+
+- [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) — SQL reference
+- [Data processing in RisingWave](/processing/overview) — Streaming vs. ad-hoc execution
+- [Source, Table, MV, and Sink](/get-started/source-table-mv-sink) — Core object comparison
+
+<head>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is a materialized view in RisingWave?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A materialized view in RisingWave is the pre-computed, persisted result of a SQL query that is incrementally maintained in real time. When new data arrives, RisingWave updates only the affected rows rather than recomputing the entire result. Materialized views are stored in object storage and served from dedicated Serving Nodes for low-latency queries."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do materialized views in RisingWave differ from traditional databases?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Traditional databases refresh materialized views periodically using batch recomputation. RisingWave maintains materialized views incrementally in real time — results are always up to date without manual refresh. RisingWave also supports cascading materialized views (building views on top of views) with strong consistency across all layers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What are cascading materialized views?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cascading materialized views are materialized views built on top of other materialized views, forming multi-layered streaming pipelines entirely in SQL. Each layer updates incrementally when upstream data changes, and downstream views always reflect the latest state of upstream views with strong consistency."
+          }
+        }
+      ]
+    }
+  </script>
+</head>

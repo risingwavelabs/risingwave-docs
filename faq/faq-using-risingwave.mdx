@@ -104,43 +104,45 @@ total_memory: 8.00 GiB
 
 For guidance on tuning memory allocation, see [Tune reserved memory](/operate/tune-reserved-memory).
 
-<script type="application/ld+json">
-{JSON.stringify({
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
+<head>
+  <script type="application/ld+json">
     {
-      "@type": "Question",
-      "name": "Why is RisingWave memory usage so high?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "This is by design. RisingWave uses memory for in-memory caching of streaming query state to optimize performance. By default, it utilizes all available memory unless configured via RW_TOTAL_MEMORY_BYTES. Setting memory limits is required in Kubernetes and Docker deployments."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Why is the memory for a RisingWave Serving or Streaming Node not fully utilized?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "RisingWave reserves a portion of total memory for system usage. Starting from v1.10, it uses a gradient formula: 30% of the first 16GB plus 20% of the remaining memory. You can override this with the RW_RESERVED_MEMORY_BYTES environment variable or --reserved-memory-bytes startup option (minimum 512MB)."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Why does CREATE MATERIALIZED VIEW take a long time in RisingWave?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "CREATE MATERIALIZED VIEW backfills all historical data from referenced tables to ensure a consistent snapshot. Use SHOW JOBS to check progress. To run non-blocking, set BACKGROUND_DDL=true before the CREATE statement. If progress stays at 0%, the cluster may be experiencing high latency."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "What does RisingWave memory usage consist of?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "RisingWave memory is divided into storage memory (block cache, meta cache, shared buffer), compute memory (streaming computation and queries), and reserved memory (system overhead). For example, an 8GB node uses approximately 2.13GB for storage, 3.47GB for compute, and 2.40GB reserved."
-      }
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why is RisingWave memory usage so high?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "This is by design. RisingWave uses memory for in-memory caching of streaming query state to optimize performance. By default, it utilizes all available memory unless configured via RW_TOTAL_MEMORY_BYTES. Setting memory limits is required in Kubernetes and Docker deployments."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why is the memory for a RisingWave Serving or Streaming Node not fully utilized?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave reserves a portion of total memory for system usage. Starting from v1.10, it uses a gradient formula: 30% of the first 16GB plus 20% of the remaining memory. You can override this with the RW_RESERVED_MEMORY_BYTES environment variable or --reserved-memory-bytes startup option (minimum 512MB)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does CREATE MATERIALIZED VIEW take a long time in RisingWave?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CREATE MATERIALIZED VIEW backfills all historical data from referenced tables to ensure a consistent snapshot. Use SHOW JOBS to check progress. To run non-blocking, set BACKGROUND_DDL=true before the CREATE statement. If progress stays at 0%, the cluster may be experiencing high latency."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What does RisingWave memory usage consist of?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave memory is divided into storage memory (block cache, meta cache, shared buffer), compute memory (streaming computation and queries), and reserved memory (system overhead). For example, an 8GB node uses approximately 2.13GB for storage, 3.47GB for compute, and 2.40GB reserved."
+          }
+        }
+      ]
     }
-  ]
-})}
-</script>
+  </script>
+</head>

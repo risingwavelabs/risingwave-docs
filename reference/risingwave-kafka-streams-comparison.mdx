@@ -1,0 +1,195 @@
+---
+title: "RisingWave vs. Kafka Streams"
+sidebarTitle: "RisingWave vs. Kafka Streams"
+description: "Compare RisingWave and Kafka Streams for stream processing: architecture, SQL vs. Java API, state management, deployment, scaling, and operational complexity."
+---
+
+We periodically update this article to keep up with the rapidly evolving landscape.
+
+## Summary
+
+|  | Kafka Streams | RisingWave |
+| :--- | :--- | :--- |
+| System category | Java client library for stream processing | Streaming database |
+| License | Apache License 2.0 | Apache License 2.0 |
+| Architecture | Embedded library inside your Java/Kotlin application | Standalone distributed system with decoupled compute and storage |
+| API | Java DSL and Processor API | PostgreSQL-compatible SQL |
+| State management | Local RocksDB + Kafka changelog topics | Hummock LSM-tree persisted to object storage (S3) |
+| Kafka dependency | Required — all input and output must be Kafka topics | Optional — Kafka is one of many supported sources and sinks |
+| Deployment | Deployed as part of your application (JAR) | Standalone cluster (Docker, Kubernetes, or cloud) |
+| Scaling | Bounded by Kafka partition count | Independent compute and storage scaling |
+| Query serving | No built-in query serving (Interactive Queries are read-only, local) | Full SQL ad-hoc queries with dedicated Serving Nodes |
+| Typical use cases | Kafka-native event processing in Java microservices | Streaming ETL, analytics, monitoring, and online serving |
+
+## Introduction
+
+_Kafka Streams is a Java client library for building stream processing applications on Kafka; RisingWave is a standalone streaming database with PostgreSQL-compatible SQL._
+
+### Kafka Streams
+
+Kafka Streams is a client library for building stream processing applications in Java and Kotlin. It is part of the Apache Kafka project and is designed to process data stored in Kafka topics. Kafka Streams applications are deployed as regular Java applications — there is no separate cluster to manage. The library handles parallelism, fault tolerance, and state management by leveraging Kafka's consumer group protocol and changelog topics.
+
+### RisingWave
+
+RisingWave is an open-source distributed SQL streaming database. It uses PostgreSQL-compatible SQL and stores all data in object storage (S3, GCS, Azure Blob). RisingWave supports ingesting data from a wide range of sources — not just Kafka — and can serve concurrent ad-hoc queries directly without external serving infrastructure.
+
+## Programming model
+
+_Kafka Streams requires Java code with its DSL or Processor API; RisingWave uses standard SQL._
+
+With Kafka Streams, you write stream processing logic in Java or Kotlin using the **Streams DSL** (high-level API with `KStream`, `KTable`, and `GlobalKTable` abstractions) or the **Processor API** (low-level, node-by-node topology building). Even simple transformations require compiling, packaging, and deploying a Java application.
+
+```java
+// Kafka Streams example: word count
+KStream<String, String> source = builder.stream("input-topic");
+KTable<String, Long> counts = source
+    .flatMapValues(value -> Arrays.asList(value.split(" ")))
+    .groupBy((key, value) -> value)
+    .count(Materialized.as("word-counts"));
+counts.toStream().to("output-topic");
+```
+
+With RisingWave, the same logic is expressed in SQL:
+
+```sql
+-- RisingWave example: word count
+CREATE MATERIALIZED VIEW word_counts AS
+SELECT word, COUNT(*) AS cnt
+FROM (
+  SELECT unnest(string_to_array(text, ' ')) AS word
+  FROM input_stream
+)
+GROUP BY word;
+```
+
+RisingWave's SQL interface means no application code to compile, no JVM to tune, and any team member who knows SQL can build and maintain streaming pipelines.
+
+## Kafka dependency
+
+_Kafka Streams requires a running Kafka cluster for all operations; RisingWave operates independently._
+
+Kafka Streams is tightly coupled with Apache Kafka:
+
+- All input data must come from Kafka topics.
+- All output is written to Kafka topics.
+- Internal state is backed by Kafka changelog topics.
+- The consumer group coordination protocol (Kafka brokers) manages partition assignment.
+- A running Kafka cluster is required at all times.
+
+RisingWave treats Kafka as one of many optional data sources. It also supports direct CDC from PostgreSQL, MySQL, SQL Server, and MongoDB, as well as ingestion from S3, Pulsar, Kinesis, MQTT, NATS, Google Pub/Sub, and webhooks. This makes RisingWave suitable for architectures that don't use Kafka or that combine multiple data sources.
+
+## State management
+
+_Kafka Streams relies on local RocksDB plus Kafka changelog topics; RisingWave persists state to cloud object storage._
+
+Kafka Streams uses RocksDB on local disk as its default state store. Each state store is backed by a compacted Kafka changelog topic for fault tolerance. If an application instance fails, the new instance must replay the changelog topic to rebuild state, which can take significant time for large state stores. Kafka Streams also supports in-memory state stores, but these offer no persistence across restarts.
+
+State size in Kafka Streams is limited by local disk capacity. Large state stores can cause long recovery times and high Kafka broker load from changelog topic traffic.
+
+RisingWave uses Hummock, a cloud-native LSM-tree storage engine that persists all state to object storage (S3, GCS, Azure Blob). This approach eliminates local disk dependencies, enables fast recovery through checkpoint-based restoration, and allows state to scale elastically with cloud storage.
+
+## Deployment and operations
+
+_Kafka Streams is embedded in your Java application; RisingWave is a standalone system._
+
+Kafka Streams is a library, not a standalone system. You embed it in your Java application and deploy it however you deploy your application (bare metal, VMs, containers, Kubernetes). While this gives flexibility, it also means:
+
+- You manage scaling, monitoring, and lifecycle of each stream processing application.
+- Each application is a separate deployment artifact with its own CI/CD pipeline.
+- JVM tuning (heap size, GC configuration) is your responsibility.
+- There is no centralized management plane for all your stream processing jobs.
+
+RisingWave is a standalone distributed system. You deploy it once (Docker, Kubernetes, or RisingWave Cloud) and manage all streaming pipelines through SQL. Adding a new pipeline is a `CREATE MATERIALIZED VIEW` statement, not a new application deployment.
+
+## Scaling
+
+_Kafka Streams parallelism is bounded by Kafka partition count; RisingWave scales compute and storage independently._
+
+In Kafka Streams, maximum parallelism for a stream task is bounded by the number of partitions in the input Kafka topic. For example, a topic with 10 partitions can only be processed by 10 stream threads (across all application instances). To increase parallelism, you must repartition the Kafka topic, which is an operational burden.
+
+Kafka Streams scales by adding more application instances (each gets assigned a subset of partitions), but repartitioning intermediate results creates additional Kafka topics and network traffic.
+
+RisingWave scales compute and storage independently. Compute nodes can be added or removed based on workload without repartitioning. Storage scales elastically via cloud object storage. There is no partition-count bottleneck.
+
+## Query serving
+
+_Kafka Streams offers limited local-only Interactive Queries; RisingWave provides full SQL ad-hoc queries._
+
+Kafka Streams provides **Interactive Queries**, which allow you to query local state stores from within the application. However:
+
+- Queries are local to the instance — you must implement your own RPC layer to query across instances.
+- Only key-based lookups are supported (no joins, aggregations, or range scans in queries).
+- There is no built-in query routing or load balancing.
+- Interactive Queries are read-only and cannot be exposed as a general-purpose query API without significant custom code.
+
+RisingWave provides full SQL ad-hoc queries over tables, materialized views, and sources. Queries are served by dedicated Serving Nodes optimized for high concurrency and low latency. You can use joins, aggregations, subqueries, and window functions — the full power of PostgreSQL-compatible SQL — against continuously updated streaming results.
+
+## Joins
+
+_Kafka Streams supports limited join types with strict constraints; RisingWave supports general SQL joins._
+
+Kafka Streams supports joins between streams and tables, but with strict constraints:
+
+- **Stream-stream joins** require a time-window (`JoinWindows`).
+- **Stream-table joins** are left joins only (KStream-KTable).
+- **Table-table joins** are supported as `KTable-KTable` joins.
+- All joins require co-partitioning — the input topics must have the same number of partitions and be keyed on the join column. If not, you must explicitly repartition, which adds latency and Kafka topic overhead.
+
+RisingWave supports standard SQL joins without co-partitioning requirements:
+
+- Inner, left, right, and full outer joins.
+- Multi-way joins in a single query.
+- No mandatory windowing for stream-stream joins (temporal joins and interval joins are also supported).
+- No need to repartition — RisingWave handles data distribution internally.
+
+## Exactly-once semantics
+
+_Both systems support exactly-once processing, but with different mechanisms._
+
+Kafka Streams achieves exactly-once semantics (EOS) by using Kafka transactions. This requires all input and output to be Kafka topics and enabling `processing.guarantee=exactly_once_v2`. EOS adds latency and reduces throughput due to transactional overhead on the Kafka brokers.
+
+RisingWave provides exactly-once semantics through its barrier-based checkpoint mechanism, which does not depend on Kafka transactions. This works across all sources and sinks, not just Kafka.
+
+## How to choose?
+
+Choose **Kafka Streams** if:
+- Your team has deep Java/Kotlin expertise and prefers a library over a database.
+- Your architecture is fully Kafka-centric with all data in Kafka topics.
+- You need fine-grained control over stream processing topology at the code level.
+- You want to embed stream processing directly into existing Java microservices.
+
+Choose **RisingWave** if:
+- You want to express streaming pipelines in SQL without writing application code.
+- You need to ingest from multiple sources (databases, object storage, message queues), not just Kafka.
+- You need full SQL ad-hoc query capabilities over streaming results.
+- You want cascading materialized views for multi-layered streaming pipelines.
+- You want centralized management of all streaming pipelines in one system.
+- You need elastic scaling without Kafka partition constraints.
+- You want built-in high-concurrency query serving without custom RPC infrastructure.
+
+<head>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the difference between RisingWave and Kafka Streams?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Kafka Streams is a Java client library for building stream processing applications on Apache Kafka. RisingWave is a standalone streaming database with PostgreSQL-compatible SQL. Kafka Streams requires a Kafka cluster and Java code; RisingWave operates independently, supports multiple data sources, and lets you define streaming pipelines entirely in SQL without writing application code."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can RisingWave replace Kafka Streams?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. RisingWave can replace Kafka Streams for most stream processing use cases. It supports Kafka as a source and sink while also supporting many additional data sources. RisingWave eliminates the need for Java application code, JVM tuning, and custom deployment pipelines — you define streaming logic in SQL and query results directly without building a separate serving layer."
+          }
+        }
+      ]
+    }
+  </script>
+</head>
