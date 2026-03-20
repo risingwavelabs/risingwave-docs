@@ -144,11 +144,11 @@ RisingWave supports standard SQL joins without co-partitioning requirements:
 
 ## Exactly-once semantics
 
-_Both systems support exactly-once processing, but with different mechanisms._
+_Both systems can provide exactly-once processing under certain conditions, but with different mechanisms and scopes._
 
 Kafka Streams achieves exactly-once semantics (EOS) by using Kafka transactions. This requires all input and output to be Kafka topics and enabling `processing.guarantee=exactly_once_v2`. EOS adds latency and reduces throughput due to transactional overhead on the Kafka brokers.
 
-RisingWave provides exactly-once semantics through its barrier-based checkpoint mechanism, which does not depend on Kafka transactions. This works across all sources and sinks, not just Kafka.
+RisingWave uses a barrier-based checkpoint mechanism to provide exactly-once state updates for internal processing without relying on Kafka transactions. End-to-end delivery guarantees for sources and sinks are connector-dependent (many sinks are at-least-once). For the precise semantics by connector, see [Delivery semantics](/delivery/overview).
 
 ## How to choose?
 

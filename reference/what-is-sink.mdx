@@ -75,9 +75,9 @@ RisingWave supports a broad set of sink connectors:
 
 For the full list, see [Supported sink connectors](/delivery/overview).
 
-## Exactly-once delivery
+## Delivery semantics
 
-RisingWave provides exactly-once semantics for sinks through its barrier-based checkpoint mechanism. When a checkpoint completes, all data up to that point is guaranteed to have been delivered to the sink exactly once. This works across all sink connectors, not just Kafka.
+RisingWave uses a barrier-based checkpoint mechanism to provide exactly-once state updates for internal stream processing. End-to-end delivery guarantees for sinks are connector-dependent — most sinks provide at-least-once delivery, while specific connectors (such as Iceberg with `is_exactly_once=true` and sink decoupling enabled) support exactly-once delivery. For the precise semantics by connector, see [Delivery semantics](/delivery/overview).
 
 ## Related topics
 
@@ -96,7 +96,7 @@ RisingWave provides exactly-once semantics for sinks through its barrier-based c
           "name": "What is a sink in RisingWave?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "A sink in RisingWave is a connection that continuously delivers processed streaming data to an external downstream system such as Kafka, PostgreSQL, Iceberg, Snowflake, or Elasticsearch. Sinks push data out of RisingWave and support both append-only and upsert modes with exactly-once delivery semantics."
+            "text": "A sink in RisingWave is a connection that continuously delivers processed streaming data to an external downstream system such as Kafka, PostgreSQL, Iceberg, Snowflake, or Elasticsearch. Sinks push data out of RisingWave and support both append-only and upsert modes. Delivery guarantees are connector-dependent — most sinks provide at-least-once delivery, with exactly-once available for specific connectors."
           }
         },
         {
