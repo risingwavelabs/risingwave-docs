@@ -29,8 +29,6 @@ Before you begin, retrieve the following values from your project's [Cloud metad
 | Metadata field | Where it's used |
 |:---------------|:----------------|
 | **IAM role ARN** | The `Principal.AWS` value in your IAM trust policy |
-| **External ID** | The `sts:ExternalId` condition value in your IAM trust policy (recommended) |
-| **AWS account ID** | Verify that `sts:AssumeRole` calls originate from the correct RisingWave Cloud account |
 
 ## Step-by-step setup
 
@@ -73,17 +71,16 @@ Create a policy that grants RisingWave the necessary permissions on your S3 buck
 ### Step 2 — Create an IAM role with the policy attached
 
 1. In the [AWS IAM console](https://console.aws.amazon.com/iam/), create a new role.
-2. Select **Another AWS account** as the trusted entity type.
-3. Enter the **AWS account ID** from Cloud metadata as the trusted account.
-4. Attach the S3 policy created in Step 1.
+2. Select **Another AWS account** as the trusted entity type and enter the AWS account ID extracted from the **IAM role ARN** (the 12-digit number after `iam::`).
+3. Attach the S3 policy created in Step 1.
 
 ### Step 3 — Configure the trust policy
 
-After the role is created, update its trust policy to allow the specific RisingWave Cloud IAM role to assume it. Include the external ID as a condition.
+After the role is created, update its trust policy to allow the specific RisingWave Cloud IAM role to assume it.
 
-Replace `<iam-role-arn>` with the **IAM role ARN** from Cloud metadata, and `<external-id>` with the **External ID** from Cloud metadata.
+Replace `<iam-role-arn>` with the **IAM role ARN** from Cloud metadata.
 
-```json Example: Trust policy with external ID
+```json Example: Trust policy
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -92,24 +89,11 @@ Replace `<iam-role-arn>` with the **IAM role ARN** from Cloud metadata, and `<ex
             "Principal": {
                 "AWS": "<iam-role-arn>"
             },
-            "Action": "sts:AssumeRole",
-            "Condition": {
-                "StringEquals": {
-                    "sts:ExternalId": "<external-id>"
-                }
-            }
+            "Action": "sts:AssumeRole"
         }
     ]
 }
 ```
-
-<Warning>
-Always include the `sts:ExternalId` condition. Without it, any entity in the trusted account can assume your role — this is the [confused deputy problem](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html).
-</Warning>
-
-<Note>
-The `sts:ExternalId` value is a project-specific string. If you delete and recreate your project or create a new project, update this value accordingly.
-</Note>
 
 ### Step 4 — Use the role in RisingWave
 
@@ -158,12 +142,11 @@ After creating the sink or source, run a quick sanity check:
 |:------|:-------------|:----|
 | `AccessDenied` when calling `AssumeRole` | The trust policy principal doesn't match the RisingWave Cloud IAM role ARN | Copy the exact IAM role ARN from Cloud metadata and update the trust policy |
 | `AccessDenied` on S3 operations after assuming | The attached S3 policy is missing required actions | Add the missing S3 actions (see Step 1) |
-| `InvalidClientTokenId` | Incorrect AWS account ID in the trust policy | Use the AWS account ID from Cloud metadata |
-| External ID mismatch | The `sts:ExternalId` in the trust policy doesn't match Cloud metadata | Copy the exact External ID from Cloud metadata |
+| `InvalidClientTokenId` | Incorrect IAM role ARN in the trust policy | Use the IAM role ARN from Cloud metadata |
 
 ## Related pages
 
-- [Cloud metadata](/cloud/cloud-metadata) — retrieve the IAM role ARN and external ID for your project
+- [Cloud metadata](/cloud/cloud-metadata) — retrieve the IAM role ARN for your project
 - [PrivateLink connection configuration](/cloud/create-a-connection) — set up private network connectivity
 - [Sink to Amazon Redshift](/integrations/destinations/redshift) — end-to-end example with S3 staging
 - [Sink to Snowflake](/integrations/destinations/snowflake-v2) — end-to-end example with S3 staging

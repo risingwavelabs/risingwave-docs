@@ -1,7 +1,7 @@
 ---
 title: "Cloud metadata"
 sidebarTitle: "Cloud metadata"
-description: "View and use the cloud metadata values exposed in the RisingWave Cloud Console, including the IAM role ARN, external ID, account ID, VPC ID, and region for your project."
+description: "View and use the cloud metadata values exposed in the RisingWave Cloud Console, including the IAM role ARN, PrivateLink Principal, and egress public IPs for your project."
 ---
 
 RisingWave Cloud exposes a set of environment-specific metadata values for each project. These values are required when setting up cross-account access (IAM role assume) and PrivateLink connections. All values are read-only and are generated automatically when a project is created.
@@ -24,47 +24,29 @@ Cloud metadata is only available for projects on the **Standard** plan or above.
 
 The AWS IAM role ARN that RisingWave Cloud uses to access AWS resources on behalf of this project. When you configure [IAM role assume](/cloud/iam-role-assume) (cross-account S3 access), you add this ARN as a trusted principal in your IAM role's trust policy.
 
-### External ID
+### PrivateLink Principal
 
 | Field | Example value |
 |:------|:--------------|
-| **External ID** | `rwc-project-abc123-ext` |
+| **PrivateLink Principal** | `arn:aws:iam::123456789012:root` |
 
-A unique identifier for this project. Use it as the `sts:ExternalId` condition in your IAM trust policy to prevent [confused deputy attacks](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html). Including an external ID is strongly recommended for production setups.
+The AWS principal associated with the RisingWave Cloud deployment that hosts your project. When you create a PrivateLink endpoint service in your AWS account, add this principal to the list of **Allowed principals** so that RisingWave Cloud can connect to your service.
 
-### AWS account ID
-
-| Field | Example value |
-|:------|:--------------|
-| **AWS account ID** | `123456789012` |
-
-The AWS account ID associated with the RisingWave Cloud deployment that hosts your project. This is the account that issues `sts:AssumeRole` calls when assuming your IAM role.
-
-### Region
+### Egress public IPs
 
 | Field | Example value |
 |:------|:--------------|
-| **Region** | `us-east-1` |
+| **Egress public IPs** | `203.0.113.10, 203.0.113.11` |
 
-The AWS region in which this project runs. When creating PrivateLink connections, your VPC and PrivateLink service must be in the same region as the project.
-
-### VPC ID
-
-| Field | Example value |
-|:------|:--------------|
-| **VPC ID** | `vpc-0abc123def456gh78` |
-
-The VPC ID of the network associated with this project. Some PrivateLink endpoint service configurations (for example, when restricting which VPCs can connect) require this value.
+The public IP addresses from which outbound traffic from this project originates. Add these IPs to the allowlist of any firewall rules or security groups that restrict inbound access to your services (for example, a database or Kafka cluster that RisingWave connects to).
 
 ## Cloud metadata by platform
 
 | Metadata field | AWS | GCP | Azure |
 |:---------------|:----|:----|:------|
 | IAM role ARN   | ✅  | ✅ (service account email) | ✅ (managed identity resource ID) |
-| External ID    | ✅  | —   | —     |
-| Account ID     | ✅ (AWS account ID) | ✅ (GCP project ID) | ✅ (Azure subscription ID) |
-| Region         | ✅  | ✅  | ✅    |
-| VPC ID         | ✅  | ✅ (VPC network name) | ✅ (VNet resource ID) |
+| PrivateLink Principal | ✅ (AWS account ARN) | ✅ (GCP project number) | ✅ (Azure subscription ID) |
+| Egress public IPs | ✅  | ✅  | ✅    |
 
 <Note>
 GCP and Azure metadata field names differ from the AWS equivalents. The Console labels each field for the platform of your project.
@@ -72,5 +54,5 @@ GCP and Azure metadata field names differ from the AWS equivalents. The Console 
 
 ## Next steps
 
-- [Set up IAM role assume](/cloud/iam-role-assume) — use the IAM role ARN and external ID to grant RisingWave Cloud cross-account S3 access.
-- [Configure PrivateLink](/cloud/create-a-connection) — use the region and VPC ID when creating PrivateLink connections.
+- [Set up IAM role assume](/cloud/iam-role-assume) — use the IAM role ARN to grant RisingWave Cloud cross-account S3 access.
+- [Configure PrivateLink](/cloud/create-a-connection) — use the PrivateLink Principal when setting up your endpoint service's allowed principals.
