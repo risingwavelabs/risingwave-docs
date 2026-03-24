@@ -1,0 +1,172 @@
+---
+title: "Update source connector properties"
+description: "Use risectl commands to dynamically update source connector properties without dropping and recreating sources."
+---
+
+RisingWave supports dynamically updating source connector properties without dropping and recreating sources. This is done through three `risectl meta` subcommands that provide different levels of safety and control.
+
+<Warning>
+These commands are low-level operational tools intended for administrators. Use them carefully, as incorrect usage may cause data issues or disrupt streaming jobs.
+</Warning>
+
+## Prerequisites
+
+To find the source ID for any of the commands below, query the catalog:
+
+```sql
+SELECT id, name FROM rw_sources WHERE name = 'your_source_name';
+```
+
+## Commands
+
+### `alter-source-properties-safe`
+
+Updates source connector properties with an automatic pause/resume workflow to ensure consistency.
+
+**Syntax**:
+```bash
+risectl meta alter-source-properties-safe \
+    --source-id <source_id> \
+    --props '<json_string>' \
+    [--reset-splits]
+```
+
+**Parameters**:
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--source-id` | Yes | Source ID from the `rw_sources` catalog table. |
+| `--props` | Yes | JSON string of connector properties to update (key-value pairs). |
+| `--reset-splits` | No | Reset split assignments after update (default: `false`). Use this when the upstream topology has changed significantly, such as after a Kafka partition count change. |
+
+**Workflow**:
+1. Injects a pause barrier to stop source consumption.
+2. Updates the `rw_sources` catalog and secret dependencies.
+3. Propagates the `ConnectorPropsChange` mutation to stream executors.
+4. Clears cached splits if `--reset-splits` is specified.
+5. Injects a resume barrier to restart consumption.
+
+**Examples**:
+
+Update a Kafka broker address:
+```bash
+risectl meta alter-source-properties-safe \
+    --source-id 123 \
+    --props '{"properties.bootstrap.server": "new-kafka-cluster:9092"}' \
+    --reset-splits
+```
+
+Update security settings:
+```bash
+risectl meta alter-source-properties-safe \
+    --source-id 123 \
+    --props '{
+        "properties.security.protocol": "SASL_SSL",
+        "properties.sasl.mechanism": "PLAIN",
+        "properties.sasl.username": "new-user"
+    }'
+```
+
+To roll back to previous settings, run the same command with the original property values.
+
+**Constraints**:
+- The connector type (e.g., `kafka`, `pulsar`) cannot be changed.
+- All property values must be valid for the existing connector type.
+
+---
+
+### `reset-source-splits`
+
+Forces re-discovery of source splits by clearing cached split state. This triggers the `SourceManager` to re-enumerate splits from the upstream system on its next tick.
+
+<Warning>
+Depending on the connector, resetting splits may cause data duplication or missed messages. Use with caution.
+</Warning>
+
+**Syntax**:
+```bash
+risectl meta reset-source-splits \
+    --source-id <source_id>
+```
+
+**Parameters**:
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--source-id` | Yes | Source ID from the `rw_sources` catalog table. |
+
+**Example**:
+
+```bash
+risectl meta reset-source-splits --source-id 123
+```
+
+**When to use**:
+- After major upstream topology changes (e.g., Kafka partition count changes).
+- When split assignments appear stale or incorrect.
+- In combination with `alter-source-properties-safe --reset-splits` for broker migrations.
+
+---
+
+### `inject-source-offsets`
+
+Injects specific offsets into source splits, overwriting the existing split state. This is an **unsafe** operation intended only for advanced disaster recovery or troubleshooting scenarios.
+
+<Warning>
+Incorrect offsets will cause data issues including data loss or duplication. Only use this command when you know the exact offsets required.
+</Warning>
+
+**Syntax**:
+```bash
+risectl meta inject-source-offsets \
+    --source-id <source_id> \
+    --offsets '<json_string>'
+```
+
+**Parameters**:
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--source-id` | Yes | Source ID from the `rw_sources` catalog table. |
+| `--offsets` | Yes | JSON string mapping split IDs to offset values. The format varies by connector type. |
+
+**Offset format by connector type**:
+
+| Connector | Format | Example |
+|-----------|--------|---------|
+| Kafka | `{"partition_id": "offset"}` | `{"0": "1000", "1": "2000"}` |
+| CDC (MySQL) | `{"binlog_file": "position"}` | `{"mysql-bin.000001": "12345"}` |
+| Pulsar | `{"partition": "message_id"}` | `{"0": "message-id-value"}` |
+
+**Example**:
+
+```bash
+risectl meta inject-source-offsets \
+    --source-id 123 \
+    --offsets '{"0": "1000", "1": "2000", "2": "1500"}'
+```
+
+**When to use**:
+- Disaster recovery: restoring consumption from a known-good offset after data corruption.
+- Skipping past a section of corrupted or unprocessable messages.
+- Advanced troubleshooting under guidance from RisingWave support.
+
+---
+
+## Using the integrated binary
+
+If you are using the `risingwave` standalone binary instead of the separate `risectl` tool, prefix all commands with `./risingwave ctl`:
+
+```bash
+./risingwave ctl meta alter-source-properties-safe \
+    --source-id 123 \
+    --props '{"properties.bootstrap.server": "new-kafka-cluster:9092"}'
+```
+
+## Verify changes
+
+After running any of these commands, verify the update was applied:
+
+```sql
+SELECT definition FROM rw_sources WHERE id = 123;
+```
