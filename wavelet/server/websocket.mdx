@@ -1,0 +1,177 @@
+---
+title: "Wavelet WebSocket protocol"
+sidebarTitle: WebSocket
+description: "Wavelet WebSocket subscription protocol — connection, authentication, diff message format, reconnection, and filtering behavior."
+---
+
+Wavelet pushes real-time diffs to clients over WebSocket. Each connection subscribes to one view and receives incremental changes as they happen in RisingWave.
+
+## Connection
+
+Connect to:
+
+```
+ws://localhost:8080/subscribe/{viewName}
+```
+
+With JWT authentication:
+
+```
+ws://localhost:8080/subscribe/{viewName}?token={jwt}
+```
+
+Or use the `Authorization` header (if your WebSocket client supports it):
+
+```
+Authorization: Bearer {jwt}
+```
+
+## Message flow
+
+### 1. Connected
+
+After a successful connection, the server sends:
+
+```json
+{
+  "type": "connected",
+  "view": "leaderboard"
+}
+```
+
+### 2. Diffs
+
+As the materialized view changes, the server sends diff messages:
+
+```json
+{
+  "type": "diff",
+  "view": "leaderboard",
+  "cursor": "1711234567890",
+  "inserted": [
+    { "player_id": "charlie", "total_score": 50 }
+  ],
+  "updated": [
+    { "player_id": "alice", "total_score": 400 }
+  ],
+  "deleted": [
+    { "player_id": "old_player", "total_score": 10 }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"diff"` | Message type discriminator |
+| `view` | `string` | View name |
+| `cursor` | `string` | RisingWave timestamp of this change |
+| `inserted` | `object[]` | New rows added to the view |
+| `updated` | `object[]` | Rows whose values changed (new values) |
+| `deleted` | `object[]` | Rows removed from the view |
+
+<Note>
+Empty diffs are never sent. If a change in the underlying data does not affect the view result, no message is pushed.
+</Note>
+
+### Op code mapping
+
+Wavelet translates RisingWave's subscription op codes into the three diff categories:
+
+| RisingWave op | Meaning | Diff field |
+|---------------|---------|------------|
+| `1` / `Insert` | New row | `inserted` |
+| `2` / `Delete` | Row removed | `deleted` |
+| `3` / `UpdateDelete` | Old value before update | `deleted` |
+| `4` / `UpdateInsert` | New value after update | `updated` |
+
+The `op` and `rw_timestamp` columns are stripped from the row data before sending to clients.
+
+## JWT filtering
+
+When a view has a `filterBy` column and the client connects with a JWT token, diffs are filtered per-client:
+
+1. Server extracts claims from the JWT
+2. For each row in a diff, it checks: `row[filterBy] === String(claims[filterBy])`
+3. Only matching rows are sent to that client
+
+This means all clients share a single RisingWave cursor, but each receives only the rows they are authorized to see.
+
+```
+                ┌─ Client A (tenant_id=t1) ──▶ only t1 rows
+Cursor ────────┤
+                └─ Client B (tenant_id=t2) ──▶ only t2 rows
+```
+
+If a diff has no matching rows for a client after filtering, no message is sent.
+
+## Reconnection
+
+The Wavelet SDK handles reconnection automatically with exponential backoff:
+
+```
+Disconnect → wait 1s → reconnect → wait 2s → reconnect → wait 4s → ... (max 30s)
+```
+
+On reconnect, the SDK passes the last received `cursor` value:
+
+```
+ws://localhost:8080/subscribe/leaderboard?cursor={lastCursor}
+```
+
+This allows the server to resume from where the client left off (within RisingWave's 24-hour retention window).
+
+### Close codes
+
+| Code | Meaning | SDK behavior |
+|------|---------|-------------|
+| Normal close | Server shutdown or client disconnect | Reconnect with backoff |
+| `4000` | Auth rejected (invalid token, view not found) | **No reconnect.** Calls `onError`. |
+
+## Cursor mechanism
+
+Under the hood, Wavelet uses RisingWave's native subscription cursor:
+
+```sql
+-- Server creates a subscription for each view
+CREATE SUBSCRIPTION wavelet_sub_leaderboard FROM leaderboard WITH (retention = '24h');
+
+-- Server opens a blocking cursor
+DECLARE cursor_123 SUBSCRIPTION CURSOR FOR wavelet_sub_leaderboard;
+
+-- Server fetches changes (blocks until data or 5s timeout)
+FETCH NEXT FROM cursor_123 WITH (timeout = '5s');
+```
+
+Each view has **one cursor** shared across all WebSocket clients. The server fans out diffs from that single cursor to all subscribers, applying per-client JWT filtering as needed.
+
+This design means:
+- Adding more WebSocket clients does not create more database cursors
+- Latency is bounded by the 5-second fetch timeout (typically sub-second for active views)
+- On server restart, cursors recover from RisingWave's 24-hour retention window
+
+## Example: vanilla JavaScript
+
+```javascript
+const ws = new WebSocket('ws://localhost:8080/subscribe/leaderboard')
+
+const state = new Map()
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data)
+
+  if (msg.type === 'connected') {
+    console.log('Connected to', msg.view)
+    return
+  }
+
+  if (msg.type === 'diff') {
+    for (const row of msg.deleted) {
+      state.delete(row.player_id)
+    }
+    for (const row of [...msg.inserted, ...msg.updated]) {
+      state.set(row.player_id, row)
+    }
+    renderLeaderboard(Array.from(state.values()))
+  }
+}
+```

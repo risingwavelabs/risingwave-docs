@@ -1,0 +1,142 @@
+---
+title: "Wavelet CLI reference"
+sidebarTitle: CLI
+description: "Reference for all Wavelet CLI commands — init, dev, push, generate, and status. Manage your Wavelet project from the terminal."
+---
+
+The Wavelet CLI manages your project lifecycle: initialize configs, run a dev server, sync DDL to RisingWave, and generate typed clients.
+
+```bash
+npm install @risingwave/wavelet-cli
+```
+
+## Commands
+
+### `wavelet init`
+
+Create a starter `wavelet.config.ts` in the current directory.
+
+```bash
+npx wavelet init
+```
+
+If a config file already exists, this command does nothing.
+
+### `wavelet dev`
+
+Start a local development server. This is the main command for local development.
+
+```bash
+npx wavelet dev [--config path]
+```
+
+What it does, in order:
+
+1. **Loads config** from `wavelet.config.ts` (or the path given by `--config`)
+2. **Starts RisingWave** if not already running — tries native binary first, then Docker
+3. **Syncs DDL** — creates/updates/deletes tables, materialized views, and subscriptions to match your config
+4. **Starts server** — HTTP API + WebSocket on the configured port (default `8080`)
+
+```
+$ npx wavelet dev
+✓ RisingWave is running
++ stream  game_events
++ view    leaderboard
++ sub     wavelet_sub_leaderboard
+Wavelet server listening on http://localhost:8080
+```
+
+The server runs until you press `Ctrl+C`. Shutdown is graceful — it closes WebSocket connections, cursors, and database connections in order.
+
+<Tip>
+If you don't have RisingWave installed, `wavelet dev` will try to start it via Docker automatically. Make sure Docker is running.
+</Tip>
+
+### `wavelet push`
+
+Sync your config to a RisingWave instance without starting a server. Use this for production deployments.
+
+```bash
+npx wavelet push [--config path] [--json]
+```
+
+Output:
+
+```
+$ npx wavelet push
++ stream  game_events
++ view    leaderboard
++ sub     wavelet_sub_leaderboard
+3 changes, 0 unchanged
+```
+
+The `--json` flag outputs structured JSON for CI/CD pipelines:
+
+```bash
+npx wavelet push --json
+```
+
+```json
+[
+  { "type": "create", "resource": "stream", "name": "game_events" },
+  { "type": "create", "resource": "view", "name": "leaderboard" },
+  { "type": "create", "resource": "subscription", "name": "wavelet_sub_leaderboard" }
+]
+```
+
+DDL sync is **idempotent** — running `push` multiple times with the same config produces no changes.
+
+### `wavelet generate`
+
+Generate a typed TypeScript client from your config.
+
+```bash
+npx wavelet generate [--config path]
+```
+
+Output file: `.wavelet/client.ts`
+
+The generated client includes:
+
+- **Row type interfaces** for each view (e.g., `LeaderboardRow`)
+- **Event type interfaces** for each stream (e.g., `GameEventsEvent`)
+- **`TypedWaveletClient`** class with typed `.views` and `.streams` accessors
+- **`ViewName`** literal union type
+- **`useWavelet` overloads** for React with per-view return types
+
+Type resolution uses a three-tier fallback:
+
+1. **Config-declared `columns`** — always available, no RisingWave needed
+2. **RisingWave introspection** — queries `information_schema.columns` if the database is reachable (3-second timeout)
+3. **Generic fallback** — `Record<string, unknown>` if neither is available
+
+<Tip>
+Add `columns` to your view definitions for reliable offline codegen without needing a running RisingWave.
+</Tip>
+
+### `wavelet status`
+
+Show config summary and connection status.
+
+```bash
+npx wavelet status [--config path]
+```
+
+```
+$ npx wavelet status
+Config: ./wavelet.config.ts
+Database: postgresql://root@localhost:4566/dev
+Streams: 1
+Views: 1
+  - leaderboard
+```
+
+Exits with code `1` if the config file cannot be loaded.
+
+## Global options
+
+| Flag | Description |
+|------|-------------|
+| `--config <path>` | Path to config file. Default: `./wavelet.config.ts` |
+| `--json` | Output structured JSON (supported by `push`) |
+| `--help`, `-h` | Show help |

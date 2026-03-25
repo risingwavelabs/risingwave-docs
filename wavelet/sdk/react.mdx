@@ -1,0 +1,158 @@
+---
+title: "Wavelet React hooks"
+sidebarTitle: React hooks
+description: "useWavelet React hook — subscribe to real-time view data with automatic state management, diff merging, and loading/error states."
+---
+
+Wavelet provides a React hook that fetches the initial state of a view and subscribes to real-time updates. State is managed internally — your component re-renders when data changes.
+
+```bash
+npm install @risingwave/wavelet-sdk react
+```
+
+## Setup
+
+Initialize the global Wavelet client once at your app's entry point:
+
+```tsx app.tsx
+import { initWavelet } from '@risingwave/wavelet-sdk/react'
+
+initWavelet({
+  url: 'http://localhost:8080',
+  token: () => getAuthToken(), // optional
+})
+```
+
+<Warning>
+Call `initWavelet` before any component renders. If a component calls `useWavelet` before initialization, it throws a `CONNECTION_ERROR`.
+</Warning>
+
+## `useWavelet`
+
+```typescript
+function useWavelet<T>(
+  viewName: string,
+  options?: UseWaveletOptions
+): UseWaveletResult<T>
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `viewName` | `string` | Yes | Name of the view to subscribe to |
+| `options.keyBy` | `string` | No | Column to use as primary key for efficient merging |
+| `options.params` | `Record<string, string>` | No | Query parameters for the initial HTTP fetch |
+
+### Return value
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | `T[]` | Current rows, updated in real time |
+| `isLoading` | `boolean` | `true` until the initial HTTP fetch completes |
+| `error` | `WaveletError \| null` | Error from fetch, subscription, or auth |
+
+### Basic usage
+
+```tsx
+import { useWavelet } from '@risingwave/wavelet-sdk/react'
+
+function Leaderboard() {
+  const { data, isLoading, error } = useWavelet('leaderboard')
+
+  if (isLoading) return <p>Loading...</p>
+  if (error) return <p>Error: {error.message}</p>
+
+  return (
+    <table>
+      <thead>
+        <tr><th>Player</th><th>Score</th></tr>
+      </thead>
+      <tbody>
+        {data.map((row, i) => (
+          <tr key={i}>
+            <td>{row.player_id}</td>
+            <td>{row.total_score}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+```
+
+### `keyBy` — efficient diff merging
+
+Without `keyBy`, diffs are merged using JSON comparison (`JSON.stringify`), which works but is O(n*m) for deletions. With `keyBy`, merging uses a Map keyed by the specified column — O(n) for all operations.
+
+```tsx
+// Uses Map<player_id, row> for O(n) merging
+const { data } = useWavelet('leaderboard', { keyBy: 'player_id' })
+```
+
+**Always use `keyBy` when your view has a natural primary key.** This is more efficient and avoids edge cases with JSON comparison.
+
+### `params` — filtered initial fetch
+
+Pass query parameters to filter the initial HTTP GET. The WebSocket subscription still receives all diffs (filtered server-side by JWT if configured).
+
+```tsx
+const { data } = useWavelet('orders', {
+  keyBy: 'order_id',
+  params: { status: 'pending' },
+})
+```
+
+## How it works
+
+1. **Initial fetch** — `useWavelet` calls `view.get(params)` via HTTP to load the current snapshot
+2. **Subscribe** — simultaneously opens a WebSocket subscription to receive diffs
+3. **Merge** — each diff is merged into the local state using `keyBy` (Map-based) or naive (JSON-based) strategy
+4. **Re-render** — React state is updated, component re-renders with new data
+
+The hook cleans up the WebSocket subscription when the component unmounts or when `viewName`/`keyBy`/`params` change.
+
+## With codegen types
+
+After running `npx wavelet generate`, the generated client includes typed overloads:
+
+```tsx
+// .wavelet/client.ts provides typed useWavelet overloads
+import { useWavelet } from './.wavelet/client'
+
+function Dashboard() {
+  // Return type is UseWaveletResult<TenantUsageRow> — fully typed
+  const { data } = useWavelet('tenant_usage')
+
+  return (
+    <div>
+      {data.map((row) => (
+        // row.total_tokens, row.total_cost, etc. — all typed
+        <p key={row.tenant_id}>{row.tenant_id}: {row.total_tokens} tokens</p>
+      ))}
+    </div>
+  )
+}
+```
+
+## Multiple views
+
+Subscribe to multiple views in the same component:
+
+```tsx
+function Dashboard() {
+  const leaderboard = useWavelet('leaderboard', { keyBy: 'player_id' })
+  const stats = useWavelet('model_stats', { keyBy: 'model' })
+
+  if (leaderboard.isLoading || stats.isLoading) return <p>Loading...</p>
+
+  return (
+    <>
+      <LeaderboardTable data={leaderboard.data} />
+      <StatsTable data={stats.data} />
+    </>
+  )
+}
+```
+
+Each `useWavelet` call opens its own WebSocket connection and manages its own state independently.
