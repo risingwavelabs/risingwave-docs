@@ -1,0 +1,175 @@
+---
+title: "Wavelet codegen"
+sidebarTitle: Codegen
+description: "Generate a fully typed TypeScript client from your Wavelet config. Type-safe views, streams, and React hooks with zero manual type definitions."
+---
+
+Wavelet generates a typed TypeScript client from your config. Instead of using string view names and `Record<string, unknown>`, you get typed row interfaces, typed stream events, and per-view React hook overloads.
+
+## Usage
+
+```bash
+npx wavelet generate
+```
+
+This reads your `wavelet.config.ts` and outputs `.wavelet/client.ts`.
+
+## What gets generated
+
+Given this config:
+
+```typescript wavelet.config.ts
+export default defineConfig({
+  database: 'postgresql://root@localhost:4566/dev',
+
+  streams: {
+    game_events: {
+      columns: { player_id: 'string', action: 'string', score: 'int' },
+    },
+  },
+
+  views: {
+    leaderboard: {
+      query: sql`SELECT player_id, SUM(score) AS total_score FROM game_events GROUP BY player_id`,
+      columns: { player_id: 'string', total_score: 'int' },
+    },
+  },
+})
+```
+
+The generated `.wavelet/client.ts` contains:
+
+```typescript .wavelet/client.ts
+// Row types for views
+export interface LeaderboardRow {
+  player_id: string
+  total_score: number
+}
+
+// Event types for streams
+export interface GameEventsEvent {
+  player_id: string
+  action: string
+  score: number
+}
+
+// Typed client
+export class TypedWaveletClient {
+  views = {
+    leaderboard: this.client.view<LeaderboardRow>('leaderboard'),
+  }
+  streams = {
+    game_events: this.client.stream<GameEventsEvent>('game_events'),
+  }
+}
+
+// View name literal type
+export type ViewName = 'leaderboard'
+
+// Typed React hook overloads
+export declare function useWavelet(view: 'leaderboard'): UseWaveletResult<LeaderboardRow>
+```
+
+## Type resolution
+
+Codegen uses a three-tier fallback to determine column types:
+
+### Tier 1: Config-declared columns
+
+If your view has a `columns` field, those types are used directly. No RisingWave connection needed.
+
+```typescript
+views: {
+  leaderboard: {
+    query: sql`...`,
+    columns: {              // ← Tier 1: always available
+      player_id: 'string',
+      total_score: 'int',
+    },
+  },
+}
+```
+
+### Tier 2: RisingWave introspection
+
+If no `columns` are declared but RisingWave is reachable, codegen queries `information_schema.columns` to discover the view's schema. Connection timeout is 3 seconds.
+
+### Tier 3: Generic fallback
+
+If neither is available, the view gets `Record<string, unknown>` — functional but untyped.
+
+<Tip>
+Add `columns` to your view definitions for reliable offline codegen. This is especially useful in CI/CD where RisingWave may not be running.
+</Tip>
+
+## Type mapping
+
+### From config `columns`
+
+| Config type | TypeScript type |
+|-------------|----------------|
+| `'string'` | `string` |
+| `'int'` | `number` |
+| `'float'` | `number` |
+| `'boolean'` | `boolean` |
+| `'timestamp'` | `string` |
+| `'json'` | `unknown` |
+
+### From RisingWave introspection
+
+| PostgreSQL type | TypeScript type |
+|-----------------|----------------|
+| `integer`, `bigint`, `smallint` | `number` |
+| `real`, `double precision`, `numeric` | `number` |
+| `boolean` | `boolean` |
+| `json`, `jsonb` | `unknown` |
+| `timestamp`, `timestamptz` | `string` |
+| Everything else | `string` |
+
+## Naming conventions
+
+| Config name | Generated interface |
+|-------------|-------------------|
+| `leaderboard` (view) | `LeaderboardRow` |
+| `game_events` (stream) | `GameEventsEvent` |
+| `user_order_summary` (view) | `UserOrderSummaryRow` |
+| `llm_events` (stream) | `LlmEventsEvent` |
+
+Names are converted to PascalCase. Views get a `Row` suffix, streams get an `Event` suffix.
+
+## Using the generated client
+
+```typescript
+import { TypedWaveletClient } from './.wavelet/client'
+
+const client = new TypedWaveletClient({ url: 'http://localhost:8080' })
+
+// Fully typed — autocomplete works
+const rows = await client.views.leaderboard.get()
+rows[0].player_id  // string
+rows[0].total_score // number
+
+await client.streams.game_events.emit({
+  player_id: 'alice',   // required: string
+  action: 'win',        // required: string
+  score: 100,           // required: number
+})
+```
+
+## Add to `.gitignore`
+
+The generated file should not be committed. Add to `.gitignore`:
+
+```
+.wavelet/
+```
+
+Regenerate it in CI or after `npm install`:
+
+```json package.json
+{
+  "scripts": {
+    "postinstall": "wavelet generate"
+  }
+}
+```

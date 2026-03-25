@@ -1,0 +1,162 @@
+---
+title: "Wavelet HTTP API reference"
+sidebarTitle: HTTP API
+description: "Wavelet HTTP API — health check, list views and streams, query view data, write single and batch events. Full endpoint reference with examples."
+---
+
+Wavelet exposes a REST API for reading views, writing events, and checking server health. All responses are JSON. CORS is enabled by default (all origins).
+
+Base URL: `http://localhost:8080` (configurable via `server.port` and `server.host` in your config).
+
+## Endpoints
+
+### Health check
+
+```
+GET /v1/health
+```
+
+```json
+{ "status": "ok" }
+```
+
+### List views
+
+```
+GET /v1/views
+```
+
+Returns all available view names.
+
+```json
+{ "views": ["leaderboard", "model_stats"] }
+```
+
+### List streams
+
+```
+GET /v1/streams
+```
+
+Returns all available stream names.
+
+```json
+{ "streams": ["game_events", "llm_events"] }
+```
+
+### Query a view
+
+```
+GET /v1/views/{name}
+```
+
+Returns the current rows of a materialized view.
+
+```bash
+curl http://localhost:8080/v1/views/leaderboard
+```
+
+```json
+{
+  "rows": [
+    { "player_id": "alice", "total_score": 350 },
+    { "player_id": "bob", "total_score": 200 }
+  ]
+}
+```
+
+**Query parameter filtering:** Add query parameters to filter rows by column values.
+
+```bash
+curl "http://localhost:8080/v1/views/leaderboard?player_id=alice"
+```
+
+```json
+{
+  "rows": [
+    { "player_id": "alice", "total_score": 350 }
+  ]
+}
+```
+
+Multiple parameters are combined with `AND`:
+
+```bash
+curl "http://localhost:8080/v1/views/orders?status=pending&region=us-east"
+```
+
+**Error responses:**
+
+| Status | Body | When |
+|--------|------|------|
+| `404` | `{ "error": "View 'foo' not found", "available": ["leaderboard"], "hint": "..." }` | View does not exist |
+| `401` | `{ "error": "Authentication required..." }` | JWT configured but no valid token |
+
+### Write a single event
+
+```
+POST /v1/streams/{name}
+```
+
+Insert one row into a stream.
+
+```bash
+curl -X POST http://localhost:8080/v1/streams/game_events \
+  -H "Content-Type: application/json" \
+  -d '{"player_id": "alice", "action": "win", "score": 100}'
+```
+
+```json
+{ "ok": true }
+```
+
+**Error responses:**
+
+| Status | Body | When |
+|--------|------|------|
+| `404` | `{ "error": "Stream 'foo' not found", "available": ["game_events"], "hint": "..." }` | Stream does not exist |
+| `400` | `{ "error": "..." }` | Invalid data or insert failure |
+
+### Write a batch of events
+
+```
+POST /v1/streams/{name}/batch
+```
+
+Insert multiple rows in one request. Body must be a JSON array.
+
+```bash
+curl -X POST http://localhost:8080/v1/streams/game_events/batch \
+  -H "Content-Type: application/json" \
+  -d '[
+    {"player_id": "alice", "action": "win", "score": 100},
+    {"player_id": "bob", "action": "loss", "score": -25}
+  ]'
+```
+
+```json
+{ "ok": true }
+```
+
+## Authentication
+
+When JWT is configured, pass the token via the `Authorization` header:
+
+```bash
+curl http://localhost:8080/v1/views/leaderboard \
+  -H "Authorization: Bearer eyJhbG..."
+```
+
+JWT is required for WebSocket subscriptions when configured, but the HTTP API currently accepts requests without a token for view reads and stream writes. JWT filtering only applies to WebSocket diffs.
+
+## CORS
+
+All endpoints return these headers:
+
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization
+```
+
+`OPTIONS` requests return `204 No Content`.

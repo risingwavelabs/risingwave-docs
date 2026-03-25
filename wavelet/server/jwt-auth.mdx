@@ -1,0 +1,145 @@
+---
+title: "JWT multi-tenant filtering"
+sidebarTitle: JWT auth
+description: "Wavelet JWT authentication and per-tenant row filtering — configure HS256 or JWKS, use filterBy columns to isolate data per user in real-time subscriptions."
+---
+
+Wavelet uses JWT tokens to filter real-time view diffs per client. A single materialized view can serve multiple tenants — each client only sees rows that match their token claims.
+
+## How it works
+
+1. You define a view with a `filterBy` column
+2. You configure JWT verification (secret or JWKS)
+3. Clients connect with a JWT token
+4. Wavelet extracts the claim matching the `filterBy` column name and filters every diff row
+
+```
+JWT claim: { "tenant_id": "acme" }
+View filterBy: "tenant_id"
+
+→ Client only receives rows where tenant_id = "acme"
+```
+
+## Configuration
+
+### HS256 (shared secret)
+
+```typescript wavelet.config.ts
+export default defineConfig({
+  database: '...',
+
+  jwt: {
+    secret: process.env.JWT_SECRET,
+  },
+
+  views: {
+    tenant_usage: {
+      query: sql`SELECT tenant_id, SUM(cost) AS total FROM events GROUP BY tenant_id`,
+      filterBy: 'tenant_id',
+    },
+  },
+})
+```
+
+### RS256 / JWKS (Auth0, Clerk, etc.)
+
+```typescript wavelet.config.ts
+export default defineConfig({
+  database: '...',
+
+  jwt: {
+    jwksUrl: 'https://your-auth.com/.well-known/jwks.json',
+    issuer: 'https://your-auth.com/',
+    audience: 'your-app-id',
+  },
+
+  views: {
+    my_orders: {
+      query: sql`SELECT * FROM orders`,
+      filterBy: 'customer_id',
+    },
+  },
+})
+```
+
+### JWT config fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `secret` | `string` | HS256 symmetric key |
+| `jwksUrl` | `string` | JWKS endpoint for RS256/ES256 (fetches public keys automatically) |
+| `issuer` | `string` | Expected `iss` claim — rejects tokens from other issuers |
+| `audience` | `string` | Expected `aud` claim — rejects tokens for other apps |
+
+## Client usage
+
+### TypeScript SDK
+
+```typescript
+import { WaveletClient } from '@risingwave/wavelet-sdk'
+
+const client = new WaveletClient({
+  url: 'http://localhost:8080',
+  token: async () => {
+    // Get token from your auth provider
+    const session = await clerk.session
+    return session.getToken()
+  },
+})
+
+// Subscription is automatically filtered by JWT claims
+client.view('tenant_usage').subscribe({
+  onData: (diff) => {
+    // Only receives rows where tenant_id matches the token's tenant_id claim
+    console.log(diff.inserted, diff.updated, diff.deleted)
+  },
+})
+```
+
+### React
+
+```tsx
+import { initWavelet, useWavelet } from '@risingwave/wavelet-sdk/react'
+
+initWavelet({
+  url: 'http://localhost:8080',
+  token: () => getAuthToken(),
+})
+
+function MyOrders() {
+  // Only sees orders for the authenticated customer
+  const { data } = useWavelet('my_orders', { keyBy: 'order_id' })
+  return <OrderList orders={data} />
+}
+```
+
+### Raw WebSocket
+
+Pass the token as a query parameter:
+
+```javascript
+const token = await getAuthToken()
+const ws = new WebSocket(
+  `ws://localhost:8080/subscribe/tenant_usage?token=${encodeURIComponent(token)}`
+)
+```
+
+## Filtering behavior
+
+- **One cursor, many clients.** Wavelet creates a single RisingWave subscription cursor per view. All clients share it. Filtering happens in-memory on the server after fetching from the cursor.
+
+- **Exact string match.** The filter compares `String(row[filterBy])` against `String(claims[filterBy])`. Both sides are converted to strings.
+
+- **No filter = all rows.** If a view does not have `filterBy`, all subscribers receive all diffs regardless of JWT claims.
+
+- **Empty diffs suppressed.** If filtering removes all rows from a diff for a particular client, no message is sent to that client.
+
+## Security notes
+
+- **Server-side enforcement.** Filtering is done on the server. Clients cannot bypass it by modifying WebSocket messages.
+
+- **Token expiry.** Wavelet verifies the token on WebSocket connection. If the token expires mid-session, the connection stays open until disconnected. For strict expiry enforcement, use short-lived tokens and handle reconnection.
+
+- **No JWT = no filtering.** If `jwt` is not configured in your config, WebSocket connections work without tokens and no filtering is applied. The `filterBy` field is ignored.
+
+- **HTTP API.** JWT filtering currently applies only to WebSocket subscriptions. HTTP GET requests to views return unfiltered results (or you can filter manually via query parameters).

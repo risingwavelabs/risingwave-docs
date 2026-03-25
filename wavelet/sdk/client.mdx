@@ -1,0 +1,223 @@
+---
+title: "Wavelet TypeScript SDK"
+sidebarTitle: TypeScript client
+description: "WaveletClient API reference — connect to Wavelet, subscribe to real-time view diffs, query views, and emit events from TypeScript."
+---
+
+The Wavelet TypeScript SDK provides a client for interacting with a Wavelet server. It handles HTTP requests, WebSocket subscriptions, JWT authentication, and automatic reconnection.
+
+```bash
+npm install @risingwave/wavelet-sdk
+```
+
+## WaveletClient
+
+```typescript
+import { WaveletClient } from '@risingwave/wavelet-sdk'
+
+const client = new WaveletClient({
+  url: 'http://localhost:8080',
+  token: 'your-jwt-token', // optional
+})
+```
+
+### Constructor options
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `url` | `string` | Yes | Wavelet server URL (HTTP or WebSocket) |
+| `token` | `string \| () => string \| Promise<string>` | No | JWT token or token provider function |
+
+The `token` can be:
+
+- A **static string** — used as-is for all requests
+- A **function** — called before each request, useful for refreshing tokens
+
+```typescript
+// Static token
+const client = new WaveletClient({
+  url: 'http://localhost:8080',
+  token: 'eyJhbG...',
+})
+
+// Dynamic token (e.g., from your auth provider)
+const client = new WaveletClient({
+  url: 'http://localhost:8080',
+  token: async () => {
+    const session = await getSession()
+    return session.accessToken
+  },
+})
+```
+
+## Views
+
+### `client.view(name)`
+
+Returns a `ViewHandle` with `get()` and `subscribe()` methods.
+
+```typescript
+const leaderboard = client.view('leaderboard')
+```
+
+### `view.get(params?)`
+
+Fetch the current state of a view via HTTP GET.
+
+```typescript
+// All rows
+const rows = await client.view('leaderboard').get()
+
+// With query param filters
+const rows = await client.view('leaderboard').get({ player_id: 'alice' })
+```
+
+Returns `Promise<T[]>` where `T` defaults to `Record<string, unknown>`.
+
+**Errors:**
+- `VIEW_NOT_FOUND` — the view does not exist
+- `AUTH_ERROR` — invalid or missing token (when JWT is configured)
+- `SERVER_ERROR` — other server errors
+
+### `view.subscribe(handlers)`
+
+Subscribe to real-time diffs via WebSocket. Returns an `unsubscribe` function.
+
+```typescript
+const unsub = client.view('leaderboard').subscribe({
+  onData: (diff) => {
+    console.log('Inserted:', diff.inserted)
+    console.log('Updated:', diff.updated)
+    console.log('Deleted:', diff.deleted)
+    console.log('Cursor:', diff.cursor)
+  },
+  onError: (error) => {
+    console.error(error.code, error.message)
+  },
+  onReconnect: () => {
+    console.log('Reconnected')
+  },
+})
+
+// Later: stop subscription
+unsub()
+```
+
+| Handler | Type | Required | Description |
+|---------|------|----------|-------------|
+| `onData` | `(diff: Diff<T>) => void` | Yes | Called on each diff from the server |
+| `onError` | `(error: WaveletError) => void` | No | Called on errors (auth failures, parse errors) |
+| `onReconnect` | `() => void` | No | Called when WebSocket reconnects after a disconnect |
+
+**Automatic reconnection:** If the WebSocket disconnects unexpectedly, the client reconnects with exponential backoff (1s, 2s, 4s, ... up to 30s). It passes the last received cursor to resume from where it left off.
+
+**Auth rejection (code 4000):** If the server rejects the connection (invalid token, view not found), the client does **not** reconnect. It calls `onError` instead.
+
+### `Diff<T>`
+
+The diff object received by `onData`:
+
+```typescript
+interface Diff<T> {
+  cursor: string     // RisingWave timestamp of this diff
+  inserted: T[]      // New rows
+  updated: T[]       // Changed rows (new values)
+  deleted: T[]       // Removed rows
+}
+```
+
+## Streams
+
+### `client.stream(name)`
+
+Returns a `StreamHandle` with `emit()` and `emitBatch()` methods.
+
+```typescript
+const events = client.stream('game_events')
+```
+
+### `stream.emit(data)`
+
+Write a single event via HTTP POST.
+
+```typescript
+await client.stream('game_events').emit({
+  player_id: 'alice',
+  action: 'win',
+  score: 100,
+})
+```
+
+### `stream.emitBatch(data)`
+
+Write multiple events in one request via HTTP POST.
+
+```typescript
+await client.stream('game_events').emitBatch([
+  { player_id: 'alice', action: 'win', score: 100 },
+  { player_id: 'bob', action: 'loss', score: -50 },
+])
+```
+
+## Type safety with codegen
+
+Run `npx wavelet generate` to produce `.wavelet/client.ts` with typed interfaces. Then use generics:
+
+```typescript
+import { WaveletClient } from '@risingwave/wavelet-sdk'
+import type { LeaderboardRow, GameEventsEvent } from './.wavelet/client'
+
+const client = new WaveletClient({ url: 'http://localhost:8080' })
+
+// Typed view — rows are LeaderboardRow[]
+const rows = await client.view<LeaderboardRow>('leaderboard').get()
+
+// Typed stream — emit is type-checked
+await client.stream<GameEventsEvent>('game_events').emit({
+  player_id: 'alice',
+  action: 'win',
+  score: 100,
+})
+
+// Typed subscription — diff.inserted is LeaderboardRow[]
+client.view<LeaderboardRow>('leaderboard').subscribe({
+  onData: (diff) => {
+    diff.inserted.forEach((row) => {
+      console.log(row.player_id, row.total_score) // fully typed
+    })
+  },
+})
+```
+
+Or use the generated `TypedWaveletClient` for full type safety without generics:
+
+```typescript
+import { TypedWaveletClient } from './.wavelet/client'
+
+const client = new TypedWaveletClient({ url: 'http://localhost:8080' })
+
+// Autocomplete works — views.leaderboard, streams.game_events
+const rows = await client.views.leaderboard.get()
+await client.streams.game_events.emit({ player_id: 'alice', action: 'win', score: 100 })
+```
+
+## Error handling
+
+All SDK errors are `WaveletError` instances with a `code` property:
+
+```typescript
+import { WaveletError } from '@risingwave/wavelet-sdk'
+
+try {
+  await client.view('nonexistent').get()
+} catch (err) {
+  if (err instanceof WaveletError) {
+    switch (err.code) {
+      case 'AUTH_ERROR':        // 401 or WebSocket 4000
+      case 'VIEW_NOT_FOUND':   // 404
+      case 'CONNECTION_ERROR': // client not initialized
+      case 'SERVER_ERROR':     // other errors
+    }
+  }
+}
+```

@@ -1,0 +1,172 @@
+---
+title: "Postgres CDC source"
+sidebarTitle: Postgres CDC
+description: "Ingest data from existing PostgreSQL databases into Wavelet via Change Data Capture. Real-time replication from Postgres tables into RisingWave materialized views."
+---
+
+Wavelet can ingest data from existing PostgreSQL databases via CDC (Change Data Capture). Changes in your Postgres tables — inserts, updates, deletes — automatically flow into RisingWave, where they can be referenced in view queries.
+
+## Prerequisites
+
+Your source PostgreSQL database must have:
+
+- **`wal_level = logical`** — required for logical replication
+- **A user with replication privileges** — `ALTER ROLE myuser REPLICATION;`
+- **Primary keys on all captured tables** — RisingWave requires this for CDC
+
+<Tip>
+Most managed Postgres services (AWS RDS, Supabase, Neon) support logical replication but may require enabling it in settings. Check your provider's docs.
+</Tip>
+
+## Configuration
+
+```typescript wavelet.config.ts
+import { defineConfig, sql } from '@risingwave/wavelet'
+
+export default defineConfig({
+  database: 'postgresql://root@localhost:4566/dev',
+
+  sources: {
+    app_db: {
+      type: 'postgres',
+      connection: 'postgresql://user:password@db.example.com:5432/myapp',
+      tables: ['users', 'orders', 'products'],
+    },
+  },
+
+  views: {
+    order_summary: {
+      query: sql`
+        SELECT
+          u.name AS customer_name,
+          COUNT(o.id) AS order_count,
+          SUM(o.total) AS total_spent
+        FROM app_db_users u
+        JOIN app_db_orders o ON u.id = o.user_id
+        GROUP BY u.name
+      `,
+    },
+  },
+})
+```
+
+### Source fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | `'postgres'` | Yes | — | Source type (only Postgres supported currently) |
+| `connection` | `string` | Yes | — | PostgreSQL connection URL |
+| `tables` | `string[]` | Yes | — | Tables to capture via CDC |
+| `slotName` | `string` | No | `wavelet_{sourceName}` | Logical replication slot name |
+| `publicationName` | `string` | No | `wavelet_{sourceName}_pub` | Publication name |
+
+## Table naming
+
+CDC tables in RisingWave are named `{sourceName}_{tableName}`:
+
+| Source name | Postgres table | RisingWave table |
+|-------------|---------------|-----------------|
+| `app_db` | `users` | `app_db_users` |
+| `app_db` | `orders` | `app_db_orders` |
+| `main` | `products` | `main_products` |
+
+Use these names when referencing CDC tables in view queries.
+
+## Generated DDL
+
+For each table, Wavelet generates a RisingWave `CREATE TABLE` with the CDC connector:
+
+```sql
+CREATE TABLE IF NOT EXISTS app_db_users (*)
+WITH (
+  connector = 'postgres-cdc',
+  hostname = 'db.example.com',
+  port = '5432',
+  username = 'user',
+  password = 'password',
+  database.name = 'myapp',
+  schema.name = 'public',
+  table.name = 'users',
+  slot.name = 'wavelet_app_db',
+  publication.name = 'wavelet_app_db_pub'
+);
+```
+
+The `(*)` syntax tells RisingWave to automatically detect the table's columns from the source. The connection string is parsed to extract hostname, port, credentials, and database name.
+
+## Schema support
+
+By default, tables are read from the `public` schema. To specify a different schema, add it as a query parameter in the connection string:
+
+```typescript
+sources: {
+  app_db: {
+    type: 'postgres',
+    connection: 'postgresql://user:pass@host:5432/mydb?schema=inventory',
+    tables: ['items', 'warehouses'],
+  },
+}
+```
+
+## Replication slot and publication
+
+Wavelet auto-generates names for the replication slot and publication based on the source name. You can override them if needed:
+
+```typescript
+sources: {
+  app_db: {
+    type: 'postgres',
+    connection: 'postgresql://user:pass@host:5432/mydb',
+    tables: ['users'],
+    slotName: 'my_custom_slot',
+    publicationName: 'my_custom_publication',
+  },
+}
+```
+
+<Warning>
+Replication slots consume WAL on the source Postgres. If RisingWave is down for an extended period, the slot will retain WAL and may fill up your disk. Monitor your source database's replication lag.
+</Warning>
+
+## Combining CDC sources with streams
+
+You can combine CDC data from existing databases with Wavelet streams (HTTP writes) in the same view:
+
+```typescript
+export default defineConfig({
+  database: 'postgresql://root@localhost:4566/dev',
+
+  sources: {
+    app_db: {
+      type: 'postgres',
+      connection: process.env.APP_DATABASE_URL!,
+      tables: ['users'],
+    },
+  },
+
+  streams: {
+    click_events: {
+      columns: {
+        user_id: 'int',
+        page: 'string',
+        clicked_at: 'timestamp',
+      },
+    },
+  },
+
+  views: {
+    user_activity: {
+      query: sql`
+        SELECT
+          u.id AS user_id,
+          u.name,
+          COUNT(c.page) AS total_clicks
+        FROM app_db_users u
+        LEFT JOIN click_events c ON u.id = c.user_id
+        GROUP BY u.id, u.name
+      `,
+      keyBy: 'user_id',
+    },
+  },
+})
+```

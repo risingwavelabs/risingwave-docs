@@ -1,0 +1,119 @@
+---
+title: "Wavelet — Real-time computed results for app developers"
+sidebarTitle: Overview
+description: "Subscribe to computed SQL results over WebSocket. Wavelet turns RisingWave materialized views into live APIs with typed SDKs, JWT multi-tenant filtering, and AI agent tooling."
+---
+
+Wavelet is a real-time backend that sits on top of [RisingWave](/get-started/intro.mdx). You define SQL views in a config file, and Wavelet turns them into live APIs that push diffs to your frontend over WebSocket.
+
+```
+App events ──▶ Wavelet HTTP API ──▶ RisingWave (stream processing)
+                                          │
+                                    Materialized Views
+                                          │
+                                   Wavelet Server ──▶ WebSocket diffs ──▶ React / any client
+```
+
+## What Wavelet does
+
+| Layer | What you get |
+|-------|-------------|
+| **Config** | Define streams (input tables) and views (SQL queries) in `wavelet.config.ts` |
+| **CLI** | `wavelet dev` starts RisingWave + syncs DDL + launches server. `wavelet push` deploys to production. |
+| **Server** | HTTP API for writes and reads. WebSocket fanout for real-time diffs. |
+| **SDK** | TypeScript client with `view.get()`, `view.subscribe()`, `stream.emit()`. React hook `useWavelet()`. |
+| **Codegen** | `wavelet generate` produces a fully typed client from your config. |
+| **MCP** | AI agents can query views and emit events via Model Context Protocol. |
+
+## Key concepts
+
+### Streams
+
+Streams are input tables. You write events to them via HTTP POST. Each stream has typed columns.
+
+```typescript
+streams: {
+  game_events: {
+    columns: {
+      player_id: 'string',
+      action: 'string',
+      score: 'int',
+    }
+  }
+}
+```
+
+### Views
+
+Views are materialized SQL queries over your streams (or CDC sources). Wavelet keeps them up to date in RisingWave and pushes diffs to subscribers.
+
+```typescript
+views: {
+  leaderboard: {
+    query: sql`
+      SELECT player_id, SUM(score) AS total_score
+      FROM game_events
+      GROUP BY player_id
+    `,
+  }
+}
+```
+
+### Diffs
+
+Instead of sending the full result set on every change, Wavelet sends diffs — which rows were inserted, updated, or deleted. Your client merges them into local state.
+
+```json
+{
+  "type": "diff",
+  "view": "leaderboard",
+  "inserted": [{ "player_id": "alice", "total_score": 150 }],
+  "updated":  [{ "player_id": "bob", "total_score": 320 }],
+  "deleted":  []
+}
+```
+
+### Sources
+
+Beyond HTTP writes, Wavelet can ingest data from existing PostgreSQL databases via CDC (Change Data Capture). Changes in your Postgres tables automatically flow into RisingWave.
+
+```typescript
+sources: {
+  main_db: {
+    type: 'postgres',
+    connection: 'postgresql://user:pass@host:5432/mydb',
+    tables: ['users', 'orders'],
+  }
+}
+```
+
+## How it works under the hood
+
+1. **DDL sync** — `DdlManager` reads your config, compares it against RisingWave's catalog, and applies minimal DDL changes (create/update/delete tables, materialized views, subscriptions).
+
+2. **Subscription cursors** — For each materialized view, Wavelet creates a RisingWave subscription and opens a blocking cursor (`FETCH NEXT ... WITH (timeout = '5s')`). When rows change, RisingWave pushes them through the cursor.
+
+3. **WebSocket fanout** — The cursor manager dispatches diffs to `WebSocketFanout`, which broadcasts to all connected clients. If JWT auth is configured, diffs are filtered per-client based on token claims.
+
+4. **Stateless** — All persistent state lives in RisingWave. Wavelet server keeps only cursor names and WebSocket connections in memory. On restart, cursors recover from RisingWave's 24-hour retention window.
+
+## When to use Wavelet
+
+Wavelet is a good fit when you need:
+
+- **Real-time dashboards** — leaderboards, analytics, monitoring
+- **Live feeds** — activity streams, notifications, chat
+- **Multi-tenant SaaS** — per-user data views with JWT filtering
+- **AI agent backends** — let agents query and write data via MCP
+
+Wavelet is not a general-purpose database or a replacement for your existing backend. It is a real-time compute layer that subscribes to changes and pushes results.
+
+## Packages
+
+| npm package | Purpose |
+|-------------|---------|
+| `@risingwave/wavelet` | `defineConfig`, `sql` tag, shared types |
+| `@risingwave/wavelet-server` | WebSocket fanout, HTTP API, DDL manager, JWT auth |
+| `@risingwave/wavelet-sdk` | TypeScript client + React hooks |
+| `@risingwave/wavelet-cli` | CLI (`wavelet dev`, `wavelet push`, codegen) |
+| `@risingwave/wavelet-mcp` | MCP server for AI agent integration |

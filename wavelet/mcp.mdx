@@ -1,0 +1,200 @@
+---
+title: "Wavelet MCP server for AI agents"
+sidebarTitle: MCP (AI agents)
+description: "Expose Wavelet views and streams to AI agents via Model Context Protocol. Agents can query real-time data, emit events, and run SQL — no HTTP client needed."
+---
+
+Wavelet includes an MCP (Model Context Protocol) server that lets AI agents interact with your views and streams using natural language tool calls. Agents can query computed results, write events, and run read-only SQL.
+
+```bash
+npm install @risingwave/wavelet-mcp
+```
+
+## Setup
+
+### Claude Code
+
+Add to your project's `.mcp.json`:
+
+```json .mcp.json
+{
+  "mcpServers": {
+    "wavelet": {
+      "command": "npx",
+      "args": ["wavelet-mcp"],
+      "env": {
+        "WAVELET_DATABASE_URL": "postgresql://root@localhost:4566/dev"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "wavelet": {
+      "command": "npx",
+      "args": ["wavelet-mcp"],
+      "env": {
+        "WAVELET_DATABASE_URL": "postgresql://root@localhost:4566/dev"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "wavelet": {
+      "command": "npx",
+      "args": ["wavelet-mcp"],
+      "env": {
+        "WAVELET_DATABASE_URL": "postgresql://root@localhost:4566/dev"
+      }
+    }
+  }
+}
+```
+
+## Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WAVELET_DATABASE_URL` | `postgresql://root@localhost:4566/dev` | RisingWave connection string |
+
+## Available tools
+
+The MCP server auto-discovers views and streams from RisingWave catalogs and exposes six tools:
+
+### `list_views`
+
+List all materialized views with their column schemas.
+
+```
+Agent: "What views are available?"
+→ list_views()
+→ { "views": [{ "name": "leaderboard", "columns": [{ "name": "player_id", "type": "varchar" }, ...] }] }
+```
+
+### `query_view`
+
+Query a materialized view with optional filtering.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `view` | `string` | Yes | View name |
+| `filter` | `object` | No | Key-value pairs for WHERE clause |
+| `limit` | `number` | No | Max rows (default: 100) |
+
+```
+Agent: "Show me Alice's leaderboard entry"
+→ query_view({ view: "leaderboard", filter: { player_id: "alice" } })
+→ { "view": "leaderboard", "rows": [{ "player_id": "alice", "total_score": 350 }], "count": 1 }
+```
+
+### `list_streams`
+
+List all event streams with their column schemas.
+
+```
+Agent: "What streams can I write to?"
+→ list_streams()
+→ { "streams": [{ "name": "game_events", "columns": [{ "name": "player_id", "type": "varchar" }, ...] }] }
+```
+
+### `emit_event`
+
+Write a single event to a stream.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `stream` | `string` | Yes | Stream name |
+| `data` | `object` | Yes | Event data (column-value pairs) |
+
+```
+Agent: "Record a win for Alice with score 100"
+→ emit_event({ stream: "game_events", data: { player_id: "alice", action: "win", score: 100 } })
+→ { "ok": true, "stream": "game_events" }
+```
+
+### `emit_batch`
+
+Write multiple events at once.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `stream` | `string` | Yes | Stream name |
+| `events` | `object[]` | Yes | Array of event objects |
+
+```
+Agent: "Record 3 game results"
+→ emit_batch({ stream: "game_events", events: [
+    { player_id: "alice", action: "win", score: 100 },
+    { player_id: "bob", action: "loss", score: -50 },
+    { player_id: "charlie", action: "win", score: 75 }
+  ]})
+→ { "ok": true, "stream": "game_events", "count": 3 }
+```
+
+### `run_sql`
+
+Execute a read-only SQL query against RisingWave.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `sql` | `string` | Yes | SQL query (must start with `SELECT`) |
+
+```
+Agent: "What's the average score per action type?"
+→ run_sql({ sql: "SELECT action, AVG(score) as avg_score FROM game_events GROUP BY action" })
+→ { "rows": [{ "action": "win", "avg_score": 87.5 }, ...], "count": 2 }
+```
+
+<Warning>
+`run_sql` only accepts `SELECT` statements. `INSERT`, `UPDATE`, `DELETE`, and DDL statements are rejected.
+</Warning>
+
+## Use cases
+
+### Agent-driven monitoring
+
+An AI agent periodically checks `tenant_usage` to detect anomalies:
+
+```
+Agent: "Check if any tenant has spent more than $100 today"
+→ query_view({ view: "tenant_usage", filter: {} })
+→ Finds tenant with $142 spend, alerts the user
+```
+
+### Reactive agent behavior
+
+An agent writes events and reads results to make decisions:
+
+```
+Agent: "Add a game event and check the new leaderboard"
+→ emit_event({ stream: "game_events", data: { player_id: "alice", action: "win", score: 200 } })
+→ query_view({ view: "leaderboard" })
+→ "Alice is now #1 with 550 points"
+```
+
+### Data exploration
+
+An agent explores the data schema and runs ad-hoc queries:
+
+```
+Agent: "What data is available?"
+→ list_views() — sees leaderboard, model_stats
+→ list_streams() — sees game_events, llm_events
+→ run_sql({ sql: "SELECT COUNT(*) FROM game_events" })
+→ "There are 1,247 game events across 2 views and 2 streams"
+```
