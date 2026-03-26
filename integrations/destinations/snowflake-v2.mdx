@@ -52,7 +52,7 @@ These options only need to be set when `with_s3 = true`:
 | s3.region_name                 | AWS region for S3 |
 | s3.bucket_name                 | S3 bucket name |
 | s3.path                        | S3 folder path for sink files |
-| enable_config_load             | Load S3 credentials from environment (self-hosted only) |
+| enable_config_load             | Load S3 credentials from environment |
 | s3.credentials.access          | AWS access key ID |
 | s3.credentials.secret          | AWS secret access key |
 | s3.endpoint_url                | Custom S3 endpoint URL (for self-hosted setups) |
@@ -168,9 +168,11 @@ enable_config_load = 'true',
 ```
 
 To use this method, you need to configure an IAM Role in AWS that RisingWave can assume. This involves:
-1. Obtaining the RisingWave service ARN from our [support team](mailto:cloud-support@risingwave-labs.com).
+1. Obtaining the RisingWave Cloud IAM role ARN (**Workload Identity (IAM Role ARN)**) from the [Cloud metadata](/cloud/cloud-metadata) page in the Console (**Connection** → **Cloud Meta** tab).
 2. Creating an IAM policy with the necessary S3 read/write permissions for your bucket and prefix.
-3. Configuring the IAM Role's trust policy to allow the RisingWave service ARN to assume it.
+3. Configuring the IAM Role's trust policy to use the RisingWave Cloud IAM role ARN as the trusted principal.
+
+For a complete step-by-step walkthrough, see [Set up IAM role assume](/cloud/iam-role-assume).
 
 ## Append-only and upsert modes
 
@@ -446,7 +448,7 @@ RisingWave supports direct access to S3 using Access Key / Secret Key (AK/SK) by
 }
 ```
 
-2. Configure the following additional trusted entities for your IAM Role to allow RisingWave arn to assume the role. Contact our [support team](mailto:cloud-support@risingwave-labs.com) to obtain the correct role to use. Please don’t click required external id to trust RisingWave arn here.
+2. Configure the following additional trusted entities for your IAM Role to allow RisingWave to assume the role. Obtain the **Workload Identity (IAM Role ARN)** from the [Cloud metadata](/cloud/cloud-metadata) page (**Connection** → **Cloud Meta** tab). See [Set up IAM role assume](/cloud/iam-role-assume) for a complete walkthrough.
 
 ```json Example
 {
