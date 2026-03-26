@@ -224,6 +224,6 @@ Request the original RW committer as reviewer on every PR that has a correspondi
 
 ## Repository-Specific Notes
 
-- Navigation config is in `docs.json`. Any remaining references to `mint.json` in this repo (e.g., in README.md or the PR template) are outdated.
+- Navigation config is in `docs.json`.
 - The docs framework is Mintlify-based.
 - Cross-validate against `risingwavelabs/risingwave` source code for all technical claims.
