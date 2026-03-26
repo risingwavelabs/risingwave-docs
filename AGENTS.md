@@ -25,9 +25,12 @@ Phase 2: Adversarial Cross-Check (each agent reviews the other's report)
     Agent A reads Report B ──→ Challenges / Validates
     Agent B reads Report A ──→ Challenges / Validates
 
-Phase 3: Arbitration
-    Both agree 🟢  ──→  Auto-merge candidate
-    Disagreement   ──→  Structured report → Human decides
+Phase 3: Duplicate Detection
+    Identify overlapping PRs → Recommend which to keep / close
+
+Phase 4: Human Decision
+    Both agree 🟢       ──→  Auto-merge candidate
+    Disagreement / 🟡🔴 ──→  Structured report → Human decides
 ```
 
 ---
@@ -221,7 +224,7 @@ Request the original RW committer as reviewer on every PR that has a correspondi
 
 ## Repository-Specific Notes
 
-- Navigation config is in `docs.json` (not `mint.json`).
+- Navigation config is in `docs.json`. Any remaining references to `mint.json` in this repo (e.g., in README.md or the PR template) are outdated.
 - The docs framework is Mintlify-based.
 - Most automated PRs come from `copilot-swe-agent`.
 - Cross-validate against `risingwavelabs/risingwave` source code for all technical claims.
