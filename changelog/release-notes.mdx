@@ -3,6 +3,18 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v2.9.0" description="Unreleased">
+
+## SQL features
+
+- Improves watermark handling for hash joins. When both tables in an equality join have a `WATERMARK` defined on the join key column(s), RisingWave now automatically propagates watermarks through the join and cleans up stale join state. This enables the `EMIT ON WINDOW CLOSE` pattern with regular equality joins, without requiring explicit window functions. Only the leftmost join key column with watermarks on both sides is used for state cleaning. [#24144](https://github.com/risingwavelabs/risingwave/pull/24144)
+
+## Breaking changes
+
+- The internal watermark handling mechanism for interval joins (joins combining equality conditions with watermark-based inequality or range conditions) has been redesigned. Existing interval joins created before upgrading to v2.9.0 will have their in-memory cache state cleaning invalidated. Drop and recreate these joins after upgrading to restore correct watermark-based state cleaning. [#24144](https://github.com/risingwavelabs/risingwave/pull/24144)
+
+</Update>
+
 <Update label="v2.8.0" description="2026-03-02">
 
 Support for certain earlier versions will end following the release of v2.8. Please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
