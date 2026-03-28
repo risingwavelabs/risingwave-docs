@@ -31,6 +31,19 @@ On the **RisingWave Cloud** side, RisingWave Cloud will create an endpoint (spec
 
 On the **Customer** side, you need to set up a PrivateLink service (specifically an AWS endpoint service, GCP published service, or Azure Private Link service) in your VPC network first.
 
+## Serving PrivateLink (connect to RisingWave Cloud from your VPC)
+
+In addition to connecting RisingWave Cloud to services in your VPC, RisingWave Cloud also supports **Serving PrivateLink** — a reverse path that lets you connect *to* RisingWave Cloud privately from your own AWS VPC.
+
+With Serving PrivateLink, RisingWave Cloud creates an AWS endpoint service. You then create an [Interface VPC Endpoint](https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html) in your AWS account to connect to it. All traffic between your VPC and RisingWave Cloud stays on the AWS internal network.
+
+The **Serving PrivateLink** section on the **Cloud Meta** tab (in **Connection** → **Cloud Meta**) exposes two fields:
+
+- **Endpoint Service Name** — the name of the AWS endpoint service created by RisingWave Cloud. Use this value when creating an Interface VPC Endpoint in your own AWS account.
+- **Private Endpoint** — the hostname to use in your connection strings once the Interface VPC Endpoint is available.
+
+See [Cloud metadata](/cloud/cloud-metadata#serving-privatelink) for step-by-step instructions on using these fields.
+
 ## Accessing PrivateLink in the Console
 
 In the [RisingWave Cloud Console](https://cloud.risingwave.com), go to your project and click **Connection** in the left sidebar. Then select the **PrivateLink** tab to create and manage PrivateLink connections.
