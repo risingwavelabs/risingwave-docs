@@ -17,7 +17,7 @@ _`alter_option`_ depends on the operation you want to perform on the connection.
 ### `CONNECTOR WITH`
 
 <Note>
-Added in v2.6.0.
+Added in v2.8.0.
 </Note>
 
 ```sql
@@ -25,48 +25,59 @@ ALTER CONNECTION connection_name
     CONNECTOR WITH ( property_name = value [, ...] );
 ```
 
-This clause updates a connection's connector properties online and propagates the changes to all dependent sources and sinks that reference the connection.
+This clause updates a connection's connector properties and propagates the changes to all dependent sources and sinks that reference the connection.
 
 | Parameter or clause | Description                                                                                                                               |
 | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
 | **CONNECTOR WITH**  | Updates the connection's connector properties. Changes are applied atomically and propagated to all dependent sources and sinks. |
-| _property\_name_    | The connector property to update. Use the same format as in [`CREATE CONNECTION`](/sql/commands/sql-create-connection).<br/><br/>Example: `properties.sasl.username = 'dev1'`<br/><br/>Secrets are supported: `properties.bootstrap.server = SECRET my_secret` |
+| _property\_name_    | The connector property to update. Use the same format as in [`CREATE CONNECTION`](/sql/commands/sql-create-connection).<br/><br/>Example: `properties.sasl.username = 'dev1'`<br/><br/>Secrets are supported: `properties.sasl.password = SECRET my_password` |
 
 #### Permissions
 
-You must have privilege to alter the connection (same privilege checks as other `ALTER` operations on catalog objects).
+You must own the connection or be a superuser.
 
 #### Behavior
 
 When you run `ALTER CONNECTION ... CONNECTOR WITH (...)`:
 
-1. **Catalog update (atomic)**: The meta service updates the connection's stored properties and secret references, then finds all dependent sources and sinks and updates their stored connector options. These updates happen in one transaction.
+1. **Validation**: RisingWave validates that the specified properties are allowed to be changed for that connector type.
 
-2. **Validation**: The meta service validates that the altered keys are allowed to be changed online for that connector type, validates the updated connection, and validates each updated dependent source.
+2. **Atomic update**: The connection and all dependent sources and sinks are updated in a single transaction — all succeed or none do.
 
-3. **Runtime propagation**: The meta service broadcasts a barrier mutation carrying the complete properties for each dependent object. Compute nodes rebuild their stream readers (sources) or sink configurations when they receive the mutation. Running jobs typically pick up the new configuration on the next barrier (usually within seconds).
+3. **Runtime propagation**: Running sources and sinks pick up the new configuration automatically, typically within seconds.
 
 #### Limitations
 
-- Only a subset of connector fields can be altered online, depending on the connector type. Attempting to change disallowed keys will return an error.
-- `ALTER CONNECTION ... CONNECTOR WITH (...)` does not allow referencing another connection inside the `WITH (...)` options (no nested connection references).
+- Only a subset of connector fields can be altered, depending on the connector type. Attempting to change disallowed keys will return an error.
+- You cannot remove a property that has already been set; you can only overwrite it with a new value.
+- You cannot reference another connection inside the `WITH (...)` options.
+
+#### Alterable fields
+
+For Kafka connections, the following fields can currently be altered:
+
+- `properties.security.protocol`
+- `properties.ssl.endpoint.identification.algorithm`
+- `properties.sasl.mechanism`
+- `properties.sasl.username`
+- `properties.sasl.password`
 
 #### Example
 
-This example shows how to rotate Kafka SASL credentials and brokers using secrets:
+This example shows how to rotate Kafka SASL credentials for a connection:
 
 ```sql
--- Create a secret for the bootstrap broker
-CREATE SECRET s_broker WITH ( backend = 'meta' ) AS 'broker1.example.com:9092';
+-- Create secrets for sensitive values
+CREATE SECRET s_password WITH ( backend = 'meta' ) AS 'initial_password';
 
--- Create a Kafka connection using the secret
+-- Create a Kafka connection
 CREATE CONNECTION kafka_conn WITH (
   type = 'kafka',
-  properties.bootstrap.server = SECRET s_broker,
+  properties.bootstrap.server = 'broker1.example.com:9092',
   properties.security.protocol = 'SASL_PLAINTEXT',
   properties.sasl.mechanism = 'PLAIN',
   properties.sasl.username = 'user1',
-  properties.sasl.password = 'password1'
+  properties.sasl.password = SECRET s_password
 );
 
 -- Create a table using the connection
@@ -76,16 +87,34 @@ CREATE TABLE t_conn (x INT) WITH (
   topic = 'test_topic'
 ) FORMAT PLAIN ENCODE JSON;
 
--- Rotate to a new broker and user
-ALTER SECRET s_broker WITH ( backend = 'meta' ) AS 'broker2.example.com:9092';
+-- Create a new secret for the rotated password
+CREATE SECRET s_new_password WITH ( backend = 'meta' ) AS 'new_password';
 
--- Update the connection to use the new username
+-- Rotate to new credentials
 ALTER CONNECTION kafka_conn CONNECTOR WITH (
-  properties.sasl.username = 'user2'
+  properties.sasl.username = 'user2',
+  properties.sasl.password = SECRET s_new_password
 );
 ```
 
 After running these commands, the table `t_conn` continues ingesting using the updated connection configuration without needing to be dropped and recreated.
+
+### `OWNER TO`
+
+```sql
+ALTER CONNECTION connection_name
+    OWNER TO new_owner;
+```
+
+| Parameter or clause | Description                                                                                                                               |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| **OWNER TO**        | This clause changes the owner of the connection. To change a connection's owner, you must be the current owner or a superuser. |
+| _new\_owner_        | Specify the new owner of the connection.                                                                                                  |
+
+```sql
+-- Change the owner of the connection named "test_conn" to user "new_user"
+ALTER CONNECTION test_conn OWNER TO new_user;
+```
 
 ### `SET SCHEMA`
 
@@ -97,7 +126,7 @@ ALTER CONNECTION connection_name
 | Parameter or clause | Description                                                                                                                               |
 | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET SCHEMA**      | This clause changes the schema of the connection. To change a connection's schema, you must also have CREATE privilege on the new schema. |
-| _schema\_name_      | Specify the schema to which you want to change.                                                                                           |
+| _schema\_name_      | The name of the schema to which the connection will be moved.                                                                             |
 
 ```sql
 -- Change the schema of the connection named "test_conn" to a schema named "test_schema"
