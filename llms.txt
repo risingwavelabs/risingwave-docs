@@ -1,0 +1,56 @@
+# RisingWave
+
+> RisingWave is an open-source, PostgreSQL-compatible streaming database for real-time event streaming, processing, and analytics. It uses SQL to ingest, transform, and serve streaming data with sub-second freshness.
+
+RisingWave is wire-compatible with PostgreSQL. Connect using any PostgreSQL driver (psycopg2, JDBC, node-postgres, pgx, etc.) on port 4566.
+
+## Core Concepts
+
+- [Architecture](https://docs.risingwave.com/get-started/architecture): Frontend (SQL), ComputeNode (execution), MetaServer (metadata), Compactor (storage maintenance)
+- [CREATE SOURCE](https://docs.risingwave.com/sql/commands/sql-create-source): Declares an external data stream (Kafka, Pulsar, Kinesis, S3, etc.). Data flows in continuously. Read-only.
+- [CREATE TABLE with connector](https://docs.risingwave.com/ingestion/create-source-vs-create-table): Like SOURCE but persists data and supports INSERT/UPDATE/DELETE.
+- [CREATE MATERIALIZED VIEW](https://docs.risingwave.com/sql/commands/sql-create-mv): Defines a continuously maintained query. Incrementally updated — no manual REFRESH needed.
+- [CREATE SINK](https://docs.risingwave.com/sql/commands/sql-create-sink): Exports data to downstream systems (Kafka, Iceberg, PostgreSQL, ClickHouse, etc.).
+- [Watermarks](https://docs.risingwave.com/processing/watermarks): Track event-time progress for time-windowed computations.
+- [Subscriptions](https://docs.risingwave.com/serve/subscription): Real-time change data capture from materialized views without external message brokers.
+
+## SQL Reference
+
+- [SQL Commands Overview](https://docs.risingwave.com/sql/commands/overview): All DDL/DML commands
+- [Data Types](https://docs.risingwave.com/sql/data-types/overview): boolean, integer, bigint, numeric, real, double, varchar, bytea, date, time, timestamp, timestamptz, interval, struct, array, map, JSONB, vector
+- [Functions Overview](https://docs.risingwave.com/sql/functions/overview): Aggregate, window, string, datetime, JSON, array, mathematical, conditional, set-returning functions
+- [Window Functions](https://docs.risingwave.com/sql/functions/window-functions): row_number, rank, dense_rank, lag, lead, first_value, last_value
+- [Time Windows](https://docs.risingwave.com/processing/sql/time-windows): TUMBLE(), HOP(), SESSION windows for streaming aggregation
+- [Temporal Filters](https://docs.risingwave.com/processing/sql/temporal-filters): Filter by NOW() for sliding time ranges
+
+## Connectors
+
+- [Source Connectors](https://docs.risingwave.com/ingestion/overview): Kafka, PostgreSQL CDC, MySQL CDC, MongoDB CDC, SQL Server CDC, S3, Kinesis, Pulsar, Google Pub/Sub, MQTT, NATS, Iceberg, Datagen, Webhook
+- [Sink Connectors](https://docs.risingwave.com/delivery/overview): Kafka, Apache Iceberg, PostgreSQL, MySQL, ClickHouse, Elasticsearch, StarRocks, Doris, Snowflake, BigQuery, Redis, S3, Delta Lake, DynamoDB, Cassandra, NATS, Pulsar, Kinesis
+- [Formats and Encoding](https://docs.risingwave.com/ingestion/formats-and-encoding-options): JSON, Avro, Protobuf, CSV, Debezium, Maxwell, Canal, BYTES
+
+## Client Libraries
+
+- [Overview](https://docs.risingwave.com/client-libraries/overview): Python (psycopg2/psycopg3), Java (JDBC), Node.js (pg), Go (pgx), Ruby (pg), Rust (tokio-postgres), C# (Npgsql), PHP (pdo-pgsql)
+- [Python SDK](https://docs.risingwave.com/python-sdk/intro): Event-driven Python SDK for RisingWave
+
+## Iceberg Integration
+
+- [Overview](https://docs.risingwave.com/iceberg/overview): Native Iceberg support for streaming lakehouse
+- [Deliver to Iceberg](https://docs.risingwave.com/iceberg/deliver-to-iceberg): Continuously sink data to Iceberg tables
+- [Ingest from Iceberg](https://docs.risingwave.com/iceberg/ingest-from-iceberg): Read Iceberg tables as sources
+- [Catalogs](https://docs.risingwave.com/iceberg/catalogs): Glue, REST, Hive, JDBC catalog support
+
+## Deployment
+
+- [Docker](https://docs.risingwave.com/deploy/risingwave-docker-compose): Quick local setup
+- [Kubernetes](https://docs.risingwave.com/deploy/risingwave-kubernetes): Production deployment with Helm/operator
+- [RisingWave Cloud](https://docs.risingwave.com/cloud/quickstart): Fully managed service
+
+## Key Differences from PostgreSQL
+
+- Materialized views are incrementally maintained (streaming), not on-demand REFRESH
+- CREATE SOURCE / CREATE SINK are RisingWave-specific for streaming data pipelines
+- No stored procedures, triggers, cursors, LISTEN/NOTIFY, or full-text search (tsvector)
+- No UPDATE/DELETE on sources — use tables for mutable data
+- Default port is 4566, default user is `root`, default database is `dev`

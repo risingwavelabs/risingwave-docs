@@ -1,18 +1,18 @@
 ---
-title: "Overview of data processing"
-description: "Data processing is a crucial step in converting raw data into valuable insights."
+title: "Data processing in RisingWave"
 sidebarTitle: Overview
+description: "Process streaming data in real time with RisingWave using PostgreSQL-compatible SQL. Create materialized views for incremental computation, run ad-hoc queries, and build continuous data pipelines."
 ---
 
-It involves applying various operations such as filtering, aggregating, and joining data to derive meaningful information. In the upcoming section, we will delve into the techniques used in the process of transforming and querying data.
+RisingWave processes streaming data in real time using PostgreSQL-compatible SQL. You can define continuous streaming pipelines with `CREATE MATERIALIZED VIEW` for incremental computation that automatically updates as new data arrives, or run ad-hoc `SELECT` queries for on-demand batch analysis. Both modes use the same SQL syntax — no need to learn a separate streaming API or DSL.
 
 ## Declare data processing logic in SQL
 
-RisingWave uses Postgres-compatible SQL as the interface for declaring data processing. We are committed to making it easy to use while being powerful in expression.
+RisingWave uses PostgreSQL-compatible SQL as the interface for declaring data processing logic. This design provides two key benefits:
 
-**Easy to use**: By aligning with PostgreSQL's syntax, functions, and data types, RisingWave eases the learning curve and enhances accessibility for users.Even when creating stream tasks, there is no need to know many concepts related to streaming processing.
+**Easy to use**: By aligning with PostgreSQL's syntax, functions, and data types, RisingWave minimizes the learning curve. Even for creating streaming jobs, there is no need to learn streaming-specific concepts — just write standard SQL.
 
-**Powerful**: RisingWave fully supports and optimizes a variety of SQL features, including advanced features such OVER window and different kinds of JOINs. At the same time, we are also committed to expanding the expressive power of SQL, such as by adding semi-structured data types and corresponding expressions.
+**Powerful**: RisingWave fully supports advanced SQL features including OVER window functions, multi-way JOINs (inner, outer, cross), time-windowed aggregations (tumble, hop, session), and semi-structured data types (JSONB, arrays, structs).
 
 ## Ad hoc (on read) vs. Streaming (on write)
 
@@ -119,3 +119,10 @@ SELECT count(*) FROM mv_sales_summary where mv_sales_summary.total_sales >
      2
 (1 row)
 ```
+
+## See also
+
+- [What is a Materialized View?](/reference/what-is-materialized-view) — How incremental maintenance and cascading views work
+- [Data ingestion](/ingestion/overview) — How data enters RisingWave before processing
+- [Data delivery](/delivery/overview) — How to send processed results to downstream systems
+- [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) — SQL reference
