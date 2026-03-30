@@ -8,10 +8,10 @@ This topic explains how to monitor Kafka source consumption progress and lag in 
 
 ## Overview
 
-RisingWave provides two system catalog tables to monitor Kafka consumer lag:
+RisingWave provides two system catalogs to monitor Kafka consumer lag:
 
-- **`rw_kafka_source_metrics`**: Raw Kafka metrics for each source partition
-- **`rw_kafka_job_lag`**: High-level view that calculates lag per job, source, fragment, and partition
+- **`rw_kafka_source_metrics`** (table): Raw Kafka metrics for each source partition
+- **`rw_kafka_job_lag`** (view): Computed lag per job, source, fragment, and partition
 
 ## System catalog: `rw_kafka_source_metrics`
 
@@ -46,12 +46,12 @@ SELECT
     high_watermark, 
     latest_offset
 FROM rw_catalog.rw_kafka_source_metrics
-WHERE source_id = 1001;
+WHERE source_id = 1001; -- Replace with your source ID
 ```
 
 ## System catalog: `rw_kafka_job_lag`
 
-The `rw_kafka_job_lag` view provides a high-level view of Kafka consumption lag, designed to help diagnose consumption issues across materialized views and sinks.
+The `rw_kafka_job_lag` view provides a summary of Kafka consumption lag, designed to help diagnose consumption issues across materialized views and sinks.
 
 ### Schema
 
@@ -67,15 +67,15 @@ DESCRIBE rw_catalog.rw_kafka_job_lag;
 | `partition_id`   | varchar | Kafka partition ID                                                    |
 | `lag_phase`      | varchar | Phase of consumption: `BACKFILL` (processing historical data) or `LIVE` (processing real-time data) |
 | `high_watermark` | bigint  | Latest offset available in the Kafka topic partition (nullable)       |
-| `consumer_offset`| bigint  | Current offset being processed (nullable)                             |
-| `lag`            | bigint  | Number of unprocessed messages, calculated as `max(high_watermark - consumer_offset - 1, 0)` (nullable) |
+| `consumer_offset`| bigint  | Current consumer offset — during `BACKFILL`, this is the backfill progress offset; during `LIVE`, this is the latest offset processed by RisingWave (nullable) |
+| `lag`            | bigint  | Number of unprocessed messages, calculated as `greatest(high_watermark - consumer_offset - 1, 0)` (nullable) |
 
 ### Lag phase
 
 The `lag_phase` column indicates the current phase of Kafka consumption:
 
-- **`BACKFILL`**: The consumer is processing historical data during initial job creation or recovery
-- **`LIVE`**: The consumer has caught up and is processing real-time streaming data
+- **`BACKFILL`**: The consumer is processing historical data during initial job creation. In this phase, the `consumer_offset` reflects the backfill progress offset.
+- **`LIVE`**: The backfill has completed (or no backfill state exists) and the consumer is processing real-time streaming data. In this phase, the `consumer_offset` reflects the latest offset reported by the source reader.
 
 ### Example usage
 
@@ -104,7 +104,7 @@ SELECT
     high_watermark,
     lag
 FROM rw_catalog.rw_kafka_job_lag
-WHERE job_id = 1001
+WHERE job_id = 1001 -- Replace with your job ID
 ORDER BY partition_id;
 ```
 
@@ -135,7 +135,7 @@ ORDER BY avg_lag DESC;
 If you observe high consumer lag:
 
 1. **Check resource utilization**: High lag may indicate that compute nodes are under-provisioned or overloaded.
-2. **Review parallelism settings**: Consider adjusting fragment parallelism to increase processing capacity.
+2. **Review parallelism settings**: Consider [adjusting the parallelism](/sql/commands/sql-alter-fragment) of your streaming jobs to increase processing capacity.
 3. **Inspect Kafka broker health**: Verify that Kafka brokers are operating normally and not experiencing performance issues.
 4. **Examine query complexity**: Complex transformations in materialized views may slow down consumption.
-5. **Monitor backpressure**: Use `rw_catalog` system tables to check for backpressure in the streaming pipeline.
+5. **Check NULL values**: If `high_watermark` or `consumer_offset` is NULL, metrics may not yet be available. This can happen shortly after source creation or if the Prometheus endpoint is not configured.
