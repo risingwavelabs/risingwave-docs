@@ -232,6 +232,36 @@ WITH (
 ENGINE = ICEBERG;
 ```
 
+## Query storage selection
+
+Iceberg engine tables have two storage backends for batch reads:
+
+- **Iceberg columnar storage** – better for wide scans and analytical reads.
+- **Hummock row storage** – better for point reads and highly selective access.
+
+You can control which backend a batch `SELECT` uses with the `iceberg_query_storage_mode` session variable.
+
+| Value | Behavior |
+| :-- | :-- |
+| `iceberg` (default) | Always read from Iceberg columnar storage. |
+| `hummock` | Always read from Hummock row storage. |
+| `auto` | Let the optimizer decide. Currently prefers Hummock for point lookups on the table primary key. |
+
+```sql
+-- Use Iceberg columnar storage (default)
+SET iceberg_query_storage_mode = 'iceberg';
+
+-- Use Hummock row storage (good for primary-key point lookups)
+SET iceberg_query_storage_mode = 'hummock';
+
+-- Let the optimizer decide based on the query shape
+SET iceberg_query_storage_mode = 'auto';
+```
+
+<Note>
+`iceberg_query_storage_mode` only affects batch `SELECT` on tables created with `ENGINE = ICEBERG`. Streaming queries are not affected.
+</Note>
+
 ## Table maintenance
 
 To maintain good performance and manage storage costs, internal Iceberg tables require periodic maintenance, including compaction and snapshot expiration.
