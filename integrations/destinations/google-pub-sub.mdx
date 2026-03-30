@@ -26,7 +26,7 @@ FORMAT data_format ENCODE data_encode [ (
 | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | pubsub.project\_id    | **Required**. The Pub/Sub Project ID.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | pubsub.topic          | **Required**. The Pub/Sub topic to publish messages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| pubsub.endpoint       | **Required**. The Pub/Sub endpoint. For real Google Cloud usage, set this to `pubsub.googleapis.com:443`. For a local emulator, set this to the emulator host and port (e.g., `localhost:8900`). Do not include a scheme prefix (`https://`) or angle brackets.                                                                                                                                                                                                                                                                                                       |
+| pubsub.endpoint       | **Required**. The Pub/Sub endpoint. For real Google Cloud usage, set this to `pubsub.googleapis.com`. For a local emulator, set this to the emulator host and port (e.g., `localhost:8900`). Do not include a scheme prefix (`https://`) or angle brackets.                                                                                                                                                                                                                                                                                                          |
 | pubsub.emulator\_host | **Optional**. The Pub/Sub emulator host. Set this only when testing locally against the [Pub/Sub emulator](https://cloud.google.com/pubsub/docs/emulator). When this parameter is set, RisingWave skips TLS and authentication. Do not set this parameter for real GCP usage.                                                                                                                                                                                                                                                                                         |
 | pubsub.credentials    | **Optional**. The service account credentials used for authorization. Accepts either a raw JSON string or a secret reference in the form `SECRET <secret_name>`. The secret must contain the raw JSON content of the service account key file — it is **not** a file path. See [Create credentials for a service account](https://developers.google.com/workspace/guides/create-credentials#create%5Fcredentials%5Ffor%5Fa%5Fservice%5Faccount). The service account must have the `roles/pubsub.publisher` and `roles/pubsub.viewer` roles on the target topic. |
 
@@ -102,7 +102,7 @@ CREATE SINK pubsub_sink
 FROM personnel
 WITH (
     connector = 'google_pubsub',
-    pubsub.endpoint = 'pubsub.googleapis.com:443',
+    pubsub.endpoint = 'pubsub.googleapis.com',
     pubsub.project_id = 'my-project',
     pubsub.topic = 'my-topic',
     pubsub.credentials = SECRET pubsub_creds,
@@ -156,7 +156,7 @@ Before creating the sink, verify the following:
 - The Pub/Sub topic exists in the specified project.
 - The service account has both `roles/pubsub.publisher` and `roles/pubsub.viewer` on the topic.
 - The secret content is the raw JSON of the service account key, not a file path.
-- `pubsub.endpoint` is set to `pubsub.googleapis.com:443` for real GCP (no `https://` prefix, no angle brackets).
+- `pubsub.endpoint` is set to `pubsub.googleapis.com` for real GCP (no `https://` prefix, no port suffix, no angle brackets).
 - `pubsub.emulator_host` is **not** set when connecting to real GCP.
 - After creating the sink, monitor throughput, latency, and successful publish metrics to confirm messages are flowing.
 
@@ -166,6 +166,6 @@ Before creating the sink, verify the following:
 | :---- | :---- | :-- |
 | `InvalidKeyFormat` | The `private_key` field in the service account JSON has been corrupted or double-escaped during copy-paste (for example, `\\n` instead of `\n` for newlines within the PEM block). The downloaded key file from the Google Cloud Console already uses the correct `\n` escape sequences — do not modify them. | Re-download the service account key from the Google Cloud Console and store it directly in the secret without reformatting. |
 | `PermissionDenied` | The service account is missing a required IAM role. | Grant `roles/pubsub.publisher` and `roles/pubsub.viewer` on the target topic. |
-| Transport error / connection refused | `pubsub.endpoint` contains an `https://` prefix, angle brackets, or another unsupported format. | Set `pubsub.endpoint` to the plain host-and-port value `pubsub.googleapis.com:443`. |
+| Transport error / connection refused | `pubsub.endpoint` contains an `https://` prefix, angle brackets, or another unsupported format. | Set `pubsub.endpoint` to the plain hostname `pubsub.googleapis.com`. |
 | Authentication silently ignored | `pubsub.emulator_host` is set while connecting to real GCP. | Remove `pubsub.emulator_host` for real GCP connections. |
 | Credentials not found | `pubsub.credentials` contains a file path instead of JSON content. | Paste the raw JSON content of the key file into the secret. |
