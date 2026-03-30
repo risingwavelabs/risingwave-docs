@@ -20,15 +20,15 @@ FORMAT data_format ENCODE data_encode [ (
 ;
 ```
 
-## Basic parameter
+## Basic parameters
 
 | Parameter             | Description                                                                                                                                                                                                                                                                                                                                                                                  |
 | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | pubsub.project\_id    | **Required**. The Pub/Sub Project ID.                                                                                                                                                                                                                                                                                                                                                            |
 | pubsub.topic          | **Required**. The Pub/Sub topic to publish messages.                                                                                                                                                                                                                                                                                                                                             |
-| pubsub.endpoint       | **Required**. The Pub/Sub endpoint URL.                                                                                                                                                                                                                                                                                                                                                          |
-| pubsub.emulator\_host | **Optional**. The Pub/Sub emulator, see [Testing locally with Pub/Sub emulator](https://cloud.google.com/pubsub/docs/emulator).                                                                                                                                                                                                                                                                  |
-| pubsub.credentials    | **Optional**. A JSON string containing the service account credentials for authorization,see [Create credentials for a service account](https://developers.google.com/workspace/guides/create-credentials#create%5Fcredentials%5Ffor%5Fa%5Fservice%5Faccount). The provided account credential must have the pubsub.publisher [role](https://cloud.google.com/pubsub/docs/access-control#roles). |
+| pubsub.endpoint       | **Required**. The Pub/Sub endpoint. For real GCP usage, set this to `pubsub.googleapis.com:443`. For a local emulator, set this to `localhost:<port>` (for example, `localhost:8900`). Do not include `https://` or any URL scheme prefix.                                                                                                                                                         |
+| pubsub.emulator\_host | **Optional**. The Pub/Sub emulator host. Set this only when connecting to a local emulator, see [Testing locally with Pub/Sub emulator](https://cloud.google.com/pubsub/docs/emulator). For real GCP usage, omit this parameter.                                                                                                                                                                  |
+| pubsub.credentials    | **Optional**. The service account credentials used for authorization. You can provide the raw service-account JSON string directly or reference a RisingWave secret using `SECRET <secret_name>`. The provided account must have the `roles/pubsub.publisher` and `roles/pubsub.viewer` [roles](https://cloud.google.com/pubsub/docs/access-control#roles). See [Create credentials for a service account](https://developers.google.com/workspace/guides/create-credentials#create_credentials_for_a_service_account). |
 
 ## FORMAT and ENCODE option
 
@@ -43,10 +43,83 @@ These options should be set in `FORMAT data_format ENCODE data_encode (key = 'va
 | force\_append\_only | Required by default and must be `true`, which forces the sink to be `PLAIN` (also known as append-only).                                                                                                                                                                  |
 | key\_encode         | **Optional**. When specified, the key encode can only be TEXT, and the primary key should be one and only one of the following types: `varchar`, `bool`, `smallint`, `int`, and `bigint`; When absent, both key and value will use the same setting of `ENCODE data_encode ( ... )`. |
 
-## Example
-You can test the function locally before you deploying it. See guide on how to [Test locally with the Pub/Sub emulator](https://cloud.google.com/functions/docs/local-development).
+## Using Google Cloud Pub/Sub (non-emulator)
 
-Below is the example of how you can configure the `docker-compose.yaml` file:
+This section describes how to connect to real Google Cloud Pub/Sub. For local emulator setup, see the [Example](#example) section below.
+
+### IAM requirements
+
+The service account used for `pubsub.credentials` must have the following IAM roles on the target topic:
+
+- `roles/pubsub.publisher` — required to publish messages to the topic.
+- `roles/pubsub.viewer` — required to look up topic metadata.
+
+You can grant both roles using the `gcloud` CLI:
+
+```bash Example
+gcloud pubsub topics add-iam-policy-binding <TOPIC_NAME> \
+  --member="serviceAccount:<SERVICE_ACCOUNT_EMAIL>" \
+  --role="roles/pubsub.publisher"
+
+gcloud pubsub topics add-iam-policy-binding <TOPIC_NAME> \
+  --member="serviceAccount:<SERVICE_ACCOUNT_EMAIL>" \
+  --role="roles/pubsub.viewer"
+```
+
+### Store credentials in a secret
+
+RisingWave secrets store a **literal string value**. For Pub/Sub, store the raw service-account JSON (the content of the downloaded `.json` key file) in a secret. Do not store a file path.
+
+```sql Example
+CREATE SECRET pubsub_credentials WITH (
+    backend = 'meta'
+) AS '<paste raw service-account JSON here>';
+```
+
+### Create a sink for real GCP
+
+```sql Example
+CREATE TABLE IF NOT EXISTS personnel (id integer, name varchar);
+
+CREATE SINK pubsub_sink_gcp
+FROM personnel
+WITH (
+    connector = 'google_pubsub',
+    pubsub.endpoint = 'pubsub.googleapis.com:443',
+    pubsub.project_id = 'my-gcp-project',
+    pubsub.topic = 'my-topic',
+    pubsub.credentials = SECRET pubsub_credentials
+) FORMAT PLAIN ENCODE JSON (
+    force_append_only = 'true'
+);
+```
+
+### Pre-flight validation checklist
+
+Before creating the sink, verify the following:
+
+1. The Pub/Sub topic exists in your GCP project.
+2. The service account has both `roles/pubsub.publisher` and `roles/pubsub.viewer` on the topic.
+3. The secret content is the raw service-account JSON (not a file path and not URL-encoded).
+4. `pubsub.endpoint` is set to `pubsub.googleapis.com:443` (no `https://` prefix).
+5. After creating the sink, confirm it is running by checking throughput, latency, and successful publish metrics in the RisingWave dashboard or via `SHOW SINK <sink_name>`.
+
+## Common misconfigurations
+
+| Problem | Symptom | Fix |
+| :------ | :------ | :-- |
+| `pubsub.endpoint` includes `https://` | Transport error or connection refused | Use the plain host form: `pubsub.googleapis.com:443` |
+| `pubsub.endpoint` set to an emulator address for real GCP | Connection timeout or authentication failure | Set endpoint to `pubsub.googleapis.com:443` for real GCP |
+| `pubsub.credentials` contains a rendered or URL-encoded JSON string | `InvalidKeyFormat` or authentication error | Paste the raw JSON directly; avoid copy-pasting from Slack or browser address bars |
+| `private_key` field in credentials JSON has broken PEM formatting (missing `\n`) | `InvalidKeyFormat` | Ensure newlines in the private key are literal `\n` characters, not spaces or escaped differently |
+| Service account missing `roles/pubsub.viewer` | `PermissionDenied` when looking up topic metadata | Grant `roles/pubsub.viewer` in addition to `roles/pubsub.publisher` |
+| `pubsub.credentials` references a file path instead of JSON content | Authentication failure | Store the JSON content in the secret, not the path to the key file |
+
+## Example
+
+You can test the function locally before deploying it. See the guide on how to [Test locally with the Pub/Sub emulator](https://cloud.google.com/functions/docs/local-development).
+
+Below is an example of how to configure the `docker-compose.yaml` file:
 
 ```yaml
 services:
@@ -58,22 +131,20 @@ services:
       - "8900:8900"
 ```
 
-Below is the example of how to create a sink:
+Below is an example of how to create a sink against the local emulator:
 
-```sql
+```sql Example
 CREATE TABLE IF NOT EXISTS personnel (id integer, name varchar);
 
-CREATE SINK pubusb_sink
-FROM
-  personnel
-WITH
-(
+CREATE SINK pubsub_sink
+FROM personnel
+WITH (
     connector = 'google_pubsub',
     pubsub.endpoint = 'localhost:8900',
-    pubsub.emulator_host = 'localhost:8900', -- local emulator
+    pubsub.emulator_host = 'localhost:8900',
     pubsub.project_id = 'demo',
-    pubsub.topic = 'test',
+    pubsub.topic = 'test'
 ) FORMAT PLAIN ENCODE JSON (
-    force_append_only='true',
+    force_append_only = 'true'
 );
 ```
