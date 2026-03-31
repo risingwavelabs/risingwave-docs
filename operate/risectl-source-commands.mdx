@@ -38,13 +38,13 @@ Updates source connector properties with an orchestrated pause/resume workflow.
 ### Syntax
 
 ```bash
-./risedev ctl meta alter-source-properties-safe \
+risectl meta alter-source-properties-safe \
     --source-id <SOURCE_ID> \
     --props '<JSON_PROPERTIES>' \
     [--reset-splits]
 ```
 
-For pre-built RisingWave binaries:
+`risectl` is included in the pre-built RisingWave binary. Use the following command instead:
 
 ```bash
 ./risingwave ctl meta alter-source-properties-safe \
@@ -63,17 +63,34 @@ For pre-built RisingWave binaries:
 
 ### Supported properties
 
-Currently, only Kafka connector properties can be updated. Supported properties include:
+Currently, only Kafka connector properties can be updated. Unlike [`ALTER SOURCE ... CONNECTOR WITH`](/sql/commands/sql-alter-source), the `risectl` command bypasses the runtime-alterable check, so it can update a broader set of properties. The commonly used properties are:
 
+**Connection and security:**
 - `properties.bootstrap.server`
 - `properties.security.protocol`
+- `properties.ssl.endpoint.identification.algorithm`
 - `properties.sasl.mechanism`
 - `properties.sasl.username`
 - `properties.sasl.password`
 - `properties.client.id`
+- `properties.enable.ssl.certificate.verification`
+
+**Consumer performance:**
 - `properties.fetch.max.bytes`
+- `properties.fetch.wait.max.ms`
+- `properties.fetch.queue.backoff.ms`
+- `properties.queued.min.messages`
+- `properties.queued.max.messages.kbytes`
+- `properties.enable.auto.commit`
+
+**Message size and monitoring:**
+- `properties.message.max.bytes`
 - `properties.receive.message.max.bytes`
-- Other Kafka client configuration properties
+- `properties.statistics.interval.ms`
+
+**Other:**
+- `properties.sync.call.timeout`
+- `group.id.prefix`
 
 <Note>
 The connector type (e.g., `connector = 'kafka'`) cannot be changed. Only connector-specific properties can be updated.
@@ -84,7 +101,7 @@ The connector type (e.g., `connector = 'kafka'`) cannot be changed. Only connect
 Update Kafka broker address:
 
 ```bash
-./risedev ctl meta alter-source-properties-safe \
+risectl meta alter-source-properties-safe \
     --source-id 123 \
     --props '{"properties.bootstrap.server": "new-kafka-cluster:9092"}' \
     --reset-splits
@@ -93,7 +110,7 @@ Update Kafka broker address:
 Update security settings:
 
 ```bash
-./risedev ctl meta alter-source-properties-safe \
+risectl meta alter-source-properties-safe \
     --source-id 123 \
     --props '{
         "properties.security.protocol": "SASL_SSL",
@@ -105,7 +122,7 @@ Update security settings:
 Update performance settings:
 
 ```bash
-./risedev ctl meta alter-source-properties-safe \
+risectl meta alter-source-properties-safe \
     --source-id 123 \
     --props '{"properties.receive.message.max.bytes": "5000000"}'
 ```
@@ -114,11 +131,12 @@ Update performance settings:
 
 The command follows this workflow:
 
-1. **Pause**: Injects a pause barrier to stop source consumption
-2. **Catalog update**: Updates the `rw_sources` table atomically
-3. **Property propagation**: Sends property changes to stream executors
-4. **Split reset** (if `--reset-splits` is specified): Clears cached splits
-5. **Resume**: Injects a resume barrier to restart consumption
+1. **Pause**: Pauses the streaming graph to stop source consumption
+2. **Catalog update**: Updates the source properties in the `rw_sources` catalog
+3. **Validation**: Validates the updated source configuration against the upstream connector
+4. **Property propagation**: Applies property changes to all running source readers
+5. **Split reset** (if `--reset-splits` is specified): Clears cached splits
+6. **Resume**: Resumes the streaming graph to restart consumption
 
 All changes persist in the catalog and survive cluster restarts.
 
@@ -133,12 +151,19 @@ Use this command when you need to:
 
 ## reset-source-splits
 
-Forces re-discovery of source splits by clearing cached state.
+Forces rediscovery of source splits by clearing cached state.
 
 ### Syntax
 
 ```bash
-./risedev ctl meta reset-source-splits \
+risectl meta reset-source-splits \
+    --source-id <SOURCE_ID>
+```
+
+`risectl` is included in the pre-built RisingWave binary. Use the following command instead:
+
+```bash
+./risingwave ctl meta reset-source-splits \
     --source-id <SOURCE_ID>
 ```
 
@@ -151,16 +176,16 @@ Forces re-discovery of source splits by clearing cached state.
 ### Example
 
 ```bash
-./risedev ctl meta reset-source-splits --source-id 123
+risectl meta reset-source-splits --source-id 123
 ```
 
 ### How it works
 
 This command:
 
-1. Clears the `splits` field in the connector source worker handle
-2. Triggers a `force_tick()` to re-discover splits from upstream
-3. Assigns new splits on the next SourceManager tick cycle
+1. Clears the cached split state for the source
+2. Triggers an immediate re-discovery of splits from upstream
+3. Reassigns discovered splits on the next scheduling cycle
 
 <Warning>
 Resetting splits may cause data duplication. When splits are reset, RisingWave clears the cached split state and re-discovers partitions/splits from the source. Depending on the connector's offset tracking mechanism, this may result in re-consuming some messages. For Kafka sources, if offsets are properly committed, duplication is minimal. However, for sources with less precise offset tracking, more duplicates may occur. Monitor the source after resetting to detect any unexpected behavior.
@@ -185,7 +210,15 @@ This is an **UNSAFE** operation. Incorrect offsets will cause data inconsistency
 ### Syntax
 
 ```bash
-./risedev ctl meta inject-source-offsets \
+risectl meta inject-source-offsets \
+    --source-id <SOURCE_ID> \
+    --offsets '<JSON_OFFSETS>'
+```
+
+`risectl` is included in the pre-built RisingWave binary. Use the following command instead:
+
+```bash
+./risingwave ctl meta inject-source-offsets \
     --source-id <SOURCE_ID> \
     --offsets '<JSON_OFFSETS>'
 ```
@@ -197,13 +230,16 @@ This is an **UNSAFE** operation. Incorrect offsets will cause data inconsistency
 | `--source-id` | integer | Yes | Source ID to inject offsets for |
 | `--offsets` | JSON string | Yes | Split ID to offset mapping |
 
-### Offset format by connector
+### Offset format
 
-The offset format varies by connector type. The `inject-source-offsets` command works with multiple connector types, though the offset format differs:
+The `--offsets` parameter is a JSON object mapping split IDs to offset values. The format varies by connector type:
 
-- **Kafka**: `{"partition_id": "offset_value"}`
-- **CDC sources**: `{"binlog_file": "position"}` or `{"lsn": "value"}`
-- **Pulsar**: `{"partition": "message_id"}`
+- **Kafka**: Split ID is the partition number. Example: `{"0": "1000", "1": "2000"}`
+- **Pulsar**: Split ID is the partition number. Offset is in the format `"{ledger_id}:{entry_id}:{partition}:{batch_index}"` (e.g., `"1234:56:0:-1"`).
+
+<Warning>
+For CDC sources, the offset format is complex and connector-specific (e.g., MySQL CDC uses `{"file": "...", "pos": ..., "gtid": ...}`). Refer to [Monitor CDC progress](/ingestion/monitor-cdc-progress) for the actual offset structure before using this command with CDC sources.
+</Warning>
 
 <Note>
 While `inject-source-offsets` supports multiple connector types, `alter-source-properties-safe` currently only supports Kafka connectors.
@@ -211,29 +247,21 @@ While `inject-source-offsets` supports multiple connector types, `alter-source-p
 
 ### Examples
 
-Inject Kafka offsets:
+Inject Kafka offsets (keys are partition IDs, values are offsets):
 
 ```bash
-./risedev ctl meta inject-source-offsets \
+risectl meta inject-source-offsets \
     --source-id 123 \
     --offsets '{"0": "1000", "1": "2000", "2": "1500"}'
-```
-
-Inject CDC offsets (example format):
-
-```bash
-./risedev ctl meta inject-source-offsets \
-    --source-id 123 \
-    --offsets '{"mysql-bin.000001": "12345"}'
 ```
 
 ### How it works
 
 The command:
 
-1. Creates an `InjectSourceOffsetsMutation` barrier
-2. Stores offsets as JSON in source executor state tables
-3. Completely overwrites existing split state
+1. **Offset injection**: Delivers the specified offsets to the source via an internal coordination mechanism
+2. **State overwrite**: Completely overwrites the stored split state with the new offsets
+3. **Resumption**: Source consumption resumes from the injected offsets
 
 ### When to use
 
@@ -270,7 +298,7 @@ SELECT * FROM rw_fragment_parallelism WHERE fragment_id IN (
 Properties can be reverted using the same `alter-source-properties-safe` command:
 
 ```bash
-./risedev ctl meta alter-source-properties-safe \
+risectl meta alter-source-properties-safe \
     --source-id 123 \
     --props '{"properties.bootstrap.server": "old-broker:9092"}'
 ```
