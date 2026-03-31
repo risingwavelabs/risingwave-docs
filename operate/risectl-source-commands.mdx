@@ -198,7 +198,7 @@ This command:
 3. Reassigns discovered splits on the next scheduling cycle
 
 <Warning>
-Resetting splits may cause data duplication. When splits are reset, RisingWave clears the cached split state and re-discovers partitions/splits from the source. Depending on the connector's offset tracking mechanism, this may result in re-consuming some messages. For Kafka sources, if offsets are properly committed, duplication is minimal. However, for sources with less precise offset tracking, more duplicates may occur. Monitor the source after resetting to detect any unexpected behavior.
+Resetting splits may cause data duplication or loss. When splits are reset, RisingWave clears the cached split state and re-discovers partitions/splits from the source. Depending on the connector's offset tracking mechanism, this may result in re-consuming some messages. Monitor the source after resetting to detect any unexpected behavior.
 </Warning>
 
 ### When to use
@@ -244,11 +244,11 @@ risectl meta inject-source-offsets \
 
 The `--offsets` parameter is a JSON object mapping split IDs to offset values. The format varies by connector type:
 
-- **Kafka**: Split ID is the partition number. Example: `{"0": "1000", "1": "2000"}`
-- **Pulsar**: Split ID is the partition number. Offset is in the format `"{ledger_id}:{entry_id}:{partition}:{batch_index}"` (e.g., `"1234:56:0:-1"`).
+- **Kafka**: Split ID is the partition number (e.g., `"0"`, `"1"`). Offset is the Kafka offset as a string. Example: `{"0": "1000", "1": "2000"}`
+- **Pulsar**: Split ID is the topic name. Offset is in the format `"{ledger_id}:{entry_id}:{partition}:{batch_index}"` (e.g., `"1234:56:0:-1"`).
 
 <Warning>
-For CDC sources, the offset format is complex and connector-specific (e.g., MySQL CDC uses `{"file": "...", "pos": ..., "gtid": ...}`). Refer to [Monitor CDC progress](/ingestion/monitor-cdc-progress) for the actual offset structure before using this command with CDC sources.
+For CDC sources, the split ID and offset format are complex and connector-specific. The offset follows the Debezium envelope format. Refer to [Monitor CDC progress](/ingestion/monitor-cdc-progress) for the actual offset structure before using this command with CDC sources.
 </Warning>
 
 <Note>
@@ -269,9 +269,9 @@ risectl meta inject-source-offsets \
 
 The command:
 
-1. **Offset injection**: Delivers the specified offsets to the source via an internal coordination mechanism
-2. **State overwrite**: Completely overwrites the stored split state with the new offsets
-3. **Resumption**: Source consumption resumes from the injected offsets
+1. **Offset injection**: Delivers the specified offsets to source executors via a barrier (without pausing the streaming graph)
+2. **State update**: Updates the split state for the specified splits. Splits not listed in `--offsets` are left untouched.
+3. **Reader rebuild**: Source readers are rebuilt automatically and consumption resumes from the injected offsets
 
 ### When to use
 
