@@ -63,7 +63,11 @@ risectl meta alter-source-properties-safe \
 
 ### Supported properties
 
-Currently, only Kafka connector properties can be updated. Unlike [`ALTER SOURCE ... CONNECTOR WITH`](/sql/commands/sql-alter-source), the `risectl` command bypasses the runtime-alterable check, so it can update a broader set of properties. The commonly used properties are:
+Unlike [`ALTER SOURCE ... CONNECTOR WITH`](/sql/commands/sql-alter-source) (which restricts updates to a predefined set of runtime-alterable fields), the `risectl` command bypasses this restriction and can update any connector property for any connector type. Use with caution.
+
+Below are common properties grouped by connector type.
+
+#### Kafka
 
 **Connection and security:**
 - `properties.bootstrap.server`
@@ -91,6 +95,12 @@ Currently, only Kafka connector properties can be updated. Unlike [`ALTER SOURCE
 **Other:**
 - `properties.sync.call.timeout`
 - `group.id.prefix`
+
+#### CDC (MySQL, PostgreSQL, SQL Server, MongoDB)
+
+- `cdc.source.wait.streaming.start.timeout`
+- `debezium.max.queue.size`
+- `debezium.queue.memory.ratio`
 
 <Note>
 The connector type (e.g., `connector = 'kafka'`) cannot be changed. Only connector-specific properties can be updated.
@@ -242,7 +252,7 @@ For CDC sources, the offset format is complex and connector-specific (e.g., MySQ
 </Warning>
 
 <Note>
-While `inject-source-offsets` supports multiple connector types, `alter-source-properties-safe` currently only supports Kafka connectors.
+All three commands work with multiple connector types. The properties listed above are the most commonly updated ones for Kafka and CDC connectors. For other connectors, refer to the connector-specific documentation for available property names.
 </Note>
 
 ### Examples
@@ -313,8 +323,7 @@ risectl meta alter-source-properties-safe \
 
 ## Limitations
 
-- `alter-source-properties-safe` currently only supports Kafka connector properties. Support for other connectors will be added in future releases.
-- `inject-source-offsets` and `reset-source-splits` work with multiple connector types (Kafka, CDC, Pulsar, etc.).
+- All three commands work with multiple connector types (Kafka, CDC, Pulsar, etc.).
 - The connector type cannot be changed (e.g., cannot change from Kafka to Pulsar).
 - Some properties are validated; invalid values will cause the command to fail.
 
