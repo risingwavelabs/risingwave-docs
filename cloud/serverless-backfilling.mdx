@@ -7,6 +7,8 @@ description: "Enable serverless backfilling in RisingWave Cloud and configure th
 
 Serverless backfilling in RisingWave Cloud runs materialized view backfill jobs on dedicated backfiller resources instead of your main streaming compute nodes.
 
+When a serverless backfill job starts, RisingWave Cloud provisions a temporary resource group for that job by using the configured **Backfiller SKU** and **Replicas** as template values.
+
 This page focuses on enabling and sizing the Cloud resources. For SQL usage, session variables, `WITH` clause options, limitations, and monitoring, see [Serverless backfill](/processing/serverless-backfill).
 
 ## Configure serverless backfilling
@@ -18,13 +20,19 @@ Serverless backfilling settings are separate from the main cluster setup. To acc
 3. Click the **Backfillings** tab.
 4. Toggle **Serverless backfilling** on, then configure the settings below.
 
+The following screenshot shows the **Backfillings** tab in the **Resources** page:
+
+<Frame>
+  <img src="/images/cloud/resources/resources_backfillings.png" />
+</Frame>
+
 ### Backfiller SKU
 
-The **Backfiller SKU** defines the compute size of each backfiller node. Choose a larger SKU for faster backfill throughput on large upstream tables, or a smaller SKU to minimize cost.
+The **Backfiller SKU** defines the compute size used when RisingWave Cloud provisions the temporary resource group for a serverless backfill job. Choose a larger SKU for faster backfill throughput on large upstream tables, or a smaller SKU to minimize cost.
 
 ### Replicas
 
-**Replicas** sets the backfill capacity available to RisingWave Cloud when scheduling serverless backfill jobs:
+**Replicas** sets the default replica count used when RisingWave Cloud provisions the temporary resource group for a serverless backfill job:
 
 - Increase the replica count if you expect more concurrent backfill work or need higher throughput.
 - Use a smaller replica count if you want to keep backfill resource usage lower.
@@ -33,7 +41,7 @@ The **Backfiller SKU** defines the compute size of each backfiller node. Choose 
 
 RisingWave Cloud manages the backfill resources automatically:
 
-1. When a new serverless backfill job is submitted, RisingWave Cloud creates a dynamic resource group for that job.
+1. When a new serverless backfill job is submitted, RisingWave Cloud creates a dynamic resource group for that job by using the configured Backfiller SKU and Replicas.
 2. The backfill job runs in that dynamic resource group during materialized view creation.
 3. After the materialized view is created successfully, the materialized view is migrated back to the default resource group.
 
