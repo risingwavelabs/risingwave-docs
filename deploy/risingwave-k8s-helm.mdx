@@ -120,22 +120,34 @@ You can monitor the RisingWave cluster using the monitoring stack. For details, 
 
 By editing the configurations in [values.yml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml), you can resize a worker node. The Compactor Node configurations are in the `compactorComponent` section. Configurations for the Meta Node and Serving / Streaming Node are in `metaComponent` and `computeComponent` sections respectively. See [Customize pods of different components](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-pods-of-different-components) for details.
 
+<Warning>
+**Always set resource `requests` and `limits` to the same values for each component.** Mismatched values can cause unpredictable scheduling, CPU throttling, and memory pressure that degrade performance and stability — especially in on-premises deployments.
+</Warning>
+
+RisingWave is memory-intensive. When sizing components, use a **1:4 CPU:memory ratio** (for example, 1 CPU core to 4 GiB memory). The recommended minimum sizes for each component in distributed mode are:
+
+| Component | Minimum resources |
+|:----------|:-----------------|
+| Compute (Streaming / Serving Node) | 4 CPU cores, 16 GiB memory |
+| Compactor Node | 2 CPU cores, 8 GiB memory |
+| Meta Node | 1 CPU core, 4 GiB memory |
+| Frontend Node | 1 CPU core, 4 GiB memory |
+
+The following example shows how to set equal `requests` and `limits` with a 1:4 CPU:memory ratio:
+
 ```yaml
-# To resize other types of node, please replace the name with
-# computeComponent, or metaComponent.
+# To resize other types of node, replace the section name with
+# computeComponent, metaComponent, or frontendComponent.
 compactorComponent:
   resources:
-    # The maximum amount of CPU and memory the Pod can use.
     limits:
-      cpu: 1
-      memory: 2Gi
-    # The minimum amount of CPU and memory that the Pod is guaranteed to have.
+      cpu: 2
+      memory: 8Gi
     requests:
-      # 0.1 cores
-      cpu: 100m
-      memory: 64Mi
-
+      cpu: 2
+      memory: 8Gi
 ```
+
 Please note that increasing the CPU resource will not automatically increase the parallelism of existing materialized views. When scaling up (adding more CPU cores) a Streaming Node, you should perform the scaling by following the instructions in [Cluster scaling](/deploy/k8s-cluster-scaling).
 
 ## Set up RisingWave Console
