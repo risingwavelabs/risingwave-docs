@@ -9,9 +9,11 @@ Serverless backfill is available starting from v2.8.0 and is disabled by default
 
 ## Overview
 
-When you create a materialized view (MV) on existing data, RisingWave must first process all historical records—a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
+When you create a materialized view (MV) on existing data, RisingWave must first process all historical records, a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
 
-**Serverless backfill** offloads the backfill phase to a dedicated controller that manages execution independently from your main streaming graph. This decoupling lets large backfills complete without degrading the performance of existing streaming jobs.
+**Serverless backfill** offloads the backfill phase to a dedicated controller that manages execution independently from your main streaming graph. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
+
+Serverless backfilling is supported only in RisingWave Cloud. Enable it under **Resources -> Backfillings** in the Cloud console first. See [Serverless backfilling](/cloud/serverless-backfilling) for portal setup, SKU, and replicas.
 
 ## How it works
 
@@ -23,14 +25,14 @@ When serverless backfill is enabled for a `CREATE MATERIALIZED VIEW` statement:
 4. If the cluster restarts during backfill, the controller resumes from the last completed checkpoint rather than starting over.
 
 <Note>
-Serverless backfill is mutually exclusive with resource groups. If a `resource_group` is set for the session, serverless backfill is automatically disabled for that session, even when `enable_serverless_backfill` is `true`.
+- Serverless backfilling is not supported for databases in non-default resource groups.
 </Note>
 
 ## Configuration
 
 ### Session variable
 
-Enable serverless backfill for all subsequent DDL statements in the current session:
+Enable serverless backfill for subsequent `CREATE MATERIALIZED VIEW` statements in the current session:
 
 ```sql
 SET enable_serverless_backfill = true;
@@ -40,25 +42,17 @@ The default is `false`. This setting only affects new DDL operations issued afte
 
 ### Per-statement WITH clause
 
-You can also override the session setting for a single `CREATE MATERIALIZED VIEW` statement using the `cloud_serverless_backfill_enabled` option in the `WITH` clause:
+You can also enable serverless backfill for a single `CREATE MATERIALIZED VIEW` statement using the `cloud.serverless_backfill_enabled` option in the `WITH` clause:
 
-```sql Example: enable for one statement
+```sql
 CREATE MATERIALIZED VIEW my_mv
-WITH (cloud_serverless_backfill_enabled = true)
+WITH (cloud.serverless_backfill_enabled = true)
 AS SELECT ...;
 ```
-
-```sql Example: disable for one statement
-CREATE MATERIALIZED VIEW my_mv
-WITH (cloud_serverless_backfill_enabled = false)
-AS SELECT ...;
-```
-
-The `WITH` clause takes precedence over the session variable.
 
 ## Example
 
-The following example creates a large materialized view with serverless backfill enabled so that the backfill does not impact existing streaming workloads:
+The following example creates a large materialized view with serverless backfill enabled to reduce the impact of the backfill on existing streaming workloads:
 
 ```sql Example: serverless backfill
 -- Enable serverless backfill for this session
@@ -68,6 +62,17 @@ SET enable_serverless_backfill = true;
 SET BACKGROUND_DDL = true;
 
 CREATE MATERIALIZED VIEW orders_summary AS
+SELECT customer_id, COUNT(*) AS order_count, SUM(amount) AS total_amount
+FROM orders
+GROUP BY customer_id;
+```
+
+If you want to enable it only for one statement, use:
+
+```sql
+CREATE MATERIALIZED VIEW orders_summary
+WITH (cloud.serverless_backfill_enabled = true)
+AS
 SELECT customer_id, COUNT(*) AS order_count, SUM(amount) AS total_amount
 FROM orders
 GROUP BY customer_id;
@@ -91,12 +96,13 @@ Use the following system catalog and metrics to track serverless backfill jobs:
 
 ## Limitations
 
-- Serverless backfill is **not compatible with resource groups**. If a resource group is configured for the session, serverless backfill is silently disabled.
-- The feature is **disabled by default** (`enable_serverless_backfill = false`). You must explicitly opt in per session or per statement.
+- Serverless backfilling is supported only in RisingWave Cloud, and you must enable it under **Resources -> Backfillings** before requesting it in SQL.
+- Serverless backfilling is not supported for databases in non-default resource groups.
 - Rate-limiting via `backfill_rate_limit` still applies to serverless backfill jobs. See [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
 
 ## Related pages
 
+- [Serverless backfilling](/cloud/serverless-backfilling) — Configure backfiller SKU, replicas, and Cloud setup.
 - [Backfill](/processing/backfill) — Overview of all backfill strategies in RisingWave.
 - [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl) — Run DDL operations in the background without blocking the client.
 - [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) — Full syntax and options for creating materialized views.
