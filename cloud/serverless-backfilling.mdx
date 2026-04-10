@@ -1,19 +1,13 @@
 ---
 title: "Serverless backfilling"
-description: "Configure and use serverless backfilling in RisingWave Cloud to run materialized view backfill jobs on dedicated, auto-scaling compute resources."
+description: "Enable serverless backfilling in RisingWave Cloud and configure the backfiller resources used for materialized view backfill jobs."
 ---
 
 ## Overview
 
-RisingWave Cloud offers two distinct serverless features for background compute work:
+Serverless backfilling in RisingWave Cloud runs materialized view backfill jobs on dedicated backfiller resources instead of your main streaming compute nodes.
 
-| Feature | Serverless compaction | Serverless backfilling |
-| --- | --- | --- |
-| **What it does** | Compacts storage files in object storage to keep read performance healthy | Computes the initial state of a materialized view from existing upstream data |
-| **Trigger** | Automatically triggered by the storage layer on a continuous basis | Triggered when you run `CREATE MATERIALIZED VIEW` with the serverless option |
-| **Where configured** | Checkbox during project/cluster resource setup | **Resources → Backfillings** in the project sidebar |
-| **Resource lifecycle** | Managed by RisingWave Cloud; runs continuously as needed | Starts at **0 nodes**; scales up only when eligible pending backfill jobs exist; scales back to 0 when idle |
-| **Billing** | Billed per RWU-hour consumed by compactor nodes | Billed per RWU-hour consumed by backfiller nodes, capped by the configured SKU × Replicas setting |
+This page focuses on enabling and sizing the Cloud resources. For SQL usage, session variables, `WITH` clause options, limitations, and monitoring, see [Serverless backfill](/processing/serverless-backfill).
 
 ## Configure serverless backfilling
 
@@ -26,64 +20,45 @@ Serverless backfilling settings are separate from the main cluster setup. To acc
 
 ### Backfiller SKU
 
-The **Backfiller SKU** defines the compute size (vCPUs and memory) of each backfiller node. Choose a larger SKU for faster backfill throughput on large upstream tables, or a smaller SKU to minimize cost.
+The **Backfiller SKU** defines the compute size of each backfiller node. Choose a larger SKU for faster backfill throughput on large upstream tables, or a smaller SKU to minimize cost.
 
 ### Replicas
 
-**Replicas** sets the maximum number of backfiller nodes that can run simultaneously. This is the primary cost-control knob:
+**Replicas** sets the backfill capacity available to RisingWave Cloud when scheduling serverless backfill jobs:
 
-- The cluster never exceeds **SKU × Replicas** in billable backfiller capacity at any point.
-- The actual number of active nodes scales between 0 and the configured replica count based on how many eligible backfill jobs are pending.
-- There is no unbounded autoscaling; cost is effectively capped by this setting.
+- Increase the replica count if you expect more concurrent backfill work or need higher throughput.
+- Use a smaller replica count if you want to keep backfill resource usage lower.
 
-## Resource lifecycle
+## Scheduling behavior
 
-Serverless backfiller nodes are fully managed and event-driven:
+RisingWave Cloud manages the backfill resources automatically:
 
-1. **Idle state** – When no eligible backfill jobs are pending, the backfiller scales to **0 nodes** and incurs no compute cost.
-2. **Scale-up** – When a `CREATE MATERIALIZED VIEW` statement with the serverless backfill option is executed, the backfiller scales up (up to the configured replica count) to process the job.
-3. **Scale-down** – Once all pending jobs complete, the backfiller returns to 0 nodes automatically.
+1. When a new serverless backfill job is submitted, RisingWave Cloud creates a dynamic resource group for that job.
+2. The backfill job runs in that dynamic resource group during materialized view creation.
+3. After the materialized view is created successfully, the materialized view is migrated back to the default resource group.
 
-## Activate serverless backfilling for a materialized view
+## Use serverless backfilling in SQL
 
-Serverless backfilling applies only to materialized views that explicitly opt in. Use the `WITH` clause when creating the MV:
+After enabling serverless backfilling in the Cloud console, use either `SET enable_serverless_backfill = true` or `WITH (cloud.serverless_backfill_enabled = true)` when creating a materialized view.
 
-```sql Example
-SET BACKGROUND_DDL = true;
+See [Serverless backfill](/processing/serverless-backfill) for:
 
-CREATE MATERIALIZED VIEW my_mv
-WITH (cloud.serverless_backfill_enabled = true)
-AS
-SELECT * FROM my_source_table;
-```
-
-<Note>
-- `cloud.serverless_backfill_enabled = true` must be specified at `CREATE MATERIALIZED VIEW` time. You cannot retroactively enable it for an existing MV.
-- Setting `BACKGROUND_DDL = true` is recommended so the DDL statement returns immediately and the backfill runs in the background.
-- If serverless backfilling is not enabled in the **Resources → Backfillings** settings, the `cloud.serverless_backfill_enabled` option is ignored and backfill automatically uses the regular streaming nodes instead.
-</Note>
-
-## Frequently asked questions
-
-**Does enabling serverless backfilling affect my running cluster?**
-
-No. Backfiller nodes are completely separate from streaming and serving nodes. Enabling the feature or changing the SKU/Replicas settings does not restart or interrupt your running streaming jobs.
-
-**What happens if I set Replicas to 1 and submit 5 backfill jobs at the same time?**
-
-The first eligible job runs immediately. The remaining jobs queue and run sequentially (or in parallel up to the replica count) as capacity becomes available. Jobs are not dropped.
-
-**How do I choose a safe SKU and replica count?**
-
-Start with 1 replica at a medium SKU and monitor how long backfills take. Increase replicas to run more jobs in parallel. Increase the SKU size if individual jobs are slow due to CPU or memory constraints.
-
-**Is backfiller compute billed even when idle?**
-
-No. When no backfill jobs are running, the backfiller is at 0 nodes and you are not charged for backfiller compute. You are charged only while nodes are active.
+- SQL examples
+- Session-variable and per-statement configuration
+- `resource_group` limitations
+- Monitoring and progress tracking
 
 ## See also
 
 <CardGroup>
+  <Card
+    title="Serverless backfill"
+    icon="bolt"
+    href="/processing/serverless-backfill"
+    horizontal
+  >
+    Learn how to use serverless backfill in SQL, including the session variable, `WITH` clause, and monitoring options.
+  </Card>
   <Card
     title="Backfill"
     icon="database"
@@ -91,14 +66,6 @@ No. When no backfill jobs are running, the backfiller is at 0 nodes and you are 
     horizontal
   >
     Learn how RisingWave initializes materialized views from existing data and the different backfill strategies available.
-  </Card>
-  <Card
-    title="CREATE MATERIALIZED VIEW"
-    icon="code"
-    href="/sql/commands/sql-create-mv"
-    horizontal
-  >
-    Full syntax and options for creating materialized views, including the WITH clause options for backfill control.
   </Card>
   <Card
     title="Manage resources"
