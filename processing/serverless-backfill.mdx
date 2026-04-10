@@ -1,0 +1,103 @@
+---
+title: "Serverless backfill"
+description: "Use serverless backfill to offload the backfill phase of materialized view creation to a dedicated controller, reducing resource contention on your cluster."
+---
+
+<Note>
+Serverless backfill is available starting from v2.8.0 and is disabled by default.
+</Note>
+
+## Overview
+
+When you create a materialized view (MV) on existing data, RisingWave must first process all historical records—a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
+
+**Serverless backfill** offloads the backfill phase to a dedicated controller that manages execution independently from your main streaming graph. This decoupling lets large backfills complete without degrading the performance of existing streaming jobs.
+
+## How it works
+
+When serverless backfill is enabled for a `CREATE MATERIALIZED VIEW` statement:
+
+1. The frontend generates a backfill plan and hands it to the serverless backfill controller.
+2. The controller schedules and drives the backfill execution separately from the main streaming graph.
+3. Once all backfill fragments report completion, the MV transitions to the standard incremental streaming phase.
+4. If the cluster restarts during backfill, the controller resumes from the last completed checkpoint rather than starting over.
+
+<Note>
+Serverless backfill is mutually exclusive with resource groups. If a `resource_group` is set for the session, serverless backfill is automatically disabled for that session, even when `enable_serverless_backfill` is `true`.
+</Note>
+
+## Configuration
+
+### Session variable
+
+Enable serverless backfill for all subsequent DDL statements in the current session:
+
+```sql
+SET enable_serverless_backfill = true;
+```
+
+The default is `false`. This setting only affects new DDL operations issued after the `SET` command; it does not change the behavior of already-running jobs.
+
+### Per-statement WITH clause
+
+You can also override the session setting for a single `CREATE MATERIALIZED VIEW` statement using the `cloud_serverless_backfill_enabled` option in the `WITH` clause:
+
+```sql Example: enable for one statement
+CREATE MATERIALIZED VIEW my_mv
+WITH (cloud_serverless_backfill_enabled = true)
+AS SELECT ...;
+```
+
+```sql Example: disable for one statement
+CREATE MATERIALIZED VIEW my_mv
+WITH (cloud_serverless_backfill_enabled = false)
+AS SELECT ...;
+```
+
+The `WITH` clause takes precedence over the session variable.
+
+## Example
+
+The following example creates a large materialized view with serverless backfill enabled so that the backfill does not impact existing streaming workloads:
+
+```sql Example: serverless backfill
+-- Enable serverless backfill for this session
+SET enable_serverless_backfill = true;
+
+-- Optionally run in the background to avoid blocking the client
+SET BACKGROUND_DDL = true;
+
+CREATE MATERIALIZED VIEW orders_summary AS
+SELECT customer_id, COUNT(*) AS order_count, SUM(amount) AS total_amount
+FROM orders
+GROUP BY customer_id;
+```
+
+After issuing the statement, you can monitor progress with:
+
+```sql Monitor progress
+SELECT * FROM rw_catalog.rw_ddl_progress;
+```
+
+## Monitoring
+
+Use the following system catalog and metrics to track serverless backfill jobs:
+
+| Method | Description |
+|---|---|
+| `SHOW JOBS` | Lists all background DDL jobs and their current status. |
+| `SELECT * FROM rw_catalog.rw_ddl_progress` | Shows per-fragment backfill progress as a percentage. |
+| Grafana / metrics endpoint | Look for `stream_backfill_*` metrics on compute nodes to observe throughput and lag. |
+
+## Limitations
+
+- Serverless backfill is **not compatible with resource groups**. If a resource group is configured for the session, serverless backfill is silently disabled.
+- The feature is **disabled by default** (`enable_serverless_backfill = false`). You must explicitly opt in per session or per statement.
+- Rate-limiting via `backfill_rate_limit` still applies to serverless backfill jobs. See [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+
+## Related pages
+
+- [Backfill](/processing/backfill) — Overview of all backfill strategies in RisingWave.
+- [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl) — Run DDL operations in the background without blocking the client.
+- [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) — Full syntax and options for creating materialized views.
+- [View and configure runtime parameters](/operate/view-configure-runtime-parameters) — All session variables, including `enable_serverless_backfill`.
