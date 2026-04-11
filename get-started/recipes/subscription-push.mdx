@@ -51,22 +51,19 @@ cur = conn.cursor()
 # Declare cursor on the subscription
 cur.execute("DECLARE alert_cursor SUBSCRIPTION CURSOR FOR high_value_alerts")
 
-import time
-
 print("Listening for high-value transactions...")
 while True:
-    cur.execute("FETCH NEXT FROM alert_cursor")
+    # FETCH NEXT blocks for up to 5s waiting for data, then returns empty
+    cur.execute("FETCH NEXT FROM alert_cursor WITH (timeout = '5s')")
     row = cur.fetchone()
     if row:
-        # op: 1=Insert, 2=Delete, 4=UpdateInsert, 8=UpdateDelete
-        op = row[0]
-        user_id = row[1]
-        amount = row[2]
-        event_time = row[3]
-        if op == 1:  # New row inserted
+        # Columns: user_id, amount, event_time, op, rw_timestamp
+        user_id = row[0]
+        amount = row[1]
+        event_time = row[2]
+        op = row[3]  # 'Insert', 'Delete', 'UpdateInsert', 'UpdateDelete'
+        if op == 'Insert':  # New row inserted
             print(f"ALERT: user {user_id} — ${amount:.2f} at {event_time}")
-    else:
-        time.sleep(0.1)  # No new changes — poll again shortly
 ```
 
 ### 4. Consume with a start timestamp (resume from checkpoint)
@@ -79,9 +76,9 @@ DECLARE alert_cursor SUBSCRIPTION CURSOR FOR high_value_alerts
 
 ## Key points
 
-- Change types: `1` = Insert, `2` = Delete, `4` = UpdateInsert (new value), `8` = UpdateDelete (old value)
+- Change types: `'Insert'`, `'Delete'`, `'UpdateInsert'` (new value after update), `'UpdateDelete'` (old value before update)
 - `retention` controls how far back you can start consuming (default: 24 hours)
-- `FETCH NEXT` returns immediately — poll in a loop with a short sleep when no rows are returned
+- `FETCH NEXT FROM cur WITH (timeout = 'Ns')` blocks for up to N seconds waiting for data, then returns empty — eliminates the need for a polling sleep loop
 - A single subscription can have multiple cursors consuming independently
 - Drop a subscription when no longer needed: `DROP SUBSCRIPTION high_value_alerts`
 

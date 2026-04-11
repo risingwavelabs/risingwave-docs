@@ -60,7 +60,7 @@ CREATE TABLE events (
   connector = 'kafka',
   topic = 'user_events',
   properties.bootstrap.server = 'broker:9092'
-);
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 Regardless of the method, a Table stores data internally within RisingWave and maintains offsets/checkpoints to ensure fault tolerance and data consistency. Therefore, for any pipeline involving CDC or long-running jobs, a Table is indispensable.
@@ -80,7 +80,7 @@ CREATE SOURCE kafka_src (
   connector = 'kafka',
   topic = 'user_events',
   properties.bootstrap.server = 'broker:9092'
-);
+) FORMAT PLAIN ENCODE JSON;
 
 SELECT * FROM kafka_src LIMIT 10;
 ```
@@ -106,7 +106,8 @@ CREATE SOURCE pg_src WITH (
   port = '5432',
   username = 'user',
   password = 'pwd',
-  database.name = 'mydb'
+  database.name = 'mydb',
+  slot.name = 'rw_shared_slot'
 );
 
 CREATE TABLE users (...) FROM pg_src TABLE 'public.users';

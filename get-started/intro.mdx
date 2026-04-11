@@ -51,17 +51,11 @@ For long-term retention and analytical access, RisingWave writes to Apache Icebe
 
 ## Use cases
 
-### Agent backends
-- **Agent memory**: Per-session and cross-session state continuously derived from incoming events, queryable at 10–20 ms p99 via standard SQL
-- **Tool call results**: Fraud scores, anomaly signals, inventory checks, and recommendation outputs pre-computed over live event streams, always current at query time
-- **Context injection**: Event-driven triggers that push updated context into LLM calls as upstream data changes
-- **Feature stores**: Batch and streaming features computed over the same event pipeline, served from the same system
-
-### Real-time data stack
-- **Live dashboards**: Materialized views updated incrementally, no scheduled refreshes
-- **Monitoring and alerting**: Continuous evaluation of streaming metrics against thresholds
+- **Live dashboards**: Materialized views updated incrementally as events arrive — no scheduled refreshes, no stale snapshots
+- **Monitoring and alerting**: Continuous evaluation of streaming metrics against thresholds, with sub-second latency from event to alert
+- **Feature stores**: Batch and streaming features computed over the same event pipeline, served from the same system at low latency
 - **Real-time enrichment**: Live events joined with historical reference data in-flight, before delivery downstream
-- **Streaming lakehouses**: Continuous, exactly-once ingestion into open-format tables with automated compaction
+- **Streaming lakehouses**: Continuous, exactly-once ingestion into open-format tables with automated compaction and snapshot management
 
 ## Design decisions
 
@@ -69,9 +63,9 @@ For long-term retention and analytical access, RisingWave writes to Apache Icebe
 
 Internal state, tables, and materialized views are stored in object storage (S3 or equivalent) — roughly 100x cheaper than RAM. This enables elastic scaling without data rebalancing and failure recovery in seconds. For latency-sensitive workloads, [elastic disk cache](/get-started/disk-cache) pins hot data on local SSD or EBS, keeping p99 query latency at 10–20 ms.
 
-### Native experience for humans and agents
+### Standard SQL interface
 
-RisingWave connects via the PostgreSQL wire protocol and works with psql, JDBC, and any Postgres-compatible tooling. For agents specifically, RisingWave provides an [MCP server](https://github.com/risingwavelabs/risingwave-mcp), a CLI, and Skills so agents can query and operate RisingWave without custom integration.
+RisingWave connects via the PostgreSQL wire protocol and works with psql, JDBC, and any Postgres-compatible tooling. An [MCP server](https://github.com/risingwavelabs/risingwave-mcp) is also available for programmatic access.
 
 ### Openness
 
@@ -80,7 +74,8 @@ RisingWave [natively integrates with Apache Iceberg™](/iceberg/overview) for c
 ## See also
 
 - [Quick start](/get-started/quickstart) — Install RisingWave and run your first streaming query
-- [Recipes](/get-started/recipes/agent-memory-pattern) — Copy-paste complete task patterns
+- [Use cases](/get-started/use-cases) — Detailed examples for each use case
+- [Recipes](/get-started/recipes/kafka-to-mv-to-serve) — Copy-paste implementation patterns
 - [Source, Table, MV, and Sink](/get-started/source-table-mv-sink) — The four core objects
 - [Data ingestion](/ingestion/overview) — Connect to Kafka, databases, and more
 - [Deployment options](/deploy/deployment-modes-overview) — Docker, Kubernetes, or Cloud

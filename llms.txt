@@ -24,7 +24,7 @@ RisingWave is wire-compatible with PostgreSQL. Connect using any PostgreSQL driv
 6. **`DROP SOURCE` fails** — dependent MVs block the drop. Use `DROP SOURCE name CASCADE`.
 7. **FORMAT UPSERT without PRIMARY KEY** — upsert sources require `INCLUDE KEY AS key_col` and `PRIMARY KEY (key_col)`.
 
-## Agentic AI Patterns
+## Common Patterns
 
 ### Connect via PostgreSQL driver
 ```python
@@ -44,7 +44,7 @@ git clone https://github.com/risingwavelabs/risingwave-mcp.git
 ```
 MCP tools available: `run_select_query`, `create_materialized_view`, `describe_table`, `show_tables`, `list_materialized_views`, `get_database_version`.
 
-### Agent reads always-fresh results (no polling needed)
+### Always-fresh results (no polling needed)
 ```sql
 -- Upstream data ingested from Kafka, MV kept fresh automatically
 CREATE MATERIALIZED VIEW fraud_signals AS
@@ -53,18 +53,18 @@ FROM TUMBLE(transactions, event_time, INTERVAL '5 MINUTES')
 GROUP BY user_id, window_start, window_end
 HAVING COUNT(*) > 5 AND SUM(amount) > 5000;
 
--- Agent queries directly — result is always fresh, p99 ~10-20ms
+-- Query directly — result is always fresh, p99 ~10-20ms
 SELECT * FROM fraud_signals WHERE user_id = $1;
 ```
 
-### Agent receives push notifications (Subscription)
+### Push notifications via Subscription
 ```sql
 -- Create subscription on a materialized view
 CREATE SUBSCRIPTION my_sub FROM fraud_signals WITH (retention = '1D');
 
 -- Consume changes in application code
 DECLARE cur SUBSCRIPTION CURSOR FOR my_sub;
-FETCH NEXT FROM cur;  -- returns changed rows with op (Insert/Delete/UpdateInsert/UpdateDelete)
+FETCH NEXT FROM cur WITH (timeout = '5s');  -- blocks up to 5s; returns changed rows with op (Insert/Delete/UpdateInsert/UpdateDelete)
 ```
 
 ## Core Concepts

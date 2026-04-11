@@ -1,323 +1,109 @@
 ---
 title: "RisingWave use cases"
 sidebarTitle: "Use cases"
-description: "Use cases for RisingWave: agent backends (memory, tool results, context injection, feature stores) and real-time data stack (dashboards, monitoring, enrichment, streaming lakehouses). Includes complete SQL examples."
+description: "Five primary use cases for RisingWave: live dashboards, monitoring and alerting, feature stores, real-time enrichment, and streaming lakehouses."
 ---
 
-RisingWave is an event streaming platform for agentic AI. It covers two primary use case categories: **agent backends** and **real-time data stack**. Each example below includes complete SQL you can run directly.
+RisingWave is an event streaming platform. Results are continuously maintained by the pipeline as data arrives — applications query pre-computed, always-current state at low latency via standard SQL.
 
-## Agent backends
+## Live dashboards
 
-RisingWave's advantage: results are continuously maintained by the event streaming pipeline as data arrives — agents and apps query always-current, pre-computed state at 10–20 ms p99 via standard SQL.
-
-### Agent memory and feature stores
-
-Pre-compute feature vectors or aggregated state as materialized views over live event streams. Results are always current and served at low latency — no inline aggregation at query time.
-
-In the context of online advertising, feature vectors over bidding data are maintained continuously as a materialized view. At decision time, query the MV directly — always fresh, no recomputation needed.
-
-1. Ingest bidding data
-
-Start by ingesting the bidding data from Kafka into RisingWave.
+Materialized views update incrementally as events arrive. Dashboards and APIs read pre-computed state — no scheduled refreshes, no stale snapshots.
 
 ```sql
-CREATE SOURCE bidding_data (
-  ad_id varchar,
-  bid_amount double precision,
-  bid_count integer,
-  bid_won boolean,
-  response_time interval,
-  event_time timestamptz
-) WITH (
-  connector='kafka',
-  topic='bidding_data',
-  properties.bootstrap.server='localhost:9092',
-  scan.startup.mode='earliest',
-) FORMAT PLAIN ENCODE JSON;
-```
-
-2. Build feature vectors as a materialized view
-
-Create feature vectors that capture important attributes such as average bid amount, maximum bid, and bid frequency. RisingWave keeps this view continuously up to date as new events arrive.
-
-```sql
-CREATE MATERIALIZED VIEW bidding_feature_vectors AS
-  SELECT
-    ad_id,
-    AVG(bid_amount) AS avg_bid,
-    MAX(bid_amount) AS max_bid,
-    COUNT(*) AS bid_count,
-    SUM(CASE WHEN bid_won THEN 1 ELSE 0 END) AS win_count,
-    AVG(response_time) AS avg_response_time
-  FROM bidding_data
-  WHERE event_time >= NOW() - INTERVAL '1 day'
-  GROUP BY ad_id;
-```
-
-3. Query the MV
-
-The result is always fresh, pre-computed, and returned in milliseconds.
-
-```sql
-SELECT * FROM bidding_feature_vectors WHERE ad_id = 'specific_ad_id';
-```
-
-4. Real-time inference
-
-As new bidding data arrives, the materialized view updates continuously. You can also chain a UDF for live inference — for example, a `PREDICT_BID` function that predicts the next bid given the most recent feature state.
-
-```sql
-CREATE MATERIALIZED VIEW live_predictions AS
-  SELECT
-    ad_id,
-    PREDICT_BID(avg_bid, max_bid, bid_count, win_count, avg_response_time) AS predicted_bid
-  FROM bidding_feature_vectors;
-```
-
-### Tool call results
-
-Query pre-computed results from materialized views rather than computing them at call time. For example, a fraud detection query hits a pre-maintained `suspicious_transactions` view — returning a real-time fraud score without inline aggregation.
-
-1. Connect to Kafka
-
-Ingest the transaction data from Kafka.
-
-```sql
-CREATE SOURCE transactions (
-  card_number varchar,
-  purchase_amount double precision,
-  purchase_time timestamptz
-) WITH (
-  connector='kafka',
-  topic='credit_card_transactions',
-  properties.bootstrap.server='localhost:9092',
-  scan.startup.mode='earliest',
-) FORMAT PLAIN ENCODE JSON;
-```
-
-2. Pre-compute suspicious transactions as a materialized view
-
-RisingWave maintains this view incrementally — never recomputed at query time.
-
-```sql
-CREATE MATERIALIZED VIEW suspicious_transactions AS
-  SELECT
-    card_number,
-    COUNT(*) AS transaction_count,
-    SUM(purchase_amount) AS total_spent
-  FROM TUMBLE(transactions, purchase_time, INTERVAL '5 MINUTES')
-  GROUP BY card_number, window_end
-  HAVING COUNT(*) > 5 AND SUM(purchase_amount) > 5000;
-```
-
-3. Query for a fraud score
-
-Returns a real-time fraud score for a specific card number — pre-computed, no inline aggregation.
-
-```sql
-SELECT * FROM suspicious_transactions WHERE card_number = $1 LIMIT 1;
-```
-
-## Real-time data stack
-
-RisingWave's advantage: a single system replaces Debezium + Kafka + Flink + a serving database, with end-to-end freshness under 100 ms.
-
-### Streaming analytics
-
-Consider scenarios like stock trading, sports betting, IoT monitoring, or other domains where you are dealing with high-velocity event streams from APIs, sensors, Kafka, or other sources. The need to continuously analyze this data is crucial for detecting buy or sell opportunities in financial markets, monitoring real-time sensor data for anomalies, or tracking live sports events for betting insights. In such cases, the analysis must be both fresh and consistent, ensuring that decisions are made based on the most current information.
-
-#### Example: Stock trading analytics
-
-Take stock trading as an example. Imagine you want to analyze real-time market data to identify potential trading opportunities. Suppose your data is streaming from Kafka. Here is how RisingWave can streamline this process.
-
-1. Connect to Kafka
-
-Begin by connecting RisingWave to your Kafka topic to ingest the live market data.
-
-```sql
-CREATE SOURCE stock_trades (
-  symbol varchar,
-  price double precision,
-  volume double precision
-) WITH (
-  connector='kafka',
-  topic='stock_trades',
-  properties.bootstrap.server='localhost:9092',
-  scan.startup.mode='earliest',
-) FORMAT PLAIN ENCODE JSON;
-```
-
-2. Express analytics logic in materialized views
-
-Define your analytics logic using SQL in materialized views. For instance, you might want to detect price movements that indicate a buy or sell signal.
-
-```sql
-CREATE MATERIALIZED VIEW buy_signals AS
-SELECT symbol, price, volume
+-- MV stays current as stock trades arrive
+CREATE MATERIALIZED VIEW stock_summary AS
+SELECT
+  symbol,
+  AVG(price)  AS avg_price,
+  MAX(price)  AS high,
+  MIN(price)  AS low,
+  SUM(volume) AS total_volume
 FROM stock_trades
-WHERE price > 100 AND volume > 1000;
+GROUP BY symbol;
+
+-- Dashboard queries hit pre-computed state, not the raw stream
+SELECT * FROM stock_summary WHERE symbol = 'AAPL';
 ```
 
-3. Check the result
+For the full pipeline (Kafka source → MV → low-latency serve), see the [Kafka to MV recipe](/get-started/recipes/kafka-to-mv-to-serve).
 
-Query the materialized view to get real-time insights on potential buy signals.
+## Monitoring and alerting
 
-```sql
-SELECT * FROM buy_signals;
-```
-
-With RisingWave, you can efficiently process and analyze streaming data in real-time, enabling timely and informed decision-making.
-
-### Monitoring and alerting
-
-In event-driven architectures, the ability to respond to events as they happen is paramount. Whether you are building sophisticated monitoring and alerting systems for critical applications like fraud detection, anomaly detection, or customer engagement systems like marketing automation, RisingWave provides the real-time capabilities you need.
-
-#### Example: Fraud detection system
-
-Imagine building a fraud detection system that monitors credit card transactions. You want to trigger an alert when a credit card is used more than five times within a short period for purchases exceeding a certain amount.
-
-1. Connect to Kafka
-
-Ingest the transaction data from Kafka.
+Continuously evaluate incoming streams against thresholds. Detect anomalies and trigger downstream systems — sub-second latency from event to alert.
 
 ```sql
-CREATE SOURCE transactions (
-  card_number varchar,
-  purchase_amount double precision,
-  purchase_time timestamptz
-) WITH (
-  connector='kafka',
-  topic='credit_card_transactions',
-  properties.bootstrap.server='localhost:9092',
-  scan.startup.mode='earliest',
-) FORMAT PLAIN ENCODE JSON;
-```
-
-2. Define the event logic
-
-Create a materialized view that tracks suspicious activity for cards that are used more than five times within five minutes and have a total purchase amount over 5000.
-
-```sql
+-- Detect cards used more than 5 times in 5 minutes with total spend > $5000
 CREATE MATERIALIZED VIEW suspicious_transactions AS
-  SELECT
-    card_number,
-    COUNT(*) AS transaction_count,
-    SUM(purchase_amount) AS total_spent
-  FROM TUMBLE(transactions, purchase_time, INTERVAL '5 MINUTES')
-  GROUP BY card_number, window_end
-  HAVING COUNT(*) > 5 AND SUM(purchase_amount) > 5000;
+SELECT
+  card_number,
+  COUNT(*)          AS transaction_count,
+  SUM(purchase_amount) AS total_spent
+FROM TUMBLE(transactions, purchase_time, INTERVAL '5 MINUTES')
+GROUP BY card_number, window_end
+HAVING COUNT(*) > 5 AND SUM(purchase_amount) > 5000;
+
+-- Deliver alerts to Kafka
+CREATE SINK alerts FROM suspicious_transactions
+WITH (connector = 'kafka', properties.bootstrap.server = 'localhost:9092', topic = 'fraud-alerts')
+FORMAT PLAIN ENCODE JSON (force_append_only = 'true');
 ```
 
-3. Send alerts
+For the full pipeline, see the [Kafka to MV recipe](/get-started/recipes/kafka-to-mv-to-serve).
 
-Deliver the results to another Kafka topic or directly trigger alerts.
+## Feature stores
+
+Pre-aggregate features as materialized views over live event streams. At inference time, query the MV directly — features are always current, no recomputation triggered at query time.
 
 ```sql
-CREATE SINK suspicious_activity FROM suspicious_transactions
-WITH (
-  connector='kafka',
-  properties.bootstrap.server='localhost:9092',
-  topic='suspicious_activity'
-) FORMAT PLAIN ENCODE JSON (force_append_only='true');
+-- Feature vectors maintained continuously as bidding events arrive
+CREATE MATERIALIZED VIEW ad_features AS
+SELECT
+  ad_id,
+  AVG(bid_amount)                              AS avg_bid,
+  MAX(bid_amount)                              AS max_bid,
+  COUNT(*)                                     AS bid_count,
+  SUM(CASE WHEN bid_won THEN 1 ELSE 0 END)     AS win_count,
+  AVG(response_time_ms)                        AS avg_response_ms
+FROM bidding_events
+WHERE event_time >= NOW() - INTERVAL '1 day'
+GROUP BY ad_id;
+
+-- At inference time: point query, no aggregation
+SELECT * FROM ad_features WHERE ad_id = $1;
 ```
 
-By leveraging RisingWave, you can implement real-time monitoring and alerting systems that react instantly to critical events, enhancing security and operational efficiency.
+For the full pattern, see the [Feature store recipe](/get-started/recipes/feature-store).
 
-### Real-time data enrichment
+## Real-time enrichment
 
-Real-time data enrichment is essential in scenarios where raw data needs to be augmented with additional context before being processed further. This is particularly useful for industries like finance, e-commerce, and ad tech, where combining real-time data streams with historical or reference data can significantly enhance decision-making.
-
-#### Example: Real-time customer personalization in E-Commerce
-
-Imagine running an e-commerce platform and wanting to personalize customer experiences in real-time. As customers browse your site, you collect clickstream data and combine it with historical purchase data to offer personalized recommendations instantly.
-
-1. Ingest real-time clickstream data
-
-Connect RisingWave to your clickstream data from Kafka and your historical data source from PostgreSQL.
+Join live event streams with reference data from a CDC-connected database — in-flight, before delivery downstream. The JOIN is maintained incrementally; when reference data changes, the enriched output updates automatically.
 
 ```sql
-CREATE SOURCE clickstream_data (
-  user_id varchar,
-  page_url varchar,
-) WITH (
-  connector='kafka',
-  topic='clickstream_data',
-  properties.bootstrap.server='localhost:9092',
-  scan.startup.mode='earliest',
-) FORMAT PLAIN ENCODE JSON;
+-- Clickstream events from Kafka, enriched with customer data from PostgreSQL CDC
+CREATE MATERIALIZED VIEW enriched_clicks AS
+SELECT
+  c.user_id,
+  c.page_url,
+  u.segment,
+  u.region
+FROM clickstream c
+JOIN users u ON c.user_id = u.id;
 
-CREATE SOURCE historical_customer_data WITH (
-  connector = 'postgres-cdc',
-  hostname = '127.0.0.1',
-  port = '8306',
-  username = 'root',
-  password = '123456',
-  database.name = 'mydb',
-  slot.name = 'mydb_slot'
-);
-
-CREATE TABLE purchase_history (
-  user_id varchar primary key,
-  recommended_product varchar,
-  category varchar
-) FROM historical_customer_data TABLE 'my_schema.customer_purchases';
+-- Deliver enriched events downstream
+CREATE SINK enriched_clicks_sink FROM enriched_clicks
+WITH (connector = 'kafka', properties.bootstrap.server = 'localhost:9092', topic = 'enriched-clicks')
+FORMAT PLAIN ENCODE JSON (force_append_only = 'true');
 ```
 
-2. Enrich data with historical purchases
+For the full pipeline (Kafka + CDC → JOIN → Kafka/Iceberg), see the [Stream enrichment recipe](/get-started/recipes/stream-enrichment).
 
-Join the real-time clickstream data with historical purchase data to generate personalized product recommendations.
+## Streaming lakehouses
 
-```sql
-CREATE MATERIALIZED VIEW personalized_recommendations AS
-  SELECT
-    c.user_id,
-    c.page_url,
-    p.recommended_product,
-    p.category
-  FROM clickstream_data c
-  JOIN purchase_history p ON c.user_id = p.user_id
-  WHERE c.page_url LIKE '%product%';
-```
-
-3. Deliver personalized recommendations
-
-Send the enriched data to the recommendation engine for immediate use.
+Continuously ingest into Apache Iceberg tables with exactly-once delivery, automated compaction, and snapshot management — replacing a separate Debezium + Kafka + Flink + Iceberg writer stack.
 
 ```sql
-CREATE SINK recommendations FROM personalized_recommendations
-WITH (
-  connector='kafka',
-  properties.bootstrap.server='localhost:9092',
-  topic='recommendations'
-) FORMAT PLAIN ENCODE JSON (force_append_only='true');
-```
-
-RisingWave empowers you to enhance customer experiences in real-time by enriching raw data with valuable context, leading to more accurate and effective personalization.
-
-## Streaming lakehouse
-
-For building or extending a data lakehouse with real-time data. RisingWave continuously ingests, transforms, and writes to Apache Iceberg tables — with automatic compaction and snapshot management — replacing a separate Debezium + Kafka + Flink + Iceberg writer stack.
-
-### Example: CDC to Iceberg
-
-```sql
--- Ingest from PostgreSQL CDC
-CREATE SOURCE pg_source WITH (
-  connector = 'postgres-cdc',
-  hostname = '127.0.0.1', port = '5432',
-  username = 'postgres', password = 'your_password',
-  database.name = 'mydb', slot.name = 'rw_slot'
-);
-
-CREATE TABLE orders (
-  id INT PRIMARY KEY,
-  customer_id INT,
-  amount DOUBLE PRECISION,
-  status VARCHAR,
-  updated_at TIMESTAMPTZ
-) FROM pg_source TABLE 'public.orders';
-
--- Sink to Iceberg continuously
+-- CDC changes from PostgreSQL land in Iceberg continuously
 CREATE SINK orders_lakehouse FROM orders
 WITH (
   connector = 'iceberg',
@@ -327,11 +113,8 @@ WITH (
   warehouse.path = 's3://my-lakehouse/warehouse',
   database.name = 'analytics',
   table.name = 'orders',
-  create_table_if_not_exists = 'true',
-  s3.region = 'us-east-1',
-  s3.access.key = 'your-access-key',
-  s3.secret.key = 'your-secret-key'
+  create_table_if_not_exists = 'true'
 );
 ```
 
-For a full pipeline with Kafka + CDC + multiple sinks, see the [Lakehouse ingestion recipe](/get-started/recipes/lakehouse-ingestion).
+For the full pipeline (CDC + Kafka → enriched MVs → Iceberg), see the [Lakehouse ingestion recipe](/get-started/recipes/lakehouse-ingestion).

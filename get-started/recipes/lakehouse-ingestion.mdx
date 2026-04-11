@@ -105,11 +105,12 @@ WITH (
   s3.secret.key = 'your-secret-key'
 );
 
--- Sink session summaries (append-only)
+-- Sink session summaries (upsert — session state updates as new events arrive)
 CREATE SINK sessions_iceberg FROM session_summary
 WITH (
   connector = 'iceberg',
-  type = 'append-only',
+  type = 'upsert',
+  primary_key = 'session_id',
   catalog.type = 'storage',
   warehouse.path = 's3://my-lakehouse/warehouse',
   database.name = 'analytics',
@@ -123,7 +124,7 @@ WITH (
 
 ## Key points
 
-- Use `type = 'upsert'` for tables that receive updates/deletes (like CDC tables); `type = 'append-only'` for event streams
+- Use `type = 'upsert'` for tables with changing state (CDC tables, aggregating MVs); `type = 'append-only'` only for truly append-only streams with no retractions
 - RisingWave hosts the Iceberg catalog and runs compaction automatically — no Spark compaction jobs needed
 - The `JOIN` between CDC tables and streams is maintained incrementally — when customer data changes, enriched_orders updates automatically
 - For production, use a proper Iceberg catalog (Glue, REST, Hive) instead of `catalog.type = 'storage'`
