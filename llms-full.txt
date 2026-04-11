@@ -6,6 +6,9 @@
 
 ## Table of Contents
 
+0. Key Differences from PostgreSQL
+0. Common Pitfalls
+0. Agentic AI Patterns
 1. Quick Start & Connection
 2. Architecture
 3. Core Concepts
@@ -19,7 +22,246 @@
 11. Subscriptions
 12. Client Libraries
 13. PostgreSQL Compatibility
-14. Common Pitfalls
+14. Common Pitfalls (detailed)
+
+---
+
+## Key Differences from PostgreSQL
+
+| Feature | PostgreSQL | RisingWave |
+|---------|-----------|------------|
+| Default port | 5432 | **4566** |
+| Default user | postgres | **root** |
+| Default database | postgres | **dev** |
+| Materialized views | Manual `REFRESH` required | **Auto-maintained, no REFRESH** |
+| Mutable sources | n/a | **Sources are read-only — use TABLE for mutations** |
+| Stored procedures | ✓ | ✗ |
+| Triggers | ✓ | ✗ |
+| LISTEN/NOTIFY | ✓ | ✗ |
+| Full-text search | ✓ | ✗ |
+| TEMPORARY tables | ✓ | ✗ |
+| CREATE SOURCE | ✗ | ✓ (streaming ingestion) |
+| CREATE SINK | ✗ | ✓ (streaming export) |
+| Watermarks | ✗ | Required for event-time windows |
+
+**Critical behavioral differences:**
+- `REFRESH MATERIALIZED VIEW` does not exist — MVs refresh automatically via streaming
+- `NOW()` in a materialized view is evaluated at barrier time; without a temporal filter it triggers full recomputation
+- `UPDATE`/`DELETE` is not allowed on sources (`CREATE SOURCE`); use `CREATE TABLE` with connector for mutable ingestion
+- `DROP SOURCE name` fails if MVs depend on it — use `DROP SOURCE name CASCADE`
+
+---
+
+## Common Pitfalls
+
+### 1. REFRESH MATERIALIZED VIEW
+Does not exist in RisingWave. MVs are incrementally maintained automatically.
+```sql
+-- WRONG
+REFRESH MATERIALIZED VIEW my_mv;
+
+-- RIGHT: just query it, it's already fresh
+SELECT * FROM my_mv;
+```
+
+### 2. UPDATE/DELETE on a source
+Sources are read-only append streams. Use `CREATE TABLE` with a connector for mutable data.
+```sql
+-- WRONG: sources don't support DML
+UPDATE my_source SET status = 'done' WHERE id = 1;
+
+-- RIGHT: use a table with connector
+CREATE TABLE my_table (id INT PRIMARY KEY, status VARCHAR) WITH (connector = 'kafka', ...);
+```
+
+### 3. Missing watermark on time-windowed MV
+Without a watermark, `EMIT ON WINDOW CLOSE` never fires — rows accumulate but never emit.
+```sql
+-- WRONG: no watermark, window never closes
+CREATE SOURCE events (id INT, event_time TIMESTAMPTZ) WITH (connector = 'kafka', ...);
+CREATE MATERIALIZED VIEW hourly AS
+SELECT COUNT(*) FROM TUMBLE(events, event_time, INTERVAL '1 HOUR')
+GROUP BY window_start, window_end
+EMIT ON WINDOW CLOSE;
+
+-- RIGHT: declare watermark on source
+CREATE SOURCE events (
+  id INT,
+  event_time TIMESTAMPTZ,
+  WATERMARK FOR event_time AS event_time - INTERVAL '5 SECONDS'
+) WITH (connector = 'kafka', ...);
+```
+
+### 4. NOW() in MV without temporal filter
+Causes full recomputation on every processing barrier (expensive).
+```sql
+-- WRONG: rescans everything every barrier
+CREATE MATERIALIZED VIEW recent AS
+SELECT * FROM events WHERE event_time > NOW() - INTERVAL '1 hour';
+
+-- RIGHT: use a temporal filter
+CREATE MATERIALIZED VIEW recent AS
+SELECT * FROM events
+WHERE event_time > NOW() - INTERVAL '1 hour'
+  AND event_time <= NOW();
+```
+
+### 5. Wrong port
+```python
+# WRONG
+conn = psycopg2.connect(port=5432, ...)
+
+# RIGHT
+conn = psycopg2.connect(port=4566, user="root", dbname="dev", ...)
+```
+
+### 6. FORMAT/ENCODE in wrong clause
+```sql
+-- WRONG: schema.registry in WITH clause
+CREATE SOURCE s (...) WITH (connector='kafka', schema.registry='http://...') FORMAT AVRO;
+
+-- RIGHT: schema.registry in FORMAT/ENCODE clause
+CREATE SOURCE s (...) WITH (connector='kafka', ...)
+FORMAT PLAIN ENCODE AVRO (schema.registry = 'http://...');
+```
+
+### 7. DROP fails due to dependencies
+```sql
+-- WRONG: fails if MVs depend on the source
+DROP SOURCE my_source;
+
+-- RIGHT
+DROP SOURCE my_source CASCADE;
+```
+
+---
+
+## Agentic AI Patterns
+
+### Pattern 1: Connect via PostgreSQL driver
+
+Python (psycopg2):
+```python
+import psycopg2
+conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute("SELECT * FROM fraud_signals WHERE user_id = %s", (user_id,))
+rows = cur.fetchall()
+conn.close()
+```
+
+Python (asyncpg):
+```python
+import asyncpg
+conn = await asyncpg.connect("postgresql://root@localhost:4566/dev")
+rows = await conn.fetch("SELECT * FROM fraud_signals WHERE user_id = $1", user_id)
+await conn.close()
+```
+
+### Pattern 2: Always-fresh tool results
+
+Pre-compute results in a materialized view; agents query them at ~10–20 ms p99 without cache warming or TTL logic.
+
+```sql
+-- Setup (done once, maintained continuously)
+CREATE SOURCE transactions (
+  user_id VARCHAR,
+  amount DOUBLE PRECISION,
+  event_time TIMESTAMPTZ,
+  WATERMARK FOR event_time AS event_time - INTERVAL '5 SECONDS'
+) WITH (connector = 'kafka', topic = 'transactions',
+        properties.bootstrap.server = 'localhost:9092')
+FORMAT PLAIN ENCODE JSON;
+
+CREATE MATERIALIZED VIEW fraud_signals AS
+SELECT
+  user_id,
+  COUNT(*) AS tx_count,
+  SUM(amount) AS total_amount,
+  window_start,
+  window_end
+FROM TUMBLE(transactions, event_time, INTERVAL '5 MINUTES')
+GROUP BY user_id, window_start, window_end
+HAVING COUNT(*) > 5 AND SUM(amount) > 5000;
+
+-- Agent queries (always fresh, no polling, no TTL)
+SELECT user_id, tx_count, total_amount
+FROM fraud_signals
+WHERE user_id = $1
+ORDER BY window_end DESC
+LIMIT 1;
+```
+
+### Pattern 3: Agent memory (per-session and cross-session state)
+
+```sql
+-- Create a table to store agent state
+CREATE TABLE agent_memory (
+  session_id VARCHAR,
+  key VARCHAR,
+  value JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (session_id, key)
+);
+
+-- Create a MV for fast lookups of recent state
+CREATE MATERIALIZED VIEW recent_agent_memory AS
+SELECT session_id, key, value, updated_at
+FROM agent_memory
+WHERE updated_at > NOW() - INTERVAL '24 HOURS';
+
+-- Write state (agent uses standard INSERT/UPDATE)
+INSERT INTO agent_memory (session_id, key, value)
+VALUES ($1, $2, $3::jsonb)
+ON CONFLICT (session_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+
+-- Read state
+SELECT value FROM agent_memory WHERE session_id = $1 AND key = $2;
+```
+
+### Pattern 4: Connect via MCP server
+
+```bash
+git clone https://github.com/risingwavelabs/risingwave-mcp.git
+cd risingwave-mcp
+# Configure RISINGWAVE_HOST, RISINGWAVE_PORT, RISINGWAVE_USER, etc.
+```
+
+Available MCP tools:
+- `run_select_query` — execute a SELECT query
+- `create_materialized_view` — create an MV from SQL
+- `describe_table` — get column types and schema
+- `show_tables` — list all tables
+- `list_materialized_views` — list all MVs
+- `get_database_version` — get RisingWave version
+
+### Pattern 5: Push notifications via Subscription
+
+```sql
+-- Subscribe to changes in a materialized view
+CREATE SUBSCRIPTION fraud_alerts_sub FROM fraud_signals WITH (retention = '1D');
+
+-- In your application
+DECLARE cur CURSOR FOR fraud_alerts_sub;
+FETCH NEXT FROM cur;
+-- Returns: op (Insert=1/Delete=2/UpdateInsert=4/UpdateDelete=8), row data, rw_timestamp
+```
+
+Python client:
+```python
+import psycopg2
+conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute("DECLARE sub_cursor CURSOR FOR fraud_alerts_sub")
+while True:
+    cur.execute("FETCH NEXT FROM sub_cursor")
+    row = cur.fetchone()
+    if row:
+        op, *data = row
+        print(f"Change: op={op}, data={data}")
+```
 
 ---
 
