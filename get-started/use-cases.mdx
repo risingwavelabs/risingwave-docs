@@ -70,7 +70,7 @@ As new bidding data arrives, the materialized view updates continuously. You can
 CREATE MATERIALIZED VIEW live_predictions AS
   SELECT
     ad_id,
-    PREDICT_BID(avg_bid, max_bid, bid_count, win_rate, avg_response_time) AS predicted_bid
+    PREDICT_BID(avg_bid, max_bid, bid_count, win_count, avg_response_time) AS predicted_bid
   FROM bidding_feature_vectors;
 ```
 
@@ -258,7 +258,7 @@ CREATE SOURCE historical_customer_data WITH (
 
 CREATE TABLE purchase_history (
   user_id varchar primary key,
-  recommended_produce varchar,
+  recommended_product varchar,
   category varchar
 ) FROM historical_customer_data TABLE 'my_schema.customer_purchases';
 ```
