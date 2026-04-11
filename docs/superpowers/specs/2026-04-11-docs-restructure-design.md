@@ -20,15 +20,19 @@ At the same time, RisingWave's positioning has evolved. It is no longer just a "
 
 ## Part 1: Core Positioning Statement
 
-Replace all occurrences of "streaming database" positioning with:
+**Hero tagline** (used in page titles, hero sections):
 
-> **RisingWave is an open-source event streaming platform for agentic AI.**
+> **Event Streaming for Agentic AI**
 
-For longer descriptions (intro pages, meta descriptions):
+**One-liner** (used in meta descriptions, short introductions):
 
-> RisingWave is an open-source event streaming platform for agentic AI. It unifies data ingestion, stream processing, low-latency serving, and Iceberg lakehouse management in a single PostgreSQL-compatible system — so your apps and agents always have fresh, queryable data.
+> RisingWave is an event streaming platform for agentic AI.
 
-**Rationale:** "Streaming database" positions RisingWave as a data storage tool. "Event streaming platform for agentic AI" positions it as a complete stack that solves a specific problem: agents and apps needing always-fresh data without stitching together Debezium + Kafka + Flink + a serving database.
+**Full description** (used in intro pages, README-style descriptions):
+
+> RisingWave is an event streaming platform for agentic AI. It continuously ingests data from databases, event streams, and webhooks, processes it incrementally, and serves fresh results at low latency, replacing the traditional event streaming stack (e.g., Debezium + Kafka + Flink + serving DB) with a single system.
+
+**Rationale:** "Streaming database" positions RisingWave as a data storage tool. "Event streaming platform for agentic AI" positions it as a complete stack that solves a specific problem: agents and apps need data that is always fresh and queryable at low latency — the standard approach of chaining Debezium + Kafka + Flink + a serving DB adds latency at every hop and operational overhead at every system. RisingWave replaces the whole stack.
 
 Traditional streaming use cases (monitoring, CDC pipelines, Iceberg lakehouse ingestion) remain — they are part of "what the platform does", not "what the platform is".
 
@@ -37,31 +41,84 @@ Traditional streaming use cases (monitoring, CDC pipelines, Iceberg lakehouse in
 ## Part 2: `intro.mdx` Restructure
 
 **Current structure:** What is it → Technical features → Use cases  
-**New structure:** Why it exists → What you can build → How it works → Key design decisions
+**New structure:** Positioning → The problem → How it works → Use cases → Design decisions
 
 ### New section order
 
 ```
 # What is RisingWave?
 
-[One-line positioning]
-[Two-sentence description: unified platform, replaces Debezium+Kafka+Flink+serving DB]
+[Full description: one-liner + replaces Debezium+Kafka+Flink+serving DB]
+[Architecture diagram]
 
-## What you can build
+## The problem
 
-- Agentic AI apps & agents — always-fresh state, directly queryable via SQL
-- Tool result caching — pre-computed fraud scores, recommendations, inventory; always ready
-- Real-time monitoring & alerting — sub-second detection on event streams
-- Streaming lakehouse ingestion — CDC / Kafka → Iceberg, with automatic compaction and maintenance
+Agents and real-time applications need data that is always fresh and queryable at
+low latency. The standard approach chains together Debezium for CDC, Kafka for
+transport, Flink for processing, and a database for serving. Each hop adds latency
+and each system adds operational overhead.
+
+RisingWave replaces the whole stack: ingest, process, serve, store.
 
 ## How it works
 
-[Existing architecture diagram — keep]
-[Brief explanation of the four layers: ingest, process, serve, store]
+### Ingest from any source
+- Webhooks: HTTP-based event ingestion from SaaS and external systems
+- Database changes: native CDC from PostgreSQL, MySQL, and others via transaction logs
+- Event streams: Kafka, Pulsar, Kinesis, and other message brokers
+- Historical data: batch ingestion from S3, data warehouses, and other storage
+All sources are unified under the same SQL interface. Streams and tables can be
+joined freely.
 
-## Key design decisions
+### Process continuously
+Incremental computation — when upstream data changes, only affected results are
+recomputed. End-to-end freshness under 100 ms.
 
-[Keep existing content: PostgreSQL compat, object storage, Iceberg native]
+### Serve at low latency
+Results maintained in RisingWave's internal row store, served at 10–20 ms p99 via
+standard SQL. No polling, no cache warming, no TTL management.
+
+### Store in Apache Iceberg™
+RisingWave hosts the Iceberg REST catalog directly and handles table maintenance
+(compaction, small-file optimization, snapshot cleanup) without external tooling.
+Iceberg queries run via Apache DataFusion (vectorized query engine). Data is in
+open format — also readable by Spark, Trino, DuckDB, and others.
+
+## Use cases
+
+### Agent backends
+- Agent memory: per-session and cross-session state, continuously maintained,
+  queryable at 10–20 ms p99 without polling or cache invalidation
+- Tool call results: fraud scores, anomaly signals, inventory checks,
+  recommendations — pre-computed and always fresh for agent tool use
+- Context injection: event-driven triggers that push updated context into LLM
+  calls as upstream data changes
+- Feature stores: batch and streaming features over the same pipeline, same system
+
+### Real-time data stack
+- Live dashboards: MVs updated incrementally, no scheduled refreshes
+- Monitoring and alerting: continuous evaluation of streaming metrics
+- Real-time enrichment: live events joined with historical reference data in-flight
+- Streaming lakehouses: exactly-once ingestion into open-format tables with
+  automated compaction and snapshot management
+
+## Design decisions
+
+### Ultimate cost efficiency
+State, tables, and MVs stored in object storage (S3 or equivalent) — ~100x cheaper
+than RAM. Elastic scaling without data rebalancing, failure recovery in seconds.
+For latency-sensitive workloads, elastic disk cache pins hot data on local SSD/EBS,
+keeping p99 query latency at 10–20 ms.
+
+### Native experience for both humans and agents
+Connects via the PostgreSQL wire protocol — works with psql, JDBC, and any
+Postgres-compatible tooling. For agents specifically: MCP server, CLI, and Skills
+allow agents to query and operate RisingWave without custom integration.
+
+### Openness
+Natively integrates with Apache Iceberg™ for continuous stream ingestion, direct
+reads via DataFusion, and automated table maintenance. Data in Iceberg is open
+format, accessible to any compatible query engine.
 
 ## See also
 
@@ -146,10 +203,24 @@ A new **Recipes** group is added under "Get started" in the navigation. Each rec
 
 ## Part 5: `use-cases.mdx` Updates
 
-1. Add **Agentic AI** as the first use case section (before streaming analytics)
-2. Add **Lakehouse ingestion** as a use case section  
-3. Existing examples (stock trading, fraud detection, e-commerce, ads bidding) — keep logic, but make SQL complete and directly runnable
-4. Each use case opens with one sentence: "RisingWave's advantage here is X"
+Reorganize into two explicit buckets matching the README's framing:
+
+### Agent backends (new section, placed first)
+- Agent memory pattern
+- Tool call results (fraud scores, recommendations, inventory)
+- Context injection
+- Feature stores
+
+### Real-time data stack (renamed from current generic use cases)
+- Live dashboards (currently "streaming analytics" — reframe)
+- Monitoring and alerting (currently "event-driven applications" — reframe)
+- Real-time enrichment (keep, rename)
+- Streaming lakehouse ingestion (new — currently missing)
+
+For all sections:
+- Each use case opens with one sentence on RisingWave's specific advantage
+- SQL examples must be complete and directly runnable (no missing prerequisites)
+- Existing examples (stock trading, fraud detection, e-commerce, ads bidding) are kept but reorganized into the new buckets and SQL is completed
 
 ---
 
