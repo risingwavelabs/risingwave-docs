@@ -1,0 +1,87 @@
+---
+title: "Subscription push notifications"
+sidebarTitle: "Subscription push"
+description: "Subscribe to changes in a RisingWave materialized view and receive push notifications in your app without polling."
+---
+
+**What this does:** Creates a subscription on a materialized view and consumes change events (insert, update, delete) in your application as they happen.
+
+**When to use this:** Your app or agent needs to react to data changes immediately, without polling a materialized view in a loop.
+
+## Setup
+
+### 1. Create a materialized view to subscribe to
+
+```sql
+CREATE SOURCE transactions (
+  user_id VARCHAR,
+  amount DOUBLE PRECISION,
+  event_time TIMESTAMPTZ,
+  WATERMARK FOR event_time AS event_time - INTERVAL '5 SECONDS'
+) WITH (
+  connector = 'kafka',
+  topic = 'transactions',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'latest'
+) FORMAT PLAIN ENCODE JSON;
+
+CREATE MATERIALIZED VIEW high_value_tx AS
+SELECT user_id, amount, event_time
+FROM transactions
+WHERE amount > 10000;
+```
+
+### 2. Create a subscription
+
+```sql
+CREATE SUBSCRIPTION high_value_alerts
+FROM high_value_tx
+WITH (retention = '1D');
+```
+
+### 3. Consume changes in Python
+
+```python
+import psycopg2
+
+conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
+conn.autocommit = True
+cur = conn.cursor()
+
+# Declare cursor on the subscription
+cur.execute("DECLARE alert_cursor CURSOR FOR high_value_alerts")
+
+print("Listening for high-value transactions...")
+while True:
+    cur.execute("FETCH NEXT FROM alert_cursor")
+    row = cur.fetchone()
+    if row:
+        # op: 1=Insert, 2=Delete, 4=UpdateInsert, 8=UpdateDelete
+        op = row[0]
+        user_id = row[1]
+        amount = row[2]
+        event_time = row[3]
+        if op == 1:  # New row inserted
+            print(f"ALERT: user {user_id} — ${amount:.2f} at {event_time}")
+```
+
+### 4. Consume with a start timestamp (resume from checkpoint)
+
+```sql
+-- Start consuming from a specific point in time
+DECLARE alert_cursor CURSOR FOR high_value_alerts
+  SINCE TO_TIMESTAMP(1714000000);  -- Unix timestamp
+```
+
+## Key points
+
+- Change types: `1` = Insert, `2` = Delete, `4` = UpdateInsert (new value), `8` = UpdateDelete (old value)
+- `retention` controls how far back you can start consuming (default: 24 hours)
+- `FETCH NEXT` blocks until a new change is available — no sleep loop needed
+- A single subscription can have multiple cursors consuming independently
+- Drop a subscription when no longer needed: `DROP SUBSCRIPTION high_value_alerts`
+
+## Next steps
+
+- [Subscriptions reference](/serve/subscription) — full API, cursor management, retention
+- [Kafka to MV recipe](/get-started/recipes/kafka-to-mv-to-serve) — set up the upstream pipeline
