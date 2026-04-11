@@ -12,7 +12,7 @@ RisingWave is wire-compatible with PostgreSQL. Connect using any PostgreSQL driv
 - **`CREATE SINK`:** RisingWave-specific DDL to export data downstream. Not in PostgreSQL.
 - **Watermarks:** Required for event-time window aggregations (`EMIT ON WINDOW CLOSE`). Without them, windows never close.
 - **`NOW()` in MVs:** Requires a temporal filter (`WHERE ts > NOW() - INTERVAL '1 hour'`) or the MV rescans everything on every barrier.
-- **Not supported:** stored procedures, triggers, cursors, `LISTEN`/`NOTIFY`, full-text search (`tsvector`), `TEMPORARY` tables, advisory locks.
+- **Not supported:** stored procedures, triggers, PostgreSQL server-side cursors, `LISTEN`/`NOTIFY`, full-text search (`tsvector`), `TEMPORARY` tables, advisory locks.
 
 ## Common Pitfalls
 
@@ -63,7 +63,7 @@ SELECT * FROM fraud_signals WHERE user_id = $1;
 CREATE SUBSCRIPTION my_sub FROM fraud_signals WITH (retention = '1D');
 
 -- Consume changes in application code
-DECLARE cur CURSOR FOR my_sub;
+DECLARE cur SUBSCRIPTION CURSOR FOR my_sub;
 FETCH NEXT FROM cur;  -- returns changed rows with op (Insert/Delete/UpdateInsert/UpdateDelete)
 ```
 

@@ -49,7 +49,7 @@ conn.autocommit = True
 cur = conn.cursor()
 
 # Declare cursor on the subscription
-cur.execute("DECLARE alert_cursor CURSOR FOR high_value_alerts")
+cur.execute("DECLARE alert_cursor SUBSCRIPTION CURSOR FOR high_value_alerts")
 
 print("Listening for high-value transactions...")
 while True:
@@ -69,7 +69,7 @@ while True:
 
 ```sql
 -- Start consuming from a specific point in time
-DECLARE alert_cursor CURSOR FOR high_value_alerts
+DECLARE alert_cursor SUBSCRIPTION CURSOR FOR high_value_alerts
   SINCE TO_TIMESTAMP(1714000000);  -- Unix timestamp
 ```
 

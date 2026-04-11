@@ -93,17 +93,16 @@ CREATE SOURCE events (
 ```
 
 ### 4. NOW() in MV without temporal filter
-Causes full recomputation on every processing barrier (expensive).
+Using `NOW()` in a materialized view without comparing it against a timestamp column causes the whole query to re-evaluate on every barrier (expensive). Always use it as part of a comparison with a timestamp column.
 ```sql
--- WRONG: rescans everything every barrier
-CREATE MATERIALIZED VIEW recent AS
-SELECT * FROM events WHERE event_time > NOW() - INTERVAL '1 hour';
+-- WRONG: no comparison to a column — entire query re-evaluates every barrier
+CREATE MATERIALIZED VIEW tagged AS
+SELECT *, NOW() AS query_time FROM events;
 
--- RIGHT: use a temporal filter
+-- RIGHT: compare NOW() with a timestamp column (temporal filter)
 CREATE MATERIALIZED VIEW recent AS
 SELECT * FROM events
-WHERE event_time > NOW() - INTERVAL '1 hour'
-  AND event_time <= NOW();
+WHERE event_time > NOW() - INTERVAL '1 hour';
 ```
 
 ### 5. Wrong port
@@ -243,7 +242,7 @@ Available MCP tools:
 CREATE SUBSCRIPTION fraud_alerts_sub FROM fraud_signals WITH (retention = '1D');
 
 -- In your application
-DECLARE cur CURSOR FOR fraud_alerts_sub;
+DECLARE cur SUBSCRIPTION CURSOR FOR fraud_alerts_sub;
 FETCH NEXT FROM cur;
 -- Returns: op (Insert=1/Delete=2/UpdateInsert=4/UpdateDelete=8), row data, rw_timestamp
 ```
@@ -254,7 +253,7 @@ import psycopg2
 conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
 conn.autocommit = True
 cur = conn.cursor()
-cur.execute("DECLARE sub_cursor CURSOR FOR fraud_alerts_sub")
+cur.execute("DECLARE sub_cursor SUBSCRIPTION CURSOR FOR fraud_alerts_sub")
 while True:
     cur.execute("FETCH NEXT FROM sub_cursor")
     row = cur.fetchone()
