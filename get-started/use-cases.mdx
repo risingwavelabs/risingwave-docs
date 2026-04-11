@@ -4,7 +4,7 @@ sidebarTitle: "Use cases"
 description: "Use cases for RisingWave: agent backends (memory, tool results, context injection, feature stores) and real-time data stack (dashboards, monitoring, enrichment, streaming lakehouses). Includes complete SQL examples."
 ---
 
-RisingWave is an event streaming platform for agentic AI. It covers two primary use case categories: **agent backends** (state and context for AI apps and agents) and **real-time data stack** (streaming analytics, monitoring, and lakehouse pipelines). Each example below includes complete SQL you can run directly.
+RisingWave is an event streaming platform for agentic AI. It covers two primary use case categories: **agent backends** and **real-time data stack**. Each example below includes complete SQL you can run directly.
 
 ## Agent backends
 
@@ -12,9 +12,9 @@ RisingWave's advantage: results are continuously maintained by the event streami
 
 ### Agent memory and feature stores
 
-Agents can pre-compute feature vectors or aggregated state as materialized views, then query them in real time as part of tool calls. This pattern replaces inline computation with a persistent, always-fresh lookup.
+Pre-compute feature vectors or aggregated state as materialized views over live event streams. Results are always current and served at low latency — no inline aggregation at query time.
 
-In the context of online advertising, an agent pre-computes feature vectors over bidding data as a materialized view. When the agent needs to make a decision, it queries this MV as a tool call — getting an always-fresh result without any inline aggregation.
+In the context of online advertising, feature vectors over bidding data are maintained continuously as a materialized view. At decision time, query the MV directly — always fresh, no recomputation needed.
 
 1. Ingest bidding data
 
@@ -54,9 +54,9 @@ CREATE MATERIALIZED VIEW bidding_feature_vectors AS
   GROUP BY ad_id;
 ```
 
-3. Agent queries the MV as a tool call
+3. Query the MV
 
-The agent calls this query as a tool — the result is always fresh, pre-computed, and returned in milliseconds.
+The result is always fresh, pre-computed, and returned in milliseconds.
 
 ```sql
 SELECT * FROM bidding_feature_vectors WHERE ad_id = 'specific_ad_id';
@@ -76,7 +76,7 @@ CREATE MATERIALIZED VIEW live_predictions AS
 
 ### Tool call results
 
-Agents query pre-computed results from materialized views rather than computing them at call time. For example, a fraud detection tool queries a pre-maintained `suspicious_transactions` view — the agent gets a real-time fraud score without computing it inline.
+Query pre-computed results from materialized views rather than computing them at call time. For example, a fraud detection query hits a pre-maintained `suspicious_transactions` view — returning a real-time fraud score without inline aggregation.
 
 1. Connect to Kafka
 
@@ -97,7 +97,7 @@ CREATE SOURCE transactions (
 
 2. Pre-compute suspicious transactions as a materialized view
 
-RisingWave maintains this view incrementally — the agent never recomputes it at query time.
+RisingWave maintains this view incrementally — never recomputed at query time.
 
 ```sql
 CREATE MATERIALIZED VIEW suspicious_transactions AS
@@ -110,9 +110,9 @@ CREATE MATERIALIZED VIEW suspicious_transactions AS
   HAVING COUNT(*) > 5 AND SUM(purchase_amount) > 5000;
 ```
 
-3. Agent tool call
+3. Query for a fraud score
 
-The agent calls this query to get a real-time fraud score for a specific card number — no inline aggregation, no polling.
+Returns a real-time fraud score for a specific card number — pre-computed, no inline aggregation.
 
 ```sql
 SELECT * FROM suspicious_transactions WHERE card_number = $1 LIMIT 1;
