@@ -218,7 +218,7 @@ WITH (
   connector='kafka',
   properties.bootstrap.server='localhost:9092',
   topic='suspicious_activity'
-  ) FORMAT PLAIN ENCODE JSON;
+) FORMAT PLAIN ENCODE JSON (force_append_only='true');
 ```
 
 By leveraging RisingWave, you can implement real-time monitoring and alerting systems that react instantly to critical events, enhancing security and operational efficiency.
@@ -285,11 +285,11 @@ Send the enriched data to the recommendation engine for immediate use.
 
 ```sql
 CREATE SINK recommendations FROM personalized_recommendations
-  WITH (
-    connector='kafka',
-    properties.bootstrap.server='localhost:9092',
-    topic='recommendations'
-  ) FORMAT PLAIN ENCODE JSON;
+WITH (
+  connector='kafka',
+  properties.bootstrap.server='localhost:9092',
+  topic='recommendations'
+) FORMAT PLAIN ENCODE JSON (force_append_only='true');
 ```
 
 RisingWave empowers you to enhance customer experiences in real-time by enriching raw data with valuable context, leading to more accurate and effective personalization.
