@@ -160,7 +160,7 @@ await conn.close()
 
 ### Pattern 2: Always-fresh tool results
 
-Pre-compute results in a materialized view; agents query them at ~10–20 ms p99 without cache warming or TTL logic.
+Pre-compute results in a materialized view over live event streams; agents query them at ~10–20 ms p99 — the view is maintained continuously by the event streaming pipeline.
 
 ```sql
 -- Setup (done once, maintained continuously)
@@ -184,7 +184,7 @@ FROM TUMBLE(transactions, event_time, INTERVAL '5 MINUTES')
 GROUP BY user_id, window_start, window_end
 HAVING COUNT(*) > 5 AND SUM(amount) > 5000;
 
--- Agent queries (always fresh, no polling, no TTL)
+-- Agent queries (always current — maintained continuously by event streaming)
 SELECT user_id, tx_count, total_amount
 FROM fraud_signals
 WHERE user_id = $1

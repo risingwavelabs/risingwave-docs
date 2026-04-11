@@ -1,12 +1,12 @@
 ---
 title: "Agent memory pattern"
 sidebarTitle: "Agent memory pattern"
-description: "Use RisingWave as persistent, always-fresh memory for AI agents and apps. Query agent state at 10–20 ms p99 latency using standard SQL."
+description: "Standard pattern for agents reading always-current state from RisingWave — state derived continuously from event streams, queryable at 10–20 ms p99 via standard SQL."
 ---
 
-**What this does:** Stores per-session and cross-session agent state in RisingWave, queryable at low latency without polling or TTL logic.
+**What this does:** Continuously computes agent-readable state from incoming event streams. Agents query the result directly — the data is always current because the event streaming pipeline maintains it incrementally.
 
-**When to use this:** Your agent needs to read or write state that persists across invocations, or multiple agent instances need to share and observe each other's state in real time.
+**When to use this:** Your agent needs to read state that reflects real-world events as they happen — user activity, transaction history, system signals — without triggering recomputation at query time.
 
 ## Setup
 
@@ -16,79 +16,92 @@ description: "Use RisingWave as persistent, always-fresh memory for AI agents an
 curl -L https://risingwave.com/sh | sh && risingwave
 ```
 
-### 2. Create the memory table
+### 2. Ingest events from a source
+
+Events flow in from Kafka, a CDC-connected database, or a webhook endpoint. Here, user activity events come from Kafka:
 
 ```sql
-CREATE TABLE agent_memory (
-  session_id VARCHAR,
-  key VARCHAR,
-  value JSONB,
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  PRIMARY KEY (session_id, key)
-);
+CREATE SOURCE user_events (
+  user_id    VARCHAR,
+  event_type VARCHAR,
+  payload    JSONB,
+  event_time TIMESTAMPTZ
+) WITH (
+  connector = 'kafka',
+  topic = 'user-activity',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'latest'
+) FORMAT PLAIN ENCODE JSON;
 ```
 
-### 3. Create a materialized view for fast lookups
+### 3. Define agent-readable state as a materialized view
+
+RisingWave maintains this view incrementally as events arrive. When the agent queries it, the result reflects the latest state — no recomputation triggered at query time.
 
 ```sql
-CREATE MATERIALIZED VIEW recent_agent_memory AS
-SELECT session_id, key, value, updated_at
-FROM agent_memory
-WHERE updated_at > NOW() - INTERVAL '24 HOURS';
+CREATE MATERIALIZED VIEW agent_context AS
+SELECT
+  user_id,
+  COUNT(*)                                           AS event_count,
+  MAX(event_time)                                    AS last_seen,
+  ARRAY_AGG(event_type ORDER BY event_time DESC)[1:5] AS recent_events
+FROM user_events
+WHERE event_time > NOW() - INTERVAL '1 hour'
+GROUP BY user_id;
 ```
 
-### 4. Write and read state from your app
+### 4. Agent reads state via standard SQL
 
 ```python
 import psycopg2
-import json
 
 conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
 conn.autocommit = True
 cur = conn.cursor()
 
-# Write state
-def write_memory(session_id: str, key: str, value: dict):
-    cur.execute("""
-        INSERT INTO agent_memory (session_id, key, value)
-        VALUES (%s, %s, %s::jsonb)
-        ON CONFLICT (session_id, key)
-        DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-    """, (session_id, key, json.dumps(value)))
-
-# Read state
-def read_memory(session_id: str, key: str) -> dict | None:
+def get_agent_context(user_id: str) -> dict | None:
     cur.execute(
-        "SELECT value FROM agent_memory WHERE session_id = %s AND key = %s",
-        (session_id, key)
+        "SELECT event_count, last_seen, recent_events FROM agent_context WHERE user_id = %s",
+        (user_id,)
     )
     row = cur.fetchone()
-    return row[0] if row else None
+    if row is None:
+        return None
+    return {"event_count": row[0], "last_seen": row[1], "recent_events": row[2]}
 
-# Example usage
-write_memory("session-123", "last_tool_result", {"status": "ok", "items": 42})
-state = read_memory("session-123", "last_tool_result")
-print(state)  # {"status": "ok", "items": 42}
+# Agent tool call — result is always current
+context = get_agent_context("user-42")
+print(context)
 ```
 
-### 5. Query cross-session state
+### 5. Agent also writes back to the pipeline
+
+Agents can emit events that become inputs to the same pipeline — for example, recording a tool call result that downstream views consume:
 
 ```sql
--- Find all sessions that wrote a specific key in the last hour
-SELECT session_id, value, updated_at
-FROM recent_agent_memory
-WHERE key = 'last_tool_result'
-ORDER BY updated_at DESC;
+CREATE TABLE agent_actions (
+  user_id     VARCHAR,
+  action_type VARCHAR,
+  result      JSONB,
+  recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+```python
+def record_action(user_id: str, action_type: str, result: dict):
+    cur.execute(
+        "INSERT INTO agent_actions (user_id, action_type, result) VALUES (%s, %s, %s::jsonb)",
+        (user_id, action_type, json.dumps(result))
+    )
 ```
 
 ## Key points
 
-- `ON CONFLICT ... DO UPDATE` makes writes idempotent — safe to call multiple times
-- The materialized view `recent_agent_memory` is kept fresh automatically; no `REFRESH` needed
-- Query latency is 10–20 ms p99 — no caching layer required in your app
-- For high-volume writes, batch inserts in a single transaction for better throughput
+- The materialized view is maintained incrementally by the event streaming pipeline — no query triggers recomputation
+- Agents connect via the standard PostgreSQL wire protocol; any `psycopg2`, JDBC, or pg-compatible client works
+- For push-based patterns (agent gets notified when state changes), see the [Subscription push recipe](/get-started/recipes/subscription-push)
 
 ## Next steps
 
-- [Subscription push recipe](/get-started/recipes/subscription-push) — get notified when agent state changes
-- [Subscriptions reference](/serve/subscription) — full subscription API
+- [Subscription push recipe](/get-started/recipes/subscription-push) — get notified when agent-relevant state changes
+- [Kafka to MV to serve recipe](/get-started/recipes/kafka-to-mv-to-serve) — full ingestion-to-query pipeline
