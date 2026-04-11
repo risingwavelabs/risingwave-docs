@@ -196,27 +196,28 @@ LIMIT 1;
 
 ```sql
 -- Create a table to store agent state
+-- ON CONFLICT OVERWRITE enables upsert behavior (RisingWave syntax)
+-- Note: "value" is a reserved keyword — use "state" or another name
 CREATE TABLE agent_memory (
   session_id VARCHAR,
   key VARCHAR,
-  value JSONB,
+  state JSONB,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (session_id, key)
-);
+) ON CONFLICT OVERWRITE;
 
 -- Create a MV for fast lookups of recent state
 CREATE MATERIALIZED VIEW recent_agent_memory AS
-SELECT session_id, key, value, updated_at
+SELECT session_id, key, state, updated_at
 FROM agent_memory
 WHERE updated_at > NOW() - INTERVAL '24 HOURS';
 
--- Write state (agent uses standard INSERT/UPDATE)
-INSERT INTO agent_memory (session_id, key, value)
-VALUES ($1, $2, $3::jsonb)
-ON CONFLICT (session_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+-- Write state (upsert: ON CONFLICT OVERWRITE replaces existing row by primary key)
+INSERT INTO agent_memory (session_id, key, state)
+VALUES ($1, $2, $3::jsonb);
 
 -- Read state
-SELECT value FROM agent_memory WHERE session_id = $1 AND key = $2;
+SELECT state FROM agent_memory WHERE session_id = $1 AND key = $2;
 ```
 
 ### Pattern 4: Connect via MCP server
