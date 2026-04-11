@@ -1,0 +1,82 @@
+---
+title: "RisingWave vs. Debezium"
+sidebarTitle: "RisingWave vs. Debezium"
+description: "Compare RisingWave and Debezium for change data capture: what each tool does, where they overlap, and how to decide between them."
+---
+
+We periodically update this article to keep up with the rapidly evolving landscape.
+
+## Summary
+
+|  | Debezium | RisingWave |
+| :--- | :--- | :--- |
+| System category | CDC connector (Kafka Connect source) | Streaming database with built-in CDC |
+| Primary strength | Reliable change capture from databases to Kafka | Ingest + transform + serve in a single SQL system |
+| CDC sources | PostgreSQL, MySQL, MongoDB, SQL Server, Oracle, Db2 | PostgreSQL, MySQL, MongoDB, SQL Server |
+| Output | Kafka topics (Debezium JSON/Avro envelope) | Tables, materialized views, sinks |
+| Transformation | None — requires separate processing layer (Flink, ksqlDB, Spark) | Built-in SQL-based continuous transformations |
+| Query serving | None | Serves results via PostgreSQL wire protocol at low latency |
+| Operational complexity | Kafka Connect cluster + Kafka + separate processing engine | Single SQL-centric system |
+| Typical use case | Feeding DB changes into a Kafka-centric data platform | Processing DB changes end-to-end without Kafka middleware |
+
+## Introduction
+
+_Debezium is a CDC connector that captures changes from databases and publishes them to Kafka. RisingWave is a streaming database that includes built-in CDC as one of many ingestion paths, and processes captured changes directly inside the system._
+
+They are not direct competitors. Debezium is a component; RisingWave is a system. Whether you need one, the other, or both depends on what you are trying to build.
+
+### Debezium
+
+Debezium is an open-source platform for change data capture. It runs as a set of Kafka Connect source connectors, reading the transaction logs of source databases (PostgreSQL WAL, MySQL binlog, MongoDB oplog, etc.) and publishing each change as an event to a Kafka topic. Debezium is the standard way to stream database changes into a Kafka-centric data platform. It does one thing well: reliably capture every insert, update, and delete and deliver it to Kafka with low latency.
+
+Debezium does not transform data. After changes land in Kafka, a separate system — Flink, ksqlDB, Spark Structured Streaming, or similar — is needed to process them.
+
+### RisingWave
+
+RisingWave is a streaming database with native CDC connectors. It connects directly to source databases via their transaction logs (the same mechanism Debezium uses) and materializes the captured changes into internal tables. From there, SQL-defined materialized views continuously transform and aggregate the data. Results can be queried at low latency over the PostgreSQL wire protocol, or forwarded to downstream systems via sinks.
+
+RisingWave does not require Kafka in the CDC path. The entire pipeline — capture, transform, serve — runs inside a single system.
+
+## What Debezium does that RisingWave does not
+
+**Fan-out to Kafka topics.** Debezium publishes changes to Kafka, making them available to any number of independent consumers: analytics pipelines, search indexers, audit logs, event-driven microservices. If your architecture depends on Kafka as a shared event bus consumed by many downstream teams and systems, Debezium (or the equivalent Kafka Connect connector) is the right tool for the capture layer.
+
+**Broader database support.** Debezium supports Oracle and Db2 in addition to PostgreSQL, MySQL, MongoDB, and SQL Server. RisingWave currently supports the latter four.
+
+**Debezium envelope format.** Downstream systems that expect the Debezium JSON envelope (`before`/`after`/`op`/`source`) can consume Debezium output directly. RisingWave materializes CDC changes into relational tables — a different model.
+
+## What RisingWave does that Debezium does not
+
+**Transformation.** RisingWave processes CDC changes directly with SQL: joins, aggregations, enrichment, deduplication, time-windowed computations. No separate processing engine is required.
+
+**Serving.** Query results are maintained as materialized views and served at 10–20 ms p99 latency via any PostgreSQL client. Debezium has no query interface.
+
+**End-to-end pipeline in one system.** The Debezium stack is: Debezium → Kafka → processing engine → serving database. RisingWave replaces all four with a single deployment.
+
+## How to choose
+
+**Use Debezium (or Debezium + RisingWave together) when:**
+
+- You already have a Kafka-centric data platform and need to add DB change capture to it.
+- Multiple independent downstream consumers need to read from the same change stream at their own pace.
+- You need Oracle or Db2 CDC support.
+- Downstream systems expect the Debezium event envelope format.
+
+**Use RisingWave's built-in CDC when:**
+
+- You want to process database changes and serve results without the operational overhead of Kafka and a separate processing engine.
+- The CDC pipeline is the input to a continuous SQL transformation — enrichment, aggregation, serving — and you want all of it in one system.
+- You are replacing a Debezium + Kafka + Flink + serving DB stack with something simpler.
+
+**Use both together when:**
+
+- You need Kafka for fan-out to other consumers AND want RisingWave to process a copy of the change stream for low-latency serving.
+- In this case, Debezium writes to Kafka, and RisingWave reads from those Kafka topics — treating them as a Kafka source rather than a direct CDC source.
+
+## See also
+
+- [Change data capture overview](/ingestion/cdc-with-risingwave)
+- [PostgreSQL CDC connector](/ingestion/sources/postgresql/pg-cdc)
+- [MySQL CDC connector](/ingestion/sources/mysql/mysql-cdc)
+- [RisingWave vs. Apache Kafka](/reference/risingwave-kafka-comparison)
+- [RisingWave vs. Apache Flink](/reference/risingwave-flink-comparison)
