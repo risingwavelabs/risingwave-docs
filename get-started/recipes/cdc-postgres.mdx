@@ -88,10 +88,12 @@ CREATE SINK order_summary_iceberg FROM order_summary
 WITH (
   connector = 'iceberg',
   type = 'upsert',
+  primary_key = 'user_id',
   catalog.type = 'storage',
   warehouse.path = 's3://my-bucket/warehouse',
   database.name = 'mydb',
-  table.name = 'order_summary'
+  table.name = 'order_summary',
+  create_table_if_not_exists = 'true'
 );
 ```
 
