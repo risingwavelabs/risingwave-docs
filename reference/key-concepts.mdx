@@ -20,6 +20,16 @@ For a deep dive, see [What is CDC in RisingWave?](/reference/what-is-cdc).
 
 A group of interconnected nodes and services that act as a single system running an instance of RisingWave. A typical cluster includes Serving Nodes (query frontend and batch execution), Streaming Nodes (streaming ingestion and incremental computation), Compactor Nodes (Hummock storage compaction), and one or more Meta Nodes (cluster coordination and metadata management). In distributed deployments, each node type scales independently based on workload characteristics.
 
+## Compute Nodes
+
+A Compute Node is the core processing unit of a RisingWave cluster, running as the `risingwave compute-node` process. It can operate in one of three roles:
+
+- **hybrid** (default): handles both streaming ingestion and batch query execution in the same process.
+- **streaming**: dedicated to stream processing only. A Compute Node in this role is called a Streaming Node.
+- **serving**: dedicated to batch query execution only. A Compute Node in this role is called a Serving Node.
+
+In small or development deployments a single hybrid Compute Node handles everything. In production you can assign separate Compute Nodes to the streaming and serving roles to prevent stream processing and ad-hoc queries from competing for the same resources. See [Dedicated Compute Nodes](/operate/dedicated-compute-node).
+
 ## Compactor Nodes
 
 A Compactor Node handles data storage and retrieval from object storage. It also performs data compaction to optimize storage efficiency.
@@ -58,8 +68,7 @@ The Meta Node is the control plane of a RisingWave cluster. It manages cluster-w
 
 A node is a logical collection of IT resources that handles specific workloads based on their types. RisingWave has the following types of nodes:
 
-* Serving Nodes
-* Streaming Nodes
+* Compute Nodes (running as Streaming Nodes, Serving Nodes, or hybrid)
 * Compactor Nodes
 * Meta Nodes
 
@@ -105,7 +114,7 @@ In stream processing, serialization is the process of converting business object
 
 ## Serving Nodes
 
-A Serving Node has the following responsibilities:
+A Serving Node is a [Compute Node](#compute-nodes) running with the `serving` role. It has the following responsibilities:
 
 * **Acts as a frontend:** It handles user requests and is compatible with the PostgreSQL wire protocol, allowing tools like `psql` to connect seamlessly.
 * **Processes queries:** It executes batch queries directly. For streaming queries, it generates an execution plan and dispatches it to the stream engine.
@@ -176,7 +185,7 @@ For a deep dive, see [What is a Streaming Database?](/reference/what-is-streamin
 
 ## Streaming Nodes
 
-Streaming Nodes are responsible for ingesting data from upstream systems, executing the streaming query graph incrementally, and delivering results to downstream systems. Each Streaming Node runs a set of streaming actors that process partitions of the data stream in parallel. All durable state is stored in the Hummock storage engine backed by object storage, so Streaming Nodes can be scaled out or in without data migration.
+A Streaming Node is a [Compute Node](#compute-nodes) running with the `streaming` role. It is responsible for ingesting data from upstream systems, executing the streaming query graph incrementally, and delivering results to downstream systems. Each Streaming Node runs a set of streaming actors that process partitions of the data stream in parallel. All durable state is stored in the Hummock storage engine backed by object storage, so Streaming Nodes can be scaled out or in without data migration.
 
 ## Streaming queries
 
