@@ -18,7 +18,7 @@ For a deep dive, see [What is CDC in RisingWave?](/reference/what-is-cdc).
 
 ## Clusters
 
-A group of interconnected nodes and services that act as a single system running an instance of RisingWave. A typical cluster includes Serving Nodes (query frontend and batch execution), Compute Nodes (streaming ingestion and incremental computation), Compactor Nodes (Hummock storage compaction), and one or more Meta Nodes (cluster coordination and metadata management). In distributed deployments, each node type scales independently based on workload characteristics.
+A group of interconnected nodes and services that act as a single system running an instance of RisingWave. A typical cluster includes Serving Nodes (query frontend and batch execution), Streaming Nodes (streaming ingestion and incremental computation), Compactor Nodes (Hummock storage compaction), and one or more Meta Nodes (cluster coordination and metadata management). In distributed deployments, each node type scales independently based on workload characteristics.
 
 ## Compactor Nodes
 
@@ -59,7 +59,7 @@ The Meta Node is the control plane of a RisingWave cluster. It manages cluster-w
 A node is a logical collection of IT resources that handles specific workloads based on their types. RisingWave has the following types of nodes:
 
 * Serving Nodes
-* Compute Nodes
+* Streaming Nodes
 * Compactor Nodes
 * Meta Nodes
 
@@ -174,9 +174,9 @@ A streaming database is broadly defined as a data store designed to collect, pro
 
 For a deep dive, see [What is a Streaming Database?](/reference/what-is-streaming-database).
 
-## Compute Nodes
+## Streaming Nodes
 
-Compute Nodes are responsible for ingesting data from upstream systems, executing the streaming query graph incrementally, and delivering results to downstream systems. Each Compute Node runs a set of streaming actors that process partitions of the data stream in parallel. Compute Nodes are stateless in terms of durable data — all persistent state is stored in the Hummock storage engine backed by object storage — which means they can be added or removed without data migration.
+Streaming Nodes are responsible for ingesting data from upstream systems, executing the streaming query graph incrementally, and delivering results to downstream systems. Each Streaming Node runs a set of streaming actors that process partitions of the data stream in parallel. All durable state is stored in the Hummock storage engine backed by object storage, so Streaming Nodes can be scaled out or in without data migration.
 
 ## Streaming queries
 
