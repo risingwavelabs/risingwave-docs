@@ -25,13 +25,31 @@ rwc -h
 Choose one of the following methods, depending on how your RisingWave Cloud account was created.
 
 <Tabs>
-<Tab title="API key (recommended)">
   <Tab title="API key (recommended)">
 
-  1. Generate an API key and secret from the **RisingWave Cloud console** (under your account settings).
+  1. Generate an API key and secret from the **RisingWave Cloud console** under **Org → Service accounts**. See [Service account & API key](/cloud/service-account) for details.
   2. Configure the CLI:
 
-     
+     ```bash
+     rwc auth config --api-key '<api-key>' --api-key-secret '<api-key-secret>'
+     ```
+  </Tab>
+  <Tab title="Email and password">
+
+  Only accounts registered with an email and password can use this method. Accounts created via social login (Google, Microsoft, or GitHub) do not support username/password login — use **API key** instead.
+
+  ```bash
+  rwc auth login --account '<your-email@example.com>' --password '<your-password>'
+  ```
+
+  To register a new password account first, then log in:
+
+  ```bash
+  rwc auth register --account '<your-email@example.com>' --password '<your-password>'
+  # Check your inbox and click the magic link to activate the account before logging in.
+  rwc auth login    --account '<your-email@example.com>' --password '<your-password>'
+  ```
+  </Tab>
 </Tabs>
 
 ## Step 3: Select a region
@@ -82,3 +100,4 @@ Supported targets include `claude-code`, `cursor`, and `codex`.
 ## Next steps
 
 - Run `rwc -h` or `rwc <command> -h` to see the authoritative flag list for any subcommand.
+- Set up a [BYOC environment](/cloud/project-byoc) using your new CLI.
