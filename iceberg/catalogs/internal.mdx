@@ -30,7 +30,7 @@ Because the built-in catalog is JDBC-compliant, external engines like Spark or T
 <Note>
 A `CONNECTION` is simply a **saved config profile** in RisingWave.
 
-You create it once with `CREATE CONNECTION ...`, and then reuse it by name by setting a session default: `SET iceberg_engine_connection = 'schema.connection_name'`
+You create it once with `CREATE CONNECTION ...`, and then reuse it by name — either for the current session (`SET iceberg_engine_connection = 'schema.connection_name'`) or globally for all sessions (`ALTER SYSTEM SET iceberg_engine_connection = 'schema.connection_name'`).
 </Note>
 
 An Iceberg `CONNECTION` stores two things in one place:
@@ -55,21 +55,28 @@ For details on configuring other storage backends, see [Object storage configura
 
 ### Step 2: Set the connection and create a table
 
-When you create `ENGINE = iceberg` tables, RisingWave needs to know **which Iceberg `CONNECTION` to use**. Set a session default first, then create the table.
+When you create `ENGINE = iceberg` tables, RisingWave needs to know **which Iceberg `CONNECTION` to use**. Set the connection before creating the table — either for the current session or globally for all sessions.
 
 The connection name format is `schema_name.connection_name` (for example, `public.built_in_catalog_conn`).
 
 ```sql
--- 1) Set the default connection for this session
+-- Set the connection for the current session only
 SET iceberg_engine_connection = 'public.built_in_catalog_conn';
 
--- 2) Create an internal Iceberg table
+-- Or set it globally for all sessions
+ALTER SYSTEM SET iceberg_engine_connection = 'public.built_in_catalog_conn';
+```
+
+Then create the table:
+
+```sql
+-- Create an internal Iceberg table
 CREATE TABLE my_iceberg_table (
     id INT PRIMARY KEY,
     name VARCHAR
 ) ENGINE = iceberg;
 
--- 3) Insert data.
+-- Insert data.
 -- Note: For `ENGINE = iceberg`, data becomes visible only after an Iceberg commit.
 -- By default, Iceberg commits about every 60 seconds.
 INSERT INTO my_iceberg_table VALUES (1, 'alice'), (2, 'bob');

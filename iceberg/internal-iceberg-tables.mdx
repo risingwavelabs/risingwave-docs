@@ -113,12 +113,19 @@ For more details on the available catalog options, see [Iceberg catalog configur
 
 Create an internal Iceberg table using the `ENGINE = iceberg` clause.
 
-To create Iceberg tables, RisingWave needs to know which Iceberg `CONNECTION` to use (this connection contains both the object storage settings and the catalog settings). Set the connection for the session first, then create the table.
+To create Iceberg tables, RisingWave needs to know which Iceberg `CONNECTION` to use (this connection contains both the object storage settings and the catalog settings). Set the connection before creating the table — either for the current session or globally for all sessions.
 
 ```sql
--- Set a default connection for the session
+-- Set a default connection for the current session only
 SET iceberg_engine_connection = 'public.my_iceberg_conn';
 
+-- Or set it globally for all sessions
+ALTER SYSTEM SET iceberg_engine_connection = 'public.my_iceberg_conn';
+```
+
+Then create the table:
+
+```sql
 CREATE TABLE user_events (
     user_id INT,
     event_type VARCHAR,
