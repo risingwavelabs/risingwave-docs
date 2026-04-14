@@ -54,13 +54,36 @@ ALTER SOURCE source_name CONNECTOR WITH (
 
 | Parameter         | Description |
 | :---------------- | :---------- |
-| **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing source without recreating it. Be aware that the properties defined in CONNECTION should be altered by `ALTER CONNECTION`.|
-| property_name | We currently support altering Kafka connectors only. Support for more sources and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
+| **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing source without recreating it. Be aware that the properties defined in `CONNECTION` should be altered by `ALTER CONNECTION`.|
+| property_name | The connector property to update. Only a curated allow-list of properties can be altered on the fly; see the table below. Support for more sources and properties will be added in future releases. |
 
-```sql Example
+The following connectors and properties are currently supported:
+
+| Connector | Alterable properties |
+| :-------- | :------------------- |
+| Kafka (`kafka`) | `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password` |
+| PostgreSQL CDC (`postgres-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
+| MySQL CDC (`mysql-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
+| SQL Server CDC (`sqlserver-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
+| MongoDB CDC (`mongodb-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
+
+<Note>
+For CDC connectors, only the credential and timeout fields above are alterable. Endpoint fields such as `hostname`, `port`, and `database.name` still require recreating the source.
+</Note>
+
+```sql Example: Kafka
 ALTER SOURCE user_events_src
 CONNECTOR WITH (
   'properties.security.protocol' = 'SASL_SSL'
+);
+```
+
+```sql Example: PostgreSQL CDC
+-- Rotate the credentials used by a shared Postgres CDC source
+ALTER SOURCE pg_cdc_source
+CONNECTOR WITH (
+  username = 'rw_replicator',
+  password = 'new_secret'
 );
 ```
 
