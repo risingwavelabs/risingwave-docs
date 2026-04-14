@@ -62,13 +62,10 @@ The following connectors and properties are currently supported:
 | Connector | Alterable properties |
 | :-------- | :------------------- |
 | Kafka (`kafka`) | `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password` |
-| PostgreSQL CDC (`postgres-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
-| MySQL CDC (`mysql-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
-| SQL Server CDC (`sqlserver-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
-| MongoDB CDC (`mongodb-cdc`) | `username`, `password`, `cdc.source.wait.streaming.start.timeout` |
+| PostgreSQL CDC (`postgres-cdc`), MySQL CDC (`mysql-cdc`), SQL Server CDC (`sqlserver-cdc`), MongoDB CDC (`mongodb-cdc`) | `cdc.source.wait.streaming.start.timeout`, `debezium.max.queue.size`, `debezium.queue.memory.ratio` |
 
 <Note>
-For CDC connectors, only the credential and timeout fields above are alterable. Endpoint fields such as `hostname`, `port`, and `database.name` still require recreating the source.
+For CDC connectors, only the Debezium runtime tunables above can be altered in place. Connection-level fields such as `hostname`, `port`, `database.name`, `username`, and `password` still require recreating the source. To rotate credentials without changing the SQL definition, store them in a [secret](/sql/commands/sql-create-secret) and update the secret with [`ALTER SECRET`](/sql/commands/sql-alter-secret) — note that running CDC jobs only pick up the new value after a restart.
 </Note>
 
 ```sql Example: Kafka
@@ -78,12 +75,11 @@ CONNECTOR WITH (
 );
 ```
 
-```sql Example: PostgreSQL CDC
--- Rotate the credentials used by a shared Postgres CDC source
+```sql Example: Postgres CDC
+-- Increase the Debezium queue size for a shared Postgres CDC source
 ALTER SOURCE pg_cdc_source
 CONNECTOR WITH (
-  username = 'rw_replicator',
-  password = 'new_secret'
+  'debezium.max.queue.size' = '16384'
 );
 ```
 
