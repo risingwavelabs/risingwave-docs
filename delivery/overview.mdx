@@ -169,7 +169,20 @@ File sink currently supports only append-only mode, so please change the query t
 Added in v2.1.0.
 </Note>
 
-RisingWave implements batching strategies for file sinks, including [S3](/integrations/destinations/aws-s3), [Google Cloud Storage (GCS)](/integrations/destinations/google-cloud-storage), [Azure Blob Storage](/integrations/destinations/azure-blob), and [WebHDFS](/integrations/destinations/webhdfs). This optimizes file management by preventing the generation of numerous small files. The batching strategy is available for Parquet, JSON, and CSV encode. 
+RisingWave implements batching strategies for file sinks, including [S3](/integrations/destinations/aws-s3), [Google Cloud Storage (GCS)](/integrations/destinations/google-cloud-storage), [Azure Blob Storage](/integrations/destinations/azure-blob), and [WebHDFS](/integrations/destinations/webhdfs). This optimizes file management by preventing the generation of numerous small files. The batching strategy is available for Parquet, JSON, and CSV encode.
+
+### Defaults
+
+By default, RisingWave finalizes the current file and starts a new one when **either** of the following thresholds is reached:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `rollover_seconds` | `10` | Finalize the file after this many seconds of writing. |
+| `max_row_count` | `10240` | Finalize the file after this many rows have been written. |
+
+Because either threshold can trigger a file rollover, a large initial snapshot or backfill will typically be spread across **multiple files**. For example, a table with 16,000 rows will produce at least two Parquet files (≈ 10,240 rows in the first file, ≈ 5,760 rows in the second). Inspecting only the first file and seeing roughly 10K rows does **not** mean data is missing — check all objects under the configured sink path and sum their row counts.
+
+<Note>The condition for batching is relatively coarse-grained. The actual number of rows or exact timing of file completion may vary from the specified thresholds, as this function is intentionally flexible to prioritize efficient file management.</Note>
 
 ### Category
 
@@ -181,9 +194,7 @@ RisingWave implements batching strategies for file sinks, including [S3](/integr
 
     RisingWave checks the threshold each time a chunk is about to be written and when a barrier is encountered. Specify `rollover_seconds` option in the `WITH` clause to configure this behavior.
 
-- If no batching strategy is specified, RisingWave defaults to writing a new file every 10 seconds.
-
-<Note>The condition for batching is relatively coarse-grained. The actual number of rows or exact timing of file completion may vary from the specified thresholds, as this function is intentionally flexible to prioritize efficient file management.</Note>
+- A file is finalized when **either** threshold is hit first.
 
 ### File organization
 
@@ -216,8 +227,33 @@ WITH (
 ) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
 ```
 
-In this example, if the number of rows in the file exceeds 100, or if writing has continued for more than 10 seconds, the writing of this file will be completed.
-Once completed, the file will be visible in the downstream sink system.
+In this example, a file is finalized as soon as either 100 rows have been written **or** 10 seconds have elapsed — whichever comes first. Once finalized, the file becomes visible in the downstream sink system.
+
+### Verifying row counts after a backfill
+
+When a sink is first created, RisingWave performs an initial backfill of the upstream table. Because the default `max_row_count` is `10240`, a table with more than 10,240 rows will produce multiple output files. To verify that all rows were delivered:
+
+1. List all objects under the configured sink path (e.g., with `aws s3 ls s3://<bucket>/<path>/ --recursive`).
+2. Sum the row counts across all files.
+3. Compare the total against the row count of the upstream table.
+
+If you need all rows in a single file (for small datasets) or want larger files, increase `max_row_count` and/or `rollover_seconds` when creating the sink:
+
+```sql
+CREATE SINK s1
+FROM t
+WITH (
+    connector = 's3',
+    s3.region_name = '<region>',
+    s3.bucket_name = '<bucket>',
+    s3.credentials.access = '<access_key_id>',
+    s3.credentials.secret = '<secret_access_key>',
+    s3.path = 'output/',
+    max_row_count = '1000000',
+    rollover_seconds = '3600',
+    type = 'append-only'
+) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
+```
 
 ## See also
 
