@@ -321,6 +321,7 @@ RisingWave cannot correctly parse composite types from PostgreSQL as Debezium do
 | XML                                                  | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | UUID                                                 | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | POINT                                                | STRUCT (with form \<x REAL, y REAL>)                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| GEOMETRY (PostGIS)                                   | BYTEA (stored as raw EWKB bytes)                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | LTREE                                                | No support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | CITEXT                                               | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | INET                                                 | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -343,6 +344,36 @@ RisingWave cannot correctly parse composite types from PostgreSQL as Debezium do
 | CIDR                                                 | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR                                              | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR8                                             | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+### PostGIS `GEOMETRY` semantics
+
+When you ingest PostgreSQL CDC data from PostGIS, `GEOMETRY` values are preserved as raw EWKB bytes and stored in RisingWave as `BYTEA`.
+
+- The value may look unreadable in SQL clients. This is expected for raw binary data and does not mean the geometry is corrupted.
+- RisingWave does not currently provide geospatial functions for this `BYTEA` payload. For example, `ST_AsEWKB(locationpoint)` fails because the function expects a geometry type, not `BYTEA`.
+
+To inspect and validate the ingested bytes, encode them to text in RisingWave:
+
+```sql
+SELECT
+  encode(locationpoint, 'hex') AS locationpoint_hex,
+  encode(locationpoint, 'base64') AS locationpoint_base64
+FROM your_table;
+```
+
+For end-to-end verification, compare RisingWave and PostgreSQL outputs:
+
+```sql
+-- In PostgreSQL (upstream)
+SELECT encode(ST_AsEWKB(locationpoint), 'hex') AS locationpoint_hex
+FROM your_table;
+
+-- In RisingWave (downstream)
+SELECT encode(locationpoint, 'hex') AS locationpoint_hex
+FROM your_table;
+```
+
+For downstream systems (such as Snowflake or PostGIS), treat this value as EWKB/WKB and reconstruct the geometry there. A common pattern is to export the hex/base64-encoded value, convert it back to binary in the destination system, and then apply that system's geometry-construction function.
 
 ## Use dbt to ingest data from PostgreSQL CDC
 
