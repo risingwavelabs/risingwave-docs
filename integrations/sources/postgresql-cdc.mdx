@@ -350,15 +350,15 @@ RisingWave cannot correctly parse composite types from PostgreSQL as Debezium do
 When you ingest PostgreSQL CDC data from PostGIS, `GEOMETRY` values are preserved as raw EWKB bytes and stored in RisingWave as `BYTEA`.
 
 - The value may look unreadable in SQL clients. This is expected for raw binary data and does not mean the geometry is corrupted.
-- RisingWave does not currently provide geospatial functions for this `BYTEA` payload. For example, `ST_AsEWKB(locationpoint)` fails because the function expects a geometry type, not `BYTEA`.
+- RisingWave does not provide geospatial functions for this `BYTEA` payload. For example, `ST_AsEWKB(locationpoint)` fails with a function-signature error because the input is `BYTEA`, not a geometry type.
 
-To inspect and validate the ingested bytes, encode them to text in RisingWave:
+To inspect and validate the ingested bytes, encode them to text in RisingWave (replace `locationpoint` with your geometry column name):
 
 ```sql
 SELECT
   encode(locationpoint, 'hex') AS locationpoint_hex,
   encode(locationpoint, 'base64') AS locationpoint_base64
-FROM your_table;
+FROM cdc_table;
 ```
 
 For end-to-end verification, compare RisingWave and PostgreSQL outputs:
@@ -366,14 +366,24 @@ For end-to-end verification, compare RisingWave and PostgreSQL outputs:
 ```sql
 -- In PostgreSQL (upstream)
 SELECT encode(ST_AsEWKB(locationpoint), 'hex') AS locationpoint_hex
-FROM your_table;
+FROM source_table;
 
 -- In RisingWave (downstream)
 SELECT encode(locationpoint, 'hex') AS locationpoint_hex
-FROM your_table;
+FROM cdc_table;
 ```
 
-For downstream systems (such as Snowflake or PostGIS), treat this value as EWKB/WKB and reconstruct the geometry there. A common pattern is to export the hex/base64-encoded value, convert it back to binary in the destination system, and then apply that system's geometry-construction function.
+For downstream systems (such as Snowflake or PostGIS), treat this value as EWKB/WKB and reconstruct the geometry there. Export `locationpoint_hex` with a RisingWave sink connector or an ETL job. (If your connector supports binary columns directly, you can export the raw `BYTEA` payload instead.) After it lands in a downstream table (for example, `cdc_exported_rows`), you can reconstruct geometry as follows:
+
+```sql
+-- Snowflake pattern: convert exported hex back to binary, then reconstruct geometry
+SELECT TO_GEOMETRY(TO_BINARY(locationpoint_hex, 'HEX')) AS location_geom
+FROM cdc_exported_rows;
+
+-- PostGIS pattern
+SELECT ST_GeomFromEWKB(decode(locationpoint_hex, 'hex')) AS location_geom
+FROM cdc_exported_rows;
+```
 
 ## Use dbt to ingest data from PostgreSQL CDC
 
