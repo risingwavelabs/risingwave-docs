@@ -7,13 +7,17 @@ You can combine `generate_series(..., now(), interval ...)` with a materialized 
 
 The materialized view is kept up to date incrementally by RisingWave. Each time `now()` advances past the next interval boundary, a new timestamp row is appended automatically, which can drive downstream computations.
 
+**Requirements:** For this pattern, `generate_series` requires a constant `start` expression, `now()` as the `stop` expression, and a constant `step` expression. For the full function semantics, see [generate\_series](/sql/functions/set-returning#generate_series).
+
 ## Example: rolling 7-day window updated every 15 minutes
+
+Choose a `start` timestamp close to the current date to limit the initial backfill. On first creation, RisingWave generates all ticks from `start` to `now()` — a distant past date results in a large number of rows to enumerate upfront.
 
 ```sql
 CREATE MATERIALIZED VIEW my_periodic_task AS
 SELECT gs.ts
 FROM generate_series(
-  '2025-01-01'::timestamptz,
+  '2025-04-01 00:00:00'::timestamptz,  -- set close to today
   now(),
   INTERVAL '15 minutes'
 ) AS gs(ts)
