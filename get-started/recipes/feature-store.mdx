@@ -1,0 +1,78 @@
+---
+title: "Feature store"
+sidebarTitle: "Feature store"
+description: "Pre-aggregate streaming features as materialized views over live event streams, served at low latency for real-time inference."
+---
+
+**What this does:** Maintains feature vectors as materialized views over live event streams. At inference time, queries return pre-computed, always-current features — no aggregation triggered at query time.
+
+**When to use this:** Your ML model or scoring system needs fresh features at low latency, computed over a rolling window of recent events.
+
+## Setup
+
+### 1. Ingest events from Kafka
+
+```sql
+CREATE SOURCE bidding_events (
+  ad_id            VARCHAR,
+  bid_amount       DOUBLE PRECISION,
+  bid_won          BOOLEAN,
+  response_time_ms DOUBLE PRECISION,
+  event_time       TIMESTAMPTZ,
+  WATERMARK FOR event_time AS event_time - INTERVAL '5 SECONDS'
+) WITH (
+  connector = 'kafka',
+  topic = 'bidding-events',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### 2. Define features as a materialized view
+
+RisingWave maintains this view incrementally as events arrive. The result is always current — no recomputation on read.
+
+```sql
+CREATE MATERIALIZED VIEW ad_features AS
+SELECT
+  ad_id,
+  AVG(bid_amount)                              AS avg_bid,
+  MAX(bid_amount)                              AS max_bid,
+  COUNT(*)                                     AS bid_count,
+  SUM(CASE WHEN bid_won THEN 1 ELSE 0 END)     AS win_count,
+  AVG(response_time_ms)                        AS avg_response_ms
+FROM bidding_events
+WHERE event_time >= NOW() - INTERVAL '1 day'
+GROUP BY ad_id;
+```
+
+### 3. Query features at inference time
+
+Point queries against the MV return in milliseconds — the work is already done.
+
+```sql
+SELECT avg_bid, max_bid, bid_count, win_count, avg_response_ms
+FROM ad_features
+WHERE ad_id = $1;
+```
+
+### 4. Chain a UDF for live inference (optional)
+
+```sql
+CREATE MATERIALIZED VIEW live_predictions AS
+SELECT
+  ad_id,
+  PREDICT_BID(avg_bid, max_bid, bid_count, win_count, avg_response_ms) AS predicted_bid
+FROM ad_features;
+```
+
+## Key points
+
+- The MV is maintained incrementally — a new event triggers an incremental update, not a full recompute
+- `WHERE event_time >= NOW() - INTERVAL '1 day'` creates a rolling window: old data falls out automatically
+- For multi-entity features, add more columns to `GROUP BY`; for cross-entity features, use a JOIN between two sources
+
+## Next steps
+
+- [Use cases overview](/get-started/use-cases) — where feature stores fit in the broader picture
+- [Kafka to MV recipe](/get-started/recipes/kafka-to-mv-to-serve) — simpler pipeline without inference

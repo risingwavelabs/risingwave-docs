@@ -1,11 +1,14 @@
-# RisingWave — Complete Reference for AI Agents
+# RisingWave — Complete Reference
 
-> RisingWave is an open-source, PostgreSQL-compatible streaming database for real-time event streaming, processing, and analytics.
-> It uses standard SQL to ingest, transform, and serve streaming data with sub-second freshness.
-> RisingWave is wire-compatible with PostgreSQL — connect using any PostgreSQL driver on port 4566 (default).
+> RisingWave is an event streaming platform. It continuously ingests data from databases, event streams, and webhooks, processes it incrementally, and serves fresh results at low latency — replacing Debezium + Kafka + Flink + serving DB with a single system.
+>
+> Wire-compatible with PostgreSQL. Connect using any PostgreSQL driver on port 4566 (default user: root, default database: dev).
 
 ## Table of Contents
 
+0. Key Differences from PostgreSQL
+0. Common Pitfalls
+0. Common Patterns
 1. Quick Start & Connection
 2. Architecture
 3. Core Concepts
@@ -19,7 +22,247 @@
 11. Subscriptions
 12. Client Libraries
 13. PostgreSQL Compatibility
-14. Common Pitfalls
+14. Common Pitfalls (detailed)
+
+---
+
+## Key Differences from PostgreSQL
+
+| Feature | PostgreSQL | RisingWave |
+|---------|-----------|------------|
+| Default port | 5432 | **4566** |
+| Default user | postgres | **root** |
+| Default database | postgres | **dev** |
+| Materialized views | Manual `REFRESH` required | **Auto-maintained, no REFRESH** |
+| Mutable sources | n/a | **Sources are read-only — use TABLE for mutations** |
+| Stored procedures | ✓ | ✗ |
+| Triggers | ✓ | ✗ |
+| LISTEN/NOTIFY | ✓ | ✗ |
+| Full-text search | ✓ | ✗ |
+| TEMPORARY tables | ✓ | ✗ |
+| CREATE SOURCE | ✗ | ✓ (streaming ingestion) |
+| CREATE SINK | ✗ | ✓ (streaming export) |
+| Watermarks | ✗ | Required for event-time windows |
+
+**Critical behavioral differences:**
+- `REFRESH MATERIALIZED VIEW` does not exist — MVs refresh automatically via streaming
+- `NOW()` in a materialized view is evaluated at barrier time; without a temporal filter it triggers full recomputation
+- `UPDATE`/`DELETE` is not allowed on sources (`CREATE SOURCE`); use `CREATE TABLE` with connector for mutable ingestion
+- `DROP SOURCE name` fails if MVs depend on it — use `DROP SOURCE name CASCADE`
+
+---
+
+## Common Pitfalls
+
+### 1. REFRESH MATERIALIZED VIEW
+Does not exist in RisingWave. MVs are incrementally maintained automatically.
+```sql
+-- WRONG
+REFRESH MATERIALIZED VIEW my_mv;
+
+-- RIGHT: just query it, it's already fresh
+SELECT * FROM my_mv;
+```
+
+### 2. UPDATE/DELETE on a source
+Sources are read-only append streams. Use `CREATE TABLE` with a connector for mutable data.
+```sql
+-- WRONG: sources don't support DML
+UPDATE my_source SET status = 'done' WHERE id = 1;
+
+-- RIGHT: use a table with connector
+CREATE TABLE my_table (id INT PRIMARY KEY, status VARCHAR) WITH (connector = 'kafka', ...);
+```
+
+### 3. Missing watermark on time-windowed MV
+Without a watermark, `EMIT ON WINDOW CLOSE` never fires — rows accumulate but never emit.
+```sql
+-- WRONG: no watermark, window never closes
+CREATE SOURCE events (id INT, event_time TIMESTAMPTZ) WITH (connector = 'kafka', ...);
+CREATE MATERIALIZED VIEW hourly AS
+SELECT COUNT(*) FROM TUMBLE(events, event_time, INTERVAL '1 HOUR')
+GROUP BY window_start, window_end
+EMIT ON WINDOW CLOSE;
+
+-- RIGHT: declare watermark on source
+CREATE SOURCE events (
+  id INT,
+  event_time TIMESTAMPTZ,
+  WATERMARK FOR event_time AS event_time - INTERVAL '5 SECONDS'
+) WITH (connector = 'kafka', ...);
+```
+
+### 4. NOW() in MV without temporal filter
+Using `NOW()` in a materialized view without comparing it against a timestamp column causes the whole query to re-evaluate on every barrier (expensive). Always use it as part of a comparison with a timestamp column.
+```sql
+-- WRONG: no comparison to a column — entire query re-evaluates every barrier
+CREATE MATERIALIZED VIEW tagged AS
+SELECT *, NOW() AS query_time FROM events;
+
+-- RIGHT: compare NOW() with a timestamp column (temporal filter)
+CREATE MATERIALIZED VIEW recent AS
+SELECT * FROM events
+WHERE event_time > NOW() - INTERVAL '1 hour';
+```
+
+### 5. Wrong port
+```python
+# WRONG
+conn = psycopg2.connect(port=5432, ...)
+
+# RIGHT
+conn = psycopg2.connect(port=4566, user="root", dbname="dev", ...)
+```
+
+### 6. FORMAT/ENCODE in wrong clause
+```sql
+-- WRONG: schema.registry in WITH clause
+CREATE SOURCE s (...) WITH (connector='kafka', schema.registry='http://...') FORMAT AVRO;
+
+-- RIGHT: schema.registry in FORMAT/ENCODE clause
+CREATE SOURCE s (...) WITH (connector='kafka', ...)
+FORMAT PLAIN ENCODE AVRO (schema.registry = 'http://...');
+```
+
+### 7. DROP fails due to dependencies
+```sql
+-- WRONG: fails if MVs depend on the source
+DROP SOURCE my_source;
+
+-- RIGHT
+DROP SOURCE my_source CASCADE;
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Connect via PostgreSQL driver
+
+Python (psycopg2):
+```python
+import psycopg2
+conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute("SELECT * FROM fraud_signals WHERE user_id = %s", (user_id,))
+rows = cur.fetchall()
+conn.close()
+```
+
+Python (asyncpg):
+```python
+import asyncpg
+conn = await asyncpg.connect("postgresql://root@localhost:4566/dev")
+rows = await conn.fetch("SELECT * FROM fraud_signals WHERE user_id = $1", user_id)
+await conn.close()
+```
+
+### Pattern 2: Pre-computed MV queries
+
+Pre-compute results in a materialized view over live event streams; query them at ~10–20 ms p99 — the view is maintained continuously by the event streaming pipeline.
+
+```sql
+-- Setup (done once, maintained continuously)
+CREATE SOURCE transactions (
+  user_id VARCHAR,
+  amount DOUBLE PRECISION,
+  event_time TIMESTAMPTZ,
+  WATERMARK FOR event_time AS event_time - INTERVAL '5 SECONDS'
+) WITH (connector = 'kafka', topic = 'transactions',
+        properties.bootstrap.server = 'localhost:9092')
+FORMAT PLAIN ENCODE JSON;
+
+CREATE MATERIALIZED VIEW fraud_signals AS
+SELECT
+  user_id,
+  COUNT(*) AS tx_count,
+  SUM(amount) AS total_amount,
+  window_start,
+  window_end
+FROM TUMBLE(transactions, event_time, INTERVAL '5 MINUTES')
+GROUP BY user_id, window_start, window_end
+HAVING COUNT(*) > 5 AND SUM(amount) > 5000;
+
+-- Query the MV (always current — maintained continuously by event streaming)
+SELECT user_id, tx_count, total_amount
+FROM fraud_signals
+WHERE user_id = $1
+ORDER BY window_end DESC
+LIMIT 1;
+```
+
+### Pattern 3: Application state store
+
+```sql
+-- Create a table for key-value state with upsert behavior
+-- ON CONFLICT OVERWRITE: re-inserting a primary key overwrites the existing row
+-- Note: "value" is a reserved keyword — use "state" or another name
+CREATE TABLE app_state (
+  session_id VARCHAR,
+  key VARCHAR,
+  state JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (session_id, key)
+) ON CONFLICT OVERWRITE;
+
+-- MV for fast lookups of recent state
+CREATE MATERIALIZED VIEW recent_app_state AS
+SELECT session_id, key, state, updated_at
+FROM app_state
+WHERE updated_at > NOW() - INTERVAL '24 HOURS';
+
+-- Write state (upsert: ON CONFLICT OVERWRITE replaces existing row by primary key)
+INSERT INTO app_state (session_id, key, state)
+VALUES ($1, $2, $3::jsonb);
+
+-- Read state
+SELECT state FROM app_state WHERE session_id = $1 AND key = $2;
+```
+
+### Pattern 4: Connect via MCP server
+
+```bash
+git clone https://github.com/risingwavelabs/risingwave-mcp.git
+cd risingwave-mcp
+# Configure RISINGWAVE_HOST, RISINGWAVE_PORT, RISINGWAVE_USER, etc.
+```
+
+Available MCP tools:
+- `run_select_query` — execute a SELECT query
+- `create_materialized_view` — create an MV from SQL
+- `describe_table` — get column types and schema
+- `show_tables` — list all tables
+- `list_materialized_views` — list all MVs
+- `get_database_version` — get RisingWave version
+
+### Pattern 5: Push notifications via Subscription
+
+```sql
+-- Subscribe to changes in a materialized view
+CREATE SUBSCRIPTION fraud_alerts_sub FROM fraud_signals WITH (retention = '1D');
+
+-- In your application
+DECLARE cur SUBSCRIPTION CURSOR FOR fraud_alerts_sub;
+FETCH NEXT FROM cur WITH (timeout = '5s');
+-- Returns: <source columns>, op ('Insert'/'Delete'/'UpdateInsert'/'UpdateDelete'), rw_timestamp
+```
+
+Python client:
+```python
+import psycopg2
+conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute("DECLARE sub_cursor SUBSCRIPTION CURSOR FOR fraud_alerts_sub")
+while True:
+    cur.execute("FETCH NEXT FROM sub_cursor WITH (timeout = '5s')")
+    row = cur.fetchone()
+    if row:
+        # Row layout: <source columns>, op (string), rw_timestamp (int ms)
+        *data, op, rw_ts = row
+        print(f"Change: op={op}, data={data}")
+```
 
 ---
 
@@ -743,7 +986,7 @@ CREATE SOURCE datagen_source (
 - **MQTT**: `connector = 'mqtt'`, params: `url`, `topic`, `qos`
 - **NATS / JetStream**: `connector = 'nats'`, params: `server_url`, `subject`, `stream`, `durable_consumer_name`
 - **Iceberg**: `connector = 'iceberg'`, params: `catalog.type`, `catalog.name`, `database.name`, `table.name`, `warehouse.path`, storage credentials
-- **Webhook**: `connector = 'webhook'`, params: `webhook.secret` (optional)
+- **Webhook**: `connector = 'webhook'`, params: `secret.header` (header name to check), `secret.value` (expected secret); requires exactly one JSONB column
 
 ### Supported Formats and Encoding
 
@@ -769,23 +1012,22 @@ CREATE SOURCE datagen_source (
 ### Kafka Sink
 
 ```sql
+-- Append-only sink (force_append_only converts retract stream to insert-only)
 CREATE SINK kafka_sink FROM mv_or_table
 WITH (
     connector = 'kafka',
     topic = 'output_topic',
-    properties.bootstrap.server = 'broker:9092',
-    type = 'append-only'  -- or 'upsert'
-) FORMAT PLAIN ENCODE JSON;
+    properties.bootstrap.server = 'broker:9092'
+) FORMAT PLAIN ENCODE JSON (force_append_only = 'true');
 ```
 
-For upsert mode, specify `primary_key`:
+For upsert mode, use `FORMAT UPSERT` and specify `primary_key`:
 ```sql
 CREATE SINK kafka_upsert_sink FROM my_mv
 WITH (
     connector = 'kafka',
     topic = 'output_topic',
     properties.bootstrap.server = 'broker:9092',
-    type = 'upsert',
     primary_key = 'id'
 ) FORMAT UPSERT ENCODE JSON;
 ```
@@ -905,9 +1147,17 @@ WITH (
 
 ### Sink Type Reference
 
-- `type = 'append-only'`: Only INSERT operations. Use for logs, events, append-only destinations.
-- `type = 'upsert'`: INSERT + UPDATE + DELETE. Requires `primary_key`. Use for mutable destinations.
-- `force_append_only = 'true'`: Convert upsert stream to append-only (updates become inserts, deletes ignored).
+- `type = 'append-only'`: Only INSERT operations. Valid for JDBC, ClickHouse, Elasticsearch, Redis, and most non-Kafka connectors.
+- `type = 'upsert'`: INSERT + UPDATE + DELETE. Requires `primary_key`. Valid for JDBC, ClickHouse, Elasticsearch, Redis, and most non-Kafka connectors.
+- `force_append_only = 'true'` in FORMAT clause: Kafka-specific. Converts a retract stream to append-only (updates become inserts, deletes are dropped). Required for Kafka sinks from tables or MVs that produce retract streams.
+
+**Kafka sink pattern:**
+```sql
+-- Kafka does not use type='append-only' in WITH. Use FORMAT clause instead:
+CREATE SINK kafka_sink FROM my_mv
+WITH (connector = 'kafka', topic = 'out', properties.bootstrap.server = 'broker:9092')
+FORMAT PLAIN ENCODE JSON (force_append_only = 'true');
+```
 
 ---
 
@@ -950,8 +1200,8 @@ Parameters: HOP(source, time_col, hop_size, window_size)
 -- Session windows (batch mode or emit-on-window-close only)
 SELECT
     user_id,
-    first_value(event_time) OVER (PARTITION BY user_id SESSION WITH GAP INTERVAL '30 MINUTES') AS session_start,
-    COUNT(*) OVER (PARTITION BY user_id SESSION WITH GAP INTERVAL '30 MINUTES') AS events_in_session
+    first_value(event_time) OVER (PARTITION BY user_id ORDER BY event_time SESSION WITH GAP INTERVAL '30 MINUTES') AS session_start,
+    COUNT(*) OVER (PARTITION BY user_id ORDER BY event_time SESSION WITH GAP INTERVAL '30 MINUTES') AS events_in_session
 FROM user_events;
 ```
 
@@ -1091,7 +1341,7 @@ RisingWave supports automatic compaction and snapshot expiration for Iceberg tab
 ```sql
 -- Check sink status
 SHOW SINKS;
-DESCRIBE SINK my_iceberg_sink;
+DESCRIBE my_iceberg_sink;
 ```
 
 ---

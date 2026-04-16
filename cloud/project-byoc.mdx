@@ -12,28 +12,11 @@ Before creating a BYOC deployment, familiarize yourself with the following archi
 * **Agent Service**: This service manages Kubernetes (K8s) and cloud resources. It handles tasks such as managing RisingWave Pods, storage services (including AWS S3, GCS, and Azure Blob Storage), IAM roles/accounts associated with the RisingWave cluster, network endpoints, etc.
 * **RWProxy**: This is a TCP proxy that routes SQL statements from the control plane to the appropriate RisingWave instances. Control plane will issue SQL queries to retrieve cluster metadata and health status.
 
-## Install and configure `rwc`
+## Prerequisites
 
-Follow the steps below to install `rwc` (RisingWave Cloud CLI) and configure it for your environment.
+BYOC uses the `rwc` (RisingWave Cloud CLI) to provision and manage environments. Before continuing, install and authenticate the CLI by following [Install the RisingWave Cloud CLI](/cloud/install-cli).
 
-1. Run the following command to download and install the CLI tool:
-
-   ```
-   curl -L https://rwc-cli-internal-release.s3.ap-southeast-1.amazonaws.com/download.sh | bash && sudo mv rwc /usr/local/bin
-   ```
-
-2. After installation, open your terminal and execute the following commands to connect to the production environment and log in to your account.
-
-   ```
-   # Connect to the production environment
-   rwc context account set --url https://canary-useast2-acc.risingwave.cloud/api/v1
-   rwc context region set --name us-east-1
-    
-   # Login to RisingWave Cloud
-   rwc auth login --account '<your name>@mock.mail' --password '<your password>'  
-   ```
-
-Once these steps are complete, your CLI environment is ready. You can now proceed to create your BYOC environment.
+Once `rwc cluster list` runs successfully in your chosen region, you are ready to create a BYOC environment.
 
 ## Create a BYOC environment
 
@@ -133,7 +116,7 @@ You may either create a new BYOC environment or update your existing one to appl
 
 <Tabs>
   <Tab title="Create a new BYOC environment">
-    1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFG` is the file path of the config file created in last step.
+    1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFIG` is the file path of the config file created in the previous step.
 
 ```bash
 $ rwc byoc create \

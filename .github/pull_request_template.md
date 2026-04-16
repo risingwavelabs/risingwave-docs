@@ -15,5 +15,5 @@ Fix [ Provide the link to the doc issue here. ]
 ## Checklist
 
 - [ ] I have run the documentation build locally to verify the updates are applied correctly.  
-- [ ] For new pages, I have updated `mint.json` to include the page in the table of contents.  
+- [ ] For new pages, I have updated `docs.json` to include the page in the table of contents.  
 - [ ] All links and references have been checked and are not broken.

@@ -71,3 +71,20 @@ New to barriers/checkpoints? A **barrier** is a periodic sync marker; a **checkp
 - Monitor barrier latency during backfill; high latency may indicate resource constraints
 - For very large tables, consider creating the MV incrementally using filtered views
 - Use background DDL (`SET BACKGROUND_DDL = true`) for non-blocking MV creation
+
+## Serverless backfilling (RisingWave Cloud)
+
+On RisingWave Cloud, you can offload backfill work to dedicated, auto-scaling backfiller nodes that are separate from your streaming cluster. This reduces contention between large backfill jobs and live streaming workloads.
+
+To use serverless backfilling:
+
+1. Enable it under **Resources -> Backfillings** in the RisingWave Cloud console.
+2. Create the materialized view with the `cloud.serverless_backfill_enabled = true` option:
+
+   ```sql
+   CREATE MATERIALIZED VIEW my_mv
+   WITH (cloud.serverless_backfill_enabled = true)
+   AS SELECT * FROM my_source_table;
+   ```
+
+For details on configuring backfiller SKU, replicas, and Cloud setup, see [Serverless backfilling](/cloud/serverless-backfilling).
