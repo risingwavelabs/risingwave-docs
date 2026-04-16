@@ -136,6 +136,25 @@ debezium.schema.history.internal.skip.unparseable.ddl = 'true'
 
 ## Features and reference
 
+### Rotate the database password
+
+When the upstream PostgreSQL database password changes, you can update the CDC source credentials without recreating the source or any downstream tables:
+
+```sql
+ALTER SOURCE <shared_source_name>
+CONNECTOR WITH (password = 'your_new_password');
+```
+
+The new password takes effect for new connections from the CDC job. To force the running job to reconnect immediately using the updated credentials, run:
+
+```sql
+RECOVER;
+```
+
+<Tip>
+To avoid storing passwords in plain SQL, use [secrets](/operate/manage-secrets). When creating the source with [`CREATE SOURCE`](/sql/commands/sql-create-source), reference a secret instead of a literal password: `password = secret <secret_name>`. When you need to rotate the credential, update the secret value with [`ALTER SECRET`](/sql/commands/sql-alter-secret) and then run `RECOVER;` to reload it.
+</Tip>
+
 ### Data format
 
 The PostgreSQL CDC connector uses the Debezium JSON format for data.
