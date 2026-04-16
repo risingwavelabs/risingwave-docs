@@ -20,6 +20,12 @@ The docker images for `x86_64` are built with AVX2 SIMD extensions, and the imag
 - To build the images without SIMD vector extensions, run the following from the project root `docker build . -f docker/Dockerfile --build-arg simd_disabled=true` and run any subsequent docker commands on the resultant image.
 </Note>
 
+## Kubernetes resource sizing guidance
+
+When deploying on Kubernetes with Helm, always set resource `requests` and `limits` to the **same values** for each component. Mismatched values can cause unpredictable pod scheduling, CPU throttling, and memory pressure that degrade cluster stability and performance.
+
+RisingWave is memory-intensive. Use a **1:4 CPU:memory ratio** when sizing components (for example, 1 CPU core to 4 GiB memory). See [Optional: Resize a node](/deploy/risingwave-k8s-helm#optional-resize-a-node) for an example configuration.
+
 ## Compute Nodes
 
 Compute Nodes (including Streaming Nodes and Serving Nodes) handle query processing and state management. More resources enable higher query throughput. For cost efficiency, machines with high memory-to-CPU ratios (4:1 or higher) are recommended due to RisingWave's memory-intensive nature.
