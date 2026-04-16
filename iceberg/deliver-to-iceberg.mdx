@@ -4,9 +4,7 @@ sidebarTitle: "Deliver data to Iceberg tables"
 description: "Learn how to deliver data in RisingWave to external Iceberg tables."
 ---
 
-<Tip>
-**Try our SQL generator tool!** We've built an interactive tool to help you generate SQL statements for creating Iceberg sinks. Check it out at [https://sql.risingwave.com/sink/iceberg](https://sql.risingwave.com/sink/iceberg).
-</Tip>
+Need help generating SQL? Use [Claude Code](https://claude.ai/claude-code) or [Cursor](https://cursor.com) with the [RisingWave MCP server](https://github.com/risingwavelabs/risingwave-mcp) to generate and run SQL interactively.
 
 This guide explains how to deliver processed data from RisingWave into existing Iceberg tables. Use this when you have Iceberg tables managed by external systems and want RisingWave to deliver processed results into them.
 
@@ -48,9 +46,11 @@ WITH (
 | `database.name` | Yes | The name of the target Iceberg database. |
 | `table.name`| Yes| The name of the target Iceberg table.|
 | `primary_key`| Yes, if `type` is `upsert` | A comma-separated list of columns that form the primary key. |
+| `write_mode` | No | Write mode for the sink. Options: `'merge-on-read'` (default) or `'copy-on-write'`. **Important:** Copy-on-write is only supported for upsert sinks. Append-only sinks must use merge-on-read. See [Write modes](/iceberg/write-modes) for details. |
 | `force_append_only`| No | If `true`, converts an `upsert` stream to `append-only`. Updates become inserts and deletes are ignored. Default: `false`. |
 | `is_exactly_once`| No | Set to `true` to enable exactly-once delivery semantics. This provides stronger consistency but may impact performance. Default: `true`. <br/><br/> Exactly-once delivery requires [sink decoupling](/delivery/overview#sink-decoupling) to be enabled (the default behavior). If you `SET sink_decouple = false;`, exactly-once semantics will be automatically disabled for the sink.|
 | `commit_checkpoint_interval`| No | Controls how often RisingWave commits to Iceberg. Default: `60` (about every 60 seconds in the default configuration). |
+| `commit_checkpoint_size_threshold_mb`| No | The buffered write size threshold in MB that triggers an early commit at the next checkpoint barrier. When uncommitted data exceeds this value, RisingWave commits on the next checkpoint instead of waiting for `commit_checkpoint_interval`. Must be greater than `0`. Default: `128`. Useful for large backfills to avoid accumulating too much uncommitted data. |
 | `commit_retry_num`| No| The number of times to retry a failed commit. Default: `8`. |
 | `create_table_if_not_exists` | No | If `true`, RisingWave creates the external Iceberg table automatically when it does not exist. Default: `false`. |
 | `partition_by` | No | Specify partitioning using column names or transformations. Supported transformations include `identity`, `truncate(n)`, `bucket(n)`, `year`, `month`, `day`, `hour`, and `void`. Multiple columns can be separated by commas. Example: `partition_by = 'truncate(4,v2),bucket(5,v1)'`. For more details on Iceberg partitioning, see [Partition transforms](https://iceberg.apache.org/spec/#partition-transforms). |
@@ -60,7 +60,7 @@ For detailed storage and catalog configuration:
 - **Object storage**: [Object storage configuration](/iceberg/object-storage)
 - **Catalogs**: [Catalog configuration](/iceberg/catalogs)
 
-You can configure `commit_checkpoint_interval` and `commit_retry_num` to manage commit frequency and retry behavior.
+You can configure `commit_checkpoint_interval`, `commit_checkpoint_size_threshold_mb`, and `commit_retry_num` to manage commit frequency and retry behavior.
 
 ## Schema evolution
 

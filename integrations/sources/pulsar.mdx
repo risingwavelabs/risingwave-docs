@@ -54,6 +54,7 @@ For a table with primary key constraints, if a new data record with an existing 
 | oauth.audience                 | **Optional**. The audience for OAuth2\. This field must be filled if other `oauth` fields are specified.                                                                                                                |
 | oauth.scope                    | **Optional**. The scope for OAuth2.                                                                                                                                                                                   |
 | subscription.unacked.resend.delay | **Optional**. Specifies the delay duration after which the broker will resend unacknowledged messages. Accepts duration values such as `'1s'`, `'5m'`, or `'1h'`. Defaults to `None`, meaning the broker will **not** resend unacknowledged messages. |
+| pulsar.read_compacted             | **Optional**. Controls whether the consumer reads from the compacted topic or the full message backlog. When set to `true`, only the latest value for each key is read. When set to `false` or not specified, all messages are read. This option cannot be changed after the source or table is created. |
 
 ### Other parameters
 
@@ -90,6 +91,32 @@ CREATE TABLE my_pulsar_table (
 ```
 
 In this example, if the broker does not receive an acknowledgment within 10 seconds, it will resend the messages.
+
+## Read from compacted topics
+
+Pulsar supports [topic compaction](https://pulsar.apache.org/docs/next/concepts-topic-compaction/), which retains only the latest message for each key in a topic. When you enable `pulsar.read_compacted`, RisingWave reads only the compacted view of the topic, providing the most recent value for each key.
+
+This is useful when you want to read the current state of entities without processing all historical updates.
+
+```sql Example
+CREATE TABLE user_status (
+   user_id int,
+   status varchar
+) WITH (
+   connector = 'pulsar',
+   service.url = 'pulsar://localhost:6650/',
+   topic = 'user_status_compacted',
+   pulsar.read_compacted = 'true',
+   scan.startup.mode = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+In this example, if multiple status updates exist for the same `user_id`, only the latest status for each user will be read from the compacted topic.
+
+<Note>
+The `pulsar.read_compacted` option cannot be changed after the source or table is created.
+</Note>
+
 
 ## Read schemas from locations
 
