@@ -1,5 +1,5 @@
 ---
-title: "RisingWave glossary | Key concepts and terminology"
+title: "Key concepts"
 sidebarTitle: "Glossary"
 description: "Definitions of key RisingWave concepts: materialized views, sources, sinks, CDC, streaming nodes, serving nodes, stream processing, object storage, parallelism, and more."
 ---
@@ -18,7 +18,17 @@ For a deep dive, see [What is CDC in RisingWave?](/reference/what-is-cdc).
 
 ## Clusters
 
-A group of interconnected nodes and services that act as a single system running an instance of RisingWave.
+A group of interconnected nodes and services that act as a single system running an instance of RisingWave. A typical cluster includes Serving Nodes (query frontend and batch execution), Streaming Nodes (streaming ingestion and incremental computation), Compactor Nodes (Hummock storage compaction), and one or more Meta Nodes (cluster coordination and metadata management). In distributed deployments, each node type scales independently based on workload characteristics.
+
+## Compute Nodes
+
+A Compute Node is the core processing unit of a RisingWave cluster, running as the `risingwave compute-node` process. It can operate in one of three roles:
+
+- **hybrid** (default): handles both streaming ingestion and batch query execution in the same process.
+- **streaming**: dedicated to stream processing only. A Compute Node in this role is called a Streaming Node.
+- **serving**: dedicated to batch query execution only. A Compute Node in this role is called a Serving Node.
+
+In small or development deployments a single hybrid Compute Node handles everything. In production you can assign separate Compute Nodes to the streaming and serving roles to prevent stream processing and ad-hoc queries from competing for the same resources. See [Dedicated Compute Nodes](/operate/dedicated-compute-node).
 
 ## Compactor Nodes
 
@@ -52,16 +62,15 @@ For a deep dive, see [What is a Materialized View in RisingWave?](/reference/wha
 
 ## Meta Nodes
 
-The Meta Node takes charge of managing the metadata of compute and Compactor Nodes and orchestrating operations across the system.
+The Meta Node is the control plane of a RisingWave cluster. It manages cluster-wide metadata: tracking which streaming fragments run on which Compute Nodes, scheduling checkpoints, handling DDL operations such as creating and dropping streaming jobs, and coordinating the barrier injection that drives consistent snapshot isolation across the streaming graph. A cluster typically has one active Meta Node, with a standby for high availability.
 
 ## Nodes
 
 A node is a logical collection of IT resources that handles specific workloads based on their types. RisingWave has the following types of nodes:
 
-* Serving Nodes
-* Streaming Node
-* Compactor Node
-* Meta Node
+* Compute Nodes (running as Streaming Nodes, Serving Nodes, or hybrid)
+* Compactor Nodes
+* Meta Nodes
 
 ## Object storage
 
@@ -97,7 +106,7 @@ For a web-based interface to manage and monitor your RisingWave clusters, you ca
 
 ## `rwc`
 
-`rwc` (RisingWave Cloud CLI) is a command-line tool for accessing and managing RisingWave Cloud/BYOC instances via open APIs. It is particularly useful for [setting up the BYOC cluster](/cloud/project-byoc#create-a-byoc-environment). For more information, please refer to [this document](https://github.com/risingwavelabs/risingwave-cloud/blob/main/cli/README.md#installation).
+`rwc` (RisingWave Cloud CLI) is a command-line tool for accessing and managing RisingWave Cloud/BYOC instances via open APIs. It is particularly useful for [setting up the BYOC cluster](/cloud/project-byoc#create-a-byoc-environment). For installation and setup instructions, see [Install the RisingWave Cloud CLI](/cloud/install-cli).
 
 ## Serialization
 
@@ -105,7 +114,7 @@ In stream processing, serialization is the process of converting business object
 
 ## Serving Nodes
 
-A Serving Node has the following responsibilities:
+A Serving Node is a [Compute Node](#compute-nodes) running with the `serving` role. It has the following responsibilities:
 
 * **Acts as a frontend:** It handles user requests and is compatible with the PostgreSQL wire protocol, allowing tools like `psql` to connect seamlessly.
 * **Processes queries:** It executes batch queries directly. For streaming queries, it generates an execution plan and dispatches it to the stream engine.
@@ -130,7 +139,7 @@ For complex analytical workloads, RisingWave supports the full TPC-H benchmark s
 
 ## Sinks
 
-A sink is an external target to which you can send data. RisingWave now supports exporting data to Kafka topics. Before you stream data out of RisingWave to a sink, you need to create a sink using the [CREATE SINK](/sql/commands/sql-create-sink) statement to establish the connection.
+A sink is an external target to which RisingWave continuously delivers processed data. Supported destinations include Apache Kafka, Apache Iceberg, relational databases (PostgreSQL, MySQL, TiDB), object storage (S3, GCS, Azure Blob), Elasticsearch, ClickHouse, and more. A sink consumes from a source, table, materialized view, or an inline query, and writes results downstream as they are produced. Before streaming data out, you create a sink using the [CREATE SINK](/sql/commands/sql-create-sink) statement.
 
 For a deep dive, see [What is a Sink in RisingWave?](/reference/what-is-sink).
 
@@ -176,7 +185,7 @@ For a deep dive, see [What is a Streaming Database?](/reference/what-is-streamin
 
 ## Streaming Nodes
 
-The Compute Nodes in RisingWave are responsible for ingesting data from upstream systems, parsing and running SQL queries, and delivering data to downstream systems.
+A Streaming Node is a [Compute Node](#compute-nodes) running with the `streaming` role. It is responsible for ingesting data from upstream systems, executing the streaming query graph incrementally, and delivering results to downstream systems. Each Streaming Node runs a set of streaming actors that process partitions of the data stream in parallel. All durable state is stored in the Hummock storage engine backed by object storage, so Streaming Nodes can be scaled out or in without data migration.
 
 ## Streaming queries
 
