@@ -66,7 +66,7 @@ Read the full PR diff and evaluate:
 - **Completeness**: Are all **publicly intended** parameters documented? Are any **internal-only** parameters being incorrectly exposed?
 - **Consistency**: Do changes contradict other parts of the documentation?
 - **Clarity**: Is the language clear and unambiguous for end users?
-- **Placement**: Does the content belong on this page? Ask: *"What reader intent does this page serve, and does what's being added serve the same intent?"* Topic relevance alone is not sufficient — the abstraction level, reader role, and reading purpose must also match. If content fits none of the existing pages well, the right answer is a new page, not the closest approximation. "Related topics" is a same-level cross-reference, not a catch-all; new bullets must match the abstraction level of the existing bullets on that page.
+- **Placement**: Does the content belong on this page? Ask: *"What reader intent does this page serve, and does what's being added serve the same intent?"* Topic relevance alone is not sufficient — the abstraction level, reader role, and reading purpose must also match. If content fits none of the existing pages well, the right answer is a new page, not the closest approximation. "Related topics" is a same-level cross-reference, not a catch-all. Before adding a Related topics entry, check the abstraction level of sibling entries — if yours doesn't match, the content belongs on a different page.
 
 ### Step 4 — Cross-Validation Against Source Code
 
