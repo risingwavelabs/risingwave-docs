@@ -26,7 +26,8 @@ description: "An overview of RisingWave's support for Apache Iceberg features, i
 | Dec 2025 | Vended credentials for Iceberg REST catalogs |
 | Dec 2025 | Enhanced Iceberg sink compaction strategies (small-files, files-with-delete) |
 | Dec 2025 | Refreshable Iceberg batch tables with scheduled or on-demand refresh |
-
+| Jan 2026 | Support schema change for exactly-once Iceberg sink |
+| Feb 2026 | Configurable Parquet writer properties (`compaction.write_parquet_compression`, `compaction.write_parquet_max_row_group_rows`) and unified output file size control (`compaction.target_file_size_mb`) for Iceberg sink writes and compaction |
 
 ## Feature comparison
 
@@ -39,8 +40,7 @@ The following table compares RisingWave with other ETL/ELT tools for Iceberg, su
 | Interface | Postgres-compatible | Spark SQL/Java/Python | Flink SQL/Java/Python | no code |
 | Position | ETL/ELT | ETL/ELT | ETL/ELT | ELT only |
 | Exactly-once | Yes (decoupled with checkpoint) | No | Yes (no buffering, coupled with checkpoint) | No |
-| Schema evolution (ELT case, e.g., replicating Postgres to Iceberg) | Partially | No | Partially
-(with Flink CDC integration) | No |
+| Schema evolution (ELT case, e.g., replicating Postgres to Iceberg) | Yes (supports ADD COLUMN with exactly-once) | No | Partially (with Flink CDC integration) | No |
 | Data source support | [Rich](/ingestion/overview#supported-sources) (CDC, message queues, batch, webhook, etc) | Rich | Rich | Richest |
 | Iceberg compaction | Yes, using our own engine. Support both MoR (merge-on-read) and CoW (copy-on-write). | Yes, in Databricks managed Iceberg tables | Yes, in Confluent Tableflow | Yes |
 | Catalog support | Rich (Unity Catalog, Polaris, Lakekeeper, S3 Tables, AWS Glue, Hive, JDBC, Snowflake Open Catalog, etc). | Unity Catalog | Unity Catalog, Polaris | AWS Glue, Unity Catalog, etc. |

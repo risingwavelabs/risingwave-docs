@@ -1,0 +1,81 @@
+---
+title: "WAIT"
+description: "Use `WAIT` to block the current session until one or all background streaming jobs finish."
+---
+
+A streaming job is a job that creates a materialized view, a table, a sink, or an index. When background DDL is enabled via [`SET BACKGROUND_DDL`](/sql/commands/sql-set-background-ddl), these creation commands return immediately while the actual backfill runs in the background. The `WAIT` command lets you pause your session until a specific job — or all in-progress jobs — complete.
+
+## Syntax
+
+```sql
+WAIT [ TABLE table_name
+     | MATERIALIZED VIEW mv_name
+     | SINK sink_name
+     | INDEX index_name ];
+```
+
+- With no target, `WAIT` blocks until **all** background streaming jobs finish (timeout: 2 hours).
+- With a target, `WAIT` blocks until the specified object's creation job finishes.
+
+## Parameters
+
+| Parameter | Description |
+| :--- | :--- |
+| `TABLE table_name` | Wait for the background creation job of the specified user table. |
+| `MATERIALIZED VIEW mv_name` | Wait for the background creation job of the specified materialized view. |
+| `SINK sink_name` | Wait for the background creation job of the specified sink. |
+| `INDEX index_name` | Wait for the background creation job of the specified index. |
+
+## Examples
+
+Wait for all background jobs to finish:
+
+```sql
+WAIT;
+```
+
+Start a materialized view creation in the background, then wait for it to complete before querying:
+
+```sql
+SET BACKGROUND_DDL = true;
+
+CREATE MATERIALIZED VIEW mv AS SELECT * FROM t;
+-- Returns immediately; backfill runs in the background.
+
+WAIT MATERIALIZED VIEW mv;
+-- Blocks until the backfill for mv is done.
+
+SELECT * FROM mv;
+```
+
+Wait for a specific table's creation to finish:
+
+```sql
+WAIT TABLE my_table;
+```
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="SET BACKGROUND_DDL"
+    icon="toggle-on"
+    iconType="solid"
+    href="/sql/commands/sql-set-background-ddl"
+    horizontal
+  />
+  <Card
+    title="SHOW JOBS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-jobs"
+    horizontal
+  />
+  <Card
+    title="CANCEL JOBS"
+    icon="circle-stop"
+    iconType="solid"
+    href="/sql/commands/sql-cancel-jobs"
+    horizontal
+  />
+</CardGroup>

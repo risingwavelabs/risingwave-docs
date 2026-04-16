@@ -129,8 +129,8 @@ In the `docker-compose-with-obs.yml` file, specify the bucket name via the `humm
 
 For meta store, RisingWave uses [postgresql](#postgresql) as the default meta store backend and also supports the following meta store backends:
 
-* [SQLite](#sqlite)
 * [MySQL or MySQL-compatible storage](#mysql-or-mysql-compatible-storage)
+* [SQLite](#sqlite)
 
 To customize the meta store backend, you need to configure the following settings.
 
@@ -239,3 +239,38 @@ Error { code: "XMinioStorageFull", message: "Storage backend has reached its min
 ```
 
 This issue typically occurs on macOS when using Docker Desktop. Docker Desktop runs within the macOS Hypervisor, where all the data, including logs, images, and volumes, is stored. The macOS Hypervisor has a default limit on disk capacity. If you encounter this error, you can resolve it by cleaning up unused containers or images. Another option is to increase the disk image size limit by following these steps: Click on the Docker Desktop icon in the menu bar, then go to **Preferences** \> **Resources** \> **Advanced**, and adjust the slider for disk image size to allocate more space for Docker images. If you are using a different platform, please ensure sufficient space is available on the local disk.
+
+<head>
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "How to deploy RisingWave with Docker Compose",
+      "description": "Deploy a RisingWave cluster using Docker Compose with persistent storage and observability. Includes state store and meta store configuration options.",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "name": "Download the source file",
+          "text": "Install Docker Desktop, then clone the RisingWave repository with 'git clone https://github.com/risingwavelabs/risingwave.git' and navigate to the docker directory."
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Configure state store and meta store",
+          "text": "Choose your state store (MinIO, S3, GCS, Azure Blob, HDFS) and meta store (PostgreSQL, MySQL, SQLite) by selecting the appropriate Docker Compose configuration file."
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Start the RisingWave cluster",
+          "text": "Run 'docker compose up -d' to start the cluster with the default MinIO configuration, or specify a custom configuration file with the -f flag."
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Connect to RisingWave",
+          "text": "Connect to RisingWave using psql: psql -h localhost -p 4566 -d dev -U root"
+        }
+      ]
+    }
+    `}
+  </script>
+</head>

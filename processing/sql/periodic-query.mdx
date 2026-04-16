@@ -1,0 +1,48 @@
+---
+title: "Periodic query pattern"
+description: Use generate_series with now() inside a materialized view to express time-driven, cron-like logic entirely in SQL.
+---
+
+You can combine `generate_series(..., now(), interval ...)` with a materialized view to express **periodic, time-driven logic** — similar in spirit to a cron job, but expressed entirely in SQL.
+
+The materialized view is kept up to date incrementally by RisingWave. Each time `now()` advances past the next interval boundary, a new timestamp row is appended automatically, which can drive downstream computations.
+
+For the function constraints and full syntax, see [generate\_series — advanced usage](/sql/functions/set-returning#advanced-usage-of-generating-timestamp).
+
+## Example: rolling 7-day window updated every 15 minutes
+
+Choose a `start` timestamp close to the current date to limit the initial backfill. On first creation, RisingWave generates all ticks from `start` to `now()` — a distant past date results in a large number of rows to enumerate upfront.
+
+```sql
+CREATE MATERIALIZED VIEW my_periodic_task AS
+SELECT gs.ts
+FROM generate_series(
+  '2025-04-01 00:00:00'::timestamptz,  -- set close to today
+  now(),
+  INTERVAL '15 minutes'
+) AS gs(ts)
+WHERE gs.ts >= now() - INTERVAL '7 days';
+```
+
+The `generate_series(..., now(), ...)` call produces a new tick each time `now()` advances by 15 minutes. The `WHERE` clause acts as a [temporal filter](/processing/sql/temporal-filters) that keeps the view window rolling — rows older than 7 days are automatically retracted.
+
+## What this pattern is good for
+
+- Generating periodic time buckets (e.g., 15-minute, hourly, or daily slots).
+- Driving time-windowed aggregations that should always cover the last _N_ days.
+- Creating a lightweight "heartbeat" or timer table that other materialized views can join against.
+
+## Limitations
+
+This pattern is **not a general cron replacement**:
+
+- It does not schedule arbitrary SQL statements, DDL, DML, or stored functions at fixed wall-clock times.
+- The materialized view reacts to `now()` advancing; it cannot trigger external side-effects or notify other systems on its own.
+- For general task scheduling (e.g., running a stored procedure every hour), use a dedicated scheduler such as `pg_cron`, Airflow, or a similar tool.
+
+## Related topics
+
+- [Temporal filters](/processing/sql/temporal-filters) — Filter streaming data based on `NOW()` to implement rolling windows and TTL
+- [Time windows](/processing/sql/time-windows) — Tumbling, hopping, and session windows for time-based aggregations
+- [generate\_series](/sql/functions/set-returning#generate_series) — Full reference for the `generate_series` function
+- [What is a materialized view?](/reference/what-is-materialized-view) — How RisingWave maintains MVs incrementally
