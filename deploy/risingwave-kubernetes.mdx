@@ -103,23 +103,31 @@ RisingWave Kubernetes Operator extends the Kubernetes with CRDs (Custom Resource
 For production Kubernetes deployments, we **strongly recommend** setting CPU and memory requests equal to limits for all RisingWave components. This configuration ensures:
 
 * **Predictable scheduling**: Kubernetes can more accurately schedule pods on nodes with sufficient resources
-* **QoS Guaranteed class**: Pods are assigned the highest QoS class, making them less likely to be evicted under resource pressure
+* **Guaranteed QoS class**: Pods are assigned the highest QoS class, making them less likely to be evicted under resource pressure
 * **Consistent performance**: Helps provide more predictable CPU usage and stable memory allocation
 * **Resource isolation**: Better protects workloads from noisy neighbors in multi-tenant clusters
 
-**Recommended configuration pattern:**
+In the RisingWave Operator CRD, `resources` is nested under each component's `template.spec`. Apply `requests` equal to `limits` per component (`meta`, `compute`, `compactor`, `frontend`):
 
 ```yaml
-resources:
-  limits:
-    cpu: 4
-    memory: 16Gi
-  requests:
-    cpu: 4        # Should equal limits
-    memory: 16Gi  # Should equal limits
+spec:
+  components:
+    compute:          # repeat for meta, compactor, frontend
+      nodeGroups:
+      - name: ''
+        replicas: 1
+        template:
+          spec:
+            resources:
+              limits:
+                cpu: <cpu>
+                memory: <memory>
+              requests:
+                cpu: <cpu>       # should equal limits
+                memory: <memory> # should equal limits
 ```
 
-For specific resource recommendations by component type, see [Hardware requirements](/deploy/hardware-requirements).
+For per-component minimum and recommended values, see [Hardware requirements](/deploy/hardware-requirements).
 
 ### Use the example resource files
 
@@ -399,10 +407,10 @@ spec:
             resources:
               limits:
                 cpu: 1
-                memory: 2Gi
+                memory: 4Gi
               requests:
                 cpu: 1
-                memory: 2Gi
+                memory: 4Gi
             env:
             - name: HADOOP_CONF_DIR
               value: /var/etc/hadoop/conf
@@ -447,10 +455,10 @@ spec:
             resources:
               limits:
                 cpu: 2
-                memory: 4Gi
+                memory: 8Gi
               requests:
                 cpu: 2
-                memory: 4Gi
+                memory: 8Gi
             env:
             - name: HADOOP_CONF_DIR
               value: /var/etc/hadoop/conf
@@ -470,10 +478,10 @@ spec:
           spec:
             resources:
               limits:
-                cpu: 2
+                cpu: 1
                 memory: 4Gi
               requests:
-                cpu: 2
+                cpu: 1
                 memory: 4Gi
 
 ```
