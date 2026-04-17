@@ -7,7 +7,7 @@ description: "Configure and scale the compute cache (elastic disk cache) for you
 The compute cache is the Cloud-managed version of the [elastic disk cache](/get-started/disk-cache). It provides a local disk-based caching layer between memory and object storage (S3), reducing latency and object storage costs for performance-sensitive workloads.
 
 <Note>
-Compute cache is available on the **Standard plan** and the **Advanced plan**. The Trial plan does not support compute cache configuration.
+Compute cache is currently available for projects on the **Invited**, **BYOC**, and **BYOK** tiers. Other project tiers do not support compute cache configuration at this time.
 </Note>
 
 ## When to use compute cache
@@ -21,7 +21,7 @@ The compute cache is beneficial when your workload's active data (the "working s
 Key benefits:
 
 - **Reduced object storage costs**: Fewer S3 reads by serving data from local disk.
-- **Lower query latency**: Data served from local EBS instead of remote object storage.
+- **Lower query latency**: Data served from local disk instead of remote object storage.
 - **Faster scaling and recovery**: New or restarted nodes warm up quickly from local disk rather than refetching from S3.
 
 ## View current configuration
@@ -46,13 +46,17 @@ Choose a cache size based on the working set of your streaming jobs. A larger ca
 
 ### Performance tiers
 
-RisingWave Cloud offers three performance tiers that control the I/O throughput and IOPS of the cache volumes:
+RisingWave Cloud offers up to three performance tiers that control the I/O throughput and IOPS of the cache volumes. The available tiers depend on your cloud provider and region:
 
 | Tier            | Description                                                                 |
 |:----------------|:----------------------------------------------------------------------------|
-| **Standard**    | Baseline throughput and IOPS, suitable for most streaming and serving workloads. Uses general-purpose EBS volumes (e.g., gp3). |
-| **Performance** | ~2x the throughput of Standard. Recommended for latency-sensitive workloads with high read/write rates. Uses provisioned IOPS volumes (e.g., io2). |
-| **Ultra**       | ~4x the throughput of Standard. For the most I/O-intensive workloads requiring maximum disk bandwidth. Uses the highest-performance volume class available in the region. |
+| **Standard**    | Baseline throughput and IOPS, suitable for most streaming and serving workloads. |
+| **Performance** | Higher throughput and IOPS for latency-sensitive workloads with high read/write rates. |
+| **Ultra**       | Maximum throughput and IOPS for the most I/O-intensive workloads. |
+
+<Note>
+Not all tiers are available in every region or cloud provider. The rescale dialog shows only the tiers available for your project. For example, some regions may only offer the Standard tier.
+</Note>
 
 The default tier for new projects is **Standard**. Upgrading the performance tier increases the hourly cost.
 
@@ -71,11 +75,13 @@ The update is applied asynchronously. Your project will briefly enter an **Updat
 You can update the compute cache as part of a compute node rescale operation. When rescaling compute nodes, the cache configuration can be adjusted in the same request.
 </Note>
 
-## Get cache size recommendations
+## Cache size recommendations
 
-RisingWave Cloud can recommend a compute cache size based on your current compute node configuration. On the rescale page, look for the **Recommended** label next to the cache size input to see the suggested value for your workload.
+RisingWave Cloud provides a recommendation API that suggests an appropriate compute cache size based on your current compute node configuration. The recommendation considers the compute node type and typical working set ratios to suggest a cache size that balances performance and cost.
 
-The recommendation takes into account the compute node type and typical working set ratios to suggest a cache size that balances performance and cost.
+<Note>
+Cache size recommendations are available via the API. UI support for displaying recommendations in the rescale dialog is planned for a future release.
+</Note>
 
 ## Pricing
 
