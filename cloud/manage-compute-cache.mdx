@@ -7,12 +7,16 @@ description: "Configure and scale the compute cache (elastic disk cache) for you
 The compute cache is the Cloud-managed version of the [elastic disk cache](/get-started/disk-cache). It provides a local disk-based caching layer between memory and object storage (S3), reducing latency and object storage costs for performance-sensitive workloads.
 
 <Note>
-Compute cache is available on the **Pro plan** (Invited, BYOC, and BYOK deployment types). Basic plan projects do not support compute cache configuration.
+Compute cache is available on the **Standard plan** and the **Advanced plan**. The Trial plan does not support compute cache configuration.
 </Note>
 
-## Overview
+## When to use compute cache
 
-When the working set of your streaming jobs or queries exceeds available memory, RisingWave must fetch data from object storage, which introduces latency and increases costs. The compute cache uses local disk storage (EBS volumes) attached to your compute nodes to keep frequently accessed data closer to the processing layer.
+The compute cache is beneficial when your workload's active data (the "working set") exceeds the available memory on your compute nodes. Without a disk cache, every cache miss results in a read from S3, which adds latency and incurs object storage costs. Common scenarios where compute cache helps:
+
+- **Large-state streaming jobs**: Joins, time windows, and aggregations that generate internal state larger than available memory.
+- **Data serving with frequent reads**: Queries against tables or materialized views where the same data is accessed repeatedly.
+- **Frequent scaling operations**: The cache reduces warm-up time when new nodes are added, since they can read from local disk instead of S3.
 
 Key benefits:
 
@@ -22,7 +26,12 @@ Key benefits:
 
 ## View current configuration
 
-Navigate to the project overview page and select **Resources** in the sidebar. The current compute cache configuration is displayed alongside your compute node details, showing:
+To view the current compute cache configuration:
+
+1. Navigate to the project overview page.
+2. Click the `...` menu on the right, and select **Rescale**.
+
+The current compute cache settings are displayed in the rescale dialog, showing:
 
 - **Cache size (GB)**: The total disk capacity allocated for caching.
 - **Performance tier**: The I/O performance level of the cache volumes.
@@ -31,15 +40,9 @@ Navigate to the project overview page and select **Resources** in the sidebar. T
 
 ### Cache size
 
-You can adjust the cache size in gigabytes. The available range depends on your project configuration:
+You can adjust the cache size in gigabytes. The minimum size is **20 GB** and the step size is **1 GB**. The maximum size depends on your project's tier and is displayed in the rescale dialog.
 
-| Parameter  | Value    |
-|:-----------|:---------|
-| Minimum    | 20 GB    |
-| Maximum    | 2,048 GB |
-| Step size  | 1 GB     |
-
-Choose a cache size based on the working set of your streaming jobs. A larger cache reduces the frequency of object storage access, but comes with higher storage costs.
+Choose a cache size based on the working set of your streaming jobs. A larger cache reduces the frequency of object storage access, but comes with higher storage costs. As a general guideline, the default cache size is calculated as 32 GB per RWU for nodes with 5 or more RWUs, or 100 GB for smaller nodes.
 
 ### Performance tiers
 
@@ -47,11 +50,11 @@ RisingWave Cloud offers three performance tiers that control the I/O throughput 
 
 | Tier            | Description                                                                 |
 |:----------------|:----------------------------------------------------------------------------|
-| **Standard**    | Suitable for most workloads. Provides balanced throughput and IOPS.          |
-| **Performance** | Higher throughput and IOPS for latency-sensitive workloads.                  |
-| **Ultra**       | Maximum throughput and IOPS for the most demanding workloads.                |
+| **Standard**    | Baseline throughput and IOPS, suitable for most streaming and serving workloads. Uses general-purpose EBS volumes (e.g., gp3). |
+| **Performance** | ~2x the throughput of Standard. Recommended for latency-sensitive workloads with high read/write rates. Uses provisioned IOPS volumes (e.g., io2). |
+| **Ultra**       | ~4x the throughput of Standard. For the most I/O-intensive workloads requiring maximum disk bandwidth. Uses the highest-performance volume class available in the region. |
 
-The default tier for new projects is **Standard**.
+The default tier for new projects is **Standard**. Upgrading the performance tier increases the hourly cost.
 
 ## Scale the compute cache
 
@@ -62,10 +65,10 @@ To update the compute cache configuration:
 3. In the rescale dialog, adjust the **Compute cache size** and **Performance tier** as needed.
 4. Click **Confirm** to apply the changes.
 
-The update is applied asynchronously. Your project will briefly enter an **Updating** state while the new cache configuration is provisioned. Existing streaming jobs continue to run during this process.
+The update is applied asynchronously. Your project will briefly enter an **Updating** state while the new cache configuration is provisioned. During the update, compute nodes may be restarted with the new volume configuration, which can cause brief interruptions to in-progress queries. Streaming jobs will automatically recover after the restart.
 
 <Note>
-You can also update the compute cache size as part of a compute node rescale operation. When rescaling compute nodes, you can adjust the cache configuration in the same request.
+You can update the compute cache as part of a compute node rescale operation. When rescaling compute nodes, the cache configuration can be adjusted in the same request.
 </Note>
 
 ## Get cache size recommendations
@@ -76,17 +79,10 @@ The recommendation takes into account the compute node type and typical working 
 
 ## Pricing
 
-Compute cache costs are based on two components:
-
-- **Storage cost**: Charged per GB of provisioned cache capacity per hour.
-- **Performance cost**: An additional charge based on the selected performance tier.
-
-The total hourly cost is the sum of storage and performance costs. You can view the estimated hourly cost before confirming a cache size change on the rescale page.
-
-For detailed pricing information, see [Pricing](/cloud/pricing/).
+For information on how compute cache affects pricing, see [Pricing](/cloud/pricing).
 
 ## Related topics
 
 - [Elastic disk cache](/get-started/disk-cache) — Technical overview and self-hosted configuration.
 - [Scale a project manually](/cloud/scale-a-project-manually) — Scale compute nodes alongside the cache.
-- [Pricing](/cloud/pricing/) — Understand how compute cache affects your bill.
+- [Pricing](/cloud/pricing) — Understand how compute cache affects your bill.
