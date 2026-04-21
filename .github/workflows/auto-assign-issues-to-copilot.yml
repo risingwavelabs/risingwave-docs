@@ -18,43 +18,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate secrets
-        env:
-          TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
-        run: |
-          if [ -z "$TOKEN" ]; then
-            echo "::error::Missing required secret: COPILOT_ASSIGN_TOKEN"
-            exit 1
-          fi
-
       - name: Assign issue to Copilot via REST API
         env:
-          COPILOT_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event_name == 'issues' && github.event.issue.number || github.event.inputs.issue_number }}
-          BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
 
-          # Strip whitespace/newlines from token (pasted secrets may have trailing newlines)
-          COPILOT_TOKEN=$(printf '%s' "$COPILOT_TOKEN" | tr -d '[:space:]')
-
-          body=$(jq -n \
-            --arg repo "$REPO" \
-            --arg branch "$BASE_BRANCH" \
-            '{
-              assignees: ["copilot-swe-agent[bot]"],
-              agent_assignment: {
-                target_repo: $repo,
-                base_branch: $branch,
-                custom_instructions: "",
-                custom_agent: "",
-                model: ""
-              }
-            }')
-
-          GH_TOKEN="$COPILOT_TOKEN" gh api \
+          gh api \
             -X POST \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "repos/$REPO/issues/$ISSUE_NUMBER/assignees" \
-            --input - <<< "$body"
+            --field 'assignees[]=Copilot'
