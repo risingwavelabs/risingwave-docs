@@ -3,6 +3,9 @@ name: Request source PR author review
 on:
   pull_request:
     types: [opened]
+# Note: pull_request events from forks do not allow requesting reviewers
+# (GITHUB_TOKEN is read-only for forks). This workflow is designed for
+# PRs opened directly in this repo (e.g. by Copilot), not fork PRs.
 
 permissions:
   pull-requests: write
@@ -31,11 +34,16 @@ jobs:
           fi
           echo "Linked issue: #$ISSUE_NUMBER"
 
-          # Get issue body
-          ISSUE_BODY=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body // ""')
+          # Get issue body (guard against API failures — skip rather than fail the PR check)
+          ISSUE_BODY=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body // ""' || true)
+          if [ -z "$ISSUE_BODY" ]; then
+            echo "Could not retrieve issue body for #$ISSUE_NUMBER, skipping."
+            exit 0
+          fi
 
-          # Extract source PR URL (line: "Source PR URL: https://github.com/.../pull/N")
-          SOURCE_PR_URL=$(echo "$ISSUE_BODY" | grep -oP 'https://github\.com/\S+/pull/\d+' | head -1 || true)
+          # Extract source PR URL from the specific "Source PR URL:" label to avoid
+          # picking up other PR links in the issue body (related PRs, etc.)
+          SOURCE_PR_URL=$(printf '%s\n' "$ISSUE_BODY" | grep -oiPm1 '^[[:space:]]*Source PR URL:[[:space:]]*\Khttps://github\.com/[^[:space:]/]+/[^[:space:]/]+/pull/[0-9]+' || true)
           if [ -z "$SOURCE_PR_URL" ]; then
             echo "No source PR URL found in issue #$ISSUE_NUMBER, skipping."
             exit 0
