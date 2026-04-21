@@ -29,12 +29,15 @@ jobs:
 
       - name: Assign issue to Copilot via REST API
         env:
-          GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+          COPILOT_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
           REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event_name == 'issues' && github.event.issue.number || github.event.inputs.issue_number }}
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
+
+          # Strip whitespace/newlines from token (pasted secrets may have trailing newlines)
+          COPILOT_TOKEN=$(printf '%s' "$COPILOT_TOKEN" | tr -d '[:space:]')
 
           body=$(jq -n \
             --arg repo "$REPO" \
@@ -50,7 +53,7 @@ jobs:
               }
             }')
 
-          gh api \
+          GH_TOKEN="$COPILOT_TOKEN" gh api \
             -X POST \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "repos/$REPO/issues/$ISSUE_NUMBER/assignees" \
