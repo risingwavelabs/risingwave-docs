@@ -314,20 +314,11 @@ RisingWave supports auto schema changes in MySQL CDC. It ensures that your Risin
 
 Currently, RisingWave supports the `ALTER TABLE` command with the following operations, and we plan to add support for additional DDL operations in future releases.
 
-* `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table. Only constant value expressions are supported for the default value.
+* `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table.
 * `DROP COLUMN`: Allows you to remove an existing column from a table.
 
 <Note>
-When `ADD COLUMN` uses a non-constant default expression (for example `NOW()`, `CURRENT_TIMESTAMP`, `UUID()`), RisingWave cannot evaluate the expression to back-fill pre-existing rows. The schema change still takes effect, but existing rows will hold `NULL` for the new column (new rows flowing through CDC are unaffected).
-
-To handle this in downstream queries, wrap the column with `COALESCE` to supply a fallback value:
-
-```sql
-SELECT id, COALESCE(created_at, '1970-01-01 00:00:00'::timestamp) AS created_at
-FROM my_table;
-```
-
-If you need the existing rows populated with real values, you can either issue an `UPDATE` on them in the upstream MySQL database so CDC replicates the new values, or drop and recreate the RisingWave table so it re-snapshots the source.
+When `ADD COLUMN` uses a non-constant default expression or certain complex literal defaults, RisingWave may not be able to back-fill the new column for pre-existing rows, so those rows may hold `NULL` in the new column. New rows flowing through CDC are unaffected. To provide a fallback value in downstream queries, use `COALESCE` on the new column.
 </Note>
 
 To enable this feature, set `auto.schema.change = 'true'` in your MySQL CDC source configuration:
