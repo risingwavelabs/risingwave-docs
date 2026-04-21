@@ -12,28 +12,11 @@ Before creating a BYOC deployment, familiarize yourself with the following archi
 * **Agent Service**: This service manages Kubernetes (K8s) and cloud resources. It handles tasks such as managing RisingWave Pods, storage services (including AWS S3, GCS, and Azure Blob Storage), IAM roles/accounts associated with the RisingWave cluster, network endpoints, etc.
 * **RWProxy**: This is a TCP proxy that routes SQL statements from the control plane to the appropriate RisingWave instances. Control plane will issue SQL queries to retrieve cluster metadata and health status.
 
-## Install and configure `rwc`
+## Prerequisites
 
-Follow the steps below to install `rwc` (RisingWave Cloud CLI) and configure it for your environment.
+BYOC uses the `rwc` (RisingWave Cloud CLI) to provision and manage environments. Before continuing, install and authenticate the CLI by following [Install the RisingWave Cloud CLI](/cloud/install-cli).
 
-1. Run the following command to download and install the CLI tool:
-
-   ```
-   curl -L https://rwc-cli-internal-release.s3.ap-southeast-1.amazonaws.com/download.sh | bash && sudo mv rwc /usr/local/bin
-   ```
-
-2. After installation, open your terminal and execute the following commands to connect to the production environment and log in to your account.
-
-   ```
-   # Connect to the production environment
-   rwc context account set --url https://canary-useast2-acc.risingwave.cloud/api/v1
-   rwc context region set --name us-east-1
-    
-   # Login to RisingWave Cloud
-   rwc auth login --account '<your name>@mock.mail' --password '<your password>'  
-   ```
-
-Once these steps are complete, your CLI environment is ready. You can now proceed to create your BYOC environment.
+Once `rwc cluster list` runs successfully in your chosen region, you are ready to create a BYOC environment.
 
 ## Create a BYOC environment
 
@@ -45,6 +28,10 @@ Follow the steps below to create your own cloud environment.
 
    <Warning>
    If you're using AWS, ensure you're not using the AWS account root user for any deployment or operational tasks. Always use IAM users or roles with appropriate permissions instead.
+   </Warning>
+
+   <Warning>
+   If you're using AWS with [AWS Firewall Manager (FMS)](https://docs.aws.amazon.com/fms/latest/userguide/what-is-fms.html) security group policies enabled, please contact our [support team](mailto:cloud-support@risingwave-labs.com) before creating a BYOC environment. FMS automatically attaches managed security groups to EC2 instances, which requires additional configuration to prevent node stability issues.
    </Warning>
 
 4. Prepare the BYOC environment section. Click **Setup now** and follow the steps to set up your BYOC environment. Please note that the final command `rwc byoc apply --name xxx` may take 30 to 40 minutes to complete, and a progress bar will keep you informed of its progress. During this time, it's crucial to ensure a stable internet connection. If the command is interrupted or fails due to network instability, you can safely retry it.
@@ -62,45 +49,60 @@ Once the cluster is successfully created, you can manage it through the portal j
 
 RisingWave provides several custom settings for BYOC deployments. To enable this feature, you need to create a configuration file containing the custom settings. These settings can be applied when creating a new BYOC environment or updating an existing one.
 
-Below are supported custom settings:
+Below are all supported custom settings:
 
-1. Container security context that applies to all RisingWave namespaces, including:
-   * `cloudagent` (hosting the agent service for Kubernetes operation delegation)
-   * `rwproxy` (hosting psql proxy for RisingWave clusters)
-   * `risingwave-operator-system` (hosting RisingWave operator managing the RisingWave cluster CRD)
-   * `rwc-*` (namespaces hosting RisingWave clusters)
+### General settings
 
-   For more information, please see [Security context](https://pkg.go.dev/k8s.io/api/core/v1#SecurityContext). 
+| Setting | Type | Description |
+| --- | --- | --- |
+| `container_security_context` | Object | Kubernetes [SecurityContext](https://pkg.go.dev/k8s.io/api/core/v1#SecurityContext) applied to all containers in RisingWave-managed namespaces: `cloudagent`, `rwproxy`, `risingwave-operator-system`, and `rwc-*`. |
+| `pod_security_admission_labels` | Map | [Pod Security Admission labels](https://kubernetes.io/docs/concepts/security/pod-security-admission/#pod-security-admission-labels-for-namespaces) applied to all RisingWave-managed namespaces. |
+| `extra_tags` | Map | Custom tags applied to cloud vendor resources managed by RisingWave. |
+| `disable_external_cluster_access` | Boolean | When set to `true`, disables external (Internet-facing) access to RisingWave clusters. |
+### AWS settings (`aws_settings`)
 
-2. Namespace labels to enforce Pod Security Standard for all namespaces mentioned above.
+| Setting | Type | Description |
+| --- | --- | --- |
+| `eks_node_ami_release_version` | String | Custom AMI release version for EKS nodes. If omitted, the default AMI is used. |
 
-   For more information, please see [Pod Security Admission labels for namespaces](https://kubernetes.io/docs/concepts/security/pod-security-admission/#pod-security-admission-labels-for-namespaces). 
+### Metrics settings (`metrics_settings`)
 
-3. Tags for Cloud vendor resources managed by RisingWave.
-
-4. AWS custom EKS AMI version for the EKS nodes.
+| Setting | Type | Description |
+| --- | --- | --- |
+| `discarded_risingwave_metrics_regex` | List | A list of regular expressions matching metric names to discard when scraping RisingWave. |
+| `risingwave_scraping_interval_secs` | Integer | Scraping interval in seconds for RisingWave metrics. |
 
 ### Create a configuration file
 
 1. Create a file at path `BYOC_CONFIG` with desired custom settings. You can include only the settings you need and omit others:
 
    ```yaml
+   # General settings
    container_security_context:
-   allowPrivilegeEscalation: false
-   capabilities:
-      drop:
-      - ALL
-   readOnlyRootFilesystem: true
-   runAsNonRoot: true
-   runAsUser: 65521
-   seccompProfile:
-      type: RuntimeDefault
+     allowPrivilegeEscalation: false
+     capabilities:
+       drop:
+         - ALL
+     readOnlyRootFilesystem: true
+     runAsNonRoot: true
+     runAsUser: 65521
+     seccompProfile:
+       type: RuntimeDefault
    pod_security_admission_labels:
-   pod-security.kubernetes.io/enforce: restricted
+     pod-security.kubernetes.io/enforce: restricted
    extra_tags:
-   foo: bar
+     foo: bar
+   disable_external_cluster_access: true
+
+   # AWS-specific settings
    aws_settings:
-   eks_node_ami_release_version: 1.32.0-20241225
+     eks_node_ami_release_version: 1.32.0-20241225
+
+   # Metrics settings
+   metrics_settings:
+     discarded_risingwave_metrics_regex:
+       - "^risingwave_.*_total$"
+     risingwave_scraping_interval_secs: 30
    ```
 
 2. Save the file path `$BYOC_CONFIG`, as you will use it in the later steps.
@@ -114,7 +116,7 @@ You may either create a new BYOC environment or update your existing one to appl
 
 <Tabs>
   <Tab title="Create a new BYOC environment">
-    1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFG` is the file path of the config file created in last step.
+    1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFIG` is the file path of the config file created in the previous step.
 
 ```bash
 $ rwc byoc create \

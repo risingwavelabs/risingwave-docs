@@ -16,16 +16,21 @@ Generate the API key ID and API key secret in the Cloud Portal. See [Generate an
 
 Get the corresponding `CLOUD_HOST` for your region and Cloud provider from the table below:
 
-| Region/CloudProvider | CLOUD\_HOST                          |
-| :------------------- | :----------------------------------- |
-| us-east-2/aws        | canary-useast2-mgmt.risingwave.cloud |
-| us-east-1/aws        | prod-aws-usea1-mgmt.risingwave.cloud |
-| us-west-2/aws        | prod-aws-uswe2-mgmt.risingwave.cloud |
-| eu-west-2/aws        | prod-aws-euwe2-mgmt.risingwave.cloud |
-| eu-north-1/aws       | prod-aws-euno1-mgmt.risingwave.cloud |
-| ap-southeast-1/aws   | prod-aws-apse1-mgmt.risingwave.cloud |
-| europe-west3/gcp     | prod-gcp-euwe3-mgmt.risingwave.cloud |
-| europe-north1/gcp    | prod-gcp-euno1-mgmt.risingwave.cloud |
+| Region/CloudProvider | CLOUD\_HOST                               |
+| :------------------- | :---------------------------------------- |
+| us-east-2/aws        | canary-useast2-mgmt.risingwave.cloud      |
+| us-east-1/aws        | prod-aws-usea1-mgmt.risingwave.cloud      |
+| us-west-2/aws        | prod-aws-uswe2-mgmt.risingwave.cloud      |
+| eu-west-1/aws        | prod-aws-euwe1-mgmt.risingwave.cloud      |
+| eu-west-2/aws        | prod-aws-euwe2-mgmt.risingwave.cloud      |
+| eu-north-1/aws       | prod-aws-euno1-mgmt.risingwave.cloud      |
+| ap-southeast-1/aws   | prod-aws-apse1-mgmt.risingwave.cloud      |
+| europe-west3/gcp     | prod-gcp-euwe3-mgmt.risingwave.cloud      |
+| europe-north1/gcp    | prod-gcp-euno1-mgmt.risingwave.cloud      |
+
+<Note>
+If your region is not listed above, contact [RisingWave Cloud support](https://www.risingwave.com/contact-us/) to confirm the correct `CLOUD_HOST` for your deployment. The authoritative source of region-to-host mappings is the workspace definitions maintained by the RisingWave Cloud team.
+</Note>
 
 ## Step 3: Configure monitoring systems
 
@@ -103,4 +108,8 @@ In the Telegraf configuration, you need to fill in the Prometheus input section,
 
 To set up dashboards with **Grafana** and **Prometheus**, please follow the [Grafana dashboard build instructions](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md) to build a set of dashboards with multiple namespace support.
 
-For other systems, or to generate them programmatically, please refer to [the script for generating the Grafana user-facing dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py) and build your own.
+<Note>
+We recommend using `risingwave_dev_dashboard` for comprehensive monitoring. `risingwave_dashboard` is also available but the dev dashboard is better organized and provides more detailed metrics.
+</Note>
+
+For other systems, or to generate them programmatically, please refer to [the script for generating the Grafana dev dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.dashboard.py) and build your own.
