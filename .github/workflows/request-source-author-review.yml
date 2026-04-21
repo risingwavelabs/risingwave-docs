@@ -6,6 +6,7 @@ on:
 
 permissions:
   pull-requests: write
+  issues: read
 
 jobs:
   request-review:
@@ -20,8 +21,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Extract linked issue number from PR body (Closes/Fixes/Resolves #N)
-          ISSUE_NUMBER=$(echo "$PR_BODY" | grep -oiP '(?<=closes #|fixes #|resolves #)\d+' | head -1 || true)
+          # Extract linked issue number from PR body.
+          # Handles: "Closes #N", "Fixes: #N", "Resolves #N", full issue URLs, etc.
+          ISSUE_NUMBER=$(echo "$PR_BODY" | grep -oiP '(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*(?:#\K\d+|https://github\.com/[^[:space:]]+/issues/\K\d+)' | head -1 || true)
           if [ -z "$ISSUE_NUMBER" ]; then
             echo "No linked issue found in PR body, skipping."
             exit 0
