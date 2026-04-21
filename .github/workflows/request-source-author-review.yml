@@ -1,0 +1,76 @@
+name: Request source PR author review
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+# Note: pull_request events from forks do not allow requesting reviewers
+# (GITHUB_TOKEN is read-only for forks). This workflow is designed for
+# PRs opened directly in this repo (e.g. by Copilot), not fork PRs.
+
+permissions:
+  pull-requests: write
+  issues: read
+
+jobs:
+  request-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find source PR author and request review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Extract linked issue number from PR body.
+          # Handles: "Closes #N", "Fixes: #N", "Resolves #N", and full issue URLs for this repository.
+          REPO_REGEX=$(printf '%s\n' "$REPO" | sed 's/[][(){}.^$*+?|\\/]/\\&/g')
+          ISSUE_NUMBER=$(printf '%s\n' "$PR_BODY" | grep -oiP "(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*(?:#\K\d+|https://github\.com/${REPO_REGEX}/issues/\K\d+)" | head -1 || true)
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "No linked issue found in PR body, skipping."
+            exit 0
+          fi
+          echo "Linked issue: #$ISSUE_NUMBER"
+
+          # Get issue body (guard against API failures — skip rather than fail the PR check)
+          ISSUE_BODY=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body // ""' || true)
+          if [ -z "$ISSUE_BODY" ]; then
+            echo "Could not retrieve issue body for #$ISSUE_NUMBER, skipping."
+            exit 0
+          fi
+
+          # Extract source PR URL from the specific "Source PR URL:" label to avoid
+          # picking up other PR links in the issue body (related PRs, etc.)
+          SOURCE_PR_URL=$(printf '%s\n' "$ISSUE_BODY" | grep -oiPm1 '^[[:space:]]*Source PR URL:[[:space:]]*\Khttps://github\.com/[^[:space:]/]+/[^[:space:]/]+/pull/[0-9]+' || true)
+          if [ -z "$SOURCE_PR_URL" ]; then
+            echo "No source PR URL found in issue #$ISSUE_NUMBER, skipping."
+            exit 0
+          fi
+          echo "Source PR URL: $SOURCE_PR_URL"
+
+          # Parse owner/repo/number from URL using shell expansion + validation
+          SOURCE_PATH="${SOURCE_PR_URL#https://github.com/}"
+          if [[ ! "$SOURCE_PATH" =~ ^([^/]+)/([^/]+)/pull/([0-9]+)$ ]]; then
+            echo "Source PR URL is not in the expected format (<owner>/<repo>/pull/<number>), skipping."
+            exit 0
+          fi
+          SOURCE_OWNER="${BASH_REMATCH[1]}"
+          SOURCE_REPO="${BASH_REMATCH[2]}"
+          SOURCE_PR_NUMBER="${BASH_REMATCH[3]}"
+
+          # Get the source PR author
+          SOURCE_AUTHOR=$(gh api "repos/$SOURCE_OWNER/$SOURCE_REPO/pulls/$SOURCE_PR_NUMBER" --jq '.user.login' || true)
+          if [ -z "$SOURCE_AUTHOR" ] || [ "$SOURCE_AUTHOR" = "null" ]; then
+            echo "Could not determine source PR author, skipping."
+            exit 0
+          fi
+          echo "Source PR author: $SOURCE_AUTHOR"
+
+          # Request review (silently skip if user can't be requested, e.g. bots)
+          gh api "repos/$REPO/pulls/$PR_NUMBER/requested_reviewers" \
+            -X POST \
+            --field "reviewers[]=$SOURCE_AUTHOR" \
+            --silent && echo "Requested review from $SOURCE_AUTHOR" \
+            || echo "Could not request review from $SOURCE_AUTHOR (may not have access), skipping."
