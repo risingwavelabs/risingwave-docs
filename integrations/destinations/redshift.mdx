@@ -28,7 +28,7 @@ WITH (
 | schema                       | Redshift schema name |
 | table.name                   | Name of the target table |
 | intermediate.table.name      | Name of the intermediate table used for upsert mode. No need to fill this out in append-only mode |
-| intermediate.schema.name     | Schema name for creating the intermediate table. If not configured, defaults to the schema specified in the `schema` setting |
+| intermediate.schema.name     | Schema name for creating the intermediate table in upsert mode. No need to fill this out in append-only mode. If not configured, defaults to the schema specified in the `schema` setting |
 | create_table_if_not_exists   | Create target table if it does not exist |
 | write.target.interval.seconds      | Interval in seconds for merging data from the intermediate table into the target table (default: 3600) |
 | write.intermediate.interval.seconds | Interval in seconds for writing data into the intermediate table (default: 1800) |
@@ -100,7 +100,7 @@ In `upsert` mode, performance is optimized through the use of an intermediate ta
 
 - An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
 
-- You can specify a different schema for the intermediate table using the `intermediate.schema.name` parameter. If not configured, the intermediate table will be created in the same schema as the target table.
+- You can specify a different schema for the intermediate table using the `intermediate.schema.name` parameter. If not configured, the intermediate table will be created in the same schema as the target table. If the intermediate schema differs from the target schema, ensure the user has `CREATE` privilege on that schema (for example, `GRANT CREATE ON SCHEMA [intermediate_schema_name] TO [username]`).
 
 - Data is written to intermediate storage (S3) at intervals defined by `write.intermediate.interval.seconds` (default: 1800 seconds).
 
@@ -123,7 +123,7 @@ CREATE SINK redshift_sink FROM test_table WITH (
 
     -- JDBC configs are always required for Redshift
     jdbc.url = 'jdbc:redshift://...',
-    username = '...',
+    user = '...',
     password = '...',
 
     -- `with_s3` is default to true. If `with_s3` is set to false (not recommended), you to specify `batch.insert.rows`, and the value must be a power of 2, such as 1024 or 4096.
@@ -163,7 +163,7 @@ CREATE SINK redshift_sink FROM test_table WITH (
 
     -- JDBC configs are always required for Redshift
     jdbc.url = 'jdbc:redshift://...',
-    username = '...',
+    user = '...',
     password = '...',
 
     -- `with_s3` is default to true. If `with_s3` is set to false (not recommended), you to specify `batch.insert.rows`, and the value must be a power of 2, such as 1024 or 4096.
