@@ -1,0 +1,61 @@
+name: Request source PR author review
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  request-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find source PR author and request review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Extract linked issue number from PR body (Closes/Fixes/Resolves #N)
+          ISSUE_NUMBER=$(echo "$PR_BODY" | grep -oiP '(?<=closes #|fixes #|resolves #)\d+' | head -1 || true)
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "No linked issue found in PR body, skipping."
+            exit 0
+          fi
+          echo "Linked issue: #$ISSUE_NUMBER"
+
+          # Get issue body
+          ISSUE_BODY=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body // ""')
+
+          # Extract source PR URL (line: "Source PR URL: https://github.com/.../pull/N")
+          SOURCE_PR_URL=$(echo "$ISSUE_BODY" | grep -oP 'https://github\.com/\S+/pull/\d+' | head -1 || true)
+          if [ -z "$SOURCE_PR_URL" ]; then
+            echo "No source PR URL found in issue #$ISSUE_NUMBER, skipping."
+            exit 0
+          fi
+          echo "Source PR URL: $SOURCE_PR_URL"
+
+          # Parse owner/repo/number from URL
+          SOURCE_PATH=$(echo "$SOURCE_PR_URL" | grep -oP '(?<=github\.com/).+')
+          SOURCE_OWNER=$(echo "$SOURCE_PATH" | cut -d/ -f1)
+          SOURCE_REPO=$(echo "$SOURCE_PATH" | cut -d/ -f2)
+          SOURCE_PR_NUMBER=$(echo "$SOURCE_PATH" | cut -d/ -f4)
+
+          # Get the source PR author
+          SOURCE_AUTHOR=$(gh api "repos/$SOURCE_OWNER/$SOURCE_REPO/pulls/$SOURCE_PR_NUMBER" --jq '.user.login' || true)
+          if [ -z "$SOURCE_AUTHOR" ] || [ "$SOURCE_AUTHOR" = "null" ]; then
+            echo "Could not determine source PR author, skipping."
+            exit 0
+          fi
+          echo "Source PR author: $SOURCE_AUTHOR"
+
+          # Request review (silently skip if user can't be requested, e.g. bots)
+          gh api "repos/$REPO/pulls/$PR_NUMBER/requested_reviewers" \
+            -X POST \
+            --field "reviewers[]=$SOURCE_AUTHOR" \
+            --silent && echo "Requested review from $SOURCE_AUTHOR" \
+            || echo "Could not request review from $SOURCE_AUTHOR (may not have access), skipping."
