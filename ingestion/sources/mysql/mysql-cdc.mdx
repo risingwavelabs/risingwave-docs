@@ -318,7 +318,7 @@ Currently, RisingWave supports the `ALTER TABLE` command with the following oper
 * `DROP COLUMN`: Allows you to remove an existing column from a table.
 
 <Note>
-When `ADD COLUMN` uses a non-constant default expression or certain complex literal defaults, RisingWave may not be able to back-fill the new column for pre-existing rows, so those rows may hold `NULL` in the new column. New rows flowing through CDC are unaffected. To provide a fallback value in downstream queries, use `COALESCE` on the new column.
+When `ADD COLUMN` uses a non-constant default expression or certain complex literal defaults, RisingWave may not be able to back-fill the new column for pre-existing rows, so those rows may hold `NULL` in the new column. New rows flowing through CDC are unaffected. If this matters to your downstream queries, wrap the new column with `COALESCE(new_column, fallback_value)` to substitute a default of your choice for the `NULL`s.
 </Note>
 
 To enable this feature, set `auto.schema.change = 'true'` in your MySQL CDC source configuration:
