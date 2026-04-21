@@ -30,7 +30,6 @@ WITH (
 | `content_type` | **Optional.** The `Content-Type` header value. If not set, RisingWave uses `text/plain` for `varchar` payloads and `application/json` for `jsonb` payloads. |
 | `header.<header_name>` | **Optional.** Custom request headers. For example, `header.x_test = 'rw-http-sink'`. |
 | `ignore_delete` | **Optional.** Set to `true` to skip delete records so an upstream table with updates and deletes can still be delivered as append-only inserts. |
-| `force_append_only` | **Optional.** Set to `true` to force append-only behavior when creating the sink. |
 
 ## Behavior and constraints
 
@@ -62,7 +61,6 @@ CREATE SINK s_varchar FROM t_varchar WITH (
     connector = 'http',
     url = 'http://localhost:18081',
     type = 'append-only',
-    force_append_only = 'true',
     header.x_test = 'rw-http-sink'
 );
 
