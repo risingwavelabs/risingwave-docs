@@ -1,0 +1,111 @@
+# RisingWave
+
+> RisingWave is an event streaming platform for agentic AI. It continuously ingests data from databases, event streams, and webhooks, processes it incrementally, and serves fresh results at low latency — replacing the traditional stack (Debezium + Kafka + Flink + serving DB) with a single PostgreSQL-compatible system.
+
+RisingWave is wire-compatible with PostgreSQL. Connect using any PostgreSQL driver (psycopg2, JDBC, node-postgres, pgx, etc.) on port 4566.
+
+## Key Differences from PostgreSQL
+
+- **Port:** 4566 (not 5432). User: `root`. Database: `dev`.
+- **Materialized views:** Incrementally maintained automatically — do NOT use `REFRESH MATERIALIZED VIEW` (doesn't exist).
+- **`CREATE SOURCE`:** Read-only stream. No `UPDATE`/`DELETE`. Use `CREATE TABLE` with connector for mutable data.
+- **`CREATE SINK`:** RisingWave-specific DDL to export data downstream. Not in PostgreSQL.
+- **Watermarks:** Required for event-time window aggregations (`EMIT ON WINDOW CLOSE`). Without them, windows never close.
+- **`NOW()` in MVs:** Requires a temporal filter (`WHERE ts > NOW() - INTERVAL '1 hour'`) or the MV rescans everything on every barrier.
+- **Not supported:** stored procedures, triggers, PostgreSQL server-side cursors, `LISTEN`/`NOTIFY`, full-text search (`tsvector`), `TEMPORARY` tables, advisory locks.
+
+## Common Pitfalls
+
+1. **`REFRESH MATERIALIZED VIEW`** — does not exist. MVs refresh automatically.
+2. **`UPDATE`/`DELETE` on a source** — sources are read-only. Use `CREATE TABLE` with a connector instead.
+3. **Missing watermark on time-windowed MV** — rows never emit. Add `WATERMARK FOR event_time AS event_time - INTERVAL '5 seconds'` to the source.
+4. **`NOW()` in a MV without temporal filter** — triggers full recomputation on every barrier. Always pair with `WHERE col > NOW() - INTERVAL '...'`.
+5. **Wrong port** — RisingWave is 4566, not 5432.
+6. **`DROP SOURCE` fails** — dependent MVs block the drop. Use `DROP SOURCE name CASCADE`.
+7. **FORMAT UPSERT without PRIMARY KEY** — upsert sources require `INCLUDE KEY AS key_col` and `PRIMARY KEY (key_col)`.
+
+## Common Patterns
+
+### Connect via PostgreSQL driver
+```python
+import psycopg2
+conn = psycopg2.connect(host="127.0.0.1", port=4566, user="root", dbname="dev")
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute("SELECT * FROM my_materialized_view LIMIT 10")
+rows = cur.fetchall()
+```
+
+### Connect via MCP server
+```bash
+# Clone and run the RisingWave MCP server
+git clone https://github.com/risingwavelabs/risingwave-mcp.git
+# Then point your MCP client at the server
+```
+MCP tools available: `run_select_query`, `create_materialized_view`, `describe_table`, `show_tables`, `list_materialized_views`, `get_database_version`.
+
+### Always-fresh results (no polling needed)
+```sql
+-- Upstream data ingested from Kafka, MV kept fresh automatically
+CREATE MATERIALIZED VIEW fraud_signals AS
+SELECT user_id, COUNT(*) AS tx_count, SUM(amount) AS total
+FROM TUMBLE(transactions, event_time, INTERVAL '5 MINUTES')
+GROUP BY user_id, window_start, window_end
+HAVING COUNT(*) > 5 AND SUM(amount) > 5000;
+
+-- Query directly — result is always fresh, p99 ~10-20ms
+SELECT * FROM fraud_signals WHERE user_id = $1;
+```
+
+### Push notifications via Subscription
+```sql
+-- Create subscription on a materialized view
+CREATE SUBSCRIPTION my_sub FROM fraud_signals WITH (retention = '1D');
+
+-- Consume changes in application code
+DECLARE cur SUBSCRIPTION CURSOR FOR my_sub;
+FETCH NEXT FROM cur WITH (timeout = '5s');  -- blocks up to 5s; returns changed rows with op (Insert/Delete/UpdateInsert/UpdateDelete)
+```
+
+## Core Concepts
+
+- [Architecture](https://docs.risingwave.com/get-started/architecture): Frontend (SQL), ComputeNode (execution), MetaServer (metadata), Compactor (storage maintenance)
+- [CREATE SOURCE](https://docs.risingwave.com/sql/commands/sql-create-source): Declares an external data stream (Kafka, Pulsar, Kinesis, S3, etc.). Data flows in continuously. Read-only.
+- [CREATE TABLE with connector](https://docs.risingwave.com/ingestion/create-source-vs-create-table): Like SOURCE but persists data and supports INSERT/UPDATE/DELETE.
+- [CREATE MATERIALIZED VIEW](https://docs.risingwave.com/sql/commands/sql-create-mv): Defines a continuously maintained query. Incrementally updated — no manual REFRESH needed.
+- [CREATE SINK](https://docs.risingwave.com/sql/commands/sql-create-sink): Exports data to downstream systems (Kafka, Iceberg, PostgreSQL, ClickHouse, etc.).
+- [Watermarks](https://docs.risingwave.com/processing/watermarks): Track event-time progress for time-windowed computations.
+- [Subscriptions](https://docs.risingwave.com/serve/subscription): Real-time change data capture from materialized views without external message brokers.
+
+## SQL Reference
+
+- [SQL Commands Overview](https://docs.risingwave.com/sql/commands/overview): All DDL/DML commands
+- [Data Types](https://docs.risingwave.com/sql/data-types/overview): boolean, integer, bigint, numeric, real, double, varchar, bytea, date, time, timestamp, timestamptz, interval, struct, array, map, JSONB, vector
+- [Functions Overview](https://docs.risingwave.com/sql/functions/overview): Aggregate, window, string, datetime, JSON, array, mathematical, conditional, set-returning functions
+- [Window Functions](https://docs.risingwave.com/sql/functions/window-functions): row_number, rank, dense_rank, lag, lead, first_value, last_value
+- [Time Windows](https://docs.risingwave.com/processing/sql/time-windows): TUMBLE(), HOP(), SESSION windows for streaming aggregation
+- [Temporal Filters](https://docs.risingwave.com/processing/sql/temporal-filters): Filter by NOW() for sliding time ranges
+
+## Connectors
+
+- [Source Connectors](https://docs.risingwave.com/ingestion/overview): Kafka, PostgreSQL CDC, MySQL CDC, MongoDB CDC, SQL Server CDC, S3, Kinesis, Pulsar, Google Pub/Sub, MQTT, NATS, Iceberg, Datagen, Webhook
+- [Sink Connectors](https://docs.risingwave.com/delivery/overview): Kafka, Apache Iceberg, PostgreSQL, MySQL, ClickHouse, Elasticsearch, StarRocks, Doris, Snowflake, BigQuery, Redis, S3, Delta Lake, DynamoDB, Cassandra, NATS, Pulsar, Kinesis
+- [Formats and Encoding](https://docs.risingwave.com/ingestion/formats-and-encoding-options): JSON, Avro, Protobuf, CSV, Debezium, Maxwell, Canal, BYTES
+
+## Client Libraries
+
+- [Overview](https://docs.risingwave.com/client-libraries/overview): Python (psycopg2/psycopg3), Java (JDBC), Node.js (pg), Go (pgx), Ruby (pg), Rust (tokio-postgres), C# (Npgsql), PHP (pdo-pgsql)
+- [Python SDK](https://docs.risingwave.com/python-sdk/intro): Event-driven Python SDK for RisingWave
+
+## Iceberg Integration
+
+- [Overview](https://docs.risingwave.com/iceberg/overview): Native Iceberg support for streaming lakehouse
+- [Deliver to Iceberg](https://docs.risingwave.com/iceberg/deliver-to-iceberg): Continuously sink data to Iceberg tables
+- [Ingest from Iceberg](https://docs.risingwave.com/iceberg/ingest-from-iceberg): Read Iceberg tables as sources
+- [Catalogs](https://docs.risingwave.com/iceberg/catalogs): Glue, REST, Hive, JDBC catalog support
+
+## Deployment
+
+- [Docker](https://docs.risingwave.com/deploy/risingwave-docker-compose): Quick local setup
+- [Kubernetes](https://docs.risingwave.com/deploy/risingwave-kubernetes): Production deployment with Helm/operator
+- [RisingWave Cloud](https://docs.risingwave.com/cloud/quickstart): Fully managed service
