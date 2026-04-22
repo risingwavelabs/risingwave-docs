@@ -28,28 +28,23 @@ Below are the main topic groups. Some groups are elevated to be tabs shown on th
 
 ### Development
 
-The Mintlify CLI package was renamed from `mintlify` to [`mint`](https://www.npmjs.com/package/mint). Either works, but `mint` is the current recommended form.
-
-Run the dev server from the repo root (where `docs.json` lives) — no global install needed:
+Install the [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the documentation changes locally. To install, use the following command
 
 ```
-npx mint@latest dev
+npm i -g mintlify
 ```
 
-Pass `--port <N>` if the default port is in use, e.g. `npx mint@latest dev --port 3333`.
-
-If you prefer a global install:
+Run the following command at the root of your documentation (where docs.json is)
 
 ```
-npm i -g mint
-mint dev
+mintlify dev
 ```
 
 ### Publishing Changes
 
-Install our GitHub App to auto propagate changes from your repo to your deployment. Changes will be deployed to production automatically after pushing to the default branch. Find the link to install on your dashboard.
+Install our Github App to auto propagate changes from your repo to your deployment. Changes will be deployed to production automatically after pushing to the default branch. Find the link to install on your dashboard. 
 
 #### Troubleshooting
 
-- Dev server isn't running — run `mint install` to reinstall dependencies.
-- Page loads as a 404 — make sure you're running in a folder with `docs.json` (the config was previously `mint.json`; Mintlify renamed it).
+- Mintlify dev isn't running - Run `mintlify install` it'll re-install dependencies.
+- Page loads as a 404 - Make sure you are running in a folder with `docs.json`
