@@ -25,7 +25,7 @@ ALTER CONNECTION connection_name
     CONNECTOR WITH ( property_name = value [, ...] );
 ```
 
-This clause updates alterable connector properties in an existing connection and propagates the changes to dependent sources and sinks.
+This clause updates alterable connector properties in an existing connection and propagates the changes to dependent sources and sinks. For connector-backed tables that use the connection, RisingWave applies the updated configuration through the underlying source.
 
 | Parameter or clause | Description |
 | :------------------ | :---------- |
@@ -40,7 +40,7 @@ You must have privilege to alter the connection (the same privilege checks as ot
 
 When you run `ALTER CONNECTION ... CONNECTOR WITH (...)`:
 
-1. **Catalog update (atomic)**: The meta service updates the connection's stored properties and secret references, and then updates the stored connector options of dependent sources and sinks in the same transaction.
+1. **Catalog update (atomic)**: The meta service updates the connection's stored properties and secret references, and then updates the stored connector options of dependent sources and sinks in the same transaction. For connector-backed tables that use the connection, this updates the underlying source.
 
 2. **Validation**: The meta service validates that the altered keys are allowed to be changed online, validates the updated connection, and validates each updated dependent source and sink.
 
