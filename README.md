@@ -28,8 +28,9 @@ Below are the main topic groups. Some groups are elevated to be tabs shown on th
 
 ### Development
 
-The Mintlify CLI package was renamed from `mintlify` to [`mint`](https://www.npmjs.com/package/mint). Either works, but `mint` is the current recommended form.
+The Mintlify CLI package was renamed from `mintlify` to [`mint`](https://www.npmjs.com/package/mint). Either works, but `mint` is the current recommended form for local development.
 
+Note: some repository automation and CI checks may still use the legacy `mintlify` command name (for example, broken-links checks), so you may see either form in this repo.
 Run the dev server from the repo root (where `docs.json` lives) — no global install needed:
 
 ```
