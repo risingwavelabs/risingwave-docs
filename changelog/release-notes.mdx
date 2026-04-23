@@ -3,9 +3,30 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v2.9.0" description="Upcoming">
+
+## SQL features
+
+- System catalog:
+    - Adds column `schema_name` to `rw_catalog.rw_materialized_views` and `rw_catalog.rw_subscriptions` so you can filter by schema without extra joins. [#25248](https://github.com/risingwavelabs/risingwave/pull/25248)
+
+## Cluster configuration changes
+
+- Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
+
+## Connectors
+
+- Iceberg sink and Iceberg engine tables: Adds `commit_checkpoint_size_threshold_mb` to trigger size-based early commits. When uncommitted write data exceeds this threshold (in MB), RisingWave commits at the next checkpoint barrier regardless of `commit_checkpoint_interval`. Default: `128` MB. [#25058](https://github.com/risingwavelabs/risingwave/pull/25058)
+
+</Update>
+
 <Update label="v2.8.0" description="2026-03-02">
 
 Support for certain earlier versions will end following the release of v2.8. Please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+
+<Warning>
+Versions `v2.8.0-rc.1`, `v2.8.0`, and `v2.8.1` are deprecated. We recommend upgrading to `v2.8.2` or later.
+</Warning>
 
 ## SQL features
 
@@ -43,7 +64,11 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 <Update label="v2.7.0" description="2025-12-13">
 
-Support for certain earlier version will end following the release of v2.7, please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+Support for certain earlier versions will end following the release of v2.7. Please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+
+<Warning>
+Versions `v2.7.0-rc.1`, `v2.7.0`, `v2.7.1`, `v2.7.2`, and `v2.7.3` are deprecated. We recommend upgrading to `v2.7.4` or later.
+</Warning>
 
 ## Upgrade-time behavior changes
 
