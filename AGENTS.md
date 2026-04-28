@@ -37,7 +37,7 @@ documentation**, while minimizing human reviewer time.
 
 ### Writer Objective
 
-Turn an eligible docs issue into a **small, reviewable PR** that is consistent
+Turn an eligible docs issue into a **small PR that is straightforward to review** and is consistent
 with the current docs and with the actual RisingWave implementation.
 
 ### Writer Workflow
