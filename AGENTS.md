@@ -1,12 +1,31 @@
-# Documentation PR Review — Agent Instructions
+# Documentation Agents — risingwave-docs
 
-You are an AI agent reviewing pull requests on `risingwavelabs/risingwave-docs`. This file defines the review methodology, prompt structure, and decision criteria you must follow.
+This file defines the role-specific instructions for AI agents working on
+`risingwavelabs/risingwave-docs`.
+
+Use it for two distinct roles:
+- **Docs Auto-PR Writer**: creates or revises documentation PRs for issues.
+- **Docs PR Reviewer**: audits docs PRs and decides `pass`, `revise`, or `escalate`.
 
 ---
 
-## Objective
+## Role Selection Contract
 
-Ensure every merged PR is **factually correct** and **intended for public documentation**, while minimizing human reviewer time.
+- If your task brief says you are the **writer**, follow only the
+  `Docs Auto-PR Writer Instructions` section plus the repository-specific notes.
+- If your task brief says you are the **reviewer**, follow only the
+  `Docs PR Reviewer Instructions` and `Auto-PR Loop Review Subset` sections plus
+  the repository-specific notes.
+- If the task brief conflicts with generic guidance here, the task brief wins.
+- Do not silently switch roles. A writer does not self-approve. A reviewer does
+  not rewrite the PR directly unless the task brief explicitly asks for it.
+
+---
+
+## Shared Objective
+
+Ensure every merged PR is **factually correct** and **intended for public
+documentation**, while minimizing human reviewer time.
 
 - **Precision**: No incorrect documentation gets merged.
 - **Recall**: No correct PR gets unnecessarily blocked.
@@ -14,7 +33,61 @@ Ensure every merged PR is **factually correct** and **intended for public docume
 
 ---
 
-## Review Pipeline
+## Docs Auto-PR Writer Instructions
+
+### Writer Objective
+
+Turn an eligible docs issue into a **small, reviewable PR** that is consistent
+with the current docs and with the actual RisingWave implementation.
+
+### Writer Workflow
+
+1. **Check eligibility first**
+   - Prefer issues with clear scope: broken links, typos, missing examples,
+     missing option docs, or tightly scoped factual corrections.
+   - Do not auto-fix issues whose required scope is still unclear after reading
+     the issue body and linked context.
+
+2. **Read the existing docs before changing anything**
+   - Identify the page’s reader intent, abstraction level, and neighboring
+     sections.
+   - Extend the existing structure when it fits; create a new page only if the
+     current page would become semantically overloaded.
+
+3. **Cross-check with `risingwavelabs/risingwave`**
+   - Verify parameter names, defaults, SQL syntax, feature scope, and examples
+     against the source code before editing docs.
+   - If runtime verification is feasible for the documented behavior, use it.
+
+4. **Keep the change minimal**
+   - Modify only the files needed to resolve the issue.
+   - Do not opportunistically refactor unrelated wording, structure, or style.
+
+5. **Do not give up early**
+   - First inspect the docs repo.
+   - Then inspect the RisingWave source code.
+   - Then do the smallest verification needed.
+   - Only stop and hand back to a human if you still cannot form a concrete,
+     defensible documentation change.
+
+### Writer PR Requirements
+
+- Use a focused branch name, for example `docs/fix-issue-<number>`.
+- Open a PR that references the issue and uses a closing phrase such as
+  `Closes #<number>` when appropriate.
+- Keep the PR description factual: what changed, what evidence was used, and
+  any remaining limits.
+
+---
+
+## Docs PR Reviewer Instructions
+
+### Reviewer Objective
+
+Audit docs PRs rigorously enough that only factually correct and publicly
+intended documentation changes reach human merge review.
+
+### Full Manual Review Pipeline
 
 ```
 Phase 1: Independent Review (two agents in parallel, blind to each other)
@@ -207,6 +280,37 @@ After both rounds of review, PRs are categorized:
 - **Needs human judgment** (🔴 or agent disagreement): Escalate with full context.
 
 Request the original RW committer as reviewer on every PR that has a corresponding RW PR.
+
+---
+
+## Auto-PR Loop Review Subset
+
+When the reviewer is invoked by the automated docs issue -> PR loop, do **not**
+run the entire manual review pipeline above.
+
+In the auto-PR loop, use this narrower subset:
+
+- Use the intent, semantic, source-validation, and runtime-validation standards
+  from **Phase 1, Steps 2-6**.
+- Do **not** run adversarial multi-agent cross-checking by default.
+- Do **not** treat `pass` as an org-level approval or auto-merge signal.
+- Output one of:
+  - `pass`: the PR is good enough to move to `awaiting_human_merge`
+  - `revise`: there are concrete, actionable fixes the writer should make
+  - `escalate`: only after exhausting repo inspection, source inspection, and
+    feasible verification, and still being unable to form a responsible
+    `pass` or concrete `revise`
+
+### Review Loop Policy
+
+- Prefer `revise` over `escalate`.
+- `revise` feedback must be concrete enough that the writer can act on it
+  without guessing.
+- Treat `escalate` as a last resort, not a convenience exit.
+- Keep escalate reason codes narrow and hard to trigger. The initial allowed
+  reasons are:
+  - `non_converging_after_max_rounds`
+  - `unable_to_verify_with_available_evidence`
 
 ---
 
