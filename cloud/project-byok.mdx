@@ -36,6 +36,21 @@ Communication between the RisingWave control plane and your BYOK cluster is esta
 
 Before setting up a BYOK environment, you must provision the following resources in your cloud account.
 
+<Tip>
+**Reference Terraform examples** are available at [`risingwavelabs/risingwave-byok-terraform-example`](https://github.com/risingwavelabs/risingwave-byok-terraform-example). They provision all of the prerequisites below and generate the config files used by the `rwc` CLI. Fork and adapt to your network/security requirements.
+
+<Tabs>
+<Tab title="AWS">
+- [`aws/base_env`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/base_env) — VPC, EKS, S3, KMS, IAM, NLBs + VPC Endpoint Services
+- [`aws/k8s_addons`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/k8s_addons) — cert-manager, AWS Load Balancer Controller, Karpenter NodePools (emits `byok_config.yaml`)
+- [`aws/tenant_resources`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/tenant_resources) — per-cluster RDS metastore + IAM role (emits `byok_tenant_config.yaml`)
+</Tab>
+<Tab title="GCP">
+GCP examples will be added when GCP GKE support lands.
+</Tab>
+</Tabs>
+</Tip>
+
 ### 1. Kubernetes cluster
 
 <Tabs>
