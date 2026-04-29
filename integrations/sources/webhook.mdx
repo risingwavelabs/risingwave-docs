@@ -30,7 +30,55 @@ Webhook requests should be sent to:
 
 `http://<HOST>:4560/webhook/<database>/<schema>/<table>`
 
+If `RW_SSL_CERT` and `RW_SSL_KEY` are configured, the same endpoint is served over HTTPS instead:
+
+`https://<HOST>:4560/webhook/<database>/<schema>/<table>`
+
 The default listening port is `4560`. Replace `<schema>` with `public` if you didn't create the table under a custom schema.
+
+<Note>
+If your cluster already sets `RW_SSL_CERT` and `RW_SSL_KEY`, existing webhook senders must switch from HTTP to HTTPS after upgrading to a version that includes this feature.
+</Note>
+
+### Choose a table shape
+
+Webhook tables support two patterns:
+
+- A legacy single-`JSONB` column that stores the full request body.
+- A typed multi-column table that maps top-level JSON fields directly into RisingWave columns.
+
+Use a single `JSONB` column when you want to keep the raw payload and extract fields later in SQL:
+
+```sql
+CREATE TABLE wbhtable (
+  data JSONB
+) WITH (
+  connector = 'webhook'
+);
+```
+
+Use typed columns when you want RisingWave to decode the JSON payload into normal table columns directly:
+
+```sql
+CREATE TABLE orders (
+  id INT,
+  customer_name VARCHAR,
+  amount DOUBLE PRECISION,
+  PRIMARY KEY (id)
+) WITH (
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'x-hub-signature',
+  'sha1=' || encode(hmac('TEST_WEBHOOK', payload, 'sha1'), 'hex')
+);
+```
+
+For typed multi-column webhook tables:
+
+- Each top-level JSON field is decoded into the matching column by name.
+- Missing non-primary-key fields are inserted as `NULL`.
+- Missing primary-key fields are rejected.
+- For batched requests, set `is_batched = true` and send newline-delimited JSON objects.
 
 ### Quick local smoke test (no upstream SaaS required)
 
@@ -108,7 +156,12 @@ CREATE TABLE wbhtable (
 In `headers->>'...'`, always use the lower-case header name (for example, `authorization`). If you use a different casing, validation may fail.
 </Info>
 
-For providers that sign payloads (for example, GitHub/Segment), the second argument of `secure_compare(...)` is typically an expression that computes the expected signature from the secret/raw string and the request body (`data`). See the provider-specific guides below for copy/paste-ready examples.
+For providers that sign payloads (for example, GitHub/Segment), the second argument of `secure_compare(...)` is typically an expression that computes the expected signature from the secret/raw string and the request body.
+
+- For single-`JSONB` webhook tables, reference the `JSONB` payload column name (for example, `data`).
+- For typed multi-column webhook tables, reference the reserved `payload` identifier, which exposes the raw request body bytes during validation.
+
+See the provider-specific guides below for copy/paste-ready examples.
 
 ## Supported webhook sources and authentication methods
 RisingWave has been verified to work with the following webhook sources and authentication methods:
