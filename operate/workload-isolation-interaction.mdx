@@ -55,6 +55,57 @@ risingwave compute-node --resource-group test
 If neither the flag nor the environment variable is specified, the Compute Node will be assigned to the "default" resource group.
 </Note>
 
+### How to configure workload isolation
+
+Use the following steps to create a resource group and assign a database to it, depending on where you run RisingWave.
+
+<Tabs>
+<Tab title="Self-hosted">
+
+1. Start the Compute Nodes for the resource group by using the `--resource-group` flag or `RW_RESOURCE_GROUP` environment variable:
+
+    ```bash
+    risingwave compute-node --resource-group rg_analytics
+    # or
+    export RW_RESOURCE_GROUP=rg_analytics
+    risingwave compute-node
+    ```
+
+    For Helm deployments, configure Compute Node resource groups in your `values.yaml`. The Helm chart creates a StatefulSet for each entry in `computeComponent.resourceGroups` and sets `RW_RESOURCE_GROUP` automatically. For more about self-hosted deployment configuration, see [Kubernetes (Helm)](/deploy/risingwave-k8s-helm) and the chart [values.yaml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml).
+
+2. Create the database and assign it to that resource group:
+
+    ```sql
+    CREATE DATABASE analytics_db WITH resource_group = 'rg_analytics';
+    ```
+
+    If you omit `resource_group`, the database is assigned to the default resource group.
+
+3. Verify the assignment:
+
+    ```sql
+    SELECT * FROM rw_resource_groups;
+    ```
+
+    You can also inspect streaming job placement with:
+
+    ```sql
+    SELECT job_id, name, status, database_id, resource_group FROM rw_streaming_jobs;
+    ```
+
+</Tab>
+<Tab title="RisingWave Cloud">
+
+1. In your project, select **Resources** in the sidebar, then click **Create resource group**.
+2. Enter the resource group name, machine size, and replica count.
+3. On the same page, open the **Databases** tab and click **Create database**.
+4. Enter the database name, then select the resource group you created.
+
+For the full Cloud workflow and screenshots, see [Manage resources](/cloud/manage-resources).
+
+</Tab>
+</Tabs>
+
 ### How resource groups provide isolation and control
 
 When you assign a database to a resource group, all streaming jobs belonging to that database are constrained to run *only* on the Compute Nodes within that designated group. This provides two primary advantages:
@@ -282,4 +333,3 @@ Leveraging database isolation, resource groups, and cross-database queries toget
 
 This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
-
