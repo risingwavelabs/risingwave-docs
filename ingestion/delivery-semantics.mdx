@@ -1,0 +1,52 @@
+---
+title: "Source delivery semantics"
+description: "Understand the delivery and consistency guarantees of RisingWave source connectors, including checkpoint recovery, offset persistence, and connector-specific caveats."
+---
+
+This page explains what delivery guarantees RisingWave provides when reading from external systems, and how recovery works after a failure.
+
+For sink-side semantics, see [Kafka sink delivery semantics](/integrations/destinations/apache-kafka#delivery-semantics). For the underlying checkpoint model, see [Fault tolerance](/reference/fault-tolerance) and [Transactions](/processing/transactions).
+
+## Overview
+
+RisingWave uses barrier-based checkpoints to persist source progress together with streaming state. On recovery, RisingWave restores the last checkpointed split state and resumes reading from that checkpoint.
+
+For replayable sources such as Kafka, Kinesis, and CDC logs, this is the basis for exactly-once recovery. For sources that acknowledge messages back to the upstream system after a checkpoint, the guarantee is at-least-once because the same message may be delivered again before the checkpointed acknowledgment is applied.
+
+## Per-connector guarantees
+
+| Source connector | Delivery guarantee | How it works | Main caveats |
+| :--- | :--- | :--- | :--- |
+| Kafka | Exactly-once | RisingWave restores partition offsets from checkpointed split state and reads Kafka with `read_committed` isolation. It does not rely on Kafka consumer-group committed offsets for recovery. | Only committed transactional messages are visible. Startup position is controlled by `scan.startup.mode` and `scan.startup.timestamp.millis`. |
+| PostgreSQL CDC | Exactly-once | RisingWave checkpoints CDC offsets and commits them upstream only after checkpoint commit. Recovery resumes from the last checkpointed offset. | If recovery is delayed too long and WAL required for replay is no longer retained, recovery can fail. `snapshot = 'false'` disables the initial backfill phase. |
+| MySQL CDC | Exactly-once | RisingWave checkpoints CDC offsets and resumes from the last checkpointed position after recovery. | If required binlog history is no longer retained upstream, replay is no longer possible. `snapshot = 'false'` disables the initial backfill phase. |
+| SQL Server CDC | Exactly-once | RisingWave checkpoints CDC offsets and resumes from the last checkpointed position after recovery. | SQL Server CDC in RisingWave does not preserve transactional grouping across tables. `snapshot = 'false'` disables the initial backfill phase. |
+| MongoDB CDC | Exactly-once | RisingWave checkpoints change-stream progress and resumes from the last checkpointed position after recovery. | Replay depends on the upstream change stream still being available. |
+| Pulsar | At-least-once | RisingWave acknowledges Pulsar messages only after checkpoint commit. On recovery, unacknowledged messages can be delivered again. | `subscription.unacked.resend.delay` controls broker redelivery timing. Expect duplicates during recovery or resend. |
+| Google Pub/Sub | At-least-once | RisingWave acknowledges Pub/Sub messages only after checkpoint commit. Recovery seeks by timestamp or snapshot rather than a per-message offset. | `pubsub.start_offset.nanos` and `pubsub.start_snapshot` control replay start. Messages published close together can be re-read. `pubsub.ack_deadline_seconds` affects redelivery timing. |
+| Kinesis | Exactly-once while records remain replayable | RisingWave checkpoints each shard's sequence number and resumes from the next sequence number after recovery. | If the required records have aged out of the stream retention window, replay is not possible. Startup position is controlled by `scan.startup.mode` and `scan.startup.timestamp.millis`. |
+| S3 and other object storage file sources | No exactly-once ordering guarantee | RisingWave keeps scanning for files and guarantees that every file will eventually be fully read. | File read order is not guaranteed, and recovery may not resume from the same file position. Treat these sources as eventual full-file ingestion rather than a strict exactly-once stream contract. |
+
+## Recovery behavior
+
+After a failure, RisingWave restores the latest checkpoint and then resumes each source from the saved split state.
+
+- Replayable log-based sources resume from the last checkpointed offset or sequence number.
+- CDC sources resume from the last checkpointed CDC offset. For PostgreSQL, checkpoint commit is also when RisingWave advances the upstream replication slot offset.
+- Ack-based sources such as Pulsar and Google Pub/Sub may redeliver messages that were read after the last successful checkpoint but not yet acknowledged upstream.
+
+## Connector-specific notes
+
+### Kafka
+
+RisingWave reads Kafka with `read_committed` isolation, so aborted transactional records are not exposed to the source reader. Kafka consumer-group offset commits are only for monitoring and authorization; RisingWave recovers from its own checkpointed split state instead.
+
+### CDC sources
+
+For PostgreSQL, MySQL, and SQL Server CDC, the initial snapshot and the incremental log phase are both covered by RisingWave's checkpoint recovery model. If you do not want the initial snapshot, create the CDC table with `snapshot = 'false'`.
+
+When the upstream system no longer retains the WAL, binlog, or change-stream history needed for replay, recovery from an older checkpoint is no longer possible. Monitor upstream retention accordingly.
+
+### Pulsar and Google Pub/Sub
+
+These connectors acknowledge messages to the upstream system only after checkpoint completion. That preserves durability across failures, but it means duplicates are possible after a restart or broker redelivery. If your pipeline needs idempotent downstream behavior, prefer primary-key tables or upsert-style processing where applicable.
