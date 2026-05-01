@@ -1,0 +1,62 @@
+---
+title: "Manage users"
+description: "Learn how to manage RisingWave Console users, including the default root account, changing passwords, and adding additional users."
+---
+
+RisingWave Console has its own user accounts that control access to the console UI itself. These are separate from the database users within your RisingWave clusters.
+
+## The root user
+
+When you start RisingWave Console for the first time, a `root` user is automatically created. This account has full administrative access to the console.
+
+*   **Username**: `root`
+*   **Default password**: `root` (if `RCONSOLE_ROOT_PASSWORD` is not set)
+
+<Warning>
+Always set a strong password for the `root` user in production deployments by specifying `RCONSOLE_ROOT_PASSWORD` when starting the console. Never leave the default password in place on a publicly accessible deployment.
+</Warning>
+
+To set or change the root user's password, set the `RCONSOLE_ROOT_PASSWORD` environment variable when starting RisingWave Console:
+
+```shell
+docker run -d -p 8020:8020 --name risingwave-console \
+  -e RCONSOLE_ROOT_PASSWORD=your_new_secure_password \
+  -v risingwave-console-data:/var/lib/postgresql \
+  risingwavelabs/risingwave-console:vX.Y.Z-pgbundle
+```
+
+Replace `vX.Y.Z` with the desired version. See [Docker Hub](https://hub.docker.com/r/risingwavelabs/risingwave-console) for available versions.
+
+<Note>
+`RCONSOLE_ROOT_PASSWORD` sets the `root` user's password on startup. If the root user already exists in the metadata database, restarting the container with a new value for this variable will update the stored password.
+</Note>
+
+## Adding additional users
+
+Additional user management (creating, editing, and deleting non-root console users) is available directly within the RisingWave Console UI:
+
+1. Log in to RisingWave Console as the `root` user.
+2. Navigate to the **Settings** section from the sidebar or dashboard.
+3. Open the **User Management** panel.
+4. Click **Add User** and fill in the username and password for the new account.
+5. Save your changes.
+
+<Note>
+If the **User Management** panel is not visible in your installation, this feature may not be available in your current version of RisingWave Console. Check [Docker Hub](https://hub.docker.com/r/risingwavelabs/risingwave-console) for the latest image version, or visit the [GitHub releases page](https://github.com/risingwavelabs/risingwave-console/releases) for changelog details.
+</Note>
+
+## RisingWave Console users vs. RisingWave database users
+
+It is important to distinguish between two types of users:
+
+| User type | Where managed | Purpose |
+|-----------|--------------|---------|
+| **Console users** (for example, `root`) | RisingWave Console UI (**Settings → User Management**) or `RCONSOLE_ROOT_PASSWORD` environment variable | Access the RisingWave Console web interface |
+| **RisingWave database users** (for example, `root`, `app_user`) | Your RisingWave cluster | Connect to and query RisingWave databases |
+
+When you configure a database connection in the [SQL Console](/risingwave-console/use-sql-console), you provide RisingWave database credentials—not RisingWave Console user credentials.
+
+## Getting help
+
+*   For questions or feature requests related to user management, open an issue on the [RisingWave Console GitHub Issues page](https://github.com/risingwavelabs/risingwave-console/issues).
+*   For enterprise user management features (such as role-based access control), see **RisingWave Console-Pro**. Contact [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com) to learn more.
