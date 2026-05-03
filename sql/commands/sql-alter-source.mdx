@@ -55,7 +55,7 @@ ALTER SOURCE source_name CONNECTOR WITH (
 | Parameter         | Description |
 | :---------------- | :---------- |
 | **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing source without recreating it. Be aware that the properties defined in CONNECTION should be altered by `ALTER CONNECTION`.|
-| property_name | We currently support altering Kafka connectors only. Support for more sources and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
+| property_name | Supported for Kafka and PostgreSQL CDC (`postgres-cdc`) sources. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`. For PostgreSQL CDC, supported parameters include: `password`, `username`, `hostname`, `port`, `ssl.mode`, `ssl.root.cert`.|
 
 ```sql Example
 ALTER SOURCE user_events_src
@@ -63,6 +63,25 @@ CONNECTOR WITH (
   'properties.security.protocol' = 'SASL_SSL'
 );
 ```
+
+#### Rotate a PostgreSQL CDC source password
+
+Use `ALTER SOURCE ... CONNECTOR WITH` to update the password of a PostgreSQL CDC source without recreating it. This is the recommended way to rotate credentials when the upstream database password changes.
+
+```sql Example
+ALTER SOURCE pg_cdc_source
+CONNECTOR WITH (password = 'your_new_password');
+```
+
+After running the statement, the new password takes effect for new connections from the CDC job. If the running job needs to pick up the new credentials immediately, run:
+
+```sql
+RECOVER;
+```
+
+<Tip>
+To avoid storing passwords in plain SQL, consider using [secrets](/operate/manage-secrets). When creating the source with `CREATE SOURCE`, reference a secret instead of a literal password: `password = secret <secret_name>`. To rotate the credential later, update the secret value with [`ALTER SECRET`](/sql/commands/sql-alter-secret) and then run `RECOVER;` to reload it.
+</Tip>
 
 ### `REFRESH SCHEMA`
 
