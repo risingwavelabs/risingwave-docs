@@ -244,7 +244,7 @@ risectl meta inject-source-offsets \
 
 The `--offsets` parameter is a JSON object mapping split IDs to offset values. The format varies by connector type:
 
-- **Kafka**: Split ID is the partition number (e.g., `"0"`, `"1"`). Offset is the Kafka offset as a string. Example: `{"0": "1000", "1": "2000"}`
+- **Kafka**: Split ID is the partition number (e.g., `"0"`, `"1"`). The offset value is the last consumed Kafka offset as a string. RisingWave resumes from the next offset (`value + 1`). Example: `{"0": "1000", "1": "2000"}` resumes partition `0` from offset `1001` and partition `1` from offset `2001`.
 - **Pulsar**: Split ID is the full topic URL (e.g., `persistent://public/default/my-topic`). Offset is in the format `"{ledger_id}:{entry_id}:{partition}:{batch_index}"` (e.g., `"1234:56:0:-1"`).
 
 <Warning>
@@ -257,7 +257,7 @@ All three commands work with multiple connector types. The properties listed abo
 
 ### Examples
 
-Inject Kafka offsets (keys are partition IDs, values are offsets):
+Inject Kafka offsets (keys are partition IDs, values are last consumed offsets):
 
 ```bash
 risectl meta inject-source-offsets \
@@ -271,7 +271,7 @@ The command:
 
 1. **Offset injection**: Delivers the specified offsets to source executors via a barrier (without pausing the streaming graph)
 2. **State update**: Updates the split state for the specified splits. Splits not listed in `--offsets` are left untouched.
-3. **Reader rebuild**: Source readers are rebuilt automatically and consumption resumes from the injected offsets
+3. **Reader rebuild**: Source readers are rebuilt automatically and consumption resumes from the connector-specific position derived from the injected offsets. For Kafka, consumption resumes from the next offset after the injected value.
 
 ### When to use
 
@@ -296,10 +296,18 @@ SELECT definition FROM rw_sources WHERE name = 'your_source_name';
 Monitor the source during updates:
 
 ```sql
-SELECT * FROM rw_fragment_parallelism WHERE fragment_id IN (
-    SELECT fragment_id FROM rw_fragments WHERE table_id = (
-        SELECT id FROM rw_sources WHERE name = 'your_source_name'
-    )
+SELECT
+    fragment_id,
+    distribution_type,
+    state_table_ids,
+    upstream_fragment_ids,
+    flags,
+    parallelism,
+    max_parallelism,
+    parallelism_policy
+FROM rw_fragments
+WHERE table_id = (
+    SELECT id FROM rw_sources WHERE name = 'your_source_name'
 );
 ```
 
