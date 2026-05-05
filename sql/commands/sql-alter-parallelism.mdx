@@ -1,0 +1,216 @@
+---
+title: "ALTER ... SET PARALLELISM"
+description: "The SET PARALLELISM clause controls the degree of parallelism for streaming jobs and fragments in RisingWave."
+sidebarTitle: "ALTER ... SET PARALLELISM"
+---
+
+The `SET PARALLELISM` clause is used with various `ALTER` commands to control the degree of [parallelism](/reference/key-concepts#parallelism) for [streaming jobs](/reference/key-concepts#streaming-queries) and fragments in RisingWave. This allows you to optimize resource utilization and performance by adjusting how computational work is distributed across available CPU cores.
+
+## Supported object types
+
+The `SET PARALLELISM` clause can be used with the following object types:
+
+- [Tables](#tables) (`ALTER TABLE ... SET PARALLELISM`)
+- [Materialized views](#materialized-views) (`ALTER MATERIALIZED VIEW ... SET PARALLELISM`)
+- [Indexes](#indexes) (`ALTER INDEX ... SET PARALLELISM`)
+- [Sinks](#sinks) (`ALTER SINK ... SET PARALLELISM`)
+- [Sources](#sources) (`ALTER SOURCE ... SET PARALLELISM`) — shared sources only
+- [Fragments](#fragments) (`ALTER FRAGMENT ... SET PARALLELISM`)
+
+## General syntax
+
+```sql
+ALTER object_type object_name
+SET PARALLELISM { TO | = } parallelism_value;
+```
+
+### Parallelism values
+
+| Value | Description |
+| :---- | :---------- |
+| _number_ | A fixed number (e.g., 1, 2, 3, 16) that locks the parallelism at that value. The parallelism remains constant even when the cluster resizes. The maximum allowed value is determined by the `max_parallelism` of the job. See [Configuring maximum parallelism](/deploy/k8s-cluster-scaling#configuring-maximum-parallelism). |
+| **ADAPTIVE** | Automatically adjusts parallelism to utilize all available CPU cores across streaming nodes in the cluster. When nodes are added or removed, parallelism adjusts accordingly. This is the **default** setting for newly created streaming jobs since v1.7. |
+| **0** | Setting parallelism to 0 is equivalent to `ADAPTIVE`. |
+| **DEFAULT** | (Fragments only) Resets the fragment's parallelism to inherit from its parent streaming job's parallelism setting. |
+
+## Tables
+
+```sql
+ALTER TABLE table_name
+SET PARALLELISM { TO | = } parallelism_value;
+```
+
+Controls the parallelism for the streaming job associated with a table.
+
+```sql Example
+-- Set fixed parallelism to 8
+ALTER TABLE orders SET PARALLELISM = 8;
+
+-- Set adaptive parallelism
+ALTER TABLE orders SET PARALLELISM = ADAPTIVE;
+```
+
+For more details, see [ALTER TABLE](/sql/commands/sql-alter-table#set-parallelism).
+
+## Materialized views
+
+```sql
+ALTER MATERIALIZED VIEW mv_name
+SET PARALLELISM { TO | = } parallelism_value;
+```
+
+Controls the parallelism for the streaming job that maintains a materialized view.
+
+```sql Example
+-- Set fixed parallelism to 4
+ALTER MATERIALIZED VIEW mv_orders_summary SET PARALLELISM = 4;
+
+-- Set adaptive parallelism
+ALTER MATERIALIZED VIEW mv_orders_summary SET PARALLELISM = ADAPTIVE;
+```
+
+For more details, see [ALTER MATERIALIZED VIEW](/sql/commands/sql-alter-materialized-view#set-parallelism).
+
+## Indexes
+
+```sql
+ALTER INDEX index_name
+SET PARALLELISM { TO | = } parallelism_value;
+```
+
+Controls the parallelism for the streaming job associated with an index.
+
+```sql Example
+-- Set fixed parallelism to 3
+ALTER INDEX idx_orders_customer SET PARALLELISM = 3;
+
+-- Set adaptive parallelism
+ALTER INDEX idx_orders_customer SET PARALLELISM = ADAPTIVE;
+```
+
+For more details, see [ALTER INDEX](/sql/commands/sql-alter-index#set-parallelism).
+
+## Sinks
+
+```sql
+ALTER SINK sink_name
+SET PARALLELISM { TO | = } parallelism_value;
+```
+
+Controls the parallelism for the streaming job that delivers data to a sink.
+
+```sql Example
+-- Set fixed parallelism to 2
+ALTER SINK kafka_sink SET PARALLELISM = 2;
+
+-- Set adaptive parallelism
+ALTER SINK kafka_sink SET PARALLELISM = ADAPTIVE;
+```
+
+For more details, see [ALTER SINK](/sql/commands/sql-alter-sink#set-parallelism).
+
+## Sources
+
+```sql
+ALTER SOURCE source_name
+SET PARALLELISM { TO | = } parallelism_value;
+```
+
+Controls the parallelism for the streaming job associated with a [shared source](/sql/commands/sql-create-source#shared-source). This command only works for shared sources.
+
+<Note>
+Added in v2.3.0.
+</Note>
+
+```sql Example
+-- Set fixed parallelism to 2
+ALTER SOURCE kafka_source SET PARALLELISM = 2;
+
+-- Set adaptive parallelism
+ALTER SOURCE kafka_source SET PARALLELISM = ADAPTIVE;
+```
+
+For more details, see [ALTER SOURCE](/sql/commands/sql-alter-source#set-parallelism).
+
+## Fragments
+
+```sql
+ALTER FRAGMENT fragment_id [, ...]
+SET PARALLELISM { TO | = } { parallelism_value | DEFAULT };
+```
+
+Controls the parallelism of specific streaming [fragments](/reference/key-concepts#fragments). This enables fine-grained control over fragment execution, allowing targeted scaling of individual fragments within a streaming job.
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _fragment\_id_ | The ID of the fragment to modify. You can specify multiple fragment IDs separated by commas. To find fragment IDs, query the [`rw_fragment_parallelism`](/sql/system-catalogs/rw-catalog#available-risingwave-catalogs) system table. |
+
+```sql Example
+-- Set the parallelism of fragment 5 to 4
+ALTER FRAGMENT 5 SET PARALLELISM = 4;
+
+-- Set the parallelism of multiple fragments to adaptive
+ALTER FRAGMENT 10, 11, 12 SET PARALLELISM = ADAPTIVE;
+
+-- Reset fragment parallelism to inherit from the job
+ALTER FRAGMENT 7 SET PARALLELISM = DEFAULT;
+```
+
+For more details, see [ALTER FRAGMENT](/sql/commands/sql-alter-fragment#set-parallelism).
+
+## Operational notes
+
+### Impact on running jobs
+
+- Changing parallelism **does not** interrupt running streaming jobs. The change is applied dynamically, and RisingWave redistributes streaming actors across the cluster to maintain balanced workloads.
+- When increasing parallelism, additional CPU cores will be utilized immediately.
+- When decreasing parallelism or switching from adaptive to fixed mode, streaming actors are consolidated accordingly.
+
+### Choosing between adaptive and fixed parallelism
+
+**Use adaptive parallelism** (default) when:
+- You want automatic scaling as your cluster grows or shrinks
+- Resource utilization across all cores is more important than predictable resource allocation
+- Your workload benefits from using all available resources
+
+**Use fixed parallelism** when:
+- You need predictable resource allocation and want to avoid overloading the system
+- You have many streaming jobs running and want to control resource distribution
+- You want to throttle stream bandwidth for specific jobs
+- You need consistent performance regardless of cluster size changes
+
+### Limits and constraints
+
+- The maximum parallelism value is controlled by the `streaming_max_parallelism` session variable (default is 256 since RisingWave v2.2).
+- You can configure the maximum parallelism for new streaming jobs. See [Configuring maximum parallelism](/deploy/k8s-cluster-scaling#configuring-maximum-parallelism).
+- Setting parallelism to 0 is equivalent to setting it to `ADAPTIVE`.
+- For fragments, the `DEFAULT` value resets parallelism to inherit from the parent streaming job.
+
+### Monitoring parallelism
+
+You can monitor the current parallelism settings by querying system catalogs:
+
+```sql
+-- View parallelism for all fragments
+SELECT fragment_id, parallelism, parallelism_policy 
+FROM rw_fragments;
+
+-- View parallelism for a specific object's fragments
+SELECT f.fragment_id, f.parallelism, f.parallelism_policy
+FROM rw_fragments f
+JOIN rw_fragment_parallelism fp ON f.fragment_id = fp.fragment_id
+WHERE fp.object_name = 'your_object_name';
+```
+
+## See also
+
+- [Parallelism](/reference/key-concepts#parallelism) — Understanding parallelism in RisingWave
+- [Fragments](/reference/key-concepts#fragments) — Understanding streaming fragments
+- [Cluster scaling](/deploy/k8s-cluster-scaling) — Scaling your RisingWave cluster
+- [System catalogs](/sql/system-catalogs/rw-catalog) — View fragment and parallelism information
+- [ALTER TABLE](/sql/commands/sql-alter-table)
+- [ALTER MATERIALIZED VIEW](/sql/commands/sql-alter-materialized-view)
+- [ALTER INDEX](/sql/commands/sql-alter-index)
+- [ALTER SINK](/sql/commands/sql-alter-sink)
+- [ALTER SOURCE](/sql/commands/sql-alter-source)
+- [ALTER FRAGMENT](/sql/commands/sql-alter-fragment)
