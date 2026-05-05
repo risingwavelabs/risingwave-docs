@@ -63,7 +63,7 @@ risectl meta alter-source-properties-safe \
 
 ### Supported properties
 
-Unlike [`ALTER SOURCE ... CONNECTOR WITH`](/sql/commands/sql-alter-source) (which restricts updates to a predefined set of runtime-alterable fields), the `risectl` command bypasses this restriction and can update any connector property for any connector type. Use with caution.
+Unlike [`ALTER SOURCE ... CONNECTOR WITH`](/sql/commands/sql-alter-source) (which restricts updates to a predefined set of runtime-alterable fields), this `risectl` command bypasses the runtime-alterable field allowlist and can update valid source connector properties after connector validation. Kafka property updates are the primary documented and tested workflow. Use with caution.
 
 Below are common properties grouped by connector type.
 
@@ -294,6 +294,8 @@ SELECT definition FROM rw_sources WHERE name = 'your_source_name';
 ### Monitor source status
 
 Monitor the source during updates:
+
+Use `rw_fragments` here because `rw_fragment_parallelism` does not include source objects.
 
 ```sql
 SELECT
