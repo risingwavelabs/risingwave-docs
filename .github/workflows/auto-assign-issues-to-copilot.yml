@@ -1,0 +1,30 @@
+name: Auto-assign Issues to Copilot
+
+on:
+  issues:
+    types: [opened, reopened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to assign to Copilot"
+        required: true
+        type: number
+
+permissions:
+  issues: write
+
+jobs:
+  assign-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Assign issue to Copilot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event_name == 'issues' && github.event.issue.number || github.event.inputs.issue_number }}
+        run: |
+          gh api \
+            -X POST \
+            "repos/$REPO/issues/$ISSUE_NUMBER/assignees" \
+            --field 'assignees[]=Copilot'

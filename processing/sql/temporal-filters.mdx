@@ -26,6 +26,10 @@ t <= NOW() - INTERVAL '1 hour' -- To delay event handling by 1 hour
 t < DATE_TRUNC('hour', NOW()) - INTERVAL '1 hour'
 ```
 
+<Note>
+When using `DATE_TRUNC` with temporal filters, be aware that the filter boundary advances in discrete steps (e.g., once per hour for `DATE_TRUNC('hour', ...)` or once per day for `DATE_TRUNC('day', ...)`). At each boundary crossing, all data accumulated since the last step expires at once, which can cause a sudden spike in processing load. The coarser the truncation granularity, the larger the spike. For high-throughput streams, prefer continuous ranges like `t > NOW() - INTERVAL '1 hour'` to distribute expirations evenly over time.
+</Note>
+
 There could be multiple temporal filters and other expressions in the `WHERE` clause conjoined with the `AND` operator.
 
 ```sql
@@ -118,3 +122,8 @@ RisingWave's optimizer cannot always push temporal filters down to the source. T
 
 The `PROCTIME` in the example can be replaced with the event time in the records.
 </Note>
+
+## Related topics
+
+- [Periodic query pattern](/processing/sql/periodic-query) — Use `generate_series(..., now(), interval ...)` inside a materialized view for cron-like time-driven logic
+- [Time windows](/processing/sql/time-windows) — Tumbling, hopping, and session windows for time-based aggregations
