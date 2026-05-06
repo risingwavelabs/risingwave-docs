@@ -4,9 +4,7 @@ sidebarTitle: "Create and manage internal Iceberg tables"
 description: "Create and manage internal Iceberg tables in RisingWave. Persist data in an open format that is fully managed by RisingWave and queryable by external tools."
 ---
 
-<Tip>
-**Try our SQL generator tool!** We've built an interactive tool to help you generate SQL statements for creating Iceberg tables. Check it out at [https://sql.risingwave.com/table/iceberg-table](https://sql.risingwave.com/table/iceberg-table).
-</Tip>
+Need help generating SQL? Use [Claude Code](https://claude.ai/claude-code) or [Cursor](https://cursor.com) with the [RisingWave MCP server](https://github.com/risingwavelabs/risingwave-mcp) to generate and run SQL interactively.
 
 You can create and manage Apache Iceberg tables directly in RisingWave. When you create an internal Iceberg table (that is, a RisingWave-managed Iceberg table), RisingWave handles its lifecycle, while the underlying data is stored in the open Apache Iceberg format in an object store you configure.
 
@@ -20,7 +18,9 @@ An Iceberg `CONNECTION` defines the catalog and object storage configuration.
 
 You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based built-in catalog, set `hosted_catalog` to `true`.
 
-You can also set the optional `commit_checkpoint_interval` parameter to control the **Iceberg commit frequency**. The default is `60`, which means RisingWave commits changes to Iceberg about every **60 seconds** in the default configuration. You can adjust this value based on your freshness and performance requirements.
+`commit_checkpoint_interval` and `commit_checkpoint_size_threshold_mb` are configured on the table or sink `WITH (...)` properties (for example, `CREATE TABLE ... ENGINE = iceberg WITH (...)`), not on the `CONNECTION` object itself. In the default configuration, Iceberg commits happen about every **60 seconds** (`commit_checkpoint_interval = 60`).
+
+You can also set `commit_checkpoint_size_threshold_mb` to trigger early commits based on buffered data size. When uncommitted write data exceeds this threshold (in MB), RisingWave commits at the next checkpoint barrier regardless of `commit_checkpoint_interval`. This value must be greater than `0`; the default is `128` MB. This is especially useful during large backfills to avoid accumulating too much uncommitted data.
 
 When you create a `CONNECTION`, you specify the object storage backend where the table data will be stored. You also specify the catalog that will manage the table's metadata.
 
@@ -113,29 +113,25 @@ For more details on the available catalog options, see [Iceberg catalog configur
 
 Create an internal Iceberg table using the `ENGINE = iceberg` clause.
 
-To create Iceberg tables, RisingWave needs to know which Iceberg `CONNECTION` to use (this connection contains both the object storage settings and the catalog settings). Choose **one** option below.
+To create Iceberg tables, RisingWave needs to know which Iceberg `CONNECTION` to use (this connection contains both the object storage settings and the catalog settings). Set the connection before creating the table — either for the current session or globally for all sessions.
 
 ```sql
--- Option 1: Set a default connection for the session
+-- Set a default connection for the current session only
 SET iceberg_engine_connection = 'public.my_iceberg_conn';
 
+-- Or set it globally for all sessions
+ALTER SYSTEM SET iceberg_engine_connection = 'public.my_iceberg_conn';
+```
+
+Then create the table:
+
+```sql
 CREATE TABLE user_events (
     user_id INT,
     event_type VARCHAR,
     timestamp TIMESTAMPTZ,
     PRIMARY KEY (user_id, timestamp)
 ) ENGINE = iceberg;
-```
-
-```sql
--- Option 2: Specify the connection explicitly
-CREATE TABLE user_events (
-    user_id INT,
-    event_type VARCHAR,
-    timestamp TIMESTAMPTZ,
-    PRIMARY KEY (user_id, timestamp)
-) ENGINE = iceberg
-  WITH (connection = 'public.my_iceberg_conn');
 ```
 
 You can also define a partition strategy in the `WITH` clause to optimize query performance.
@@ -157,7 +153,7 @@ Supported partitioning strategies include by column, by multiple columns, and by
 
 Once created, you can work with an internal Iceberg table using familiar SQL (insert, query, materialized views).
 
-One important difference: **new writes become queryable only after an Iceberg commit**. By default, Iceberg commits happen about every **60 seconds** (controlled by `commit_checkpoint_interval`).
+One important difference: **new writes become queryable only after an Iceberg commit**. By default, Iceberg commits happen about every **60 seconds** (controlled by `commit_checkpoint_interval`), or earlier when the buffered write size exceeds `commit_checkpoint_size_threshold_mb` (default: `128` MB).
 
 ### Ingest data
 
@@ -234,6 +230,36 @@ WITH (
 ENGINE = ICEBERG;
 ```
 
+## Query storage selection
+
+Iceberg engine tables have two storage backends for batch reads:
+
+- **Iceberg columnar storage** – better for wide scans and analytical reads.
+- **Hummock row storage** – better for point reads and highly selective access.
+
+You can control which backend a batch `SELECT` uses with the `iceberg_query_storage_mode` session variable.
+
+| Value | Behavior |
+| :-- | :-- |
+| `iceberg` (default) | Always read from Iceberg columnar storage. |
+| `hummock` | Always read from Hummock row storage. |
+| `auto` | Let the optimizer decide. Currently prefers Hummock for point lookups on the table primary key. |
+
+```sql
+-- Use Iceberg columnar storage (default)
+SET iceberg_query_storage_mode = 'iceberg';
+
+-- Use Hummock row storage (good for primary-key point lookups)
+SET iceberg_query_storage_mode = 'hummock';
+
+-- Let the optimizer decide based on the query shape
+SET iceberg_query_storage_mode = 'auto';
+```
+
+<Note>
+`iceberg_query_storage_mode` only affects batch `SELECT` on tables created with `ENGINE = ICEBERG`. Streaming queries are not affected.
+</Note>
+
 ## Table maintenance
 
 To maintain good performance and manage storage costs, internal Iceberg tables require periodic maintenance, including compaction and snapshot expiration.
@@ -253,4 +279,3 @@ spark.sql("SELECT * FROM iceberg_catalog.your_database.user_events")
 
 - Advanced schema evolution operations are not yet supported.
 - To ensure data consistency, only RisingWave should write to internal Iceberg tables.
-

@@ -22,7 +22,7 @@ We periodically update this article to keep up with the rapidly evolving landsca
 
 _Kafka is a distributed log and messaging backbone; RisingWave is a SQL-first streaming database that can ingest streams, continuously transform them, and deliver results to downstream systems._
 
-Kafka and RisingWave often show up in the same architecture, but they solve different parts of a modern real-time data pipeline. This page focuses on one specific decision: choosing a system for the ingestion pipeline, meaning ingest + transform + deliver. It follows the same "which one to choose" framing as the [RisingWave vs. Flink](/reference/risingwave-flink-comparison) page, but the comparison point here is Kafka.
+Kafka and RisingWave often show up in the same architecture, but they solve different parts of a modern real-time data pipeline. This page focuses on one specific decision: choosing a system for the ingestion pipeline, meaning ingest + transform + deliver.
 
 ### Apache Kafka
 
@@ -157,4 +157,33 @@ So, which one should you choose? The answer to this question depends on your spe
 ### Choose both if:
 
 * Kafka is your organization-wide event bus, but you want RisingWave to turn streams into ready-to-use, continuously updated results and deliver them downstream.
+
+<head>
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the difference between RisingWave and Apache Kafka?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Apache Kafka is a distributed log and messaging backbone for durable event streaming and fan-out. RisingWave is a SQL-first streaming database that handles ingest, transform, and deliver in one system. Kafka excels at buffering and distributing events; RisingWave excels at continuous SQL transformations and delivering results to downstream systems. They are often used together."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can RisingWave replace Kafka?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave does not replace Kafka as a message bus. Instead, it replaces the transformation and delivery layers typically built on top of Kafka (ksqlDB, Kafka Streams, Kafka Connect, or Flink). RisingWave can ingest from Kafka, perform SQL transformations, and deliver results to downstream systems — all in one system. Many architectures use Kafka as the event bus with RisingWave as the processing and delivery layer."
+          }
+        }
+      ]
+    }
+    `}
+  </script>
+</head>
 
