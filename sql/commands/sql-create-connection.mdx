@@ -77,6 +77,7 @@ For AWS authentication:
 | schema.registry                  | The base URL of the Schema Registry service. |
 | schema.registry.username         | The username for authenticating to the Schema Registry service. |
 | schema.registry.password         | The password for authenticating to the Schema Registry service. |
+| schema.registry.ca_pem_path      | Path to a custom root CA certificate file (PEM) for the Schema Registry TLS connection, or `'ignore'` to skip certificate verification. Supports `SECRET ... AS FILE`. |
 
 </Accordion>
 
@@ -123,7 +124,8 @@ CREATE CONNECTION sr_conn WITH (
   type = 'schema_registry',
   schema.registry = 'http://...',
   schema.registry.username = 'admin_user',
-  schema.registry.password = 'schema_registry_password'
+  schema.registry.password = 'schema_registry_password',
+  schema.registry.ca_pem_path = SECRET sr_ca AS FILE
 );
 ```
 
