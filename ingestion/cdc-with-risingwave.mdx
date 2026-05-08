@@ -23,25 +23,70 @@ There are two patterns for creating CDC tables:
 
 **PostgreSQL, MySQL, and SQL Server: create a shared source, then create tables from that source**
 
-```sql
-CREATE SOURCE pg_src WITH (
-  connector = 'postgres-cdc',
-  hostname = '127.0.0.1',
-  port = '5432',
-  username = 'admin',
-  password = 'secret',
-  database.name = 'mydb',
-  schema.name = 'public'
-);
+Each connector uses a different connector name and slightly different parameters. Select the tab for your database:
 
-CREATE TABLE users (
-  id INT PRIMARY KEY,
-  name VARCHAR,
-  email VARCHAR
-) FROM pg_src TABLE 'public.users';
-```
+<Tabs>
+  <Tab title="PostgreSQL">
+    ```sql
+    CREATE SOURCE pg_src WITH (
+      connector = 'postgres-cdc',
+      hostname = '127.0.0.1',
+      port = '5432',
+      username = 'admin',
+      password = 'secret',
+      database.name = 'mydb',
+      schema.name = 'public'  -- Optional, defaults to 'public'
+    );
 
-For PostgreSQL CDC, `slot.name` is optional. If you omit it, RisingWave generates and manages a unique replication slot automatically.
+    CREATE TABLE users (
+      id INT PRIMARY KEY,
+      name VARCHAR,
+      email VARCHAR
+    ) FROM pg_src TABLE 'public.users';
+    ```
+
+    `slot.name` is optional. If omitted, RisingWave generates and manages a unique replication slot automatically.
+  </Tab>
+  <Tab title="MySQL">
+    ```sql
+    CREATE SOURCE mysql_src WITH (
+      connector = 'mysql-cdc',
+      hostname = '127.0.0.1',
+      port = '3306',
+      username = 'admin',
+      password = 'secret',
+      database.name = 'mydb',
+      server.id = 5001  -- Required; must be unique across all MySQL clients
+    );
+
+    CREATE TABLE users (
+      id INT PRIMARY KEY,
+      name VARCHAR,
+      email VARCHAR
+    ) FROM mysql_src TABLE 'mydb.users';
+    ```
+  </Tab>
+  <Tab title="SQL Server">
+    ```sql
+    CREATE SOURCE mssql_src WITH (
+      connector = 'sqlserver-cdc',
+      hostname = '127.0.0.1',
+      port = '1433',
+      username = 'sa',
+      password = 'secret',
+      database.name = 'mydb'
+    );
+
+    CREATE TABLE users (
+      id INT PRIMARY KEY,
+      name VARCHAR,
+      email VARCHAR
+    ) FROM mssql_src TABLE 'dbo.users';
+    ```
+
+    `dbo` is the default SQL Server schema. Replace it with your actual schema name if different.
+  </Tab>
+</Tabs>
 
 **MongoDB: create the CDC table directly with the connector**
 
