@@ -7,6 +7,8 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 ## SQL features
 
+- SQL commands:
+    - Fixes a bug where `ALTER SOURCE ... source_rate_limit` and analogous backfill, sink, and DML rate-limit changes could silently revert after a later fragment reschedule. For example, a source resumed with `ALTER SOURCE ... SET source_rate_limit TO DEFAULT` could become paused again after scaling or parallelism changes. [#25562](https://github.com/risingwavelabs/risingwave/pull/25562)
 - System catalog:
     - Adds column `schema_name` to `rw_catalog.rw_materialized_views` and `rw_catalog.rw_subscriptions` so you can filter by schema without extra joins. [#25248](https://github.com/risingwavelabs/risingwave/pull/25248)
 
