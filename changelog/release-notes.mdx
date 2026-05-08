@@ -18,6 +18,10 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 - Iceberg sink and Iceberg engine tables: Adds `commit_checkpoint_size_threshold_mb` to trigger size-based early commits. When uncommitted write data exceeds this threshold (in MB), RisingWave commits at the next checkpoint barrier regardless of `commit_checkpoint_interval`. Default: `128` MB. [#25058](https://github.com/risingwavelabs/risingwave/pull/25058)
 
+## Bug fixes
+
+- Fixes a bug where `ALTER` rate-limit changes for existing streaming jobs could revert after a later fragment reschedule, such as scaling or parallelism changes. This affected source, backfill, and sink throttling configured with `ALTER ... SET {SOURCE|BACKFILL|SINK}_RATE_LIMIT`. [#25562](https://github.com/risingwavelabs/risingwave/pull/25562)
+
 </Update>
 
 <Update label="v2.8.0" description="2026-03-02">
