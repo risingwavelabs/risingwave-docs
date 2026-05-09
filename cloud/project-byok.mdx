@@ -125,6 +125,10 @@ Provide the S3 bucket **ARNs** for both buckets.
 <Tabs>
 <Tab title="AWS">
 Provide a KMS key ARN for EBS encryption. This is used by VictoriaMetrics and Loki persistent volumes, and RisingWave compute cache storage.
+
+<Warning>
+The KMS key policy must allow this key to be used for EBS encryption, either directly or by delegating access to IAM principals. Depending on your setup, the IAM principal used by the EBS CSI controller may also need the relevant KMS permissions. Otherwise, persistent volume claims for VictoriaMetrics, Loki, and the RisingWave compute cache will stay `Pending` and `rwc byok apply` will fail. See the [reference Terraform example](https://github.com/risingwavelabs/risingwave-byok-terraform-example/blob/main/aws/base_env/kms.tf) for a working KMS key policy.
+</Warning>
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
