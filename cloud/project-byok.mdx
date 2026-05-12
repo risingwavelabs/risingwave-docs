@@ -65,7 +65,7 @@ GCP examples will be added when GCP GKE support lands.
 </Tabs>
 
 <Warning>
-The following Kubernetes namespaces are reserved for RisingWave-managed components. **Do not create or use these namespaces for your own workloads** — RisingWave will create and manage them during BYOK environment setup and tenant provisioning.
+The following Kubernetes namespaces are reserved for RisingWave-managed components. **Do not create or use these namespaces for your own workloads** — RisingWave will create and manage them during BYOK environment setup and cluster provisioning.
 
 | Namespace | Component |
 | --- | --- |
@@ -78,7 +78,7 @@ The following Kubernetes namespaces are reserved for RisingWave-managed componen
 | `rw-kube-state-metrics` | kube-state-metrics |
 | `rw-kubernetes-event-exporter` | kubernetes-event-exporter |
 | `rw-hcm-suppressor` | High cardinality metrics suppressor |
-| `rwc-*` | RisingWave tenant clusters (one namespace per tenant) |
+| `rwc-*` | RisingWave clusters (one namespace per cluster) |
 </Warning>
 
 ### 2. Cluster dependencies
@@ -481,16 +481,40 @@ You can run `rwc byok prepare --name <env-name>` to download the Terraform modul
 
 ## Create a RisingWave cluster
 
-Creating a RisingWave cluster in a BYOK environment uses a **two-phase provisioning flow**. This is because the IRSA trust policy for the cluster's IAM role requires the Kubernetes namespace and service account name, which are only allocated after the tenant is initially created.
+Creating a RisingWave cluster in a BYOK environment uses a **two-phase provisioning flow**. This is because the IRSA trust policy for the cluster's IAM role requires the Kubernetes namespace and service account name, which are only allocated after the cluster is initially created.
 
-### Phase 1: Create the tenant
+<Note>
+Cluster creation in a BYOK environment is currently available **only via the `rwc` CLI**. RisingWave Cloud portal support is planned but not yet implemented. Once the cluster is provisioned, you can manage it (including rescaling components and adjusting replicas) from the RisingWave Cloud portal as usual.
+</Note>
 
-Create the tenant via the RisingWave Cloud portal or CLI. The tenant starts in `AwaitingConfig` status. At this point, the control plane allocates the Kubernetes namespace and service account name.
+### Phase 1: Create the cluster
 
-Retrieve them with:
+Create the cluster via the `rwc` CLI. A BYOK cluster must use `--tier BYOK` together with per-component sizing flags, and the `--env` flag must point to the BYOK environment registered with `rwc byok create`. The metastore is **not** configured at this step — the customer-managed PostgreSQL connection details are supplied in Phase 2 via `rwc cluster byok-config`.
 
 ```bash
-rwc cluster describe --uuid <tenant-uuid>
+rwc cluster create \
+  --name <cluster-name> \
+  --tier BYOK \
+  --env <byok-env-name> \
+  --compute p-4c16g    --compute-replica 1 \
+  --compactor p-2c8g   --compactor-replica 1 \
+  --frontend p-2c8g    --frontend-replica 1 \
+  --meta p-2c8g        --meta-replica 1
+```
+
+Where:
+- `--name` — name of the new RisingWave cluster.
+- `--tier BYOK` — required tier for clusters running in a BYOK environment.
+- `--env` — name of the BYOK environment registered with `rwc byok create`.
+- `--compute` / `--compactor` / `--frontend` / `--meta` — component-type IDs that match instance shapes available in your Kubernetes cluster. Component IDs follow the pattern `p-<X>c<Y>g`, where `X` is the number of CPU cores and `Y` is the amount of memory in GiB (for example, `p-4c16g` means 4 CPU and 16 GiB memory). The values above are a small example sizing (1 replica each at `p-4c16g` for compute and `p-2c8g` for the rest); replace them to match your workload. Run `rwc cluster create --help` for the full flag list.
+- `--*-replica` — replica count for each component.
+
+The cluster starts in `AwaitingConfig` status. The success message from `rwc cluster create` includes the cluster's UUID and the exact `rwc cluster byok-config` command to run next; you can also list existing clusters and their UUIDs with `rwc cluster list`.
+
+At this point, the control plane has allocated the Kubernetes namespace and service account name. Retrieve them with:
+
+```bash
+rwc cluster describe --uuid <cluster-uuid>
 ```
 
 Look for the `Resource Namespace` and `Service Account` fields in the output. You will need these values for the IAM trust policy in the next step.
@@ -545,7 +569,7 @@ Look for the `Resource Namespace` and `Service Account` fields in the output. Yo
 3. **Submit the configuration** via CLI:
 
    ```bash
-   rwc cluster byok-config --uuid <tenant-uuid> --config <path-to-config.yaml>
+   rwc cluster byok-config --uuid <cluster-uuid> --config <path-to-config.yaml>
    ```
 
    Config file format:
@@ -565,7 +589,7 @@ Look for the `Resource Namespace` and `Service Account` fields in the output. Yo
    You can set the `RWC_BYOK_METASTORE_PASSWORD` environment variable instead of including the password in the YAML file. The environment variable takes precedence.
    </Tip>
 
-This transitions the tenant to `Creating` status and triggers provisioning. The metastore password is encrypted at rest.
+This transitions the cluster to `Creating` status and triggers provisioning. The metastore password is encrypted at rest.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
@@ -588,26 +612,26 @@ For programmatic access (e.g., from your own applications, BI tools, or `psql`),
 The RWProxy NLB is **internal-only**. Clients must be inside the same VPC as the BYOK environment, or reach the NLB via VPC peering / Transit Gateway.
 </Note>
 
-Because a single RWProxy NLB serves multiple tenants in the BYOK environment, you must include the **tenant identifier** (the Kubernetes namespace allocated to your tenant in Phase 1) in the connection. Retrieve it via:
+Because a single RWProxy NLB serves multiple clusters in the BYOK environment, you must include the **cluster identifier** (the Kubernetes namespace allocated to your cluster in Phase 1) in the connection. Retrieve it via:
 
 ```bash
-rwc cluster describe --uuid <tenant-uuid>
-# Look for: Resource Namespace: rwc-xxxxxxxxxxxx-<tenant-name>
+rwc cluster describe --uuid <cluster-uuid>
+# Look for: Resource Namespace: rwc-xxxxxxxxxxxx-<cluster-name>
 ```
 
-The tenant identifier can be passed via the `options` field, the host (SNI), or the username. See [Connection errors → Tenant identifier methods](/cloud/connection-errors#solution-1-put-the-tenant-identifier-in-the-options-field) for all three methods. Example using the `options` field:
+The cluster identifier can be passed via the `options` field, the host (SNI), or the username. See [Connection errors → Tenant identifier methods](/cloud/connection-errors#solution-1-put-the-tenant-identifier-in-the-options-field) for all three methods. Example using the `options` field:
 
 ```bash
-psql "postgresql://<username>:<password>@<rwproxy-nlb-dns>:4566/<database>?options=--tenant%3D<tenant-namespace>"
+psql "postgresql://<username>:<password>@<rwproxy-nlb-dns>:4566/<database>?options=--tenant%3D<cluster-namespace>"
 ```
 
-`%3D` is the URL-encoded form of `=`. If your client does not require URL encoding, use `--tenant=<tenant-namespace>` directly.
+`%3D` is the URL-encoded form of `=`. If your client does not require URL encoding, use `--tenant=<cluster-namespace>` directly.
 
 Where:
 - `<rwproxy-nlb-dns>` — DNS name of the RWProxy NLB (the load balancer behind `rwproxy_target_group_arn`)
 - `4566` — RWProxy PostgreSQL port
 - `<database>` — database name (default: `dev`)
-- `<tenant-namespace>` — the `Resource Namespace` from `rwc cluster describe`
+- `<cluster-namespace>` — the `Resource Namespace` from `rwc cluster describe`
 - `<username>` / `<password>` — credentials created via `rwc cluster dbuser create`
 
 ## Node pool resource requirements
