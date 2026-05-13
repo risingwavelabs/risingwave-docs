@@ -14,7 +14,7 @@ Production Console builds verify a signed RisingWave license key during startup.
 - `RW_LICENSE_KEY`: direct token value, or
 - `RW_LICENSE_KEY_PATH`: path to a file containing the token.
 
-For Docker and Kubernetes, prefer `RW_LICENSE_KEY_PATH` or a Kubernetes Secret so the token is not embedded in command history or plain manifests.
+For Docker and Kubernetes deployments, storing the license key value in `RW_LICENSE_KEY_PATH` or a Kubernetes Secret is preferred so the token is not embedded in command history or plain manifests.
 
 Console uses the same signed RisingWave license key as the RisingWave database. Configure the same key in different places depending on what needs to read it:
 
@@ -27,11 +27,11 @@ See [Manage license keys](/web-ui/risingwave-console/license-management) for the
 
 Choose one runtime:
 
-| Runtime | Requirements |
-| --- | --- |
-| Docker | A recent Docker daemon on Linux, macOS, or Windows with WSL2. |
+| Runtime    | Requirements                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docker     | A recent Docker daemon on Linux, macOS, or Windows with WSL2.                                                                                     |
 | Kubernetes | A cluster that can run the Console `StatefulSet`, expose the Console service, and provide a default StorageClass or an explicitly configured one. |
-| Binary | A compatible Linux host that can run the provided Console binary. |
+| Binary     | A compatible Linux host that can run the provided Console binary.                                                                                 |
 
 Console is lightweight as a web service, but size the host based on the number of users, connected clusters, background tasks, and whether PostgreSQL runs in the same container.
 
@@ -62,13 +62,13 @@ Console must be reachable by users on its HTTP port:
 
 Console must also reach the services it manages:
 
-| Target | Default port | Used for |
-| --- | --- | --- |
-| RisingWave SQL endpoint | `4566` | SQL Console and database connection tests |
-| RisingWave Meta RPC endpoint | `5690` | Cluster metadata and `risectl` workflows |
-| RisingWave Meta HTTP endpoint | `5691` | Cluster HTTP APIs and health checks |
-| Metrics store endpoint | deployment-specific | Metrics charts and metrics export |
-| PostgreSQL metadata store | deployment-specific | Console metadata |
+| Target                        | Default port        | Used for                                  |
+| ----------------------------- | ------------------- | ----------------------------------------- |
+| RisingWave SQL endpoint       | `4566`              | SQL Console and database connection tests |
+| RisingWave Meta RPC endpoint  | `5690`              | Cluster metadata and `risectl` workflows  |
+| RisingWave Meta HTTP endpoint | `5691`              | Cluster HTTP APIs and health checks       |
+| Metrics store endpoint        | deployment-specific | Metrics charts and metrics export         |
+| PostgreSQL metadata store     | deployment-specific | Console metadata                          |
 
 If Console runs inside Kubernetes and connects to a RisingWave Service in another namespace, use the full Service DNS name, such as `risingwave-frontend.risingwave.svc.cluster.local:4566`.
 
