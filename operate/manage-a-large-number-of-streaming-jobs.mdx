@@ -23,54 +23,35 @@ default_parallelism=8
 
 The adaptive parallelism feature in v1.7.0 ensures that every streaming job can fully utilize all available CPUs. Therefore, we need to disable it. The `default_parallelism` setting determines the parallelism for newly created streaming jobs. Change the `streaming_parallelism` before creating streaming jobs can achieve the same effect. For guidance on how to set this value, refer to [How to adjust the resources allocated to each streaming query?](/performance/faq#how-do-i-adjust-the-resources-allocated-to-each-streaming-query).
 
-### Configure adaptive parallelism strategy
+### Configure unified parallelism values
 
-RisingWave introduces the [system parameter](/operate/view-configure-system-parameters)`adaptive_parallelism_strategy` in v2.3.0 to control how jobs behave when they are of the adaptive type. This provides more granular control over adaptive scheduling behavior.
+Streaming parallelism is configured through `streaming_parallelism` and per-job-type overrides such as `streaming_parallelism_for_table`. These parameters accept:
 
-The supported values are:
+- `adaptive` or `0` to use the full available worker set
+- A fixed integer such as `4`
+- `bounded(n)` to cap adaptive parallelism
+- `ratio(r)` to use a fraction of the available parallelism
 
-- `Full` — the job uses all available parallelism.
-
-- `Bounded(n)` — limits the maximum parallelism to `n`.
-
-- `Ratio(r)` — sets the effective parallelism to a fraction `r` of the available CPUs (rounded down).
-
-- `Auto` — currently behaves the same as `Full`.
-
-When this parameter is modified, RisingWave sends a local notification to inform the scale controller, and adaptive jobs are updated in batches in the background.
-
-All parallelism values remain subject to the limits of max parallelism and resource groups.
-
-You can also set this parameter using the following syntax:
+For example:
 
 ```sql
-ALTER SYSTEM SET adaptive_parallelism_strategy TO '<strategy>';
+SET streaming_parallelism = 'bounded(4)';
+SET streaming_parallelism_for_table = 'ratio(0.5)';
+SET streaming_parallelism_for_materialized_view = 'adaptive';
+SET streaming_parallelism_for_sink = 'bounded(2)';
 ```
 
-### Configure per-job-type adaptive parallelism strategies
-
-In addition to the system-level `adaptive_parallelism_strategy`, you can configure adaptive strategies for specific job types at the session level. This provides fine-grained control over how different types of streaming jobs utilize resources.
-
-Set session-level strategies for specific job types:
-
-```sql
-SET streaming_parallelism_strategy = 'BOUNDED(4)';
-SET streaming_parallelism_strategy_for_table = 'RATIO(0.5)';
-SET streaming_parallelism_strategy_for_materialized_view = 'FULL';
-SET streaming_parallelism_strategy_for_sink = 'BOUNDED(2)';
-```
-
-Create jobs with specific strategies:
+Create jobs with specific parallelism values:
 
 ```sql Example
-SET streaming_parallelism_strategy_for_table = 'BOUNDED(2)';
+SET streaming_parallelism_for_table = 'bounded(2)';
 CREATE TABLE my_table (id INT, value VARCHAR);
 
-SET streaming_parallelism_strategy_for_materialized_view = 'RATIO(0.5)';
+SET streaming_parallelism_for_materialized_view = 'ratio(0.5)';
 CREATE MATERIALIZED VIEW my_mv AS SELECT * FROM my_table;
 ```
 
-For more details on adaptive parallelism strategies, see [Adaptive parallelism strategies](/operate/view-configure-runtime-parameters#adaptive-parallelism-strategies).
+For more details on supported values and default resolution, see [Unified streaming parallelism values](/operate/view-configure-runtime-parameters#unified-streaming-parallelism-values).
 
 ### Limit the concurrency of creating streaming jobs
 
@@ -109,15 +90,15 @@ CREATE_INDEX
 dev=> select * from rw_streaming_parallelism;
  id |   name   | relation_type | parallelism | max_parallelism
 ----+----------+---------------+-------------+-----------------
-  7 | t        | table         | FIXED(2)    |             256
-  6 | t_normal | table         | FIXED(1)    |             256
-  8 | i        | index         | FIXED(3)    |             256
+  7 | t        | table         | 2           |             256
+  6 | t_normal | table         | 1           |             256
+  8 | i        | index         | 3           |             256
 (3 rows)
 ```
 
-By setting the parallelism strategy for a specific job type, you can control the exact parallelism used when the job is created.
+By setting the parallelism value for a specific job type, you can control the exact parallelism policy used when the job is created.
 
-If you want to reset to the default strategy, simply set it to `default`. The parallelism will then fall back to the global `streaming_parallelism` setting.
+If you want to reset to the default value, simply set it to `default`. The parallelism will then fall back to the global `streaming_parallelism` setting.
 
 ```sql
 dev=> set streaming_parallelism = adaptive;
@@ -133,8 +114,8 @@ CREATE_TABLE
 dev=> select * from rw_streaming_parallelism;
  id |   name    | relation_type | parallelism | max_parallelism
 ----+-----------+---------------+-------------+-----------------
-  9 | t_default | table         | ADAPTIVE    |             256
-  8 | t         | table         | FIXED(1)    |             256
+  9 | t_default | table         | adaptive    |             256
+  8 | t         | table         | 1           |             256
 (2 rows)
 ```
 
