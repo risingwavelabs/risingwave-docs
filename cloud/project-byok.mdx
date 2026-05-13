@@ -546,7 +546,7 @@ Look for the `Resource Namespace` and `Service Account` fields in the output. Yo
    }
    ```
 
-   Grant S3 access to the data store bucket:
+   Grant S3 access to the cluster's data and backup prefixes in the data store bucket. RisingWave stores cluster state under `data-$RESOURCE_NAMESPACE/` and meta backups under `data-$RESOURCE_NAMESPACE-backup/`, so both prefixes must be included:
 
    ```json
    {
@@ -557,7 +557,8 @@ Look for the `Resource Namespace` and `Service Account` fields in the output. Yo
                "Action": "s3:*",
                "Resource": [
                    "arn:aws:s3:::$DATA_STORE_BUCKET",
-                   "arn:aws:s3:::$DATA_STORE_BUCKET/$RESOURCE_NAMESPACE/*"
+                   "arn:aws:s3:::$DATA_STORE_BUCKET/data-$RESOURCE_NAMESPACE/*",
+                   "arn:aws:s3:::$DATA_STORE_BUCKET/data-$RESOURCE_NAMESPACE-backup/*"
                ]
            }
        ]
