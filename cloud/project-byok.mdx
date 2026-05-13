@@ -1,17 +1,17 @@
 ---
 title: "Bring your own Kubernetes"
-description: "This guide walks you through deploying RisingWave in your own Kubernetes cluster using the BYOK (Bring Your Own Kubernetes) model."
+description: "This guide walks you through deploying RisingWave in your own Kubernetes cluster using the BYOK8s (Bring Your Own Kubernetes) model."
 ---
 
 <Warning>
-BYOK is currently in **early access**. To enable BYOK for your organization, contact our [support team](mailto:cloud-support@risingwave-labs.com).
+BYOK8s is currently in **early access**. To enable BYOK8s for your organization, contact our [support team](mailto:cloud-support@risingwave-labs.com).
 </Warning>
 
-The Bring Your Own Kubernetes (BYOK) plan lets you run RisingWave in your own Kubernetes cluster while RisingWave manages the database workloads. Unlike [BYOC](/cloud/project-byoc) where RisingWave manages the entire data plane infrastructure, BYOK gives you full control over the underlying cloud resources — networking, IAM, storage, and the Kubernetes cluster itself — while RisingWave handles the Kubernetes-level workloads and cluster operations.
+The Bring Your Own Kubernetes (BYOK8s) plan lets you run RisingWave in your own Kubernetes cluster while RisingWave manages the database workloads. Unlike [BYOC](/cloud/project-byoc) where RisingWave manages the entire data plane infrastructure, BYOK8s gives you full control over the underlying cloud resources — networking, IAM, storage, and the Kubernetes cluster itself — while RisingWave handles the Kubernetes-level workloads and cluster operations.
 
-## BYOC vs BYOK
+## BYOC vs BYOK8s
 
-| Aspect | BYOC | BYOK |
+| Aspect | BYOC | BYOK8s |
 | --- | --- | --- |
 | Infrastructure (VPC, K8s, networking) | RisingWave manages | Customer manages |
 | IAM roles and policies | RisingWave provisions | Customer provisions |
@@ -23,18 +23,18 @@ The Bring Your Own Kubernetes (BYOK) plan lets you run RisingWave in your own Ku
 
 ## Architecture overview
 
-In a BYOK environment, RisingWave deploys and manages the following components in your Kubernetes cluster:
+In a BYOK8s environment, RisingWave deploys and manages the following components in your Kubernetes cluster:
 
 - **CloudAgent**: Handles operations sent by the RisingWave control plane (cluster provisioning, scaling, upgrades).
 - **RWProxy**: Routes PostgreSQL protocol traffic from the control plane and user clients to the appropriate RisingWave instances.
 - **RisingWave Operator**: Manages RisingWave Custom Resource lifecycle in Kubernetes.
-- **Self-hosted telemetry stack**: VictoriaMetrics (metrics), Loki (logs), and Grafana Alloy (collection) — deployed automatically inside the BYOK cluster. No external observability services are required.
+- **Self-hosted telemetry stack**: VictoriaMetrics (metrics), Loki (logs), and Grafana Alloy (collection) — deployed automatically inside the BYOK8s cluster. No external observability services are required.
 
-Communication between the RisingWave control plane and your BYOK cluster is established via private network connectivity (AWS PrivateLink), ensuring all traffic stays off the public internet.
+Communication between the RisingWave control plane and your BYOK8s cluster is established via private network connectivity (AWS PrivateLink), ensuring all traffic stays off the public internet.
 
 ## Prerequisites
 
-Before setting up a BYOK environment, you must provision the following resources in your cloud account.
+Before setting up a BYOK8s environment, you must provision the following resources in your cloud account.
 
 <Tip>
 **Reference Terraform examples** are available at [`risingwavelabs/risingwave-byok-terraform-example`](https://github.com/risingwavelabs/risingwave-byok-terraform-example). They provision all of the prerequisites below and generate the config files used by the `rwc` CLI. Fork and adapt to your network/security requirements.
@@ -65,7 +65,7 @@ GCP examples will be added when GCP GKE support lands.
 </Tabs>
 
 <Warning>
-The following Kubernetes namespaces are reserved for RisingWave-managed components. **Do not create or use these namespaces for your own workloads** — RisingWave will create and manage them during BYOK environment setup and cluster provisioning.
+The following Kubernetes namespaces are reserved for RisingWave-managed components. **Do not create or use these namespaces for your own workloads** — RisingWave will create and manage them during BYOK8s environment setup and cluster provisioning.
 
 | Namespace | Component |
 | --- | --- |
@@ -143,7 +143,7 @@ You must create the following IAM roles:
 
 **A. Setup IAM (user context)**
 
-This role is used by the person or CI/CD pipeline running the BYOK setup commands. It is not used by any in-cluster workloads.
+This role is used by the person or CI/CD pipeline running the BYOK8s setup commands. It is not used by any in-cluster workloads.
 
 - Must have `eks:DescribeCluster` permission on the target EKS cluster.
 - Must have an [access entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) in the EKS cluster with the `AmazonEKSClusterAdminPolicy` access policy attached.
@@ -350,16 +350,16 @@ resource "aws_vpc_endpoint_service" "rwproxy" {
 
 <Tabs>
 <Tab title="AWS">
-Provision an S3 bucket and a DynamoDB table for storing BYOK environment Terraform state and state locking.
+Provision an S3 bucket and a DynamoDB table for storing BYOK8s environment Terraform state and state locking.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
 </Tab>
 </Tabs>
 
-## Create a BYOK environment
+## Create a BYOK8s environment
 
-BYOK uses the `rwc` CLI to provision and manage environments. Before continuing, install and authenticate the CLI by following [Install the RisingWave Cloud CLI](/cloud/install-cli).
+BYOK8s uses the `rwc` CLI to provision and manage environments. Before continuing, install and authenticate the CLI by following [Install the RisingWave Cloud CLI](/cloud/install-cli).
 
 ### Step 1: Prepare the configuration file
 
@@ -481,15 +481,15 @@ You can run `rwc byok prepare --name <env-name>` to download the Terraform modul
 
 ## Create a RisingWave cluster
 
-Creating a RisingWave cluster in a BYOK environment uses a **two-phase provisioning flow**. This is because the IRSA trust policy for the cluster's IAM role requires the Kubernetes namespace and service account name, which are only allocated after the cluster is initially created.
+Creating a RisingWave cluster in a BYOK8s environment uses a **two-phase provisioning flow**. This is because the IRSA trust policy for the cluster's IAM role requires the Kubernetes namespace and service account name, which are only allocated after the cluster is initially created.
 
 <Note>
-Cluster creation in a BYOK environment is currently available **only via the `rwc` CLI**. RisingWave Cloud portal support is planned but not yet implemented. Once the cluster is provisioned, you can manage it (including rescaling components and adjusting replicas) from the RisingWave Cloud portal as usual.
+Cluster creation in a BYOK8s environment is currently available **only via the `rwc` CLI**. RisingWave Cloud portal support is planned but not yet implemented. Once the cluster is provisioned, you can manage it (including rescaling components and adjusting replicas) from the RisingWave Cloud portal as usual.
 </Note>
 
 ### Phase 1: Create the cluster
 
-Create the cluster via the `rwc` CLI. A BYOK cluster must use `--tier BYOK` together with per-component sizing flags, and the `--env` flag must point to the BYOK environment registered with `rwc byok create`. The metastore is **not** configured at this step — the customer-managed PostgreSQL connection details are supplied in Phase 2 via `rwc cluster byok-config`.
+Create the cluster via the `rwc` CLI. A BYOK8s cluster must use `--tier BYOK` together with per-component sizing flags, and the `--env` flag must point to the BYOK8s environment registered with `rwc byok create`. The metastore is **not** configured at this step — the customer-managed PostgreSQL connection details are supplied in Phase 2 via `rwc cluster byok-config`.
 
 ```bash
 rwc cluster create \
@@ -504,8 +504,8 @@ rwc cluster create \
 
 Where:
 - `--name` — name of the new RisingWave cluster.
-- `--tier BYOK` — required tier for clusters running in a BYOK environment.
-- `--env` — name of the BYOK environment registered with `rwc byok create`.
+- `--tier BYOK` — required tier for clusters running in a BYOK8s environment.
+- `--env` — name of the BYOK8s environment registered with `rwc byok create`.
 - `--compute` / `--compactor` / `--frontend` / `--meta` — component-type IDs that match instance shapes available in your Kubernetes cluster. Component IDs follow the pattern `p-<X>c<Y>g`, where `X` is the number of CPU cores and `Y` is the amount of memory in GiB (for example, `p-4c16g` means 4 CPU and 16 GiB memory). The values above are a small example sizing (1 replica each at `p-4c16g` for compute and `p-2c8g` for the rest); replace them to match your workload. Run `rwc cluster create --help` for the full flag list.
 - `--*-replica` — replica count for each component.
 
@@ -598,7 +598,7 @@ This transitions the cluster to `Creating` status and triggers provisioning. The
 
 ## Connect to a RisingWave cluster
 
-There are two ways to connect to a RisingWave cluster running in a BYOK environment.
+There are two ways to connect to a RisingWave cluster running in a BYOK8s environment.
 
 ### Option 1: RisingWave Cloud Console (recommended)
 
@@ -609,10 +609,10 @@ Use the in-portal SQL console — no network setup is required. See [Console ove
 For programmatic access (e.g., from your own applications, BI tools, or `psql`), connect to the RWProxy NLB you provisioned in the prerequisites.
 
 <Note>
-The RWProxy NLB is **internal-only**. Clients must be inside the same VPC as the BYOK environment, or reach the NLB via VPC peering / Transit Gateway.
+The RWProxy NLB is **internal-only**. Clients must be inside the same VPC as the BYOK8s environment, or reach the NLB via VPC peering / Transit Gateway.
 </Note>
 
-Because a single RWProxy NLB serves multiple clusters in the BYOK environment, you must include the **cluster identifier** (the Kubernetes namespace allocated to your cluster in Phase 1) in the connection. Retrieve it via:
+Because a single RWProxy NLB serves multiple clusters in the BYOK8s environment, you must include the **cluster identifier** (the Kubernetes namespace allocated to your cluster in Phase 1) in the connection. Retrieve it via:
 
 ```bash
 rwc cluster describe --uuid <cluster-uuid>
@@ -649,7 +649,7 @@ If you use dedicated node pools for different workload types (via the `customize
 DaemonSet scheduling (Grafana Alloy) is automatically derived from the union of all workload tolerations — no separate configuration is needed.
 </Note>
 
-## Manage a BYOK environment
+## Manage a BYOK8s environment
 
 ### List environments
 
@@ -665,14 +665,14 @@ rwc byok describe --name <env-name>
 
 ### Update an environment
 
-To update a BYOK environment (e.g., to apply a new version or change custom settings):
+To update a BYOK8s environment (e.g., to apply a new version or change custom settings):
 
 ```bash
 rwc byok update --name <env-name> [--version <version>] [--custom-settings-path <path>]
 rwc byok apply --name <env-name>
 ```
 
-### Delete a BYOK environment
+### Delete a BYOK8s environment
 
 1. Delete all RisingWave clusters running in the environment.
 2. Terminate the environment (control plane side):
@@ -691,7 +691,7 @@ rwc byok apply --name <env-name>
 
 ## Shared responsibility
 
-BYOK is a shared responsibility model. The table below outlines what each party is responsible for.
+BYOK8s is a shared responsibility model. The table below outlines what each party is responsible for.
 
 ### RisingWave responsibilities
 
@@ -703,20 +703,20 @@ BYOK is a shared responsibility model. The table below outlines what each party 
 
 - Kubernetes cluster and worker nodes (including upgrades to the minimum supported version).
 - Firewall and security group rules.
-- IAM roles / service accounts used by BYOK environments and clusters.
+- IAM roles / service accounts used by BYOK8s environments and clusters.
 - Object storage buckets for data storage and log storage.
 - Network connectivity resources (NLBs and VPC Endpoint Services on AWS).
 - PostgreSQL databases serving as metadata stores.
 - Terraform state backend.
 - Encryption keys (KMS on AWS).
 
-### Features not available in BYOK
+### Features not available in BYOK8s
 
 <Note>
-BYOK uses AWS PrivateLink for control plane connectivity (customer provisions the VPC Endpoint Services, control plane creates the VPC Endpoints). The features below refer to RisingWave-managed capabilities that are available in BYOC but not in BYOK.
+BYOK8s uses AWS PrivateLink for control plane connectivity (customer provisions the VPC Endpoint Services, control plane creates the VPC Endpoints). The features below refer to RisingWave-managed capabilities that are available in BYOC but not in BYOK8s.
 </Note>
 
 | Feature | Reason |
 | --- | --- |
-| RisingWave-managed PrivateLink for data access | In BYOC, RisingWave can provision PrivateLink endpoints for connecting your applications to RisingWave clusters. In BYOK, you manage your own network connectivity. |
-| Cluster IAM customization via portal | In BYOC, you can add or modify IAM roles for RisingWave clusters through the portal. In BYOK, you provision and manage all IAM roles directly. |
+| RisingWave-managed PrivateLink for data access | In BYOC, RisingWave can provision PrivateLink endpoints for connecting your applications to RisingWave clusters. In BYOK8s, you manage your own network connectivity. |
+| Cluster IAM customization via portal | In BYOC, you can add or modify IAM roles for RisingWave clusters through the portal. In BYOK8s, you provision and manage all IAM roles directly. |
