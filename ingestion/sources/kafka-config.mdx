@@ -6,6 +6,33 @@ sidebarTitle: Kafka config
 
 This page provides a comprehensive reference for all configuration parameters available when creating a Kafka source or table in RisingWave using the `WITH` clause of a `CREATE SOURCE` or `CREATE TABLE` statement.
 
+## Syntax
+
+```sql
+CREATE {TABLE | SOURCE} [ IF NOT EXISTS ] source_name
+[ schema_definition ]
+[INCLUDE { header | key | offset | partition | timestamp | payload } [AS <column_name>]]
+WITH (
+   connector='kafka',
+   connector_parameter='value', ...
+)
+FORMAT data_format ENCODE data_encode (
+   message = 'message',
+   schema.location = 'location' | schema.registry = 'schema_registry_url'
+);
+```
+
+**schema_definition**:
+
+```sql
+(
+   column_name data_type [ PRIMARY KEY ], ...
+   [ PRIMARY KEY ( column_name, ... ) ]
+)
+```
+
+For Avro and Protobuf data, do not specify `schema_definition` in the `CREATE SOURCE` statement.
+
 ## Basic connection parameters
 
 These parameters are typically required to establish a basic connection to your Kafka cluster.
@@ -71,6 +98,11 @@ The following table summarizes the parameters used for configuring security:
 | `properties.sasl.kerberos.min.time.before.relogin` | The minimum time in milliseconds that must pass before the client automatically refreshes the Kerberos ticket.                                                                                                 | Yes (for GSSAPI)     |
 | `properties.sasl.oauthbearer.config`    | The configuration string for SASL/OAUTHBEARER. See the [librdkafka documentation](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md) for details on the format. *Important:* RisingWave only supports unsecured client-side tokens for `OAUTHBEARER`. | Yes (for OAUTHBEARER)|
 
+Additional mechanism-specific notes:
+
+* `SASL/GSSAPI` is supported only with `SASL_PLAINTEXT`.
+* For `SASL/PLAIN`, `SASL/SCRAM`, and `SASL/OAUTHBEARER` with SSL enabled, also provide the relevant `properties.ssl.*` parameters.
+
 ## Format and encoding options
 
 These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave should interpret the data in your Kafka messages. See [Data formats and encoding options](/ingestion/formats-and-encoding-options) for details on available formats and encodings.
@@ -95,6 +127,68 @@ These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave s
 <Note>
 In RisingWave Cloud, AWS credentials (`access_key`, `secret_key` or `aws.credentials.*`) are required and cannot be omitted. In self-hosted deployments, you may omit them to rely on the AWS SDK default credential chain (for example, EC2 instance profile or environment variables).
 </Note>
+
+## Read schemas from locations
+
+RisingWave supports reading schemas from a Web location in `http://...`, `https://...`, or `S3://...` format for Kafka data in Protobuf format. For Avro, use Confluent Schema Registry or AWS Glue Schema Registry instead.
+
+For Protobuf, if a schema location is specified, the schema file must be a `FileDescriptorSet`, which can be compiled from a `.proto` file like this:
+
+```bash
+protoc -I=$include_path --include_imports --descriptor_set_out=schema_descriptor.pb schema.proto
+```
+
+Specify the schema location in the `ENCODE` clause:
+
+```sql
+ENCODE data_encode (
+   schema.location = 'https://.../schema_descriptor.pb'
+)
+```
+
+For example, you can load a descriptor from `https://example.com/schema_descriptor.pb` or `S3://bucket/schema_descriptor.pb`.
+
+If a primary key is needed, define it in the table schema:
+
+```sql
+CREATE TABLE table1 (
+  id INT,
+  PRIMARY KEY (id)
+)
+```
+
+## Read schemas from Confluent Schema Registry
+
+Confluent and [Karapace](https://aiven.io/docs/products/kafka/karapace) Schema Registry provide a serving layer for schema metadata over a REST interface.
+
+RisingWave supports reading schemas from Confluent Schema Registry. When `CREATE SOURCE` runs, RisingWave retrieves the latest schema using the `TopicNameStrategy` strategy and infers the columns and data types from it.
+
+Specify the schema registry in the `ENCODE` clause:
+
+```sql
+ENCODE data_encode (
+   schema.registry = 'schema_registry_url'
+)
+```
+
+For Protobuf data, RisingWave bundles only protobuf [well-known types](https://protobuf.dev/reference/protobuf/google.protobuf/), such as `google/protobuf/timestamp.proto`, `duration.proto`, `any.proto`, `empty.proto`, `struct.proto`, and wrappers. Other imports must be available as schema references in Confluent Schema Registry.
+
+If you see an error about missing schema references, Confluent's Protobuf serializer or converter may be treating those imports as known types and skipping registration. Set `skip.known.types = false` on the upstream Confluent serializer or converter so Schema Registry stores the dependencies as references.
+
+If a primary key is needed, define it in the table schema:
+
+```sql
+CREATE TABLE table1 (
+  id INT,
+  PRIMARY KEY (id)
+);
+```
+
+### Schema evolution
+
+Based on the compatibility type configured for the schema registry, some changes are allowed without changing the schema to a different version. In this case, RisingWave continues using the original schema definition. To use a newer version of the writer schema in RisingWave, drop and recreate the source.
+
+To learn about compatibility modes and the changes they allow, see Confluent Schema Registry's [Compatibility Types](https://docs.confluent.io/platform/current/schema-registry/fundamentals/schema-evolution.html#compatibility-types).
 
 ## Use AWS Glue Schema Registry
 
