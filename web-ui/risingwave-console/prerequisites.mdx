@@ -1,47 +1,103 @@
 ---
 title: "Prerequisites"
-description: "Understand the essential requirements for installing and running RisingWave Console to connect to your RisingWave clusters."
+description: "Prepare the RisingWave license key, metadata database, network access, and Kubernetes permissions required for RisingWave Console."
 ---
 
-<Note>
-RisingWave Console is a [**premium feature**](/get-started/premium-features). To obtain the image or binary, [talk to sales](mailto:sales@risingwave-labs.com).
-</Note>
+RisingWave Console is a [premium feature](/get-started/premium-features). To obtain Console artifacts and a signed RisingWave license key, contact [sales@risingwave-labs.com](mailto:sales@risingwave-labs.com).
 
-Before installing RisingWave Console, ensure your environment meets the following prerequisites for the RisingWave Console host, its metadata database, and the target RisingWave clusters.
+Before installing Console, prepare the items below.
 
-## For the RisingWave Console host machine
+## License key
 
-The machine where you install and run the RisingWave Console server itself needs:
+Production Console builds verify a signed RisingWave license key during startup. Provide the key with:
 
-*   Supported operating system:
-    *   If using Docker: Any OS that can run a modern Docker daemon (Linux, macOS, Windows with WSL2).
-    *   If using the binary: A compatible Linux distribution (as specified by the binary release, typically x86_64).
-*   Docker (if using Docker installation methods): A recent version of Docker installed and running.
-*   Resources: As a web application that connects to external services, RisingWave Console itself is relatively lightweight. Ensure the host has sufficient resources to run the RisingWave Console process (or Docker container) and its bundled PostgreSQL if that installation method is chosen. Specific needs may vary based on the number of managed clusters and user activity.
-*   Network access:
-    *   Access to the RisingWave Console image or binary package provided by RisingWave Labs.
-    *   Network connectivity to its PostgreSQL metadata store (local or remote).
-    *   Network connectivity to all target RisingWave clusters on their respective ports.
+- `RW_LICENSE_KEY`: direct token value, or
+- `RW_LICENSE_KEY_PATH`: path to a file containing the token.
 
-## For the RisingWave Console metadata PostgreSQL database
+For Docker and Kubernetes deployments, storing the license key value in `RW_LICENSE_KEY_PATH` or a Kubernetes Secret is preferred so the token is not embedded in command history or plain manifests.
 
-RisingWave Console uses a PostgreSQL database to store its configuration, such as your RisingWave cluster connection details. It's important to note that this database only stores RisingWave Console's configuration (like your RisingWave cluster connection details) and does *not* store any of your RisingWave cluster's user data.
+Console uses the same signed RisingWave license key as the RisingWave database. Configure the same key in different places depending on what needs to read it:
 
-*   PostgreSQL instance: A running PostgreSQL server.
-    *   This can be a self-hosted instance, a cloud-managed PostgreSQL service, or the instance bundled with the `...-pgbundle` image provided by RisingWave Labs.
-*   Network accessibility: The RisingWave Console server must be able to connect to this PostgreSQL instance.
-*   Database user and permissions: RisingWave Console requires a database and a user with permissions to create and manage tables within that database.
-*   Connection string (`RCONSOLE_SERVER_PG_DSN`): You'll need the DSN (Data Source Name) for RisingWave Console to connect, in the format: `postgres://<user>:<password>@<host>:<port>/<database_name>`.
+- The **Console startup license** lets the Console service start and unlocks Console premium features.
+- A **managed RisingWave cluster license key** is passed into a Kubernetes-managed RisingWave database cluster so the database can use premium features.
 
-## For target RisingWave clusters
+See [Manage license keys](/web-ui/risingwave-console/license-management) for the exact workflows.
 
-These are the RisingWave clusters you intend to connect to and manage via RisingWave Console:
+## Console host or runtime
 
-*   Existing and running: RisingWave Console connects to already operational RisingWave clusters; it does not provision new ones.
-*   Network connectivity: The RisingWave Console server must have network access to each RisingWave cluster on the following ports:
-    *   RisingWave SQL Port: Typically `4566`.
-    *   RisingWave Meta Node Port: Typically `5690`.
-    *   RisingWave HTTP Port (on Meta Node): Typically `5691`.
-    *   Ensure any firewalls between the RisingWave Console server and your RisingWave clusters allow traffic on these ports.
-*   Connection details: You will need the hostnames/IPs and the above port numbers for each RisingWave cluster.
-*   Compatible RisingWave versions: RisingWave Console is designed to work with supported RisingWave versions. Contact RisingWave Labs for version compatibility guidance if needed.
+Choose one runtime:
+
+| Runtime    | Requirements                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docker     | A recent Docker daemon on Linux, macOS, or Windows with WSL2.                                                                                     |
+| Kubernetes | A cluster that can run the Console `StatefulSet`, expose the Console service, and provide a default StorageClass or an explicitly configured one. |
+| Binary     | A compatible Linux host that can run the provided Console binary.                                                                                 |
+
+Console is lightweight as a web service, but size the host based on the number of users, connected clusters, background tasks, and whether PostgreSQL runs in the same container.
+
+## Metadata PostgreSQL
+
+Console requires PostgreSQL for its own metadata. This database stores Console configuration, users, saved cluster connections, database connections, tasks, and settings. It does not store the data in your RisingWave clusters.
+
+You can use:
+
+- the bundled PostgreSQL inside the `-pgbundle` image for quick setup,
+- a self-hosted PostgreSQL instance,
+- a cloud-managed PostgreSQL service.
+
+For persistent deployments, use external PostgreSQL. The PostgreSQL user in `RCONSOLE_SERVER_PG_DSN` must be able to create and migrate Console metadata tables.
+
+Example DSN:
+
+```text
+postgres://<user>:<password>@<host>:<port>/<database_name>
+```
+
+## Network access
+
+Console must be reachable by users on its HTTP port:
+
+- Docker or binary default: `8020`
+- Kubernetes starter manifest default NodePort: `30020`
+
+Console must also reach the services it manages:
+
+| Target                        | Default port        | Used for                                  |
+| ----------------------------- | ------------------- | ----------------------------------------- |
+| RisingWave SQL endpoint       | `4566`              | SQL Console and database connection tests |
+| RisingWave Meta RPC endpoint  | `5690`              | Cluster metadata and `risectl` workflows  |
+| RisingWave Meta HTTP endpoint | `5691`              | Cluster HTTP APIs and health checks       |
+| Metrics store endpoint        | deployment-specific | Metrics charts and metrics export         |
+| PostgreSQL metadata store     | deployment-specific | Console metadata                          |
+
+If Console runs inside Kubernetes and connects to a RisingWave Service in another namespace, use the full Service DNS name, such as `risingwave-frontend.risingwave.svc.cluster.local:4566`.
+
+## Kubernetes permissions
+
+If you only import existing clusters, Console needs network access to those clusters and the ability to run as a normal web service.
+
+If you use **Environments** and one-click install, Console also needs Kubernetes permissions to create and manage:
+
+- namespaces,
+- RBAC objects,
+- Secrets and ConfigMaps,
+- Services and Pods,
+- StatefulSets and Deployments,
+- PersistentVolumeClaims,
+- RisingWave custom resources,
+- cert-manager and RisingWave Operator installs.
+
+The starter manifests include this RBAC by default. Remove the cluster-installer RBAC only if another platform team owns cert-manager, the RisingWave Operator, and the required infrastructure services.
+
+## Air-gapped environments
+
+For restricted networks, prepare these before starting Console:
+
+- a signed RisingWave license key available as a file or Kubernetes Secret,
+- Console image and, if needed, the `-airgap` image variant with pre-cached `risectl` binaries,
+- a private Docker registry containing Console-managed component images,
+- Helm chart archives for cert-manager and the RisingWave Operator,
+- `RCONSOLE_NOINTERNET=true`,
+- `RCONSOLE_HELM_CHART_DIR` pointing at the mounted chart directory.
+
+See [Air-gapped deployment](/web-ui/risingwave-console/air-gapped-deployment) for the full checklist.
