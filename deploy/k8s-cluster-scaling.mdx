@@ -1,15 +1,15 @@
 ---
 title: "Cluster scaling"
-description: "This article describes adaptive parallelism as the default scaling policy for all new streaming jobs starting from v1.7 in RisingWave. With adaptive parallelism, the system will automatically adjust parallelism to leverage added CPU cores or nodes in the cluster, ensuring optimal resource utilization."
+description: "This article describes how RisingWave configures fixed and adaptive streaming parallelism, including the unified `streaming_parallelism` values used for new and existing streaming jobs."
 ---
 
 ## Scaling policies
 
-RisingWave supports adaptive and fixed parallelism for each streaming job, including materialized view, sink, and table.
+RisingWave supports adaptive and fixed parallelism for each streaming job, including materialized views, sinks, indexes, sources, and tables.
 
 - Adaptive parallelism
 
-  Adaptive parallelism is the **default** setting for newly created streaming jobs since v1.7\. In this mode, RisingWave automatically adjusts parallelism to utilize all CPU cores across the streaming nodes in the cluster. When nodes are added or removed, parallelism adjusts accordingly based on the current number of CPU cores.
+  Adaptive parallelism is the default behavior for newly created streaming jobs. In this mode, RisingWave automatically adjusts parallelism as cluster capacity changes. You can use `adaptive` for the full worker set, `bounded(n)` to cap adaptive parallelism, or `ratio(r)` to use a fraction of available parallelism.
   To modify the scaling policy to adaptive parallelism, use the SQL command:
 
   ```sql
@@ -19,6 +19,12 @@ RisingWave supports adaptive and fixed parallelism for each streaming job, inclu
 
   ```sql
   ALTER MATERIALIZED VIEW mv SET PARALLELISM = adaptive;
+  ```
+
+  To cap adaptive parallelism:
+
+  ```sql
+  ALTER TABLE t SET PARALLELISM = 'bounded(16)';
   ```
 
 - Fixed parallelism
@@ -110,9 +116,9 @@ You can use a system table to view the current scaling policy of tables, materia
 dev=> SELECT * FROM rw_streaming_parallelism;
   id  | name |   relation_type   | parallelism | max_parallelism
 ------+------+-------------------+-------------+----------------
- 1001 | t    | table             | FIXED(4)    |            128
- 1002 | mv1  | materialized view | AUTO        |            256
- 1004 | idx  | index             | AUTO        |           1024
+ 1001 | t    | table             | 4           |            128
+ 1002 | mv1  | materialized view | bounded(64) |            256
+ 1004 | idx  | index             | adaptive    |           1024
 (3 rows)
 ```
 
