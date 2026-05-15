@@ -135,7 +135,18 @@ The KMS key policy must allow this key to be used for EBS encryption, either dir
 </Tab>
 </Tabs>
 
-### 5. Identity and access management
+### 5. Terraform state backend
+
+<Tabs>
+<Tab title="AWS">
+Provision an S3 bucket and a DynamoDB table for storing BYOK8s environment Terraform state and state locking. CloudAgent uses this backend to manage Terraform resources inside your Kubernetes cluster, and the IAM policy in the next step references both.
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+### 6. Identity and access management
 
 <Tabs>
 <Tab title="AWS">
@@ -150,7 +161,7 @@ This role is used by the person or CI/CD pipeline running the BYOK8s setup comma
 
 **B. CloudAgent IAM (service context)**
 
-This role is assumed by CloudAgent via [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). CloudAgent needs access to both the data store bucket (for cluster state operations) and the [Terraform state backend](#7-terraform-state-backend) (S3 bucket plus DynamoDB lock table) that it uses to manage in-cluster resources. Minimum permissions:
+This role is assumed by CloudAgent via [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). CloudAgent needs access to both the data store bucket (for cluster state operations) and the [Terraform state backend](#5-terraform-state-backend) (S3 bucket plus DynamoDB lock table) that it uses to manage in-cluster resources. Minimum permissions:
 
 ```json
 {
@@ -184,7 +195,7 @@ This role is assumed by CloudAgent via [IRSA](https://docs.aws.amazon.com/eks/la
 }
 ```
 
-Where `$TFSTATE_BUCKET` and `$TFLOCK_TABLE` correspond to the S3 bucket and DynamoDB table provisioned in [Terraform state backend](#7-terraform-state-backend).
+Where `$TFSTATE_BUCKET` and `$TFLOCK_TABLE` correspond to the S3 bucket and DynamoDB table provisioned in [Terraform state backend](#5-terraform-state-backend).
 
 **C. Loki IAM (service context)**
 
@@ -211,7 +222,7 @@ This role is assumed by Loki via IRSA for reading and writing logs to S3. Minimu
 </Tab>
 </Tabs>
 
-### 6. Network connectivity
+### 7. Network connectivity
 
 <Tabs>
 <Tab title="AWS">
@@ -358,17 +369,6 @@ resource "aws_vpc_endpoint_service" "rwproxy" {
 ```
 </Accordion>
 
-</Tab>
-<Tab title="GCP">
-<Note>GCP GKE support is planned. Stay tuned.</Note>
-</Tab>
-</Tabs>
-
-### 7. Terraform state backend
-
-<Tabs>
-<Tab title="AWS">
-Provision an S3 bucket and a DynamoDB table for storing BYOK8s environment Terraform state and state locking.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
