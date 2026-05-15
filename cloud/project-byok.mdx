@@ -235,13 +235,13 @@ Provision **two** internal Network Load Balancers with VPC Endpoint Services for
 | 40001 | TCP | Service port |
 | 40090 | TCP | Metrics and status |
 
-**RWProxy NLB** — one target group per port:
+**RWProxy NLB** — one target group per port. The webhook listener port differs from its target port (the control plane reaches it on `443` over TLS; the RWProxy pod listens on `4580`); pgwire and metrics use the same port on both sides.
 
-| Port | Protocol | Purpose |
-| --- | --- | --- |
-| 4566 | TCP | PostgreSQL protocol |
-| 4580 | TCP | Webhook |
-| 9099 | TCP | Metrics and status |
+| Listener port | Target port | Protocol | Purpose |
+| --- | --- | --- | --- |
+| 4566 | 4566 | TCP | PostgreSQL protocol |
+| 443  | 4580 | TCP | Webhook (HTTPS) |
+| 9099 | 9099 | TCP | Metrics and status |
 
 For each NLB, create a [VPC Endpoint Service](https://docs.aws.amazon.com/vpc/latest/privatelink/create-endpoint-service.html) and allow the RisingWave control plane AWS account (`600598779918`) as an allowed principal.
 
@@ -353,7 +353,7 @@ resource "aws_lb_listener" "rwproxy_metrics" {
 
 resource "aws_lb_listener" "rwproxy_webhook" {
   load_balancer_arn = aws_lb.rwproxy.arn
-  port              = 4580
+  port              = 443 # externally exposed listener port; target group still forwards to pod port 4580
   protocol          = "TCP"
   default_action {
     type             = "forward"
