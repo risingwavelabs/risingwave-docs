@@ -150,23 +150,41 @@ This role is used by the person or CI/CD pipeline running the BYOK8s setup comma
 
 **B. CloudAgent IAM (service context)**
 
-This role is assumed by CloudAgent via [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). Minimum permissions:
+This role is assumed by CloudAgent via [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). CloudAgent needs access to both the data store bucket (for cluster state operations) and the [Terraform state backend](#7-terraform-state-backend) (S3 bucket plus DynamoDB lock table) that it uses to manage in-cluster resources. Minimum permissions:
 
 ```json
 {
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "DataStore",
             "Effect": "Allow",
             "Action": "s3:*",
             "Resource": [
                 "arn:aws:s3:::$DATA_STORE_BUCKET",
                 "arn:aws:s3:::$DATA_STORE_BUCKET/*"
             ]
+        },
+        {
+            "Sid": "TerraformStateBucket",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::$TFSTATE_BUCKET",
+                "arn:aws:s3:::$TFSTATE_BUCKET/*"
+            ]
+        },
+        {
+            "Sid": "TerraformStateLock",
+            "Effect": "Allow",
+            "Action": "dynamodb:*",
+            "Resource": "arn:aws:dynamodb:$REGION:$ACCOUNT_ID:table/$TFLOCK_TABLE"
         }
     ]
 }
 ```
+
+Where `$TFSTATE_BUCKET` and `$TFLOCK_TABLE` correspond to the S3 bucket and DynamoDB table provisioned in [Terraform state backend](#7-terraform-state-backend).
 
 **C. Loki IAM (service context)**
 
