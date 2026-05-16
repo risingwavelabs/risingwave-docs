@@ -314,8 +314,12 @@ RisingWave supports auto schema changes in MySQL CDC. It ensures that your Risin
 
 Currently, RisingWave supports the `ALTER TABLE` command with the following operations, and we plan to add support for additional DDL operations in future releases.
 
-* `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table. Only constant value expressions are supported for the default value.
+* `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table.
 * `DROP COLUMN`: Allows you to remove an existing column from a table.
+
+<Note>
+When `ADD COLUMN` uses a non-constant default expression or certain complex literal defaults, RisingWave may not be able to back-fill the new column for pre-existing rows, so those rows may hold `NULL` in the new column. New rows flowing through CDC are unaffected. If this matters to your downstream queries, wrap the new column with `COALESCE(new_column, fallback_value)` to substitute a default of your choice for the `NULL`s.
+</Note>
 
 To enable this feature, set `auto.schema.change = 'true'` in your MySQL CDC source configuration:
 
