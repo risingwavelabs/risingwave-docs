@@ -85,6 +85,8 @@ For each sink, you can specify the data format. The available data formats are `
 
 In the `upsert` sink, a non-null value updates the last value for the same key or inserts a new value if the key doesn't exist. A NULL value indicates the deletion of the corresponding key.
 
+If you set `ignore_delete = 'true'`, the sink drops `DELETE` messages and converts `UPDATE` messages to `INSERT` messages. This option is supported for both `append-only` and `upsert` sink types. `force_append_only` remains available as a backward-compatible alias.
+
 When creating an `upsert` sink, note whether or not you need to specify the primary key in the following situations.
 
 * If the downstream system supports primary keys and the table in the downstream system has a primary key, you must specify the primary key with the `primary_key` field when creating an upsert JDBC sink.
