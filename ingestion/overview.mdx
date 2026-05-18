@@ -128,27 +128,31 @@ CREATE TABLE iot_data (
 
 ### Example: Batch load from a database
 
-The `postgres-cdc` connector can be used to perform a one-time snapshot of a PostgreSQL table. For other databases, such as MySQL, you can use the corresponding CDC connector and set `snapshot.mode` to `initial_only`. 
+To perform a one-time snapshot of a PostgreSQL (or MySQL, SQL Server) table, use the shared source + derived table pattern. The derived table performs an initial snapshot of the upstream table when created. You can drop the table and source after the snapshot is complete if you only need a one-time load.
 
 ```sql
--- Create a table that takes a snapshot of a PostgreSQL table.
-CREATE TABLE historical_sales (
-  sale_id INT,
-  product_id INT,
-  quantity INT,
-  sale_date DATE,
-  amount DECIMAL
-) WITH (
+-- 1. Create a shared CDC source
+CREATE SOURCE pg_source WITH (
   connector = 'postgres-cdc',
   hostname = 'localhost',
   port = '5432',
   username = 'postgres',
   password = 'password',
-  database.name = 'analytics',
-  schema.name = 'public',
-  table.name = 'sales_history',
-  snapshot.mode = 'initial_only' -- Perform a snapshot and then stop.
+  database.name = 'analytics'
 );
+
+-- 2. Create a table from the source — this performs the initial snapshot
+CREATE TABLE historical_sales (
+  sale_id INT PRIMARY KEY,
+  product_id INT,
+  quantity INT,
+  sale_date DATE,
+  amount DECIMAL
+) FROM pg_source TABLE 'public.sales_history';
+
+-- 3. After the snapshot is complete, drop the table and source if no ongoing CDC is needed
+-- DROP TABLE historical_sales;
+-- DROP SOURCE pg_source;
 ```
 
 ### Example: Load from cloud storage (S3, GCS, Azure)

@@ -12,31 +12,35 @@ Change data capture (CDC) is a technique for tracking row-level changes (inserts
 
 RisingWave provides **native CDC connectors** that connect directly to source databases without requiring Kafka, Debezium, or any other middleware. This simplifies your architecture and reduces operational overhead.
 
+For PostgreSQL, MySQL, and SQL Server, the recommended approach is to create a **shared source** and then create derived tables from it:
+
 ```sql
--- Create a CDC table from PostgreSQL
+-- 1. Create a shared CDC source
+CREATE SOURCE pg_source WITH (
+  connector = 'postgres-cdc',
+  hostname = 'db.example.com',
+  port = '5432',
+  username = 'repl_user',
+  password = '<your_password>',
+  database.name = 'production'
+);
+
+-- 2. Create a derived table from the shared source
+-- Note: primary key must match the upstream table's primary key
 CREATE TABLE orders (
   order_id INT PRIMARY KEY,
   customer_id INT,
   amount DECIMAL,
   status VARCHAR,
   created_at TIMESTAMP
-) WITH (
-  connector = 'postgres-cdc',
-  hostname = 'db.example.com',
-  port = '5432',
-  username = 'repl_user',
-  password = '<your_password>',
-  database.name = 'production',
-  schema.name = 'public',
-  table.name = 'orders'
-);
+) FROM pg_source TABLE 'public.orders';
 ```
 
 Once created, the CDC table:
 
 1. **Performs an initial snapshot** of the existing data in the source table.
 2. **Streams ongoing changes** in real time using the database's replication protocol (WAL for PostgreSQL, binlog for MySQL).
-3. **Maintains transactional consistency** — changes are applied in the same order as the source database.
+3. **Maintains transactional consistency** — changes from the same upstream transaction are applied consistently across all derived tables.
 4. **Recovers automatically** from failures using checkpoint-based restoration.
 
 ## Supported CDC sources
@@ -52,26 +56,15 @@ All native CDC connectors connect directly to the source database — no Kafka c
 
 ## Shared source for multi-table CDC
 
-When you need to replicate multiple tables from the same database, RisingWave supports **shared sources** to avoid creating a separate replication connection for each table:
+A single shared source can feed multiple derived tables. This means one replication connection and one replication slot serve all the tables you want to replicate:
 
 ```sql
--- Create a shared PostgreSQL CDC source
-CREATE SOURCE pg_source WITH (
-  connector = 'postgres-cdc',
-  hostname = 'db.example.com',
-  port = '5432',
-  username = 'repl_user',
-  password = '<your_password>',
-  database.name = 'production'
-);
-
--- Create individual tables from the shared source
-CREATE TABLE orders (*) FROM pg_source TABLE 'public.orders';
+-- Create additional derived tables from the same shared source
 CREATE TABLE customers (*) FROM pg_source TABLE 'public.customers';
 CREATE TABLE products (*) FROM pg_source TABLE 'public.products';
 ```
 
-Shared sources use a single replication slot on the source database, reducing the load on the upstream system.
+Shared sources use a single replication slot on the source database, reducing the load on the upstream system. For PostgreSQL, `slot.name` is optional — RisingWave generates and manages a unique replication slot automatically when omitted.
 
 ## CDC vs. Kafka-based ingestion
 
