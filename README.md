@@ -1,4 +1,3 @@
-
 # Note
 
 This repository contains the latest RisingWave documentation. [The old repository](https://github.com/risingwavelabs/risingwave-docs-legacy) now hosts the archived documentation up to v2.0 of RisingWave.
@@ -24,7 +23,6 @@ Below are the main topic groups. Some groups are elevated to be tabs shown on th
 - reference
 - cloud
 - changelog
-
 
 ### Development
 

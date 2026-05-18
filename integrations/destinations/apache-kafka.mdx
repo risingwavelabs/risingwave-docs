@@ -184,6 +184,10 @@ When creating an append-only Protobuf sink, the following options can be used fo
 The `file://` format is not recommended for production use. If it is used, it needs to be available for both Meta and Compute Nodes.
 </Note>
 
+<Note>
+When using Protobuf with Confluent Schema Registry, RisingWave bundles only protobuf [well-known types](https://protobuf.dev/reference/protobuf/google.protobuf/), such as `google/protobuf/timestamp.proto`, `duration.proto`, `any.proto`, `empty.proto`, `struct.proto`, and wrappers. Other imports, including Google common types such as `google/type/date.proto`, `google/type/latlng.proto`, `google/rpc/*`, `google/api/*`, and `confluent/meta.proto`, must also be registered as schema references in Schema Registry so that RisingWave can encode them properly.
+</Note>
+
 ```sql FORMAT as PLAIN
 FORMAT PLAIN
 ENCODE PROTOBUF (

@@ -10,7 +10,8 @@ Change data capture (CDC) lets you replicate real-time data changes from operati
 
 RisingWave reads database change streams differently depending on the source database:
 
-- **PostgreSQL, MySQL, and SQL Server**: RisingWave uses embedded CDC connectors to read upstream change logs directly from the database. Internally, these connectors support Debezium-compatible configuration and Debezium-formatted CDC events, but you do not need to deploy Debezium, Kafka Connect, or Kafka separately.
+- **PostgreSQL**: RisingWave uses an embedded Debezium connector to connect to PostgreSQL's logical replication slot and read the write-ahead log (WAL) using the native replication protocol, without requiring Kafka or an external Debezium deployment.
+- **MySQL and SQL Server**: RisingWave embeds the [Debezium Embedded Engine](https://debezium.io/documentation/reference/development/engine.html) in-process. The engine reads binlog (MySQL) or CDC (SQL Server) directly, without requiring a Kafka cluster or Kafka Connect worker.
 - **MongoDB**: RisingWave reads MongoDB change streams via the native MongoDB change stream API.
 
 In all cases, changes flow directly from the source database into RisingWave's streaming engine with fault-tolerant recovery. Transactional consistency for multi-table CDC is available when supported by the connector configuration.
@@ -45,7 +46,7 @@ Each connector uses a different connector name and slightly different parameters
     ) FROM pg_src TABLE 'public.users';
     ```
 
-    Both `slot.name` and `publication.name` are optional and can be omitted. When left blank, RisingWave automatically creates and manages a unique replication slot and a publication (`rw_publication` by default). This is the recommended approach — manually managing these objects is only needed in advanced scenarios, such as when the database user lacks `CREATE PUBLICATION` permissions.
+    Both `slot.name` and `publication.name` are optional and can be omitted. When left blank, RisingWave automatically creates and manages a unique replication slot and publication. This is the recommended approach — manually managing these objects is only needed in advanced scenarios, such as when the database user lacks `CREATE PUBLICATION` permissions.
   </Tab>
   <Tab title="MySQL">
     ```sql
