@@ -50,6 +50,23 @@ Backfill can be resource-intensive, especially for large upstream tables:
 - **Memory**: Snapshot data and intermediate state consume memory
 - **Storage I/O**: Reading snapshot data and writing MV state generates I/O load
 
+### Parallelism control
+
+You can configure separate parallelism settings for backfill operations to optimize resource utilization:
+
+- **`streaming_parallelism_for_backfill`**: Specifies parallelism during backfill phase
+- After backfill completes, the job automatically switches to use `streaming_parallelism`
+
+This allows you to use lower parallelism during backfill to reduce resource contention, then scale up for normal streaming operations. For example:
+
+```sql
+SET STREAMING_PARALLELISM = 4;
+SET STREAMING_PARALLELISM_FOR_BACKFILL = 2;
+CREATE MATERIALIZED VIEW mv AS SELECT * FROM large_table;
+```
+
+The materialized view will use parallelism of 2 during backfill, then automatically switch to parallelism of 4 after completion. For more details, see [Configuring backfill parallelism](/operate/view-configure-runtime-parameters#configuring-backfill-parallelism).
+
 ### Concurrent backfills
 
 The `max_concurrent_creating_streaming_jobs` system parameter (default: 1) limits how many backfills can run simultaneously. This prevents resource exhaustion when creating multiple MVs at once.

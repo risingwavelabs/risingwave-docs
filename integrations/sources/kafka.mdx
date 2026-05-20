@@ -76,7 +76,7 @@ You can try the following command to set up the ACL:
 
 | Field                           | Notes                                                                                                                                                                                                                                                                              |
 | :------------------------------ | :--------------------------- |
-| _data\_format_                  | Data format. Supported formats: DEBEZIUM, MAXWELL, CANAL, UPSERT, PLAIN.                                                                                                                                                                                                           |
+| _data\_format_                  | Data format. Supported formats: DEBEZIUM, UPSERT, PLAIN.                                                                                                                                                                                                                            |
 | _data\_encode_                  | Data encode. Supported encodes: JSON, AVRO, PROTOBUF, CSV.                                                                                                                                                                                                                         |
 | _message_                       | Message name of the main Message in schema definition. Required for Protobuf.                                                                                                                                                                                                      |
 | _location_                      | Web location of the schema file in `http://...`, `https://...`, or `S3://...` format. <ul><li>This option is not supported for Avro data.</li><li>For Protobuf data, you must specify either a schema location or a schema registry but not both.</li></ul>                               |
@@ -328,6 +328,12 @@ ENCODE data_encode (
 To learn more about Confluent Schema Registry and how to set up a Schema Registry, refer to the [Confluent Schema Registry documentation](https://docs.confluent.io/platform/current/schema-registry/index.html).
 
 To learn more about Karapace Schema Registry and how to get started, see [Get started with Karapace](https://aiven.io/docs/products/kafka/karapace/get-started).
+
+<Note>
+For Protobuf data, RisingWave bundles only protobuf [well-known types](https://protobuf.dev/reference/protobuf/google.protobuf/), such as `google/protobuf/timestamp.proto`, `duration.proto`, `any.proto`, `empty.proto`, `struct.proto`, and wrappers. Other imports, including Google common types such as `google/type/date.proto`, `google/type/latlng.proto`, `google/rpc/*`, `google/api/*`, and `confluent/meta.proto` (see the full [known-types list](https://github.com/confluentinc/schema-registry/blob/v8.4.0-124/protobuf-provider/src/main/java/io/confluent/kafka/schemaregistry/protobuf/ProtobufSchema.java#L271)), must be available as schema references in Confluent Schema Registry.
+
+If you see an error about missing schema references, Confluent's Protobuf serializer or converter may be treating those imports as known types and skipping registration. Set `skip.known.types = false` on the upstream Confluent serializer or converter so Schema Registry stores the dependencies as references.
+</Note>
 
 If a primary key also needs to be defined, use the table constraint syntax.
 

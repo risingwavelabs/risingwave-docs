@@ -1,0 +1,133 @@
+---
+title: "Manage license keys"
+description: "Understand where to configure the RisingWave license key for Console startup and managed RisingWave clusters."
+---
+
+RisingWave Console uses the same signed RisingWave license key as the RisingWave database. A single license key can be used for both Console enterprise features and RisingWave database premium features.
+
+The key is the same, but operators configure it in different places depending on what needs to read it:
+
+| License flow                    | Where it is used                                  | What it controls                                                            |
+| ------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------- |
+| Console startup license         | The Console server process                        | Whether Console starts and whether Console premium features are available.  |
+| RisingWave database license key | A managed RisingWave cluster created from Console | Whether that RisingWave database cluster can use premium database features. |
+
+In other words, Console does not use a separate product license key. It uses the same RisingWave license key, provided once to Console for startup and separately to any managed RisingWave database cluster that needs the database-side license.
+
+## Try without a license key
+
+If you only want to try RisingWave Console without configuring a license key, use `v0.5.1`:
+
+```shell
+docker run --rm -p 8020:8020 --name risingwave-console \
+  risingwavelabs/risingwave-console:v0.5.1-pgbundle
+```
+
+`v0.5.1` is an older evaluation version. It does not include all current Console capabilities, and some features described in this documentation may not exist or may behave differently in that version. For current supported versions, configure the signed RisingWave license key as described below.
+
+## Console startup license
+
+Production Console builds verify the signed RisingWave license key during startup. Console exits if the key is missing, invalid, expired, or does not include the `premium` feature.
+
+Set one of these environment variables:
+
+```shell
+RW_LICENSE_KEY="<your-signed-license-token>"
+```
+
+or:
+
+```shell
+RW_LICENSE_KEY_PATH=/etc/rconsole/license.jwt
+```
+
+For Docker:
+
+```shell
+docker run -d -p 8020:8020 --name risingwave-console \
+  -e RCONSOLE_ROOT_PASSWORD=your_secure_password \
+  -e RW_LICENSE_KEY_PATH=/etc/rconsole/license.jwt \
+  -v "$PWD/license.jwt:/etc/rconsole/license.jwt:ro" \
+  -v risingwave-console-data:/var/lib/postgresql \
+  risingwavelabs/risingwave-console:latest-pgbundle
+```
+
+For Kubernetes, store the key in a Secret and reference it from the Console `StatefulSet`:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: risingwave-console-license
+  namespace: risingwave-console
+type: Opaque
+stringData:
+  license.jwt: <your-signed-license-token>
+```
+
+```yaml
+- name: RW_LICENSE_KEY
+  valueFrom:
+    secretKeyRef:
+      name: risingwave-console-license
+      key: license.jwt
+```
+
+## Upload a Console license in Settings
+
+After signing in, you can upload the RisingWave license key from **Settings** for Console enterprise access.
+
+1. Open **Settings**.
+2. Find **Console License**.
+3. Paste the signed license key.
+4. Click **Upload**.
+
+Console validates the key before accepting it. The upload updates the running Console server. For restart-safe rotation, also update the startup license source, such as the mounted file used by `RW_LICENSE_KEY_PATH` or the Kubernetes Secret used by the Console `StatefulSet`.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-license-settings.png" />
+</Frame>
+
+## Managed RisingWave cluster license key
+
+When Console creates a managed RisingWave cluster in a Kubernetes environment, you can provide the same RisingWave license key in the create-cluster form. Console stores that key in a Kubernetes Secret and references it from the RisingWave custom resource through `spec.licenseKey`.
+
+To set the key during cluster creation:
+
+1. Open **Clusters**.
+2. Click **Create Cluster**.
+3. Select a ready environment.
+4. Enter the cluster name and RisingWave version.
+5. Paste the license key in **License key (optional)**.
+6. Create the cluster.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-create-cluster.png" />
+</Frame>
+
+To update or clear the key after creation:
+
+1. Open **Environments**.
+2. Select the environment that owns the cluster.
+3. In the managed clusters area, open the license-key action for the cluster.
+4. Enter a new key and click **Save**, or click **Clear** to remove the current key.
+
+Clearing the key removes the `spec.licenseKey` reference from the RisingWave custom resource and deletes the Kubernetes Secret that held the key.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-cluster-update-license.png" />
+</Frame>
+
+## Imported clusters
+
+For imported clusters, Console does not inject a database license key. Configure the license on the RisingWave cluster through your normal deployment method, such as Kubernetes Operator configuration, Helm values, local configuration, or SQL-based license setup.
+
+## Troubleshooting
+
+| Symptom                                                     | Check                                                                                                                                                                                               |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Console fails to start with `no license token provided`     | Set `RW_LICENSE_KEY` or `RW_LICENSE_KEY_PATH` in the Console process.                                                                                                                               |
+| Console rejects a key as invalid or expired                 | Confirm that the key is signed by RisingWave, has not expired, and is active for the intended organization.                                                                                         |
+| Console says the license does not enable premium            | Use a key that includes the `premium` feature.                                                                                                                                                      |
+| Managed cluster still cannot use a premium database feature | Confirm the cluster is managed by Console, the license Secret exists in the cluster namespace, and the RisingWave custom resource has `spec.licenseKey.secretName` and `spec.licenseKey.secretKey`. |
+| Uploaded Console license is lost after restart              | Update the startup license source as well, such as the mounted file used by `RW_LICENSE_KEY_PATH` or the Kubernetes Secret used by the Console pod.                                                 |
