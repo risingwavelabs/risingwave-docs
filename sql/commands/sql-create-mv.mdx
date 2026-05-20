@@ -21,6 +21,7 @@ AS select_query;
 | WITH clause     | Specifies optional parameters for the materialized view. Common options include:
   - `source_rate_limit`: Throttle ingestion rate during backfill to prevent OOM
   - `backfill_order`: Control the backfill sequence across upstream relations (technical preview)
+  - `refresh.interval.sec`: Create a batch refresh materialized view that refreshes periodically. The value must be a positive integer in seconds.
   - `cloud.serverless_backfill_enabled`: Run the initial backfill on dedicated serverless backfiller nodes for one statement. In RisingWave Cloud, enable serverless backfilling in the Cloud console first. Serverless backfilling is not supported for databases in non-default resource groups. See [Serverless backfill](/processing/serverless-backfill).
   - See [troubleshooting](/troubleshoot/troubleshoot-oom#oom-when-creating-materialized-views) for more details. |
 
@@ -82,6 +83,27 @@ The `ORDER BY` clause in the `CREATE MATERIALIZED VIEW` statement is allowed but
     - Backfill order recovery is not supported for background ddl. If a backfilling job restarts, the specified order will be lost, and all tables will backfill concurrently.
     - Cross-database scans inside the `backfill_order` clause are not supported.
     </Note>
+
+## Batch refresh materialized views
+
+Use `WITH (refresh.interval.sec = <seconds>)` to create a materialized view that refreshes periodically instead of applying upstream changes continuously.
+
+```sql
+CREATE MATERIALIZED VIEW mv_up AS
+SELECT * FROM t;
+
+CREATE MATERIALIZED VIEW mv_batch
+WITH (refresh.interval.sec = 60)
+AS
+SELECT * FROM mv_up;
+```
+
+Batch refresh materialized views currently have these constraints:
+
+- They require snapshot backfill to be enabled.
+- They must not depend directly on sources.
+- They do not support `ALTER MATERIALIZED VIEW`.
+- They cannot be used as upstreams for downstream streaming jobs, including other materialized views.
 
 ## See also
 
