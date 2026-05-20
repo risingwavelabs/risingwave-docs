@@ -52,6 +52,16 @@ These parameters provide additional control over the Kafka consumer behavior. Mo
 
 RisingWave supports connecting to Kafka clusters secured with TLS/SSL encryption and/or SASL authentication. See the main [Connect to Kafka](/ingestion/sources/kafka) guide for detailed examples.
 
+For Kafka sources, tables, sinks, and connections, you can update the following SSL properties online without recreating the object:
+
+- `properties.ssl.ca.location`
+- `properties.ssl.ca.pem`
+- `properties.ssl.certificate.location`
+- `properties.ssl.certificate.pem`
+- `properties.ssl.key.location`
+- `properties.ssl.key.pem`
+- `properties.ssl.key.password`
+
 The following table summarizes the parameters used for configuring security:
 
 | Parameter                             | Description                                                                                                                                                                                                                                              | Required (Conditional) |
@@ -61,8 +71,11 @@ The following table summarizes the parameters used for configuring security:
 | `properties.sasl.username`             | The SASL username.                                                                                                                                                                                                      | Yes (if using SASL)   |
 | `properties.sasl.password`             | The SASL password.                                                                                                                                                                                                      | Yes (if using SASL)   |
 | `properties.ssl.ca.location`           | Path to the Certificate Authority (CA) certificate file used to verify the Kafka broker's certificate. Example: `'/path/to/ca.pem'`                                                                          | Yes (for SSL)        |
+| `properties.ssl.ca.pem`                | CA certificate string in PEM format used to verify the Kafka broker's certificate.                                                                                                                                       | Yes (for SSL)        |
 | `properties.ssl.certificate.location`  | Path to the client's SSL certificate file. Example: `'/path/to/client.pem'`                                                                                                                                  | Conditional            |
+| `properties.ssl.certificate.pem`       | Client certificate string in PEM format.                                                                                                                                                                                  | Conditional          |
 | `properties.ssl.key.location`          | Path to the client's SSL private key file. Example: `'/path/to/client.key'`                                                                                                                                      | Conditional            |
+| `properties.ssl.key.pem`               | Client private key string in PEM format.                                                                                                                                                                                 | Conditional          |
 | `properties.ssl.key.password`          | Password for the client's SSL private key (if it's encrypted).                                                                                                                                                  | Conditional            |
 | `properties.sasl.kerberos.service.name` | The Kerberos service name. Required for SASL/GSSAPI.                                                                                                                                                           | Yes (for GSSAPI)     |
 | `properties.sasl.kerberos.keytab`       | The path to the Kerberos keytab file. Required for SASL/GSSAPI.                                                                                                                                                    | Yes (for GSSAPI)     |
