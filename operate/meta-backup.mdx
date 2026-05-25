@@ -78,11 +78,14 @@ If the cluster has been using a SQL database as meta store backend, follow these
    <Note>
    This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
    </Note>
-2. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. To achieve this, you can either: 
+
+2. Clear the folders used by disk cache feature, if enabled.
+
+3. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. To achieve this, you can either: 
    * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas, or
    * Use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool. The version of the migration tool must match the version of the meta snapshot. For example, if the meta snapshot was created with RisingWave v2.4.3, the migration tool should also be from RisingWave v2.4.3.
 
-3. Restore the meta snapshot to the new meta store.
+4. Restore the meta snapshot to the new meta store.
    ```
    risectl \
    meta \
@@ -122,7 +125,7 @@ If the cluster has been using a SQL database as meta store backend, follow these
    - `--overwrite-backup-storage-directory`: Override backup storage directory in restored meta store
    - `--sql-url-params`: Additional SQL connection parameters (e.g., `sslmode=disable`)
 
-4. Configure meta service to use the new meta store.
+5. Configure meta service to use the new meta store.
 
 ### etcd as meta store backends
 
