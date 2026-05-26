@@ -79,7 +79,7 @@ If the cluster has been using a SQL database as meta store backend, follow these
    This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
    </Note>
 
-2. If the Elastic Disk Cache feature is enabled, clear the disk cache directories on every node where disk cache is enabled before starting the restored cluster. Specifically, remove the directories configured by `storage.meta_file_cache.dir` and `storage.data_file_cache.dir`.
+2. If the Elastic Disk Cache feature is enabled, clear the disk cache on every node where disk cache is enabled before starting the restored cluster. Specifically, delete the contents of the directories configured by `storage.meta_file_cache.dir` and `storage.data_file_cache.dir`, or delete and then recreate those directories with the correct permissions before starting the restored cluster.
 
 3. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. To achieve this, you can either: 
    * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas, or
