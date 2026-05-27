@@ -145,7 +145,7 @@ The PostgreSQL CDC connector uses the Debezium JSON format for data.
 The following table shows the data type mapping from PostgreSQL to RisingWave.
 
 <Note>
-RisingWave does not support directly creating tables from PostgreSQL composite types. If you want to read composite type data, you will need to use a source and create a materialized view based off that source.
+RisingWave does not support directly creating tables from PostgreSQL composite types. To ingest composite columns, create a source with `debezium.include.unknown.datatypes = 'true'` and then create a materialized view on top of that source. Composite values are exposed as nullable `CHARACTER VARYING` values in PostgreSQL text form, so DELETE events can emit `NULL` for these columns even if the upstream column is declared `NOT NULL`.
 </Note>
 
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
