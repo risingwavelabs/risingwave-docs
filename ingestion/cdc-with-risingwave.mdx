@@ -4,7 +4,7 @@ sidebarTitle: "CDC with RisingWave"
 description: "Ingest real-time change data capture (CDC) streams from PostgreSQL, MySQL, SQL Server, and MongoDB into RisingWave — no Kafka required. Native CDC connectors with shared source support."
 ---
 
-Change data capture (CDC) lets you replicate real-time data changes from operational databases into RisingWave for stream processing and analytics. RisingWave provides **native CDC connectors** for PostgreSQL, MySQL, SQL Server, and MongoDB — no Kafka, no Debezium deployment, and no additional middleware required.
+Change data capture (CDC) lets you replicate real-time data changes from operational databases into RisingWave for stream processing and analytics. RisingWave provides **native CDC connectors** for PostgreSQL, MySQL, SQL Server, and MongoDB without requiring Kafka, Kafka Connect, or a separately deployed Debezium service.
 
 ## How RisingWave implements CDC
 
@@ -14,55 +14,101 @@ RisingWave reads database change streams differently depending on the source dat
 - **MySQL and SQL Server**: RisingWave embeds the [Debezium Embedded Engine](https://debezium.io/documentation/reference/development/engine.html) in-process. The engine reads binlog (MySQL) or CDC (SQL Server) directly, without requiring a Kafka cluster or Kafka Connect worker.
 - **MongoDB**: RisingWave reads MongoDB change streams via the native MongoDB change stream API.
 
-In all cases, changes flow directly from the source database into RisingWave's streaming engine with transactional consistency and automatic checkpoint recovery.
+In all cases, changes flow directly from the source database into RisingWave's streaming engine with fault-tolerant recovery. Transactional consistency for multi-table CDC is available when supported by the connector configuration.
 
 ## CDC sources and tables
 
-CDC connectors in RisingWave require a **Table**, not just a Source. Because a CDC stream contains inserts, updates, and deletes, RisingWave must materialize the current state of the data to correctly apply each operation. A Table provides this state store, along with a primary key and offset tracking for fault-tolerant recovery.
+CDC ingestion in RisingWave always materializes into a **table**, because CDC streams contain inserts, updates, and deletes and RisingWave needs table state plus a primary key to apply them correctly.
 
-You can create CDC tables in two ways:
+There are two patterns for creating CDC tables:
 
-**Direct table with embedded connector:**
+**PostgreSQL, MySQL, and SQL Server: create a shared source, then create tables from that source**
+
+Each connector uses a different connector name and slightly different parameters. Select the tab for your database:
+
+<Tabs>
+  <Tab title="PostgreSQL">
+    ```sql
+    CREATE SOURCE pg_src WITH (
+      connector = 'postgres-cdc',
+      hostname = '127.0.0.1',
+      port = '5432',
+      username = 'admin',
+      password = 'secret',
+      database.name = 'mydb',
+      schema.name = 'public'  -- Optional, defaults to 'public'
+    );
+
+    CREATE TABLE users (
+      id INT PRIMARY KEY,
+      name VARCHAR,
+      email VARCHAR
+    ) FROM pg_src TABLE 'public.users';
+    ```
+
+    Both `slot.name` and `publication.name` are optional and can be omitted. When left blank, RisingWave automatically creates and manages a unique replication slot and publication. This is the recommended approach — manually managing these objects is only needed in advanced scenarios, such as when the database user lacks `CREATE PUBLICATION` permissions.
+  </Tab>
+  <Tab title="MySQL">
+    ```sql
+    CREATE SOURCE mysql_src WITH (
+      connector = 'mysql-cdc',
+      hostname = '127.0.0.1',
+      port = '3306',
+      username = 'admin',
+      password = 'secret',
+      database.name = 'mydb',
+      server.id = 5001  -- Required; must be unique across all MySQL clients
+    );
+
+    CREATE TABLE users (
+      id INT PRIMARY KEY,
+      name VARCHAR,
+      email VARCHAR
+    ) FROM mysql_src TABLE 'mydb.users';
+    ```
+  </Tab>
+  <Tab title="SQL Server">
+    ```sql
+    CREATE SOURCE mssql_src WITH (
+      connector = 'sqlserver-cdc',
+      hostname = '127.0.0.1',
+      port = '1433',
+      username = 'sa',
+      password = 'secret',
+      database.name = 'mydb'
+    );
+
+    CREATE TABLE users (
+      id INT PRIMARY KEY,
+      name VARCHAR,
+      email VARCHAR
+    ) FROM mssql_src TABLE 'dbo.users';
+    ```
+
+    `dbo` is the default SQL Server schema. Replace it with your actual schema name if different.
+  </Tab>
+</Tabs>
+
+**MongoDB: create the CDC table directly with the connector**
 
 ```sql
 CREATE TABLE users (
-  id INT PRIMARY KEY,
-  name VARCHAR,
-  email VARCHAR
+  _id JSONB PRIMARY KEY,
+  payload JSONB
 ) WITH (
-  connector = 'postgres-cdc',
-  hostname = '127.0.0.1',
-  port = '5432',
-  username = 'admin',
-  password = 'secret',
-  database.name = 'mydb',
-  schema.name = 'public',
-  table.name = 'users'
+  connector = 'mongodb-cdc',
+  mongodb.url = 'mongodb://localhost:27017/?replicaSet=rs0',
+  collection.name = 'app.users'
 );
 ```
 
-**Shared source with multiple derived tables** (recommended for multi-table replication):
-
-```sql
-CREATE SOURCE pg_src WITH (
-  connector = 'postgres-cdc',
-  hostname = '127.0.0.1',
-  port = '5432',
-  username = 'admin',
-  password = 'secret',
-  database.name = 'mydb',
-  slot.name = 'rw_slot'
-);
-
-CREATE TABLE users (...) FROM pg_src TABLE 'public.users';
-CREATE TABLE orders (...) FROM pg_src TABLE 'public.orders';
-```
+For PostgreSQL, MySQL, and SQL Server, connector-specific options are documented on the individual source pages. Use those pages as the reference for required parameters and exact `CREATE SOURCE` or `CREATE TABLE ... FROM` syntax.
 
 ## Shared sources and transactional consistency
 
-When replicating multiple tables from the same database, use a **shared source**. A shared source establishes a single replication connection and fans out change events to all derived tables, ensuring that cross-table transactions are applied atomically.
+When replicating multiple tables from the same PostgreSQL, MySQL, or SQL Server database, use a **shared source**. A shared source establishes one upstream CDC connection and fans out change events to all derived tables.
 
-If each table created its own separate replication connection, a transaction updating both `users` and `orders` could arrive at the two tables at different times — breaking transactional consistency. With a shared source, all tables consume the same ordered change stream, so multi-table transactions are always applied together.
+For PostgreSQL and MySQL, shared sources also preserve multi-table transaction ordering so changes from the same upstream transaction are applied consistently across derived tables. SQL Server also uses the shared source pattern for multi-table ingestion, but it does not support transactional CDC.
 
 Shared sources are supported for PostgreSQL CDC, MySQL CDC, and SQL Server CDC.
 
