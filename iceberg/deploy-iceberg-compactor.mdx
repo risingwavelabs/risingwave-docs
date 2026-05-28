@@ -189,6 +189,18 @@ risingwave-compactor-8dd799db6-hdjjz     1/1     Running   0          2m
 
 The right compactor size depends on your write volume and compaction frequency. Use the following guidelines as a starting point.
 
+### Proof-of-concept rollout
+
+For an Iceberg proof of concept, start with one Iceberg sink and one dedicated Iceberg compactor. A practical initial size is **4 [RWUs](/cloud/pricing#risingwave-unit-rwu)** for the compactor, which is equivalent to about 4 vCPU and 16 GiB memory in RisingWave Cloud. For self-managed deployments, use the closest CPU and memory allocation with the same ratio.
+
+After the first sink is running, verify:
+
+- Small files are being merged at the expected interval.
+- Snapshot count stays within the configured retention and `compaction.max_snapshots_num` limits.
+- External query engines can read the table stably while RisingWave continues writing and compacting.
+
+Add more Iceberg sinks only after the first sink is stable. When adding sinks, increase the Iceberg compactor capacity at the same time. As a conservative starting rule, scale compactor RWUs in line with the number of active Iceberg sinks and then tune based on observed backlog, file count, and query performance.
+
 ### Minimum requirements
 
 | Resource | Value |
