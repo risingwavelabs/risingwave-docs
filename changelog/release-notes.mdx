@@ -13,6 +13,7 @@ description: This page summarizes changes in each version of RisingWave, includi
 ## Cluster configuration changes
 
 - Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
+- Updates SST filter layout behavior for Hummock compaction output. `sstable_filter_layout` now accepts `blocked` in addition to `auto` and `plain`, and its default changes to `["auto", "blocked", "blocked", "blocked", "blocked", "blocked", "blocked"]`, so non-L0 levels use block-based filters by default. When `sstable_filter_layout[level]` is `auto`, `blocked_xor_filter_kv_count_threshold` is now evaluated per output SST instead of per compaction task. [#25782](https://github.com/risingwavelabs/risingwave/pull/25782)
 
 </Update>
 
