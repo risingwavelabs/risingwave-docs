@@ -14,6 +14,9 @@ VACUUM [FULL] schema_name.object_name;
 - `VACUUM`: Manually **expires** old snapshots on the specified Iceberg table/sink, freeing up space used by outdated versions.
 - `VACUUM FULL`: **Compacts** the specified Iceberg table/sink (rewrites the table to reclaim space), then **expires** outdated snapshots. This operation takes longer and requires extra disk space, as a new copy is written before the old copy is released.
 
+<Note>
+`VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has a pending or in-flight Iceberg compaction task, RisingWave returns an error instead of scheduling another compaction task.
+</Note>
 
 ## Parameters
 
