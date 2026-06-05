@@ -24,7 +24,7 @@ RisingWave Cloud (AWS account: <rw-account-id>)
 
 ## Required cloud metadata values
 
-Before you begin, retrieve the following values from your project's [Cloud metadata](/cloud/cloud-metadata) page in the RisingWave Cloud Console (**Connection** → **Cloud Meta** tab):
+Before you begin, retrieve the following values from your cluster's [Cloud metadata](/cloud/cloud-metadata) page in the RisingWave Cloud Console (**Network Access** → **Cloud Meta** tab):
 
 | Metadata field | Where it's used |
 |:---------------|:----------------|
@@ -95,7 +95,11 @@ Replace `<iam-role-arn>` with the **Workload Identity (IAM Role ARN)** from Clou
 }
 ```
 
-### Step 4 — Use the role in RisingWave
+### Step 4 — Register the role in Allowed Principals
+
+Add your IAM role ARN to your cluster's **Allowed Principals** list in the RisingWave Cloud Console to authorize RisingWave Cloud's principal to assume this role for the cluster. See [Managing allowed principals](#managing-allowed-principals-in-risingwave-cloud) below for the exact steps.
+
+### Step 5 — Use the role in RisingWave
 
 Set `s3.assume_role` to the ARN of the role you created in Step 2 and set `enable_config_load = 'true'`.
 
@@ -146,17 +150,17 @@ After creating the sink or source, run a quick sanity check:
 
 ## Managing allowed principals in RisingWave Cloud
 
-To view and manage the IAM role ARNs that are authorized to access your project's resources via IAM Assume Role, go to your project in the [RisingWave Cloud Console](https://cloud.risingwave.com), click **Connection** in the left sidebar, and select the **Allowed Principals** tab.
+To view and manage the IAM role ARNs that are authorized to access your cluster's resources via IAM Assume Role, go to your cluster in the [RisingWave Cloud Console](https://cloud.risingwave.com), click **Network Access** in the left sidebar, and select the **Allowed Principals** tab.
 
 <Frame>
-<img src="/images/cloud/iam-role-assume/connection-allowed-principals.png" alt="Allowed Principals tab in the Connection page of the RisingWave Cloud Console"/>
+<img src="/images/cloud/iam-role-assume/network-access-allowed-principals.png" alt="Allowed Principals tab on the Network Access page of the RisingWave Cloud Console"/>
 </Frame>
 
-Click **+ Add Principal** to add an IAM Role ARN that is allowed to access this project's resources.
+Click **Add principal** to add an IAM Role ARN that is allowed to access this cluster's resources via IAM Assume Role.
 
 ## Related pages
 
-- [Cloud metadata](/cloud/cloud-metadata) — retrieve the IAM role ARN for your project
+- [Cloud metadata](/cloud/cloud-metadata) — retrieve the IAM role ARN for your cluster
 - [PrivateLink connection configuration](/cloud/create-a-connection) — set up private network connectivity
 - [Sink to Amazon Redshift](/integrations/destinations/redshift) — end-to-end example with S3 staging
 - [Sink to Snowflake](/integrations/destinations/snowflake-v2) — end-to-end example with S3 staging
