@@ -1,0 +1,223 @@
+---
+title: "Single sign-on (SSO)"
+description: "Let users sign in to RisingWave Console through your SAML, LDAP / Active Directory, or OIDC identity provider using the bundled Dex identity broker."
+---
+
+RisingWave Console can federate console sign-in to your identity provider (IdP) so users authenticate with their existing corporate credentials instead of a local Console password.
+
+SSO is powered by a [Dex](https://dexidp.io/) identity-broker sidecar that runs inside the Console pod. You enable it by deploying one of the SSO Kubernetes overlays, then register one or more connectors (SAML, LDAP / Active Directory, or OIDC) from the Console UI.
+
+<Note>
+  SSO is available on Kubernetes only. The overlays add a Dex sidecar to the
+  Console pod. A Docker single-host SSO option is not yet provided — use a
+  Kubernetes overlay for SSO today.
+</Note>
+
+## How it works
+
+The SSO overlay adds a Dex sidecar to the Console pod and wires Console to it. The design avoids the usual SSO operational burden:
+
+- **No separate Dex endpoint.** Console reverse-proxies Dex under its own `/dex` path, so whatever exposes Console (Ingress, LoadBalancer, or NodePort) also serves Dex. You do not publish a separate Dex Service or Ingress path.
+- **No operator-managed client secret.** Console self-registers its OIDC client with Dex at boot and generates the client secret itself.
+- **No certificate wrangling.** Dex's gRPC admin port is reached only over the pod loopback, secured by a per-pod self-signed certificate minted by an init container.
+- **No forwarded-header configuration.** Console derives both the OAuth redirect URI and the SSO state cookie's `Secure` flag from the configured issuer URL, so SSO works correctly behind a TLS-terminating proxy without trusting `X-Forwarded-*` headers.
+
+Connectors you add from the UI are pushed to Dex immediately over its admin API — no Dex or Console restart is required.
+
+## Requirements
+
+Before you deploy SSO, make sure you can meet these two requirements:
+
+1. **Expose Console over HTTPS at a stable hostname.** Set `https://<host>/dex` as the issuer in both the Dex `ConfigMap` and Console's `RCONSOLE_SSO_DEX_ISSUERURL`. The issuer host **must equal the host browsers use to reach Console**, because Console serves Dex under its own `/dex` path.
+2. **Run a single replica.** The self-register flow resets the OIDC client secret on every boot, which only works with one replica. The SSO manifests pin `replicas: 1`; do not increase it. Scaling out requires switching to a persisted, shared client secret first.
+
+You also need a Console image that contains the SSO code. The overlays pin a suitable image tag; pin it to a specific release tag once one is available for your environment.
+
+## Deploy with an SSO overlay
+
+Console ships two kustomize overlays that add the Dex sidecar on top of the standard deployment bases:
+
+| Overlay                                  | Base                            | Metadata PostgreSQL              | Best for                                          |
+| ---------------------------------------- | ------------------------------- | -------------------------------- | ------------------------------------------------- |
+| `deploy/kubernetes/external-pg-sso/`     | external PostgreSQL             | You provide a PostgreSQL DSN     | Production (recommended) — durable Console metadata |
+| `deploy/kubernetes/pgbundle-sso/`        | bundled PostgreSQL              | Bundled inside the container     | Small, self-contained tests                       |
+
+<Note>
+  As with the non-SSO deployments, the bundled-PostgreSQL option does not keep
+  Console metadata across pod rescheduling. Use the external-PostgreSQL overlay
+  for production. Dex's own state (signing keys) is stored in SQLite on the
+  pod's PVC and does survive restarts.
+</Note>
+
+### 1. Fill in the base secret
+
+In the base manifest (`external-pg/console.yaml` or `pgbundle/console.yaml`), set the deployment secrets you would set for a non-SSO install — at minimum the RisingWave `license.jwt`, plus `pg-dsn` and `root-password` for the external-PostgreSQL base. For details, see [Install RisingWave Console](/web-ui/risingwave-console/installation-setup).
+
+### 2. Set the issuer host in both places
+
+Set the issuer to your Console's external HTTPS URL plus `/dex`. The two values **must be byte-identical**:
+
+- `issuer:` in `deploy/kubernetes/sso-bits/dex-config.yaml`
+- `RCONSOLE_SSO_DEX_ISSUERURL` in `deploy/kubernetes/sso-bits/statefulset-sso-patch.yaml`
+
+For example, if browsers reach Console at `https://console.example.com`, set both to `https://console.example.com/dex`.
+
+<Note>
+  Both SSO overlays share these files through the `sso-bits` kustomize
+  component, so the two overlays cannot drift.
+</Note>
+
+### 3. Expose Console over HTTPS
+
+The default Service is a NodePort. Add an Ingress (or another TLS-terminating front end) that serves Console at the issuer host over HTTPS. You do not need any forwarded-header trust configuration.
+
+### 4. Apply the overlay
+
+```shell
+# Production (recommended)
+kubectl apply -k deploy/kubernetes/external-pg-sso
+
+# Self-contained test
+kubectl apply -k deploy/kubernetes/pgbundle-sso
+```
+
+This reuses the base resources (Namespace, ServiceAccount, RBAC, Secret, Service, StatefulSet) and adds the Dex sidecar container, the certificate-generating init container, the Dex `ConfigMap`, and the `RCONSOLE_SSO_DEX_*` environment that wires Console to the sidecar.
+
+## SSO configuration reference
+
+The overlays set the `RCONSOLE_SSO_DEX_*` environment variables for you. You normally edit only the issuer host (step 2). The full set is documented here for custom deployments.
+
+| Environment variable                    | Description                                                                                                                              |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `RCONSOLE_SSO_DEX_GRPCADDR`              | Dex gRPC admin endpoint, reached over the pod loopback, for example `localhost:5557`. Required when the Dex sidecar is enabled.           |
+| `RCONSOLE_SSO_DEX_CACERT`                | Path to the PEM CA certificate Console uses to verify Dex's gRPC server certificate. Required when the Dex sidecar is enabled.            |
+| `RCONSOLE_SSO_DEX_CLIENTCERT`            | (Optional) Client certificate for mTLS to Dex's gRPC admin port. Must be set together with `RCONSOLE_SSO_DEX_CLIENTKEY`.                  |
+| `RCONSOLE_SSO_DEX_CLIENTKEY`             | (Optional) Private key for the client certificate above.                                                                                 |
+| `RCONSOLE_SSO_DEX_ISSUERURL`            | Browser-facing OIDC issuer URL, for example `https://console.example.com/dex`. Must match the `issuer` in the Dex `ConfigMap` exactly.    |
+| `RCONSOLE_SSO_DEX_CLIENTID`             | OIDC client id Console registers as in Dex, for example `risingwave-console`.                                                             |
+| `RCONSOLE_SSO_DEX_CLIENTSECRET`         | OIDC client secret. Leave unset when `RCONSOLE_SSO_DEX_SELFREGISTERCLIENT` is `true` (Console generates and owns the secret).             |
+| `RCONSOLE_SSO_DEX_INTERNALISSUERURL`     | (Optional) Back-channel Dex URL Console uses for token exchange and JWKS, for example `http://localhost:5556/dex`. The `iss` claim still uses the external issuer. |
+| `RCONSOLE_SSO_DEX_SELFREGISTERCLIENT`    | When `true`, Console generates its own OIDC client secret at boot and registers itself with Dex. Requires single-replica.                 |
+| `RCONSOLE_SSO_DEX_SERVEOIDCPROXY`        | When `true`, Console reverse-proxies Dex's HTTP surface under its own `/dex` path. Requires `RCONSOLE_SSO_DEX_INTERNALISSUERURL`.         |
+
+<Note>
+  The OIDC login fields are all-or-nothing in hand-configured mode: set
+  `RCONSOLE_SSO_DEX_ISSUERURL`, `RCONSOLE_SSO_DEX_CLIENTID`, and
+  `RCONSOLE_SSO_DEX_CLIENTSECRET` together to enable SSO login, or none of them.
+  In self-register mode, set the issuer and client id and leave the client
+  secret unset.
+</Note>
+
+## Register a connector
+
+After the pod is running, sign in as `root` and add a connector for your IdP. Connectors are pushed to Dex immediately; no restart is needed.
+
+1. In the sidebar, open **SSO Connectors**.
+
+   Before you add anything, the page shows an empty state.
+
+   <Frame>
+     <img src="/images/risingwave-console/risingwave-console-sso-empty-state.png" />
+   </Frame>
+
+2. Click **Add connector** and fill in the form:
+
+   - **Connector id**: a stable identifier, for example `okta-prod`. This is used internally and cannot be changed later.
+   - **Type**: **SAML 2.0**, **LDAP / Active Directory**, or **OIDC**.
+   - **Display name**: the label shown on the sign-in button, for example `Okta (Production)`.
+   - **Configuration (JSON)**: connector-specific settings passed to Dex. Selecting a type pre-fills a template with the keys that connector expects; fill in the values.
+
+   <Frame>
+     <img src="/images/risingwave-console/risingwave-console-sso-add-connector.png" />
+   </Frame>
+
+3. Click **Create connector**.
+
+Each configured connector appears in the list, where you can edit or delete it.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-sso-connector-list.png" />
+</Frame>
+
+### Connector configuration
+
+The configuration field holds connector-specific JSON that Dex validates on save. Selecting a type pre-fills the keys that connector expects.
+
+For connectors that verify an IdP or directory server certificate, use the **Load CA certificate** button to fill the inline CA field from a PEM file. Console uses Dex's *inline* CA form (`caData` for SAML, `rootCAData` for LDAP) rather than a filesystem path, because a path would point inside the Dex container.
+
+<Tabs>
+  <Tab title="SAML 2.0">
+    ```json
+    {
+      "ssoURL": "https://idp.example.com/sso",
+      "caData": "",
+      "redirectURI": "https://console.example.com/auth/sso/callback",
+      "usernameAttr": "name",
+      "emailAttr": "email",
+      "groupsAttr": "groups",
+      "entityIssuer": "https://console.example.com/auth/sso/callback",
+      "ssoIssuer": "https://idp.example.com/"
+    }
+    ```
+
+    Use **Load CA certificate** to fill `caData` with the base64-encoded PEM of the IdP's signing CA. SAML requires it unless signature validation is disabled (dev and test only).
+  </Tab>
+  <Tab title="LDAP / Active Directory">
+    ```json
+    {
+      "host": "ldap.example.com:636",
+      "bindDN": "cn=svc-dex,ou=Service,dc=example,dc=com",
+      "bindPW": "",
+      "rootCAData": "",
+      "userSearch": {
+        "baseDN": "ou=Users,dc=example,dc=com",
+        "filter": "(objectClass=person)",
+        "username": "userPrincipalName",
+        "idAttr": "objectGUID",
+        "emailAttr": "mail",
+        "nameAttr": "cn"
+      },
+      "groupSearch": {
+        "baseDN": "ou=Groups,dc=example,dc=com",
+        "filter": "(objectClass=group)",
+        "userMatchers": [{ "userAttr": "DN", "groupAttr": "member" }],
+        "nameAttr": "cn"
+      }
+    }
+    ```
+
+    Use **Load CA certificate** to fill `rootCAData` with the base64-encoded PEM of the LDAPS server's CA. Leave it empty for plain LDAP or when the server certificate chains to a publicly trusted root.
+  </Tab>
+  <Tab title="OIDC">
+    ```json
+    {
+      "issuer": "https://idp.example.com",
+      "clientID": "",
+      "clientSecret": "",
+      "redirectURI": "https://console.example.com/auth/sso/callback"
+    }
+    ```
+
+    Register `https://<console-host>/auth/sso/callback` as an allowed redirect URI with your upstream OIDC provider.
+  </Tab>
+</Tabs>
+
+## Sign in with SSO
+
+Once at least one connector is configured, the login page shows a **Sign in with SSO** button alongside the local username and password fields. Users click it to authenticate through your IdP.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-sso-login.png" />
+</Frame>
+
+The local `root` account and any local users you create continue to work, so you retain an administrative path even if the IdP is unavailable.
+
+## Troubleshooting
+
+| Symptom                                              | Check                                                                                                                                                |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The **Sign in with SSO** button does not appear      | Confirm at least one connector is configured under **SSO Connectors**, and that the OIDC issuer/client fields (or self-register mode) are set.        |
+| `Unregistered redirect_uri` on SSO login             | The issuer host must equal the host browsers use to reach Console. Make `RCONSOLE_SSO_DEX_ISSUERURL` and the Dex `issuer` byte-identical to that host. |
+| Random `401` errors on SSO login                     | The deployment is running more than one replica. The self-register flow requires `replicas: 1`.                                                       |
+| Login fails with a certificate or signature error    | Confirm the inline CA (`caData` / `rootCAData`) matches the IdP or LDAPS server certificate. Use **Load CA certificate** to set it from the PEM file. |
+| Console exits at boot with an SSO configuration error | The OIDC fields are all-or-nothing. Set issuer, client id, and client secret together — or, in self-register mode, leave the client secret unset.     |
