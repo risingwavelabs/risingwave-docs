@@ -178,56 +178,56 @@ For connectors that verify an IdP or directory server certificate, use the **Loa
 
 <Tabs>
   <Tab title="SAML 2.0">
-    ```json
-    {
-      "ssoURL": "https://idp.example.com/sso",
-      "caData": "",
-      "redirectURI": "https://console.example.com/auth/sso/callback",
-      "usernameAttr": "name",
-      "emailAttr": "email",
-      "groupsAttr": "groups",
-      "entityIssuer": "https://console.example.com/auth/sso/callback",
-      "ssoIssuer": "https://idp.example.com/"
-    }
-    ```
+~~~json
+{
+  "ssoURL": "https://idp.example.com/sso",
+  "caData": "",
+  "redirectURI": "https://console.example.com/auth/sso/callback",
+  "usernameAttr": "name",
+  "emailAttr": "email",
+  "groupsAttr": "groups",
+  "entityIssuer": "https://console.example.com/auth/sso/callback",
+  "ssoIssuer": "https://idp.example.com/"
+}
+~~~
 
     Use **Load CA certificate** to fill `caData` with the base64-encoded PEM of the IdP's signing CA. SAML requires it unless signature validation is disabled (dev and test only).
   </Tab>
   <Tab title="LDAP / Active Directory">
-    ```json
-    {
-      "host": "ldap.example.com:636",
-      "bindDN": "cn=svc-dex,ou=Service,dc=example,dc=com",
-      "bindPW": "",
-      "rootCAData": "",
-      "userSearch": {
-        "baseDN": "ou=Users,dc=example,dc=com",
-        "filter": "(objectClass=person)",
-        "username": "userPrincipalName",
-        "idAttr": "objectGUID",
-        "emailAttr": "mail",
-        "nameAttr": "cn"
-      },
-      "groupSearch": {
-        "baseDN": "ou=Groups,dc=example,dc=com",
-        "filter": "(objectClass=group)",
-        "userMatchers": [{ "userAttr": "DN", "groupAttr": "member" }],
-        "nameAttr": "cn"
-      }
-    }
-    ```
+~~~json
+{
+  "host": "ldap.example.com:636",
+  "bindDN": "cn=svc-dex,ou=Service,dc=example,dc=com",
+  "bindPW": "",
+  "rootCAData": "",
+  "userSearch": {
+    "baseDN": "ou=Users,dc=example,dc=com",
+    "filter": "(objectClass=person)",
+    "username": "userPrincipalName",
+    "idAttr": "objectGUID",
+    "emailAttr": "mail",
+    "nameAttr": "cn"
+  },
+  "groupSearch": {
+    "baseDN": "ou=Groups,dc=example,dc=com",
+    "filter": "(objectClass=group)",
+    "userMatchers": [{ "userAttr": "DN", "groupAttr": "member" }],
+    "nameAttr": "cn"
+  }
+}
+~~~
 
     Use **Load CA certificate** to fill `rootCAData` with the base64-encoded PEM of the LDAPS server's CA. Leave it empty for plain LDAP or when the server certificate chains to a publicly trusted root.
   </Tab>
   <Tab title="OIDC">
-    ```json
-    {
-      "issuer": "https://idp.example.com",
-      "clientID": "",
-      "clientSecret": "",
-      "redirectURI": "https://console.example.com/auth/sso/callback"
-    }
-    ```
+~~~json
+{
+  "issuer": "https://idp.example.com",
+  "clientID": "",
+  "clientSecret": "",
+  "redirectURI": "https://console.example.com/auth/sso/callback"
+}
+~~~
 
     Register `https://<console-host>/auth/sso/callback` as an allowed redirect URI with your upstream OIDC provider.
   </Tab>
