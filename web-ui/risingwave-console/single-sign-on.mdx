@@ -31,7 +31,7 @@ Before you deploy SSO, make sure you can meet these two requirements:
 1. **Expose Console over HTTPS at a stable hostname.** Set `https://<host>/dex` as the issuer in both the Dex `ConfigMap` and Console's `RCONSOLE_SSO_DEX_ISSUERURL`. The issuer host **must equal the host browsers use to reach Console**, because Console serves Dex under its own `/dex` path.
 2. **Run a single replica.** The self-register flow resets the OIDC client secret on every boot, which only works with one replica. The SSO manifests pin `replicas: 1`; do not increase it. Scaling out requires switching to a persisted, shared client secret first.
 
-You also need a Console image that contains the SSO code. The overlays pin a suitable image tag; pin it to a specific release tag once one is available for your environment.
+You also need a Console image that contains the SSO code. SSO shipped in the `v0.7.4` release, so the `external-pg-sso` overlay (which uses the standard image) works with `v0.7.4` or later, and the `pgbundle-sso` overlay works with `v0.7.4-pgbundle` or later. The overlays default to a rolling tag (`main` and `latest-pgbundle` respectively); pin a specific release tag such as `v0.7.4-pgbundle` for reproducible deployments.
 
 ## Deploy with an SSO overlay
 
@@ -82,6 +82,37 @@ kubectl apply -k deploy/kubernetes/pgbundle-sso
 ```
 
 This reuses the base resources (Namespace, ServiceAccount, RBAC, Secret, Service, StatefulSet) and adds the Dex sidecar container, the certificate-generating init container, the Dex `ConfigMap`, and the `RCONSOLE_SSO_DEX_*` environment that wires Console to the sidecar.
+
+### 5. Verify SSO came up
+
+Wait for both containers in the pod to become ready:
+
+```shell
+kubectl -n risingwave-console get pod risingwave-console-0
+# READY should show 2/2 (console + dex)
+```
+
+Then confirm the console registered its OIDC client with Dex:
+
+```shell
+kubectl -n risingwave-console logs risingwave-console-0 -c console | grep -i "SSO self-register"
+# Expected: SSO self-registered OIDC client "risingwave-console" with Dex
+```
+
+<Warning>
+  On the **very first boot**, the console can start before the Dex sidecar's
+  gRPC port is ready and log `SSO Dex unreachable` followed by
+  `SSO login disabled this boot`. The console does not retry self-registration
+  within that boot, so SSO login stays disabled until the next restart. If you
+  see this, restart the console once Dex is up:
+
+  ```shell
+  kubectl -n risingwave-console rollout restart statefulset/risingwave-console
+  ```
+
+  After the restart the log shows `SSO self-registered OIDC client` and SSO is
+  ready.
+</Warning>
 
 ## SSO configuration reference
 
@@ -204,7 +235,9 @@ For connectors that verify an IdP or directory server certificate, use the **Loa
 
 ## Sign in with SSO
 
-Once at least one connector is configured, the login page shows a **Sign in with SSO** button alongside the local username and password fields. Users click it to authenticate through your IdP.
+Once SSO is enabled — the overlay is deployed, the Dex sidecar is reachable, and the console has registered its OIDC client — the login page shows a **Sign in with SSO** button alongside the local username and password fields. Users click it to authenticate through your IdP.
+
+Register at least one IdP connector before pointing users at SSO, so the button leads to a real identity provider rather than only Dex's built-in local login.
 
 <Frame>
   <img src="/images/risingwave-console/risingwave-console-sso-login.png" />
@@ -216,7 +249,8 @@ The local `root` account and any local users you create continue to work, so you
 
 | Symptom                                              | Check                                                                                                                                                |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The **Sign in with SSO** button does not appear      | Confirm at least one connector is configured under **SSO Connectors**, and that the OIDC issuer/client fields (or self-register mode) are set.        |
+| The **Sign in with SSO** button does not appear      | Check the console log for `SSO login disabled this boot` (first-boot race with the Dex sidecar) and restart the console. Otherwise confirm the Dex sidecar is ready and the OIDC issuer/client fields (or self-register mode) are set. |
+| `SSO login disabled this boot` in the console log     | The console started before the Dex sidecar's gRPC port was ready and did not retry. Restart the console: `kubectl -n risingwave-console rollout restart statefulset/risingwave-console`. |
 | `Unregistered redirect_uri` on SSO login             | The issuer host must equal the host browsers use to reach Console. Make `RCONSOLE_SSO_DEX_ISSUERURL` and the Dex `issuer` byte-identical to that host. |
 | Random `401` errors on SSO login                     | The deployment is running more than one replica. The self-register flow requires `replicas: 1`.                                                       |
 | Login fails with a certificate or signature error    | Confirm the inline CA (`caData` / `rootCAData`) matches the IdP or LDAPS server certificate. Use **Load CA certificate** to set it from the PEM file. |
