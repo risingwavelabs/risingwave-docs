@@ -104,12 +104,12 @@ Use the following system catalog and metrics to track serverless backfilling job
 |---|---|
 | `SHOW JOBS` | Lists all background DDL jobs and their current status. |
 | `SELECT * FROM rw_catalog.rw_ddl_progress` | Shows per-fragment backfill progress as a percentage. |
-| Grafana / metrics endpoint | Look for `risingwave-backfill-*` metrics on compute nodes to confirm that the backfiller nodes are running and to observe their CPU and memory usage. |
+| Cloud portal **Metrics** page | In the cluster-node panels such as **CPU Utilization**, look for the `risingwave-backfill-*` node series to confirm that the dedicated backfiller nodes are running and to observe their CPU and memory usage. |
 
-For example, the **Node Memory** panel below shows the dedicated backfiller nodes (`serverless-compute @ risingwave-backfill-*`) that RisingWave Cloud provisions for a serverless backfilling job. The active backfiller's memory usage rises when the job starts (around 16:30), confirming that the backfill runs on the dedicated backfiller nodes rather than on your main compute nodes.
+For example, the **CPU Utilization** panel below (on the Cloud portal **Metrics** page) lists each cluster node. The highlighted `risingwave-backfill-0-*` series is a dedicated backfiller node that RisingWave Cloud provisions for the serverless backfilling job, separate from your main compute nodes (`risingwave-compute-*`).
 
 <Frame>
-  <img src="/images/processing/serverless-backfill-node-memory.png" />
+  <img src="/images/processing/serverless-backfill-cpu-utilization.png" />
 </Frame>
 
 ## Limitations
