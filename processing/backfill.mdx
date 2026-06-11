@@ -78,6 +78,8 @@ If a compute node fails during backfill, RisingWave will resume backfill from th
 - Barriers coordinate progress across all fragments
 - State is checkpointed regularly during backfill
 
+If you monitor the job through `rw_catalog.rw_ddl_progress`, the consumed row count for snapshot backfill also resumes from the persisted backfill state after recovery instead of restarting from zero.
+
 <Note>
 New to barriers/checkpoints? A **barrier** is a periodic sync marker; a **checkpoint** is a global consistent snapshot created from barriers. By default, RisingWave generates one barrier every **1 second** (`barrier_interval_ms = 1000`). See [Data persistence](/reference/data-persistence#what-are-barriers-and-checkpoints).
 </Note>
