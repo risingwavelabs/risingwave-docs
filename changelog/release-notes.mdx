@@ -3,16 +3,44 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
-<Update label="v2.9.0" description="Upcoming">
+<Update label="v3.1.0" description="Upcoming">
+
+This section will be updated with notable changes planned for v3.1.0.
+
+</Update>
+
+<Update label="v3.0.0" description="Released on 2026-06-11">
 
 ## SQL features
+
+- SQL commands:
+    - Supports `SHOW CURSORS` and subscription cursors on all frontend nodes. [#24107](https://github.com/risingwavelabs/risingwave/pull/24107)
+    - Supports `DROP SECRET CASCADE`. [#24581](https://github.com/risingwavelabs/risingwave/pull/24581)
 
 - System catalog:
     - Adds column `schema_name` to `rw_catalog.rw_materialized_views` and `rw_catalog.rw_subscriptions` so you can filter by schema without extra joins. [#25248](https://github.com/risingwavelabs/risingwave/pull/25248)
 
+## Connectors
+
+- Supports PostgreSQL 18 for PostgreSQL CDC sources. [#24765](https://github.com/risingwavelabs/risingwave/pull/24765)
+- Supports the HTTP sink connector. [#25396](https://github.com/risingwavelabs/risingwave/pull/25396)
+- Supports exactly-once semantics for Delta Lake sinks. [#25159](https://github.com/risingwavelabs/risingwave/pull/25159)
+- Supports Protobuf encoding for MQTT sources. [#25403](https://github.com/risingwavelabs/risingwave/pull/25403)
+
 ## Cluster configuration changes
 
 - Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.0-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.0/risingwave-v3.0.0-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.0.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.0.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.0/risectl-v3.0.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v2.8.0...v3.0.0).
 
 </Update>
 
