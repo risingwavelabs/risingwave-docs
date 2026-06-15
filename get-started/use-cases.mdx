@@ -46,7 +46,7 @@ HAVING COUNT(*) > 5 AND SUM(purchase_amount) > 5000;
 -- Deliver alerts to Kafka
 CREATE SINK alerts FROM suspicious_transactions
 WITH (connector = 'kafka', properties.bootstrap.server = 'localhost:9092', topic = 'fraud-alerts')
-FORMAT PLAIN ENCODE JSON (force_append_only = 'true');
+FORMAT PLAIN ENCODE JSON (ignore_delete = 'true');
 ```
 
 For the full pipeline, see the [Kafka to MV recipe](/get-started/recipes/kafka-to-mv-to-serve).
@@ -93,7 +93,7 @@ JOIN users u ON c.user_id = u.id;
 -- Deliver enriched events downstream
 CREATE SINK enriched_clicks_sink FROM enriched_clicks
 WITH (connector = 'kafka', properties.bootstrap.server = 'localhost:9092', topic = 'enriched-clicks')
-FORMAT PLAIN ENCODE JSON (force_append_only = 'true');
+FORMAT PLAIN ENCODE JSON (ignore_delete = 'true');
 ```
 
 For the full pipeline (Kafka + CDC → JOIN → Kafka/Iceberg), see the [Stream enrichment recipe](/get-started/recipes/stream-enrichment).
