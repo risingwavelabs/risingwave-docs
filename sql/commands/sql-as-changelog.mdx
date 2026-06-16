@@ -54,3 +54,11 @@ v1  v2  changelog_op
 1   1   4
 1   100 3
 ```
+
+## Limitations
+
+`AS CHANGELOG` emits the net effect of changes within an epoch. If changes to the same row cancel out within the same stream chunk on a table, RisingWave does not append changelog records for the intermediate states.
+
+For example, if the same row is inserted and then deleted in the same epoch, or goes through an insert, update, and delete sequence whose final effect is no change, no row is emitted for that row in the changelog.
+
+This behavior is caused by adjacent no-op update elimination in the streaming engine.
