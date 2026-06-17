@@ -14,7 +14,7 @@ When RisingWave streams data into Iceberg, it generates many small data files an
 <Note>
 **Version notes**
 - RisingWave introduced Iceberg automatic maintenance (default) in v2.5.0 and added `compaction.type` with the `small-files` and `files-with-delete` compaction types in v2.7.0.
-- `compaction.write_parquet_compression` and `compaction.write_parquet_max_row_group_rows` were added in v2.9.0. The `compaction.target_file_size_mb` parameter now also controls the output file size for sink writes (previously only applied to compaction).
+- `compaction.write_parquet_compression` and `compaction.write_parquet_max_row_group_bytes` were added in v2.9.0. The `compaction.target_file_size_mb` parameter now also controls the output file size for sink writes (previously only applied to compaction).
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
 
@@ -25,6 +25,28 @@ You can enable automatic maintenance to run periodically in the background for y
 
 Automatic Iceberg maintenance requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
 </Warning>
+
+### Recommended starting configuration
+
+Enable Iceberg maintenance when you create an Iceberg sink or internal Iceberg table. Waiting until small files and snapshots have already accumulated makes the first maintenance run more expensive and can affect external query stability.
+
+Use the following configuration as a conservative starting point for proof-of-concept and initial production rollout:
+
+```sql
+WITH (
+    enable_compaction = true,
+    commit_checkpoint_interval = 60,
+    compaction_interval_sec = 3600,
+    enable_snapshot_expiration = true,
+    snapshot_expiration_max_age_millis = 86400000,
+    snapshot_expiration_retain_last = 64,
+    compaction.max_snapshots_num = 256
+)
+```
+
+This configuration enables hourly compaction, expires snapshots older than 1 day while retaining at least 64 snapshots, and uses `compaction.max_snapshots_num` as a safety guard to prevent a sink from continuing to add snapshots indefinitely when compaction falls behind.
+
+During an initial rollout, start with one Iceberg sink and one dedicated Iceberg compactor. Verify the compaction result, snapshot count, and external query stability for that sink before adding more Iceberg sinks. When you add more Iceberg sinks, scale the Iceberg compactor accordingly. If compactor capacity is too low, compaction may lag behind writes and the small file problem can get worse.
 
 ### Compaction types
 
@@ -48,11 +70,13 @@ Configure automatic maintenance by specifying the following parameters in the `W
 
 | Parameter | Description |
 |:--|:--|
-| `enable_compaction` | Required. Set to `true` to enable automatic compaction and snapshot expiration. |
+| `enable_compaction` | Optional. Set to `true` to enable automatic compaction. Internal Iceberg tables default to `true`; Iceberg sinks should set it explicitly when automatic compaction is needed. |
 | `compaction_interval_sec` | Optional. The interval in seconds between maintenance runs. Default: `3600`. |
-| `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
-| `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. To keep only the latest snapshot, set this to `0`. |
+| `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. Default: `true`. |
+| `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. Default: `86400000` (1 day). To keep only the latest snapshot, set this to `0`. |
 | `snapshot_expiration_retain_last` | Optional. The minimum number of snapshots to retain, regardless of their age. |
+
+Although `commit_checkpoint_interval` is a write commit parameter rather than a compaction parameter, it directly affects how many Iceberg snapshots RisingWave creates. The default is `60` for Iceberg sinks and internal Iceberg tables. Lower values make newly written data visible sooner, but also create more snapshots and increase maintenance load.
 
 #### Compaction parameters
 
@@ -62,13 +86,14 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. |
 | `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. |
 | `compaction.target_file_size_mb` | Optional. The target output file size in MB. Applies to both sink writes and compaction. Default: `1024`. |
-| `compaction.write_parquet_compression` | Optional. The Parquet compression codec for output files. Accepted values: `uncompressed`, `snappy`, `gzip`, `lzo`, `brotli`, `lz4`, `zstd`. Default: `snappy`. Supports dynamic updates via `ALTER SINK`. |
-| `compaction.write_parquet_max_row_group_rows` | Optional. The maximum number of rows per Parquet row group. Must be greater than 0. Default: `122880`. Supports dynamic updates via `ALTER SINK`. |
+| `compaction.write_parquet_compression` | Optional. The Parquet compression codec for output files. Accepted values: `uncompressed`, `snappy`, `gzip`, `lzo`, `brotli`, `lz4`, `zstd`. Default: `zstd`. Supports dynamic updates via `ALTER SINK`. |
+| `compaction.write_parquet_max_row_group_bytes` | Optional. The maximum size in bytes of a Parquet row group. Must be greater than 0. Default: `134217728` (128 MiB). Supports dynamic updates via `ALTER SINK`. |
+| `compaction.write_parquet_max_row_group_rows` | Deprecated. Accepted for backward compatibility, but ignored by the writer. Use `compaction.write_parquet_max_row_group_bytes` instead. |
 | `compaction.small_files_threshold_mb` | Optional. For `small-files` compaction type, the threshold size in MB below which files will be compacted. |
 | `compaction.delete_files_count_threshold` | Optional. For `files-with-delete` compaction type, the minimum number of delete files associated with a data file required to trigger compaction. |
 
 <Warning>
-**Deprecated storage config**: The node-level storage config `iceberg_compaction_write_parquet_max_row_group_rows` is deprecated. Use the sink-level parameter `compaction.write_parquet_max_row_group_rows` instead.
+**Deprecated row-count config**: Row-count based Parquet row group settings are retained for compatibility. Use `compaction.write_parquet_max_row_group_bytes` for new Iceberg sinks and tables.
 </Warning>
 
 ### Examples
@@ -160,4 +185,3 @@ VACUUM my_iceberg_table;
 -- Compact files and expire snapshots older than 2 days
 VACUUM my_iceberg_table RETAIN 2 DAYS;
 ```
-
