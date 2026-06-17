@@ -81,7 +81,7 @@ The following table shows the corresponding data type in RisingWave that should 
 | VARCHAR        | VARCHAR                                                                                           |
 | No support     | TIME                                                                                              |
 | DATETIME       | TIMESTAMP WITHOUT TIME ZONE                                                                       |
-| No support     | TIMESTAMP WITH TIME ZONE（Can be converted to timestamp in RisingWave then sinked into StarRocks ） |
+| DATETIME, VARCHAR, CHAR, STRING | TIMESTAMP WITH TIME ZONE |
 | No support     | INTERVAL                                                                                          |
 | No support     | STRUCT                                                                                            |
 | ARRAY          | ARRAY                                                                                             |
@@ -89,5 +89,7 @@ The following table shows the corresponding data type in RisingWave that should 
 | JSON           | JSONB                                                                                             |
 | BIGINT         | SERIAL                                                                                            |
 
+
+When sinking `TIMESTAMP WITH TIME ZONE` to StarRocks, RisingWave writes the value as a timestamp string without a timezone suffix.
 
 If a decimal value is out of bounds or represents `inf`, `-inf`, or `nan`, RisingWave will insert null values.
