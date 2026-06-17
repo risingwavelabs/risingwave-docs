@@ -1,0 +1,112 @@
+---
+title: Sink data from RisingWave to Turbopuffer
+sidebarTitle: Turbopuffer
+description: This guide describes how to sink data from RisingWave to Turbopuffer using the native Turbopuffer sink connector.
+---
+
+[Turbopuffer](https://turbopuffer.com) is a vector database for search, retrieval, and AI applications.
+
+## Create a Turbopuffer sink
+
+Use the following syntax to create a Turbopuffer sink:
+
+```sql
+CREATE SINK sink_name
+[ FROM sink_from | AS select_query ]
+WITH (
+  connector = 'turbopuffer',
+  base_url = 'https://<your-turbopuffer-endpoint>',
+  { namespace = '<static-namespace>' | namespace_column = '<varchar-column>' },
+  api_key = secret <secret_name>,
+  primary_key = '<single-column-primary-key>',
+  type = 'append-only' | 'upsert',
+  [ distance_metric = '<distance-metric>' ],
+  [ disable_backpressure = 'true' | 'false' ],
+  [ full_text_search_columns = '<col1,col2,...>' ],
+  [ filterable_columns = '<col1,col2,...>' | '*' ]
+);
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-- | :-- |
+| `connector` | **Required**. Must be `turbopuffer`. |
+| `base_url` | **Required**. The Turbopuffer endpoint URL. |
+| `namespace` | **Required if `namespace_column` is not set**. A static Turbopuffer namespace. Use either `namespace` or `namespace_column`, but not both. The namespace must match `[A-Za-z0-9-_.]{1,128}`. |
+| `namespace_column` | **Required if `namespace` is not set**. A `varchar` column used to route rows to namespaces dynamically. Use either `namespace` or `namespace_column`, but not both. Null values are not allowed at runtime. |
+| `api_key` | **Required**. The Turbopuffer API key. Store it with [`CREATE SECRET`](/sql/commands/sql-create-secret) or [Manage secrets](/operate/manage-secrets), then reference it as `secret <secret_name>`. |
+| `primary_key` | **Required**. Exactly one column must be specified. The primary key becomes the Turbopuffer document `id`, so its type must be `integer`, `bigint`, or `varchar`. |
+| `type` | **Required**. Sink type. Supported values are `append-only` and `upsert`. |
+| `distance_metric` | **Optional**. Distance metric sent in Turbopuffer write requests. Required when the sink schema contains one or more `vector(N)` columns. |
+| `disable_backpressure` | **Optional**. Whether to disable Turbopuffer write backpressure. |
+| `full_text_search_columns` | **Optional**. A comma-separated list of attribute columns to mark as full-text searchable in the generated Turbopuffer schema. Only `varchar` and `varchar[]` columns are supported. |
+| `filterable_columns` | **Optional**. A comma-separated list of attribute columns to mark as filterable in the generated Turbopuffer schema. Use `*` to mark all eligible attribute columns as filterable. |
+
+## Notes
+
+* RisingWave generates the Turbopuffer `schema` object automatically from the sink input schema.
+* The primary key column is encoded as the Turbopuffer document `id` and is not included as a schema attribute.
+* A sink attribute column must not be named `id`.
+* If the sink includes `vector(N)` columns, RisingWave also marks them with `ann = true` in the generated Turbopuffer schema.
+
+## Examples
+
+### Create the API key secret
+
+```sql
+CREATE SECRET tpuf_api_key WITH (backend = 'meta') AS 'your-api-key';
+```
+
+### Use a static namespace
+
+```sql
+CREATE SINK tpuf_static
+FROM tpuf_items
+WITH (
+    connector = 'turbopuffer',
+    base_url = 'https://aws-us-east-2.turbopuffer.com',
+    namespace = 'my-static-namespace',
+    api_key = secret tpuf_api_key,
+    primary_key = 'id',
+    type = 'upsert',
+    distance_metric = 'cosine_distance',
+    full_text_search_columns = 'body,note_contents',
+    filterable_columns = '*'
+);
+```
+
+### Use a dynamic namespace
+
+```sql
+CREATE SINK tpuf_dynamic
+FROM tpuf_items
+WITH (
+    connector = 'turbopuffer',
+    base_url = 'https://aws-us-east-2.turbopuffer.com',
+    namespace_column = 'workspace_id',
+    api_key = secret tpuf_api_key,
+    primary_key = 'id',
+    type = 'upsert',
+    distance_metric = 'cosine_distance',
+    filterable_columns = '*'
+);
+```
+
+## Data type mapping
+
+| RisingWave data type | Turbopuffer schema type |
+| :-- | :-- |
+| `boolean` | `bool` |
+| `smallint`, `integer`, `bigint`, `serial` | `int` |
+| `real`, `double precision`, `decimal` | `float` |
+| `varchar` | `string` |
+| `date`, `timestamp` | `datetime` |
+| `boolean[]` | `[]bool` |
+| integer arrays, `serial[]` | `[]int` |
+| float arrays, `decimal[]` | `[]float` |
+| `varchar[]` | `[]string` |
+| `date[]`, `timestamp[]` | `[]datetime` |
+| `vector(N)` | `[N]f32` |
+
+Any other sink column type is rejected by the Turbopuffer sink connector.
