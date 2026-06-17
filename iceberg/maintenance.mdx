@@ -59,7 +59,7 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | Parameter | Description |
 |:--|:--|
 | `compaction.type` | Optional. The compaction strategy: `full`, `small-files`, or `files-with-delete`. Default: `full`. |
-| `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. |
+| `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. If `enable_compaction = true` and this parameter is not set, RisingWave uses `1000` by default. If `enable_compaction = false`, the gate remains disabled unless you explicitly set a positive value. `0` is not allowed. |
 | `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. |
 | `compaction.target_file_size_mb` | Optional. The target output file size in MB. Applies to both sink writes and compaction. Default: `1024`. |
 | `compaction.write_parquet_compression` | Optional. The Parquet compression codec for output files. Accepted values: `uncompressed`, `snappy`, `gzip`, `lzo`, `brotli`, `lz4`, `zstd`. Default: `snappy`. Supports dynamic updates via `ALTER SINK`. |
@@ -160,4 +160,3 @@ VACUUM my_iceberg_table;
 -- Compact files and expire snapshots older than 2 days
 VACUUM my_iceberg_table RETAIN 2 DAYS;
 ```
-
