@@ -12,7 +12,7 @@ description: "Receive webhook events over HTTP directly into RisingWave, process
 
 ### 1. Create a webhook source
 
-The webhook connector requires exactly one JSONB column — the full payload lands there.
+The webhook connector supports either a single `JSONB` payload column or typed multi-column tables. This example uses a single `JSONB` column so the raw payload is easy to inspect.
 
 ```sql
 CREATE TABLE webhook_events (
@@ -60,7 +60,7 @@ LIMIT 10;
 - Webhook endpoint format: `http://<host>:4560/webhook/<database>/<schema>/<table_name>`
 - Default port for webhooks is `4560` (not the SQL port `4566`)
 - The `secret.header` and `secret.value` are used to validate incoming requests
-- The webhook connector requires exactly one JSONB column — all payload fields must be extracted via `->>`/`->` operators in downstream MVs
+- Use a single `JSONB` column when you want to keep the raw payload; use typed columns when you want RisingWave to decode top-level JSON fields directly into table columns
 
 ## Next steps
 
