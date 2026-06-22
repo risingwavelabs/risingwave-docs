@@ -143,6 +143,8 @@ WITH (
 FROM source TABLE pg_table_name;
 ```
 
+If the upstream PostgreSQL schema or table name uses quoted identifiers, preserve the PostgreSQL double quotes inside the string literal. For example, use `TABLE 'public."QuotedTable"'`.
+
 To check the progress of backfilling historical data, find the corresponding internal table using the [SHOW INTERNAL TABLES](/sql/commands/sql-show-internal-tables) command and query from it.
 
 ### Connector parameters
@@ -274,6 +276,16 @@ CREATE TABLE tt3 (
     v1 integer primary key,
     v2 timestamp with time zone
 ) FROM pg_mydb TABLE 'public.tt3';
+```
+
+If the upstream PostgreSQL table name is quoted, keep that quoting in the `TABLE` value. For example, the following statement ingests from `public."QuotedNote"`:
+
+```sql
+CREATE TABLE quoted_note (
+    id text PRIMARY KEY,
+    "authorId" text,
+    content text
+) FROM pg_mydb TABLE 'public."QuotedNote"';
 ```
 
 You can also create another CDC table in RisingWave that ingests data from table `tt4` in the schema `ods`.
