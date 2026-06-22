@@ -81,6 +81,10 @@ Support for certain earlier versions will end following the release of v3.0. Ple
 - **File source**: Supports case-insensitive column name matching for Parquet files. [#24734](https://github.com/risingwavelabs/risingwave/pull/24734)
 - **Deprecated**: Maxwell, Canal, and Citus CDC sources are disabled. [#25534](https://github.com/risingwavelabs/risingwave/pull/25534)
 
+## Upgrade-time behavior changes
+
+- **Breaking fix:** JSONB string values now hash consistently with plain `&str`. If your cluster uses JSONB columns as distribution keys, reshuffle affected data after upgrading, because vnode mapping for JSONB string values is corrected to match `&str` hashing. [#25369](https://github.com/risingwavelabs/risingwave/pull/25369)
+
 ## Cluster configuration changes
 
 - Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
