@@ -62,7 +62,7 @@ SET PARALLELISM { TO | = } parallelism_number;
 | Parameter or clause   | Description                                                                                                                                                                                                                                                                                                                              |
 | :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **SET PARALLELISM**   | This clause controls the degree of [parallelism](/reference/key-concepts#parallelism) for the targeted [streaming job](/reference/key-concepts#streaming-queries).                                                                                                                                                                  |
-| parallelism_number | Can be ADAPTIVE or a fixed number (e.g., 1, 2, 3). Setting it to ADAPTIVE expands the job's parallelism to all available units, while a fixed number locks it at that value. Setting it to 0 is equivalent to ADAPTIVE. The maximum allowed value is determined by the `max_parallelism` of the job. For more information, see [Configuring maximum parallelism](/deploy/k8s-cluster-scaling#configuring-maximum-parallelism). |
+| parallelism_number | Can be `ADAPTIVE`, `0`, a fixed number (for example, `1`, `2`, or `3`), `bounded(n)`, or `ratio(r)`. `ADAPTIVE` and `0` expand the job's parallelism to the full available worker set, a fixed number locks it at that value, `bounded(n)` caps adaptive parallelism, and `ratio(r)` uses a fraction of available parallelism. The maximum allowed value is determined by the `max_parallelism` of the job. For more information, see [Configuring maximum parallelism](/deploy/k8s-cluster-scaling#configuring-maximum-parallelism). |
 
 ```sql
 -- Set the parallelism of the sink "s" to 4.
@@ -81,7 +81,7 @@ This statement controls the degree of parallelism used during the backfill phase
 | Parameter or clause           | Description |
 | :---------------------------- | :---------- |
 | **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
-| _parallelism\_value_           | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+| _parallelism\_value_           | Can be `ADAPTIVE`, `0`, a fixed number (for example, `1`, `2`, or `3`), `bounded(n)`, or `ratio(r)`. `ADAPTIVE` and `0` expand backfill parallelism to the full available worker set, a fixed number locks it at that value, `bounded(n)` caps adaptive parallelism, and `ratio(r)` uses a fraction of available parallelism. |
 | **DEFERRED**                   | Optional. When specified, the change takes effect after the current backfill completes, without interrupting an ongoing backfill. If omitted, the change is applied immediately. |
 
 ```sql
