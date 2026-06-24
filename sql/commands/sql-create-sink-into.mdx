@@ -106,6 +106,7 @@ DROP SINK orders_sink0;
 
 1. `CREATE SINK ... INTO` aligns rows to be inserted based on column order, not column names. If you see data correctness issues, verify that the column order in the `SELECT` list matches the target table.
 2. The sink target table may have a different primary key than the upstream table. If primary keys overlap downstream, rows can be overwritten. This can make your downstream table have fewer rows than your upstream table.
+3. If the target table uses `ON CONFLICT DO UPDATE IF NOT NULL`, `ON CONFLICT DO NOTHING`, or `WITH VERSION COLUMN(...)`, RisingWave preserves distinct upstream row-level changes that map to the same downstream primary key instead of compacting them into one final update per barrier. This ensures the target table's conflict handling semantics are preserved for `CREATE SINK ... INTO`.
 
 ## See also
 
