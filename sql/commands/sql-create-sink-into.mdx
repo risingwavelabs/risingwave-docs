@@ -17,10 +17,14 @@ CREATE SINK [ IF NOT EXISTS ] sink_name INTO table_name [ ( col_name [ , ... ] )
 | :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | sink\_name          | The name of the sink. If a schema name is given (for example, `CREATE SINK <schema>.<sink> ...`), then the sink is created in the specified schema. Otherwise it is created in the current schema. |
 | col\_name           | The corresponding table columns in the sink result. For those columns not listed, it will be inserted as the default value defined in the table.                                                 |
-| `WITH` clause           | You can use options such as `type = 'append-only'` and `force_append_only = 'true'` to explicitly control the append-only behavior.                                                 |
+| `WITH` clause           | You can use options such as `type = 'append-only'`, `force_append_only = 'true'`, and `preserve_row_level_changes = 'true'` to control how the sink forwards changes to the target table.                                                 |
 
 <Note>
 A table without a primary key can only accept the append-only sink.
+</Note>
+
+<Note>
+For target tables that use `ON CONFLICT DO UPDATE IF NOT NULL` or a `VERSION COLUMN`, RisingWave automatically preserves row-level changes for `CREATE SINK ... INTO` so the table can apply its conflict handling semantics correctly.
 </Note>
 
 <Note>
@@ -105,7 +109,7 @@ DROP SINK orders_sink0;
 ## Troubleshooting
 
 1. `CREATE SINK ... INTO` aligns rows to be inserted based on column order, not column names. If you see data correctness issues, verify that the column order in the `SELECT` list matches the target table.
-2. The sink target table may have a different primary key than the upstream table. If primary keys overlap downstream, rows can be overwritten. This can make your downstream table have fewer rows than your upstream table.
+2. The sink target table may have a different primary key than the upstream table. If primary keys overlap downstream, rows can be overwritten. This can make your downstream table have fewer rows than your upstream table. If you need the target table to observe every row-level change for the same target primary key within a barrier, set `preserve_row_level_changes = 'true'`. RisingWave enables this automatically for target tables that use `ON CONFLICT DO UPDATE IF NOT NULL` or a `VERSION COLUMN`.
 
 ## See also
 
