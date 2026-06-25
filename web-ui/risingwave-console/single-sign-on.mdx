@@ -166,7 +166,7 @@ docker compose logs console | grep -i "SSO self-register"
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8020/dex/healthz   # 200
 ```
 
-Open `http://localhost:8020` and sign in as `root` with the password you set (default `root`).
+Open `http://localhost:8020` and sign in as `root` with the password from `RCONSOLE_ROOT_PASSWORD` (it defaults to `root` only if you leave that variable unset).
 
 ## Deploy on Kubernetes
 
@@ -637,8 +637,7 @@ data:
 
     # sqlite on the Pod's PVC (mounted at /dex-data). Durable across
     # restarts so Dex's signing keys survive — single-replica only,
-    # which the StatefulSet already enforces (replicas: 1). Moving Dex
-    # to the shared external Postgres is tracked as CLOUD-4823.
+    # which the StatefulSet already enforces (replicas: 1).
     storage:
       type: sqlite3
       config:
@@ -665,7 +664,7 @@ data:
 
     # Dex refuses to boot with zero auth paths configured. The console
     # does NOT authenticate users against this Password DB (local
-    # password auth stays in the console/Anclax); it's enabled only to
+    # password auth stays in RisingWave Console); it's enabled only to
     # satisfy Dex's startup invariant. Real SSO connectors (SAML / LDAP
     # / OIDC) are added at runtime via the console's /sso admin UI.
     enablePasswordDB: true
@@ -919,7 +918,7 @@ After Console is running, sign in as `root` and add a connector for your IdP. Co
    Before you add anything, the page shows an empty state.
 
    <Frame>
-     <img src="/images/risingwave-console/risingwave-console-sso-empty-state.png" />
+     <img src="/images/risingwave-console/risingwave-console-sso-empty-state.png" alt="RisingWave Console SSO Connectors page showing the empty state before any connectors are added" />
    </Frame>
 
 2. Click **Add connector** and fill in the form:
@@ -930,7 +929,7 @@ After Console is running, sign in as `root` and add a connector for your IdP. Co
    - **Configuration (JSON)**: connector-specific settings passed to Dex. Selecting a type pre-fills a template with the keys that connector expects; fill in the values.
 
    <Frame>
-     <img src="/images/risingwave-console/risingwave-console-sso-add-connector.png" />
+     <img src="/images/risingwave-console/risingwave-console-sso-add-connector.png" alt="Add SSO connector dialog with connector id, type, display name, and JSON configuration fields" />
    </Frame>
 
 3. Click **Create connector**.
@@ -938,7 +937,7 @@ After Console is running, sign in as `root` and add a connector for your IdP. Co
 Each configured connector appears in the list, where you can edit or delete it.
 
 <Frame>
-  <img src="/images/risingwave-console/risingwave-console-sso-connector-list.png" />
+  <img src="/images/risingwave-console/risingwave-console-sso-connector-list.png" alt="SSO Connectors list showing a SAML and an LDAP / Active Directory connector with edit and delete actions" />
 </Frame>
 
 ### Connector configuration
@@ -1011,7 +1010,7 @@ Once SSO is enabled — Console is deployed alongside Dex, Dex is reachable, and
 Register at least one IdP connector before pointing users at SSO, so the button leads to a real identity provider rather than only Dex's built-in local login.
 
 <Frame>
-  <img src="/images/risingwave-console/risingwave-console-sso-login.png" />
+  <img src="/images/risingwave-console/risingwave-console-sso-login.png" alt="RisingWave Console login page showing the Sign in with SSO button below the username and password fields" />
 </Frame>
 
 The local `root` account and any local users you create continue to work, so you retain an administrative path even if the IdP is unavailable.
