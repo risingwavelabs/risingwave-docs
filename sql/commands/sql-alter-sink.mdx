@@ -112,6 +112,35 @@ ALTER SINK s1 SET SINK_RATE_LIMIT = default;
 ALTER SINK s1 SET SINK_RATE_LIMIT = 1000;
 ```
 
+### `SET RESOURCE_GROUP`
+
+```sql
+ALTER SINK sink_name
+    SET RESOURCE_GROUP { TO | = } { DEFAULT | resource_group_name } [ DEFERRED ];
+```
+
+```sql
+ALTER SINK sink_name
+    RESET RESOURCE_GROUP [ DEFERRED ];
+```
+
+Use this statement to change the resource group used by the sink's streaming job.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RESOURCE_GROUP** | Assigns the sink to a specific resource group. |
+| **RESET RESOURCE_GROUP** | Resets the sink to the default resource group. |
+| _resource_group_name_ | The target resource group. |
+| **DEFERRED** | Optional. Defers applying the resource group change. |
+
+```sql
+-- Assign the sink to a resource group
+ALTER SINK orders_sink SET RESOURCE_GROUP = high_priority;
+
+-- Reset the sink to the default resource group
+ALTER SINK orders_sink RESET RESOURCE_GROUP DEFERRED;
+```
+
 ### `RENAME TO`
 
 ```sql
