@@ -1,0 +1,194 @@
+---
+title: "Configure alerts for a self-hosted RisingWave cluster"
+description: "Set up Prometheus rules, Alertmanager routing, and Grafana notifications for a self-hosted RisingWave deployment on Kubernetes."
+---
+
+This guide covers alerting for self-hosted RisingWave deployments that use the monitoring stack installed from the `risingwave-operator` repository. It assumes you have already finished [Monitor a RisingWave cluster](/operate/monitor-risingwave-cluster).
+
+<Note>
+The `risingwave-operator` install script deploys the `kube-prometheus-stack` Helm chart as release `prometheus` in the `monitoring` namespace. The examples below use that default layout.
+</Note>
+
+## Before you begin
+
+Confirm that the monitoring stack is up and scraping RisingWave metrics:
+
+```bash
+kubectl get pods -n monitoring
+kubectl get servicemonitors -A -l risingwave/name
+```
+
+If you installed the stack into a different namespace or with a different Helm release name, adjust the examples accordingly.
+
+## Add Prometheus alert rules
+
+The Prometheus instance created by `kube-prometheus-stack` selects `PrometheusRule` objects with the Helm release label. For the default `risingwave-operator` install, add `release: prometheus` and create the rule in the `monitoring` namespace.
+
+Create a file named `risingwave-alerts.yaml`:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: risingwave-alerts
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: risingwave.rules
+      rules:
+        - alert: RisingWaveTooManyBarriers
+          expr: max(all_barrier_nums) > 200
+          for: 10m
+          labels:
+            severity: warning
+            category: streaming
+          annotations:
+            summary: Too many uncommitted barriers
+            description: The streaming graph may be stalled.
+
+        - alert: RisingWaveCompactionWriteStall
+          expr: max(storage_write_stop_compaction_groups) > 0
+          for: 5m
+          labels:
+            severity: critical
+            category: compaction
+          annotations:
+            summary: Compaction write stall detected
+            description: Storage is applying write-stop backpressure.
+
+        - alert: RisingWaveSinkErrors
+          expr: sum(rate(user_sink_error_cnt[5m])) by (sink_name, error_type) > 0
+          for: 10m
+          labels:
+            severity: warning
+            category: streaming
+          annotations:
+            summary: Sink errors are increasing
+            description: "Sink {{ $labels.sink_name }} is reporting {{ $labels.error_type }} errors."
+
+        - alert: RisingWaveDistributedQueryRejections
+          expr: increase(distributed_rejected_query_counter[10m]) > 0
+          for: 0m
+          labels:
+            severity: warning
+            category: service-health
+          annotations:
+            summary: Frontend rejected distributed queries
+            description: RisingWave frontend rejected one or more distributed queries in the last 10 minutes.
+```
+
+Apply the rule:
+
+```bash
+kubectl apply -f risingwave-alerts.yaml
+kubectl get prometheusrule -n monitoring risingwave-alerts
+```
+
+To check whether Prometheus has loaded the rule, port-forward the Prometheus service and confirm the alert appears in the alert list:
+
+```bash
+kubectl get svc -n monitoring | grep prometheus
+kubectl port-forward -n monitoring svc/<prometheus-service> 9090
+```
+
+## Route notifications with Alertmanager
+
+The same monitoring stack also deploys Alertmanager. By default, the chart's `Alertmanager` resource accepts `AlertmanagerConfig` objects, so you can add routing and receivers without editing the chart itself.
+
+Create a file named `risingwave-alertmanager-config.yaml`:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: risingwave-alertmanager-config
+  namespace: monitoring
+spec:
+  route:
+    receiver: default-email
+    groupBy: ["alertname", "category"]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 12h
+    routes:
+      - matchers:
+          - name: severity
+            value: critical
+            matchType: "="
+        receiver: pagerduty
+      - matchers:
+          - name: severity
+            value: warning
+            matchType: "="
+        receiver: slack
+  receivers:
+    - name: default-email
+      emailConfigs:
+        - to: oncall@example.com
+          from: alerts@example.com
+          smarthost: smtp.example.com:587
+          authUsername: alerts@example.com
+          authPassword:
+            name: alertmanager-smtp-auth
+            key: password
+    - name: slack
+      slackConfigs:
+        - apiURL:
+            name: alertmanager-slack-webhook
+            key: url
+          channel: "#risingwave-alerts"
+    - name: pagerduty
+      pagerdutyConfigs:
+        - routingKey:
+            name: alertmanager-pagerduty
+            key: routingKey
+```
+
+Create the referenced Secrets, then apply the config:
+
+```bash
+kubectl create secret generic alertmanager-smtp-auth \
+  -n monitoring \
+  --from-literal=password='<smtp-password>'
+
+kubectl create secret generic alertmanager-slack-webhook \
+  -n monitoring \
+  --from-literal=url='https://hooks.slack.com/services/...'
+
+kubectl create secret generic alertmanager-pagerduty \
+  -n monitoring \
+  --from-literal=routingKey='<pagerduty-routing-key>'
+
+kubectl apply -f risingwave-alertmanager-config.yaml
+kubectl get alertmanagerconfig -n monitoring
+```
+
+To inspect active alerts, routes, silences, or notification history, port-forward the Alertmanager service:
+
+```bash
+kubectl get svc -n monitoring -l app.kubernetes.io/name=alertmanager
+kubectl port-forward -n monitoring svc/<alertmanager-service> 9093
+```
+
+## Use Grafana contact points and notification policies
+
+The operator-installed Grafana instance can visualize Prometheus alerts, and the `kube-prometheus-stack` chart also provisions an Alertmanager data source in Grafana. Use Grafana if you want a UI for contact points, notification policies, and optional Grafana-managed alerts.
+
+1. Open Grafana with the same port-forward used in [Monitor a RisingWave cluster](/operate/monitor-risingwave-cluster).
+2. Go to **Alerts & IRM** > **Contact points** and create a contact point for email, Slack, PagerDuty, or a webhook.
+3. Go to **Alerts & IRM** > **Notification policies** and route alerts by labels such as `severity=critical` or `category=streaming`.
+4. If you want Prometheus to remain the rule engine for RisingWave metrics, keep creating `PrometheusRule` objects and use Grafana mainly to inspect and manage notifications.
+5. If you need Grafana-managed alerts instead, create an alert rule from a dashboard panel or from **Alerts & IRM** > **Alert rules**, then attach it to a contact point or notification policy.
+
+## Start with the dashboard's existing alert signals
+
+If you want to add more alerts, use the shipped `risingwave_dev_dashboard` as your source of truth for metric names and baseline thresholds. The current dashboard already includes alert-oriented signals such as:
+
+- `all_barrier_nums >= 200` for stalled streaming barriers.
+- `storage_write_stop_compaction_groups > 0` for compaction write stalls.
+- `process_cpu_seconds_total / process_cpu_core_num > 0.9` for CPU saturation.
+- `user_sink_error_cnt` for sink failures.
+
+Create new rules from those metrics first, then tune thresholds based on your workload and SLOs.
