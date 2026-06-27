@@ -52,6 +52,40 @@ In the figure above, we have allocated 12 GB of memory to the Streaming Node. Th
 2. If the memory is higher than 70% of the usable memory, we consider allocating more memory to speed up if the extra cost is acceptable. Additionally, we recommend taking the cache miss ratio below into consideration when making this decision. 
 See [Best Practices - Resource Allocation](/performance/best-practices#resource-allocation) for guidance on adjusting memory.  If you are experiencing high latency or slow stream processing, see [Troubleshooting - High Latency](/performance/troubleshoot-high-latency).
 
+## Streaming job and fragment metrics
+
+RisingWave's Grafana dashboard exposes CPU, memory, and busy-rate metrics at the streaming job and fragment level. These metrics let you directly identify which job or fragment is consuming a disproportionate share of resources, enabling faster bottleneck localization compared to tracing backpressure propagation alone.
+
+### Job/fragment CPU and memory usage
+
+The **Streaming** section of the Grafana dashboard (dev) includes panels that break down CPU and memory usage by streaming job and fragment. Use these panels to spot which jobs or fragments are the heaviest consumers at a glance.
+
+**Takeaway**
+
+1. A job or fragment with consistently high CPU usage is a strong candidate for query optimization (e.g., reducing join amplification, simplifying aggregations) or increased parallelism.
+2. A job or fragment with consistently high memory usage may benefit from additional memory allocation or state-size reduction.
+
+### Actor busy rate
+
+The **Actor Busy Rate** panels show the fraction of time actors in each fragment spend actively processing data versus waiting for input or output. A fragment with a near-100% busy rate is CPU-bound.
+
+**Takeaway**
+
+1. High busy rate combined with high CPU usage signals CPU saturation. Consider scaling the cluster or optimizing the query.
+2. High busy rate with normal CPU usage may indicate memory pressure that is causing frequent state eviction and cache misses.
+
+### Bottleneck percentage tables
+
+The **Streaming** section of the Grafana dashboard (dev) contains bottleneck tables that rank streaming jobs and fragments by their share of overall system bottlenecks, expressed as a percentage.
+
+**Takeaway**
+
+1. Start your diagnosis here: the job or fragment ranked highest in the bottleneck table is the most likely root cause of latency or throughput degradation.
+2. After addressing the top bottleneck, re-check the table to determine whether a new bottleneck has surfaced.
+3. Use the fragment ID shown in the table to correlate with your SQL query plan. Run `EXPLAIN CREATE MATERIALIZED VIEW …` and cross-reference with the **Fragment** panel in the RisingWave Dashboard at `http://meta-node:5691`.
+
+For a step-by-step guide on using these metrics during an active incident, see [Troubleshooting - High Latency](/performance/troubleshoot-high-latency).
+
 ## Cache performance
 
 Operators such as join and aggregation are stateful. They maintain intermediate states in their operator cache to facilitate incremental computation.  Efficient caching is crucial for minimizing latency and maximizing throughput.
