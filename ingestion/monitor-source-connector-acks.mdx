@@ -1,0 +1,48 @@
+---
+title: "Monitor source connector acknowledgments"
+sidebarTitle: "Monitor connector acks"
+description: "Monitor post-checkpoint acknowledgment metrics for RisingWave source connectors that require message acknowledgment, such as Pulsar, NATS JetStream, and Google Pub/Sub."
+---
+
+RisingWave exposes Prometheus metrics for post-checkpoint connector acknowledgments. These metrics apply to any source connector that requires explicit message acknowledgment, including Pulsar, NATS JetStream, and Google Pub/Sub.
+
+## Metrics
+
+### `source_connector_ack_success_count`
+
+Counts successful acknowledgments sent to the broker after a checkpoint.
+
+Labels:
+
+- `source_name`: name of the source.
+- `connector_type`: connector identifier (for example, `pulsar`, `nats`, `google_pubsub`).
+
+### `source_connector_ack_failure_count`
+
+Counts failed acknowledgment attempts.
+
+Labels:
+
+- `source_name`: name of the source.
+- `connector_type`: connector identifier.
+- `error_type`: reason the acknowledgment failed. Possible values:
+  - `empty_message_id`
+  - `channel_missing`
+  - `channel_send_error`
+  - `decode_error`
+  - `broker_error`
+
+## Grafana panels
+
+If you use the RisingWave dev Grafana dashboard, the following panels display these metrics:
+
+- **Source Connector Ack Successes** — plots `source_connector_ack_success_count` over time.
+- **Source Connector Ack Failures** — plots `source_connector_ack_failure_count` by `error_type`.
+
+For instructions on setting up the Grafana dashboard, see [Monitor a RisingWave cluster](/operate/monitor-risingwave-cluster).
+
+## Troubleshooting
+
+- **Rising `broker_error` count**: the broker is rejecting acknowledgments. Check broker logs and connectivity from RisingWave compute nodes.
+- **`channel_missing` or `channel_send_error`**: the internal acknowledgment channel was not ready when the checkpoint completed. This may indicate a race condition during source restart; monitor whether the count stabilizes after the source reconnects.
+- **`empty_message_id`**: a message was consumed without a valid message ID. This is typically a connector-specific error; review the source configuration.
