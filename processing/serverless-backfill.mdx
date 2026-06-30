@@ -11,7 +11,7 @@ Serverless backfilling is available starting from v2.8.0 and is disabled by defa
 
 When you create a materialized view (MV) on existing data, RisingWave must first process all historical records, a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
 
-**Serverless backfilling** runs the backfill phase on dedicated backfiller resources — a temporary resource group that RisingWave Cloud provisions separately from your main streaming compute nodes. It is *serverless* because you don't manually allocate or manage resources for each new materialized view: RisingWave Cloud provisions the backfiller resource group when a backfill job starts and destroys it automatically once the job completes. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
+**Serverless backfilling** runs the backfill phase on dedicated backfiller resources — a temporary resource group that RisingWave Cloud provisions separately from your main streaming compute nodes. It is *serverless* because you don't manually allocate or manage resources for each new materialized view: after the `CREATE MATERIALIZED VIEW` request passes validation and the streaming job is ready to be created, RisingWave Cloud provisions the backfiller resource group and destroys it automatically once the job completes. Failed validation paths therefore do not provision backfiller resources. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
 
 Serverless backfilling is supported only in RisingWave Cloud. Enable it in the **Backfilling** section of the **Resources** page in the Cloud console first. See [Configure serverless backfilling](/cloud/serverless-backfilling) for portal setup, SKU, and replicas.
 
@@ -25,7 +25,7 @@ We strongly recommend enabling **Serverless Compaction** so compactors scale aut
 
 When serverless backfilling is enabled for a `CREATE MATERIALIZED VIEW` statement:
 
-1. The serverless backfilling controller provisions a temporary resource group with dedicated backfiller nodes, sized by the Backfiller SKU and replica count you configure in the Cloud console.
+1. After RisingWave finishes validation and is about to issue the create streaming job command, the serverless backfilling controller provisions a temporary resource group with dedicated backfiller nodes, sized by the Backfiller SKU and replica count you configure in the Cloud console.
 2. The backfill job runs on those dedicated backfiller nodes, separately from your main streaming compute nodes, so it doesn't compete with existing streaming jobs for resources.
 3. Once all backfill fragments report completion, the MV transitions to the standard incremental streaming phase and is migrated to the default resource group.
 4. If the cluster restarts during backfill, the job resumes from the last completed checkpoint rather than starting over.
