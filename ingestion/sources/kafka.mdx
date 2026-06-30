@@ -92,6 +92,26 @@ WITH (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
+## Query Kafka timestamp
+
+Each Kafka source also exposes the virtual column `_rw_kafka_timestamp`, which contains the Kafka message timestamp.
+
+You can include this column in views or materialized views:
+
+```sql
+CREATE MATERIALIZED VIEW v1 AS
+SELECT _rw_kafka_timestamp, col1
+FROM source_name;
+```
+
+If you query the source directly, you can use `_rw_kafka_timestamp` to filter messages by time:
+
+```sql
+SELECT *
+FROM source_name
+WHERE _rw_kafka_timestamp > now() - interval '10 minute';
+```
+
 ## Data format examples
 
 This section shows examples for different data formats.
