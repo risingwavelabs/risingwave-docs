@@ -29,6 +29,7 @@ WITH (
 | _sink\_from_                      | Specify the upstream for the sink: a source, table, or materialized view. For CDC data, the upstream must be a table.                                                                                                                                                                                                                                                                                                                                                                        |
 | _select\_query_                   | Specify the data to be output to the sink.                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | _snapshot_                        | **Optional**. Currently, to modify the definition or query of an existing sink, you need to drop and re-create the sink, but this approach generates excessive duplicates due to the mandatory backfilling. To avoid this, you can set the parameter to false to skip the backfilling phase and transmit only incremental changes. This option is only applicable when using the CREATE SINK FROM syntax, not CREATE SINK AS syntax. The default value is true. |
+| _since\_timestamp_                | **Optional**. Start a direct sink from changes after the specified `timestamptz` value instead of emitting snapshot rows. This option is only supported for `CREATE SINK ... FROM table_or_mv` with `snapshot = false`. The timestamp must include an explicit time zone, for example `2024-01-01 00:00:00Z`, and must fall within the retained changelog history of the upstream table or materialized view. Create the sink in the same database as the upstream object. |
 | _force\_compaction_               | **Optional**. When set to `true`, forces buffering and compaction even when the stream key matches the sink primary key exactly. This reduces the number of output messages by emitting at most one update per key within each barrier interval. The default value is `false`. For more information, see [Force compaction](/delivery/overview#force-compaction). |
 | **WITH** clause                   | Specify the connector settings here if trying to store all the sink data. See [Supported sinks](#supported-sinks) for the full list of supported sink as well as links to specific connector pages detailing the syntax for each sink.                                                                                                                                                                                                                      |
 | **FORMAT** and **ENCODE** options | **Optional**. Specify the data format and the encoding format of the sink data. It is only used for Kafka, Kinesis, Pulsar, and Redis sinks.                                                                                                                                                                                                                                                                                                                    |
@@ -40,6 +41,28 @@ Please distinguish between the parameters set in the FORMAT and ENCODE options a
 ## Backfill and isolation
 
 When creating a sink, RisingWave will backfill historical data from the upstream source, table, or materialized view (unless `snapshot=false` is specified). Snapshot backfill is enabled by default to improve isolation between the backfill phase and streaming phase. This helps prevent resource contention between backfilling historical data and processing new streaming data. To disable it if needed, set `SET streaming_use_snapshot_backfill=false;` before creating the sink. For more details, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+
+## Start a sink from a specific timestamp
+
+Use `since_timestamp` together with `snapshot = false` to create a direct sink that starts from the upstream changelog after a specific timestamp, without emitting the initial snapshot.
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+```sql
+CREATE SINK sink1 FROM mv1
+WITH (
+  connector = 'kafka',
+  properties.bootstrap.server = 'localhost:9092',
+  topic = 'test',
+  snapshot = 'false',
+  since_timestamp = '2024-01-01 00:00:00Z'
+)
+FORMAT PLAIN ENCODE JSON;
+```
 
 ## Supported sinks
 
