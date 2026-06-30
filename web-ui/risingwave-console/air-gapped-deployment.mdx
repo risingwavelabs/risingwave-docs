@@ -39,28 +39,50 @@ Mount those directories or files into the Console container or pod.
 
 ## Mirror images
 
-Mirror the images used by Console-managed infrastructure into your private registry. The Console repository includes helper scripts for testing and mirroring:
+Mirror the images used by Console-managed infrastructure into your private registry. Console-managed components pull these core infrastructure images:
+
+| Component                | Image                                            |
+| ------------------------ | ------------------------------------------------ |
+| Metadata PostgreSQL      | `postgres:16`                                    |
+| Object store (MinIO)     | `minio/minio:RELEASE.2023-12-02T10-51-33Z`       |
+| Grafana                  | `grafana/grafana-oss:11.4.0`                     |
+| Init / utility           | `busybox:1.36`                                   |
+| Metrics (VictoriaMetrics)| `victoriametrics/victoria-metrics:v1.108.1`      |
+| Metrics agent            | `victoriametrics/vmagent:v1.108.1`               |
+| Logs                     | `victoriametrics/victoria-logs:v1.3.1-victorialogs` |
+| Log forwarder            | `fluent/fluent-bit:latest`                       |
+
+In addition, mirror:
+
+- the cert-manager images referenced by the cert-manager Helm chart you install,
+- the RisingWave Operator images referenced by the `risingwave-operator` Helm chart,
+- the RisingWave database image tags you plan to deploy, for example `risingwavelabs/risingwave:v2.8.2`.
+
+<Tip>
+  To find the exact cert-manager and operator image tags, render the Helm chart
+  archives you plan to install (`helm template <chart>.tgz`) and look for `image:`
+  lines.
+</Tip>
+
+Mirror each image into your registry with pull / tag / push. Set `REGISTRY` to your registry prefix — the same value you configure in Console below:
 
 ```shell
-cd dev/private-registry
-REGISTRY=registry.example.com/proxy ./sync-public-images.sh
-```
+REGISTRY=registry.example.com/proxy
 
-If you already downloaded the Helm chart archives, point the script at them so it can extract chart-default images:
-
-```shell
-REGISTRY=registry.example.com/proxy \
-CERT_MANAGER_CHART_PATH=/path/to/cert-manager.tgz \
-OPERATOR_CHART_PATH=/path/to/risingwave-operator.tgz \
-./sync-public-images.sh
-```
-
-Add the RisingWave database image tags you plan to deploy:
-
-```shell
-REGISTRY=registry.example.com/proxy \
-EXTRA_IMAGES="risingwavelabs/risingwave:v2.8.2" \
-./sync-public-images.sh
+for image in \
+  postgres:16 \
+  minio/minio:RELEASE.2023-12-02T10-51-33Z \
+  grafana/grafana-oss:11.4.0 \
+  busybox:1.36 \
+  victoriametrics/victoria-metrics:v1.108.1 \
+  victoriametrics/vmagent:v1.108.1 \
+  victoriametrics/victoria-logs:v1.3.1-victorialogs \
+  fluent/fluent-bit:latest \
+  risingwavelabs/risingwave:v2.8.2 ; do
+  docker pull "$image"
+  docker tag "$image" "$REGISTRY/$image"
+  docker push "$REGISTRY/$image"
+done
 ```
 
 ## Configure the private registry in Console
