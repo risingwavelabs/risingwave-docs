@@ -1,0 +1,84 @@
+---
+title: "Sink data from RisingWave to HTTP endpoints"
+sidebarTitle: HTTP
+description: "Use the HTTP sink connector to send append-only data from RisingWave to an HTTP endpoint with POST requests."
+---
+
+Use the HTTP sink connector to deliver sink records to an HTTP service or webhook endpoint with `POST` requests.
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+    connector = 'http',
+    url = '<http_endpoint_url>',
+    type = 'append-only',
+    content_type = '<mime_type>',
+    header.<header_name> = '<header_value>'
+)
+;
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-- | :-- |
+| `url` | **Required.** The HTTP endpoint URL that receives `POST` requests. |
+| `type` | **Required.** Must be `append-only`. |
+| `content_type` | **Optional.** The `Content-Type` header value. If not set, RisingWave uses `text/plain` for `varchar` payloads and `application/json` for `jsonb` payloads. |
+| `header.<header_name>` | **Optional.** Custom request headers. For example, `header.x_test = 'rw-http-sink'`. |
+| `ignore_delete` | **Optional.** Set to `true` to allow upstream tables that may produce updates and deletes. The HTTP sink writer ignores non-insert records. |
+
+## Behavior and constraints
+
+- The sink sends one `POST` request per inserted row.
+- The sink input must have exactly one column.
+- The sink column type must be `varchar` or `jsonb`.
+- `NULL` payload values are skipped (no `POST` request is sent for those rows).
+- `auto.schema.change = 'true'` is not supported.
+- If the endpoint returns a non-2xx status code, the sink reports a write error.
+
+For upstream tables with updates and deletes, set `ignore_delete = 'true'`:
+
+```sql Example
+CREATE TABLE t_ignore_delete_src (payload varchar);
+
+CREATE SINK s_ignore_delete FROM t_ignore_delete_src WITH (
+    connector = 'http',
+    url = 'http://<your-http-endpoint>',
+    type = 'append-only',
+    ignore_delete = 'true'
+);
+```
+
+## Example
+
+```sql Example
+CREATE TABLE t_varchar (payload varchar);
+
+CREATE SINK s_varchar FROM t_varchar WITH (
+    connector = 'http',
+    url = 'http://localhost:18081',
+    type = 'append-only',
+    header.x_test = 'rw-http-sink'
+);
+
+INSERT INTO t_varchar VALUES ('hello world');
+INSERT INTO t_varchar VALUES ('{"key":"value"}');
+```
+
+For `jsonb` payloads, the default `Content-Type` is `application/json`:
+
+```sql Example
+CREATE TABLE t_jsonb (payload jsonb);
+
+CREATE SINK s_jsonb FROM t_jsonb WITH (
+    connector = 'http',
+    url = 'http://localhost:18081',
+    type = 'append-only'
+);
+
+INSERT INTO t_jsonb VALUES ('{"event":"test","v":42}'::jsonb);
+```
