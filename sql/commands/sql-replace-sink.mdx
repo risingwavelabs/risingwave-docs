@@ -1,0 +1,82 @@
+---
+title: "REPLACE SINK"
+description: "Use the `REPLACE SINK` command to replace an existing sink without backfilling historical data."
+---
+
+## Syntax
+
+```sql
+REPLACE SINK sink_name
+FROM sink_from
+WITH (
+   connector = 'connector_name',
+   connector_parameter = 'value',
+   [ snapshot = 'false' ],...
+)
+[ FORMAT data_format ENCODE data_encode [ (
+    format_parameter = 'value'
+) ] ];
+```
+
+## Parameters
+
+| Parameter | Description |
+| :-------- | :---------- |
+| _sink\_name_ | The name of the existing sink to replace. `REPLACE SINK` does not create a new sink if the target sink does not already exist. |
+| _sink\_from_ | The new upstream source, table, or materialized view for the replacement sink. |
+| **WITH** clause | Specify the connector settings for the replacement sink. |
+| _snapshot_ | **Optional**. If specified, it must be `false`. `REPLACE SINK` is a cut-over operation and does not backfill historical data from the new upstream. |
+| **FORMAT** and **ENCODE** options | **Optional**. Specify the sink data format and encoding. |
+
+## Behavior and limitations
+
+- `REPLACE SINK` replaces an existing sink as a cut-over operation. After replacement, the sink starts from the cut-over barrier and only forwards new incremental changes from the new upstream.
+- Use `REPLACE SINK`, not `CREATE OR REPLACE SINK`.
+- `REPLACE SINK` currently supports `FROM` only. `REPLACE SINK ... AS SELECT ...` is not supported.
+- `REPLACE SINK` does not support `IF NOT EXISTS`.
+- Exactly-once sinks are not supported.
+- Sinks created with `CREATE SINK ... INTO` are not supported.
+
+## Example
+
+```sql
+REPLACE SINK orders_sink
+FROM orders_v2
+WITH (
+  connector = 'kafka',
+  properties.bootstrap.server = 'message_queue:29092',
+  topic = 'orders',
+  primary_key = 'id',
+  snapshot = 'false'
+)
+FORMAT PLAIN ENCODE JSON;
+```
+
+## See also
+
+<CardGroup>
+  <Card
+    title="CREATE SINK"
+    icon="plus"
+    href="/sql/commands/sql-create-sink"
+    icontype="solid"
+  >
+    Create a sink
+  </Card>
+  <Card
+    title="DROP SINK"
+    icon="trash"
+    href="/sql/commands/sql-drop-sink"
+    icontype="solid"
+  >
+    Remove a sink
+  </Card>
+  <Card
+    title="SHOW CREATE SINK"
+    icon="eye"
+    href="/sql/commands/sql-show-create-sink"
+    icontype="solid"
+  >
+    Show the SQL statement used to create a sink
+  </Card>
+</CardGroup>
