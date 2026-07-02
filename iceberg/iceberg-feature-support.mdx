@@ -47,7 +47,7 @@ For configuration details, see [Ingest data from Iceberg tables](/iceberg/ingest
 | Capability | Support | Notes |
 | :-- | :-- | :-- |
 | Append-only sink | Supported | Set `type = 'append-only'`. Append-only sinks must use merge-on-read mode. |
-| Upsert sink | Supported | Set `type = 'upsert'` and provide `primary_key`, unless using the Iceberg v3 primary-key index path. |
+| Upsert sink | Supported | Set `type = 'upsert'` and provide `primary_key`. |
 | Force append-only | Supported | Set `force_append_only = 'true'` to write an upsert stream as inserts while ignoring deletes. |
 | Exactly-once delivery | Supported | Iceberg sinks default to exactly-once in the normal sink-decoupled mode. If `sink_decouple` is disabled, exactly-once is disabled automatically unless configured otherwise. |
 | Commit frequency | Supported | Use `commit_checkpoint_interval`. The default is `60`. |
@@ -59,8 +59,6 @@ For configuration details, see [Ingest data from Iceberg tables](/iceberg/ingest
 | Copy-on-write | Supported for upsert only | Append-only sinks and tables must use merge-on-read. |
 | Additive schema evolution | Supported | `auto.schema.change = 'true'` can propagate upstream `ADD COLUMN` changes for exactly-once Iceberg sinks. |
 | Iceberg format v2 | Supported | Default format version. |
-| Iceberg format v3 | Supported | Set `format_version = 3`. |
-| Primary-key index for Iceberg v3 | Supported for upsert merge-on-read sinks | Set `enable_pk_index = 'true'` with `format_version = 3`. This path derives the primary key from the upstream stream key. |
 | Parquet writer settings | Supported | Configure output file size and compression with parameters such as `compaction.target_file_size_mb`, `compaction.write_parquet_compression`, and `compaction.write_parquet_max_row_group_bytes`. |
 
 For configuration details, see [Deliver data to Iceberg tables](/iceberg/deliver-to-iceberg) and [Iceberg write modes](/iceberg/write-modes).
@@ -125,5 +123,4 @@ For setup and sizing, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy
 - `refresh_mode` is supported for `CREATE TABLE`, not `CREATE SOURCE`.
 - Append-only Iceberg sinks and append-only internal Iceberg tables must use merge-on-read mode.
 - Additive schema evolution currently covers `ADD COLUMN`; column drops, renames, and type changes require separate handling.
-- The Iceberg v3 primary-key index path requires upsert, merge-on-read, `format_version = 3`, and `enable_pk_index = 'true'`.
 - Catalog integrations can have role-specific limits. For example, Snowflake catalog is read-only in RisingWave, while the Databricks Unity Catalog integration is documented for Iceberg sinks.
