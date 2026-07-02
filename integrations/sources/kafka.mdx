@@ -104,12 +104,20 @@ When creating a source in RisingWave, you can specify the following Kafka parame
 | queued.max.messages.kbytes            | properties.queued.max.messages.kbytes            | int     |
 | queued.min.messages                   | properties.queued.min.messages                   | int     |
 | receive.message.max.bytes             | properties.receive.message.max.bytes             | int     |
+| reconnect.backoff.ms                  | properties.reconnect.backoff.ms                  | int     |
+| reconnect.backoff.max.ms              | properties.reconnect.backoff.max.ms              | int     |
+| retry.backoff.ms                      | properties.retry.backoff.ms                      | int     |
+| retry.backoff.max.ms                  | properties.retry.backoff.max.ms                  | int     |
+| socket.connection.setup.timeout.ms    | properties.socket.connection.setup.timeout.ms    | int     |
 | ssl.endpoint.identification.algorithm | properties.ssl.endpoint.identification.algorithm | str     |
 | statistics.interval.ms                | properties.statistics.interval.ms                | int     |
+| auto.commit.interval.ms               | properties.auto.commit.interval.ms               | int     |
 
 To monitor Kafka metrics in Grafana, set `properties.statistics.interval.ms` to a non-zero value. The granularity is 1000ms.
 
 The additional Kafka parameters `queued.min.messages` and `queued.max.messages.kbytes` are specified with `properties.queued.min.messages` and `properties.queued.max.messages.kbytes`, respectively, when creating the source.
+
+`properties.auto.commit.interval.ms` is supported for Kafka sources and tables only. It controls how frequently Kafka consumer offsets are committed when `properties.enable.auto.commit` is enabled.
 
 ```sql
 CREATE SOURCE s1 (v1 int, v2 varchar) with (
