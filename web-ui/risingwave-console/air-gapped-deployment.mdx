@@ -52,6 +52,13 @@ Mirror the images used by Console-managed infrastructure into your private regis
 | Logs                     | `victoriametrics/victoria-logs:v1.3.1-victorialogs` |
 | Log forwarder            | `fluent/fluent-bit:latest`                       |
 
+<Note>
+  Fluent Bit is the one component Console pulls by the mutable `latest` tag by
+  default, so the resolved image can drift over time. For a reproducible
+  air-gapped mirror, pin Fluent Bit to a fixed tag in Console's log-forwarder
+  image setting and mirror that exact tag instead of `latest`.
+</Note>
+
 In addition, mirror:
 
 - the cert-manager images referenced by the cert-manager Helm chart you install,
