@@ -4,7 +4,7 @@ description: "Use serverless backfilling to run the backfill phase of materializ
 ---
 
 <Note>
-Serverless backfilling is available starting from v2.8.0 and is disabled by default. Support for materialized views that use non-default resource groups is available starting from v3.1.0.
+Serverless backfilling is available starting from v2.8.0 and is disabled by default. Support for materialized views whose parent database uses a non-default resource group is delivered via [risingwave-extensions#335](https://github.com/risingwavelabs/risingwave-extensions/pull/335) and is available on RisingWave v2.7, v2.8, and v3.0.
 </Note>
 
 ## Overview
@@ -27,14 +27,14 @@ When serverless backfilling is enabled for a `CREATE MATERIALIZED VIEW` statemen
 
 1. The serverless backfilling controller provisions a temporary resource group with dedicated backfiller nodes, sized by the Backfiller SKU and replica count you configure in the Cloud console.
 2. The backfill job runs on those dedicated backfiller nodes, separately from your main streaming compute nodes, so it doesn't compete with existing streaming jobs for resources.
-3. Once all backfill fragments report completion, the MV transitions to the standard incremental streaming phase and is migrated to its steady-state resource group for normal streaming execution.
+3. Once all backfill fragments report completion, the MV transitions to the standard incremental streaming phase and is migrated to its **steady-state resource group** — the resource group of its parent database — for normal streaming execution.
 4. If the cluster restarts during backfill, the job resumes from the last completed checkpoint rather than starting over.
 
 ### Resource group behavior
 
 During backfill, RisingWave Cloud runs the job in a temporary backfiller resource group that is provisioned from the Backfiller SKU and replica settings in the Cloud console.
 
-After backfill finishes, the materialized view resumes steady-state streaming in its configured target resource group. If the materialized view specifies a resource group at creation time, that resource group is used. Otherwise, the materialized view uses the database's resource group, or the default resource group if the database is not assigned to one.
+After backfill finishes, the materialized view resumes steady-state streaming in its parent database's resource group. If the database is not assigned to a resource group, the materialized view uses the default resource group. A materialized view does not have its own resource group setting — it always inherits from its parent database.
 
 ## Configuration
 
