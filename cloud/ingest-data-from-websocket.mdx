@@ -46,9 +46,44 @@ Current BYOC limitations:
 | Hosted | Use `wss://<cloud-host>/ingest/<database>/<schema>/<table>`. Hosted projects support SNI routing, with query-parameter fallback. | Use standard TLS verification. |
 | BYOC | Use `wss://<cloud-host>/ingest/<database>/<schema>/<table>?tenant=<tenant identifier>`. BYOC currently does not support SNI routing. | TLS verification can fail in some BYOC environments. For testing, disable verification in your client temporarily. |
 
-## Construct the WebSocket endpoint
+## Use the Cloud Portal WebSocket ingest wizard (recommended)
 
-The Cloud Portal currently generates HTTP webhook endpoints, not WebSocket ingest endpoints. Construct the WebSocket URL manually:
+Use the wizard as the primary setup path so you do not need to manually construct hostnames, endpoint URLs, or signature validation SQL.
+
+Wizard steps:
+
+1. Open your project workspace and go to **Data Catalog**.
+2. Click **Create source**.
+3. Open **WebSocket ingest**.
+4. Select **Database**, **Schema**, and **Target table**.
+5. If you do not have a target table yet, click **Create table**, enter the table name and signature settings, review the generated SQL, and create the table.
+6. Copy the generated **Endpoint**.
+7. Expand **Wire format** and **Client demo** to copy the generated init frame, DML batch examples, and client template.
+
+Wizard screenshots:
+
+**WebSocket ingest entry in Data Catalog**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-websocket/websocket-card-in-data-catalog-page.jpeg" alt="WebSocket ingest card in the Data Catalog create source dialog in RisingWave Cloud" />
+</Frame>
+
+**Create a WebSocket ingest target and review generated SQL**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-websocket/websocket-create-table-and-sql-review.jpeg" alt="Create WebSocket ingest target dialog showing generated SQL preview" />
+</Frame>
+
+**Generated endpoint and client examples**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-websocket/websocket-endpoint-and-client-examples.jpeg" alt="RisingWave Cloud WebSocket ingest wizard showing the generated endpoint, wire format examples, and client demo" />
+</Frame>
+
+<Note>
+If WebSocket ingest does not appear in your Cloud Portal yet, use the manual endpoint format below as a fallback.
+</Note>
+
+## Manual endpoint format
+
+In hosted projects, use the following URL format:
 
 ```text
 wss://<cloud-host>/ingest/<database>/<schema>/<table>
@@ -60,7 +95,11 @@ For BYOC projects, append the tenant identifier:
 wss://<cloud-host>/ingest/<database>/<schema>/<table>?tenant=<tenant identifier>
 ```
 
-## Create the ingest table
+## Reference SQL and client example
+
+Use these as reference commands. In practice, prefer the wizard-generated SQL, endpoint, and client template.
+
+**Create a WebSocket ingest target table**
 
 Create a `webhook` table with signature validation. The WebSocket connection reuses the same validation logic as the HTTP webhook endpoint.
 
