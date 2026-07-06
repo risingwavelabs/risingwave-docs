@@ -585,6 +585,10 @@ Look for the `Resource Namespace` and `Service Account` fields in the output. Yo
 
 2. **Provision a PostgreSQL database** as the metadata store. We recommend using [Amazon RDS](https://aws.amazon.com/rds/). Ensure connectivity from the EKS cluster pods to the database.
 
+   <Warning>
+   Choose the metastore password using only these characters: uppercase and lowercase letters (`A-Z`, `a-z`), digits (`0-9`), and the four symbols underscore (`_`), tilde (`~`), period (`.`), and hyphen (`-`). No other characters are allowed — in particular, spaces and symbols such as `@`, `/`, and `:` are not. RisingWave Cloud embeds this password in the metastore connection URL, so a password containing unsupported characters is rejected by `rwc cluster byok-config` with an HTTP 400 error, even though your database may accept it. Fixing that means rotating the password and reconfiguring the database, so pick a compliant one before you create the database.
+   </Warning>
+
 3. **Submit the configuration** via CLI:
 
    ```bash
