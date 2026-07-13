@@ -82,8 +82,8 @@ If the cluster has been using a SQL database as meta store backend, follow these
 2. If the Elastic Disk Cache feature is enabled, clear the disk cache on every node where disk cache is enabled before starting the restored cluster. Specifically, delete the contents of the directories configured by `storage.meta_file_cache.dir` and `storage.data_file_cache.dir`, or delete and then recreate those directories with the correct permissions before starting the restored cluster.
 
 3. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. Use one of the following methods to achieve this:
-   * (Preferred) Create the meta store schema using the risectl create-meta-store-schema. 
-     * For RisingWave v3.1 and above, use the RisingWave image where the embedded risectl supports create-meta-store-schema. Ensure RisingWave image version matches your meta snapshot.
+   * (Preferred) Create the meta store schema using `risectl meta create-meta-store-schema`.
+     * For RisingWave v3.1 and above, use the RisingWave image where the embedded `risectl` supports `create-meta-store-schema`. Ensure the RisingWave image version matches your meta snapshot.
      ```
      /risingwave/bin/risingwave ctl meta create-meta-store-schema \
       --meta-store-type postgres \
