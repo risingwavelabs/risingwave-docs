@@ -93,7 +93,7 @@ If the cluster has been using a SQL database as meta store backend, follow these
       --sql-database placeholder
      ```
      * For RisingWave prior to v3.1, use the [dedicated risectl image](https://github.com/risingwavelabs/risingwave/pkgs/container/risectl) that supports create-meta-store-schema. Ensure risectl image version matches your meta snapshot. For example, for a RisingWave v2.8.3 meta snapshot, use risectl v2.8.
-     ```
+      ```bash
      /risingwave/bin/risectl meta create-meta-store-schema \
       --meta-store-type postgres \
       --sql-endpoint 127.0.0.1:8432 \
@@ -101,7 +101,7 @@ If the cluster has been using a SQL database as meta store backend, follow these
       --sql-password placeholder \
       --sql-database placeholder
      ```
-       Then truncate the tables populated during create-meta-store-schema, such as seaql_migrations.
+      * After running the command, truncate tables populated during `create-meta-store-schema`, such as `seaql_migrations`.
    * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas.
    * Use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool. The version of the migration tool must match the version of the meta snapshot. For example, if the meta snapshot was created with RisingWave v2.4.3, the migration tool should also be from RisingWave v2.4.3.
 
