@@ -32,7 +32,7 @@ Webhook requests should be sent to:
 
 The default listening port is `4560`. Replace `<schema>` with `public` if you didn't create the table under a custom schema.
 
-The same `webhook` table can also accept WebSocket ingest at `ws://<HOST>:4560/ingest/<database>/<schema>/<table>`. Each DML batch is sent as one WebSocket text frame, so keep each batch below 8 MiB to stay under the managed Cloud 10 MiB limit and the typical self-hosted frontend 16 MiB limit. Delivery is at least once: if the connection closes before you receive an ack, reconnect and replay every batch sent after the last acked `dml_batch_id`. For managed RisingWave Cloud routing and protocol details, see [Ingest data from WebSocket](/cloud/ingest-data-from-websocket).
+The same `webhook` table can also accept WebSocket ingest at `ws://<HOST>:4560/ingest/<database>/<schema>/<table>`. Each DML batch is sent as one WebSocket text frame, so keep each batch below 8 MiB to stay under the managed Cloud 10 MiB limit (RWProxy default) and the self-hosted frontend 16 MiB limit (the `tungstenite` library default, not overridden by RisingWave). Delivery is at least once: if the connection closes before you receive an ack, reconnect and replay every batch sent after the last acked `dml_batch_id`. For managed RisingWave Cloud routing and protocol details, see [Ingest data from WebSocket](/cloud/ingest-data-from-websocket).
 
 ### Quick local smoke test (no upstream SaaS required)
 

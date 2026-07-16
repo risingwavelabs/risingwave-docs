@@ -156,14 +156,14 @@ Rules and behavior:
 - Non-empty batches are acknowledged after the batch is accepted downstream.
 - Any fatal error closes the connection.
 - `insert` and `update` use the same upsert-style row handling as `upsert`.
-- Each DML batch is sent as one WebSocket text frame. On RisingWave Cloud, the managed RWProxy ingest path currently enforces a 10 MiB maximum frame size. Oversized frames close the connection before any ack is sent.
+- Each DML batch is sent as one WebSocket text frame. On RisingWave Cloud, RWProxy caps each frame at 10 MiB by default (its `ingestMaxMessageSize` setting, which RisingWave Cloud operators can override); an oversized frame closes the connection with WebSocket code `1009` before any ack is sent. A self-hosted frontend has a larger 16 MiB cap, which is the default of the `tungstenite` WebSocket library that RisingWave uses (RisingWave does not override it).
 
 Reconnect and replay behavior:
 
 - Delivery is at least once.
 - If the connection closes after you send a batch but before you receive its ack, reconnect and replay every batch sent after the last acked `dml_batch_id`.
 - Replaying keyed upserts is idempotent because the primary key determines the final row state. Replaying append-only data without a key can produce duplicates.
-- Keep each batch below 8 MiB to stay safely under both the 10 MiB Cloud limit and the typical 16 MiB self-hosted frontend limit.
+- Keep each batch below 8 MiB to stay safely under both the 10 MiB Cloud limit and the 16 MiB self-hosted frontend limit.
 
 ## Python client example
 
