@@ -101,7 +101,27 @@ Use these as reference commands. In practice, prefer the wizard-generated SQL, e
 
 **Create a WebSocket ingest target table**
 
-Create a `webhook` table with signature validation. The WebSocket connection reuses the same validation logic as the HTTP webhook endpoint.
+The client signs the init frame with HMAC-SHA256 using a shared secret and sends the signature in the `x-rw-signature` handshake header. Only the init frame is validated; subsequent DML batch frames are not signed. In the `VALIDATE` expression, `payload` is the init frame text and `headers` is the HTTP upgrade header map.
+
+Store the signing key as a RisingWave secret and reference it by name (recommended):
+
+```sql
+CREATE SECRET ws_signing_key WITH (backend = 'meta') AS 'your-signing-secret';
+
+CREATE TABLE ws_orders (
+  id int,
+  customer_name varchar,
+  amount double precision,
+  primary key (id)
+) WITH (
+  connector = 'webhook'
+) VALIDATE SECRET ws_signing_key AS secure_compare(
+  headers->>'x-rw-signature',
+  'sha256=' || encode(hmac(ws_signing_key, payload, 'sha256'), 'hex')
+);
+```
+
+For a quick local test, you can inline the secret as a SQL string literal instead:
 
 ```sql
 CREATE TABLE ws_orders (
@@ -145,14 +165,6 @@ Reconnect and replay behavior:
 - Replaying keyed upserts is idempotent because the primary key determines the final row state. Replaying append-only data without a key can produce duplicates.
 - Keep each batch below 8 MiB to stay safely under both the 10 MiB Cloud limit and the typical 16 MiB self-hosted frontend limit.
 
-Supported JSON decoder option headers on the handshake:
-
-- `x-rw-webhook-json-timestamp-handling-mode`
-- `x-rw-webhook-json-timestamptz-handling-mode`
-- `x-rw-webhook-json-time-handling-mode`
-- `x-rw-webhook-json-bigint-unsigned-handling-mode`
-- `x-rw-webhook-json-handle-toast-columns`
-
 ## Python client example
 
 This example computes the HMAC of the init frame, opens the WebSocket connection, sends one batch, and waits for the ack.
@@ -166,7 +178,7 @@ import time
 
 import websockets
 
-SECRET = b"TEST_WEBSOCKET"
+SECRET = b"your-signing-secret"
 INIT_MSG = json.dumps(
     {"type": "init", "timestamp": int(time.time() * 1000)},
     separators=(",", ":"),
@@ -221,6 +233,6 @@ For BYOC projects that require the tenant query parameter, use the BYOC URL form
 - Stale or skewed init timestamp: regenerate the init frame immediately before connecting.
 - Non-monotonic `dml_batch_id`: increase the batch ID for every batch sent on the same connection.
 - Missing primary key fields: include all PK columns for `upsert`, `insert`, `update`, and `delete`.
-- JSON decode failures: verify field names, value types, and any `x-rw-webhook-json-*` decoder headers.
+- JSON decode failures: verify field names and value types in each batch item.
 - Connection closed with no ack after a large batch: your client likely exceeded the WebSocket frame-size limit. Split the batch into smaller frames and keep each batch below 8 MiB.
 - Connection closed before you received the last ack: reconnect, then replay every batch sent after the last acked `dml_batch_id`.
