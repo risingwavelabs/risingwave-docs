@@ -90,6 +90,15 @@ This command sets several environment variables to configure the dashboard gener
 - `DASHBOARD_UID=risingwave_dev_dashboard`: Sets the unique identifier (UID) for the dashboard.
 4. Import the generated JSON models (with the extension `.gen.json`) into your Grafana instance.
 
+## Table change log metrics
+
+If you use table change logs and scrape RisingWave metrics with Prometheus, RisingWave exposes the following metrics for monitoring table change log fetch requests:
+
+- `state_store_table_change_log_fetch_latency`: Histogram of fetch latency on the state store path.
+- `state_store_table_change_log_cache_counts{result="hit|miss"}`: Counter for table change log cache lookups, split by cache hit and miss.
+- `storage_table_change_log_get_latency`: Histogram of request latency on the meta service path.
+
+You can use these metrics to track end-to-end fetch latency and cache effectiveness, and add custom Grafana panels or Prometheus alerts as needed.
 
 ### Troubleshooting
 
