@@ -136,6 +136,14 @@ Rules and behavior:
 - Non-empty batches are acknowledged after the batch is accepted downstream.
 - Any fatal error closes the connection.
 - `insert` and `update` use the same upsert-style row handling as `upsert`.
+- Each DML batch is sent as one WebSocket text frame. On RisingWave Cloud, the managed RWProxy ingest path currently enforces a 10 MiB maximum frame size. Oversized frames close the connection before any ack is sent.
+
+Reconnect and replay behavior:
+
+- Delivery is at least once.
+- If the connection closes after you send a batch but before you receive its ack, reconnect and replay every batch sent after the last acked `dml_batch_id`.
+- Replaying keyed upserts is idempotent because the primary key determines the final row state. Replaying append-only data without a key can produce duplicates.
+- Keep each batch below 8 MiB to stay safely under both the 10 MiB Cloud limit and the typical 16 MiB self-hosted frontend limit.
 
 Supported JSON decoder option headers on the handshake:
 
@@ -214,3 +222,5 @@ For BYOC projects that require the tenant query parameter, use the BYOC URL form
 - Non-monotonic `dml_batch_id`: increase the batch ID for every batch sent on the same connection.
 - Missing primary key fields: include all PK columns for `upsert`, `insert`, `update`, and `delete`.
 - JSON decode failures: verify field names, value types, and any `x-rw-webhook-json-*` decoder headers.
+- Connection closed with no ack after a large batch: your client likely exceeded the WebSocket frame-size limit. Split the batch into smaller frames and keep each batch below 8 MiB.
+- Connection closed before you received the last ack: reconnect, then replay every batch sent after the last acked `dml_batch_id`.
