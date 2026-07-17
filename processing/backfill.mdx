@@ -18,7 +18,8 @@ Used when creating MVs on tables with a consistent snapshot. The executor:
 2. Scans the snapshot data in batches
 3. Applies the query transformation
 4. Writes results to the MV state
-5. Transitions to incremental mode once the snapshot is fully processed
+5. Waits until the pending barrier backlog is within the configured limit before merging into the main streaming graph
+6. Transitions to incremental mode once the snapshot is fully processed and merged
 
 ### Arrangement backfill
 
@@ -77,6 +78,8 @@ If a compute node fails during backfill, RisingWave will resume backfill from th
 - Backfill progress is persisted in the meta store
 - Barriers coordinate progress across all fragments
 - State is checkpointed regularly during backfill
+
+You can control when snapshot backfill merges into the main streaming graph with `snapshot_backfill_finish_max_lagged_barriers`. The default is `100`.
 
 <Note>
 New to barriers/checkpoints? A **barrier** is a periodic sync marker; a **checkpoint** is a global consistent snapshot created from barriers. By default, RisingWave generates one barrier every **1 second** (`barrier_interval_ms = 1000`). See [Data persistence](/reference/data-persistence#what-are-barriers-and-checkpoints).
