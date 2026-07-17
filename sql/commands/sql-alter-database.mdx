@@ -75,3 +75,37 @@ ALTER DATABASE travel SET checkpoint_frequency = 2;
 ALTER DATABASE travel SET barrier_interval_ms = DEFAULT;
 ALTER DATABASE travel SET checkpoint_frequency = DEFAULT;
 ```
+
+### `SET RESOURCE_GROUP`
+
+```sql
+ALTER DATABASE database_name
+    SET RESOURCE_GROUP { TO | = } { DEFAULT | resource_group_name } DEFERRED;
+```
+
+Use this statement to update the database's resource group metadata. Existing streaming jobs that inherit the database resource group pick up the new assignment after recovery.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RESOURCE_GROUP** | Updates the resource group recorded on the database. |
+| _resource_group_name_ | The target resource group. The resource group must already exist. |
+| **DEFAULT** | Reassigns the database to the default resource group. |
+| **DEFERRED** | Required. Applies the metadata change in deferred mode. |
+
+```sql
+ALTER DATABASE analytics SET RESOURCE_GROUP = DEFAULT DEFERRED;
+ALTER DATABASE analytics SET RESOURCE_GROUP TO rg_batch DEFERRED;
+```
+
+### `RESET RESOURCE_GROUP`
+
+```sql
+ALTER DATABASE database_name
+    RESET RESOURCE_GROUP DEFERRED;
+```
+
+`RESET RESOURCE_GROUP` is equivalent to resetting the database to the default resource group.
+
+```sql
+ALTER DATABASE analytics RESET RESOURCE_GROUP DEFERRED;
+```

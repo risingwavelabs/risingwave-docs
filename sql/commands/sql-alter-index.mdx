@@ -73,3 +73,38 @@ ALTER INDEX idx_orders SET BACKFILL_PARALLELISM = ADAPTIVE;
 -- Defer the parallelism change until the current backfill completes
 ALTER INDEX idx_orders SET BACKFILL_PARALLELISM = 4 DEFERRED;
 ```
+
+### `SET RESOURCE_GROUP`
+
+```sql
+ALTER INDEX index_name
+    SET RESOURCE_GROUP { TO | = } { DEFAULT | resource_group_name } [ DEFERRED ];
+```
+
+Use this statement to move the index's streaming job to a different resource group.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RESOURCE_GROUP** | Reassigns the index's streaming job to a resource group. |
+| _resource_group_name_ | The target resource group. The resource group must already exist. |
+| **DEFAULT** | Reassigns the job to the default resource group. |
+| **DEFERRED** | Optional. Applies the change in deferred mode. |
+
+```sql
+ALTER INDEX idx_orders SET RESOURCE_GROUP = DEFAULT;
+ALTER INDEX idx_orders SET RESOURCE_GROUP TO rg_batch DEFERRED;
+```
+
+### `RESET RESOURCE_GROUP`
+
+```sql
+ALTER INDEX index_name
+    RESET RESOURCE_GROUP [ DEFERRED ];
+```
+
+`RESET RESOURCE_GROUP` is equivalent to resetting the index to the default resource group.
+
+```sql
+ALTER INDEX idx_orders RESET RESOURCE_GROUP;
+ALTER INDEX idx_orders RESET RESOURCE_GROUP DEFERRED;
+```
