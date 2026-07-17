@@ -18,7 +18,7 @@ Used when creating MVs on tables with a consistent snapshot. The executor:
 2. Scans the snapshot data in batches
 3. Applies the query transformation
 4. Writes results to the MV state
-5. Transitions to incremental mode once the snapshot is fully processed
+5. Waits until the job's pending barrier backlog drops below the snapshot-backfill merge limit before merging into the database graph and transitioning to incremental mode. This reduces streaming stalls when backfill finishes. The default limit is `100`, controlled by `snapshot_backfill_finish_max_lagged_barriers`.
 
 ### Arrangement backfill
 
