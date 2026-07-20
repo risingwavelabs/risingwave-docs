@@ -82,6 +82,21 @@ RisingWave automatically sends acknowledgments to the Pulsar broker for consumed
 
 If you need to bound retryable Pulsar client operations on the source side, configure `pulsar.operation.retry.max.retries` and `pulsar.operation.retry.delay`. These options control Pulsar client retries in RisingWave and do not change broker-side redelivery behavior.
 
+RisingWave also exposes Prometheus metrics for source connector acknowledgments after checkpoint commit:
+
+- `source_connector_ack_success_count{source_name, connector_type}` counts successful acknowledgments.
+- `source_connector_ack_failure_count{source_name, connector_type, error_type}` counts failed acknowledgments.
+
+For Pulsar sources, `connector_type` is `pulsar`. The `error_type` label can be one of the following values:
+
+- `empty_message_id`
+- `channel_missing`
+- `channel_send_error`
+- `decode_error`
+- `broker_error`
+
+Use these metrics to diagnose backlog growth or subscription acknowledgment issues. For the full Prometheus metrics reference, see [Prometheus metrics reference](/operate/prometheus-metrics-reference).
+
 ```sql Example
 CREATE TABLE my_pulsar_table (
    f1 int,
@@ -227,4 +242,3 @@ WITH (
 ```
    </Tab>
 </Tabs>
-
