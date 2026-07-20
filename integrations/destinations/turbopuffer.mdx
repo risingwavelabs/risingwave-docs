@@ -1,0 +1,129 @@
+---
+title: "Sink data from RisingWave to Turbopuffer"
+sidebarTitle: Turbopuffer
+description: This guide describes how to sink data from RisingWave to Turbopuffer using the Turbopuffer sink connector in RisingWave.
+---
+
+Turbopuffer is a vector database for storing and searching documents and embeddings. For more information, see the [Turbopuffer documentation](https://turbopuffer.com/docs).
+
+## Prerequisites
+
+* Ensure your Turbopuffer endpoint is accessible from RisingWave.
+* Enable [sink decoupling](/delivery/overview#sink-decoupling) before creating a Turbopuffer sink:
+
+```sql
+SET sink_decouple = true;
+```
+
+## Create a Turbopuffer sink
+
+Use the following syntax to create a Turbopuffer sink:
+
+```sql
+CREATE SINK sink_name
+[ FROM sink_from | AS select_query ]
+WITH (
+  connector = 'turbopuffer',
+  base_url = 'https://<your-turbopuffer-endpoint>',
+  { namespace = '<static-namespace>' | namespace_column = '<varchar-column>' },
+  api_key = SECRET <secret_name>,
+  primary_key = '<single primary key column>',
+  type = 'append-only' | 'upsert',
+  distance_metric = '<distance metric>',
+  disable_backpressure = 'true' | 'false',
+  full_text_search_columns = '<column1,column2>' | '*',
+  filterable_columns = '<column1,column2>' | '*',
+  write_batch_size = '<batch size>',
+  max_linger_second = '<linger seconds>'
+);
+```
+
+## Parameters
+
+| Parameter | Description |
+| :--- | :--- |
+| sink\_name | Name of the sink to be created. |
+| sink\_from | A clause that specifies the direct source from which data will be output. `sink_from` can be a table or a materialized view. Either this clause or a SELECT query must be specified. |
+| AS select\_query | A SELECT query that specifies the data to be output to the sink. Either this query or a FROM clause must be specified. See [SELECT](/sql/commands/sql-select) for syntax details. |
+| base\_url | **Required**. The Turbopuffer base URL. |
+| namespace | **Required if `namespace_column` is not set**. A static Turbopuffer namespace. The namespace must match `[A-Za-z0-9-_.]{1,128}`. |
+| namespace\_column | **Required if `namespace` is not set**. A `varchar` column whose value determines the Turbopuffer namespace dynamically. This column is used only for routing and is not written as a document attribute. |
+| api\_key | **Required**. The Turbopuffer API key. We recommend storing it with [`CREATE SECRET`](/sql/commands/sql-create-secret) and referencing it as `SECRET <secret_name>`. |
+| primary\_key | **Required**. Exactly one primary key column to use as the Turbopuffer document ID. The column type must be `smallint`, `integer`, `bigint`, `serial`, or `varchar`. |
+| type | **Required**. Sink type. Supported values: `append-only` and `upsert`. |
+| distance\_metric | **Optional**. Required when the sink schema contains a `vector(N)` column. |
+| disable\_backpressure | **Optional**. Whether to disable Turbopuffer write backpressure. |
+| full\_text\_search\_columns | **Optional**. A comma-separated list of attribute columns to mark as full-text-searchable, or `*` to include all generated attributes. Only `varchar` and `varchar[]` columns are supported. |
+| filterable\_columns | **Optional**. A comma-separated list of attribute columns to mark as filterable, or `*` to include all generated attributes. |
+| write\_batch\_size | **Optional**. Maximum number of rows buffered before flushing a write request. Default: `1000`. |
+| max\_linger\_second | **Optional**. Maximum time in seconds to wait before flushing buffered rows. Default: `1`. |
+
+## Example
+
+The following example uses a dynamic namespace and stores the API key as a secret:
+
+```sql
+SET sink_decouple = true;
+
+CREATE SECRET tpuf_api_key WITH (backend = 'meta') AS 'your_api_key';
+
+CREATE TABLE documents (
+  id varchar primary key,
+  workspace_id varchar,
+  body varchar,
+  note_contents varchar[],
+  is_starred boolean,
+  published_at timestamp,
+  embedding vector(3)
+);
+
+CREATE SINK documents_tpuf_sink
+FROM documents
+WITH (
+  connector = 'turbopuffer',
+  base_url = 'https://aws-us-east-2.turbopuffer.com',
+  namespace_column = 'workspace_id',
+  api_key = SECRET tpuf_api_key,
+  primary_key = 'id',
+  type = 'upsert',
+  distance_metric = 'cosine_distance',
+  disable_backpressure = 'true',
+  full_text_search_columns = 'body,note_contents',
+  filterable_columns = '*',
+  write_batch_size = 1000,
+  max_linger_second = 1
+);
+```
+
+## Notes
+
+The Turbopuffer sink requires `sink_decouple` to be enabled.
+
+RisingWave uses the configured `primary_key` column as the Turbopuffer document `id`. That column is not included in the generated Turbopuffer schema.
+
+When `namespace_column` is used, that column is also excluded from the generated Turbopuffer schema because it is used only for routing.
+
+If the sink schema contains a `vector(N)` column, you must set `distance_metric`.
+
+Attribute columns in the sink schema must not be named `id`.
+
+## Data type mapping
+
+RisingWave generates the Turbopuffer `schema` object automatically from the sink input schema.
+
+| RisingWave data type | Turbopuffer schema type | JSON payload type / format |
+| :--- | :--- | :--- |
+| `boolean` | `bool` | JSON boolean |
+| `smallint`, `integer`, `bigint`, `serial` | `int` | JSON number |
+| `real`, `double precision`, `decimal` | `float` | JSON number |
+| `varchar` | `string` | JSON string |
+| `date` | `datetime` | JSON string |
+| `timestamp`, `timestamp with time zone` | `datetime` | JSON string |
+| `boolean[]` | `[]bool` | JSON array of booleans |
+| integer arrays and `serial[]` | `[]int` | JSON array of numbers |
+| float arrays and `decimal[]` | `[]float` | JSON array of numbers |
+| `varchar[]` | `[]string` | JSON array of strings |
+| `date[]`, `timestamp[]`, `timestamp with time zone[]` | `[]datetime` | JSON array of datetime strings |
+| `vector(N)` | `[N]f32` | JSON array of `N` numbers |
+
+For `decimal` and `decimal[]`, RisingWave converts values through `f64` before writing JSON numbers. Non-finite decimal values cannot be encoded.
