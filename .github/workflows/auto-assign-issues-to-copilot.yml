@@ -2,7 +2,9 @@ name: Auto-assign Issues to Copilot
 
 on:
   issues:
-    types: [opened, reopened]
+    # A newly created issue with labels emits `labeled` events in addition to
+    # `opened`, so omit `opened` to avoid assigning Copilot twice.
+    types: [reopened, labeled]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -15,6 +17,14 @@ permissions:
 
 jobs:
   assign-issue:
+    # `docs-agent` is an explicit opt-in. Other documentation issues may be
+    # handled by Jarvis, humans, or serve only as umbrella/tracking issues.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+        contains(github.event.issue.labels.*.name, 'docs-agent') &&
+        (github.event.action == 'reopened' ||
+          github.event.label.name == 'docs-agent'))
     runs-on: ubuntu-latest
 
     steps:
