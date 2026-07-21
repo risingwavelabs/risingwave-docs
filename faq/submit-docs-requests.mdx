@@ -1,0 +1,123 @@
+---
+title: "How to submit effective documentation requests"
+description: "Learn how to submit effective /docs requests on Slack for faster documentation updates and improvements."
+---
+
+When you identify missing, incorrect, or unclear documentation, you can request updates using the `/docs` Slack command in the RisingWave Community Slack. To ensure your request receives a timely response and leads to actionable documentation improvements, please provide structured details that help maintainers understand exactly what needs to be documented.
+
+## Documentation request template
+
+Use this template when submitting a `/docs` request to ensure you provide all necessary information:
+
+```
+/docs
+
+**Product/Feature Area:** [e.g., SQL commands, Kafka connector, materialized views, deployment]
+
+**Current Docs URL:** [Link to existing page if any, or "N/A" for new content]
+
+**What is missing/incorrect:** 
+[Brief description of the gap, error, or unclear content]
+
+**Expected outcome:** 
+[What information should the docs contain or how should it be corrected]
+
+**User persona:** 
+[Who needs this? e.g., new users, data engineers, DBAs, developers migrating from Flink]
+
+**Repro steps or SQL examples (if relevant):**
+[Commands, queries, or steps that demonstrate the issue or feature]
+```
+
+## Examples
+
+### ✅ Good request example
+
+```
+/docs
+
+**Product/Feature Area:** SQL commands - CREATE SOURCE with Kafka
+
+**Current Docs URL:** https://docs.risingwave.com/ingestion/sources/kafka
+
+**What is missing/incorrect:** 
+The documentation doesn't explain how to configure SASL/SCRAM authentication 
+with Kafka sources when using AWS MSK.
+
+**Expected outcome:** 
+Add a section showing the complete CREATE SOURCE syntax with SASL_SCRAM properties, 
+including required connection parameters for AWS MSK.
+
+**User persona:** 
+Data engineers deploying RisingWave with AWS MSK in production environments.
+
+**Repro steps or SQL examples:**
+```sql
+CREATE SOURCE kafka_source (
+  id INTEGER,
+  name VARCHAR
+) WITH (
+  connector='kafka',
+  topic='my-topic',
+  properties.bootstrap.server='my-cluster.kafka.us-east-1.amazonaws.com:9096',
+  -- Need documentation for these SASL/SCRAM properties:
+  properties.security.protocol='SASL_SSL',
+  properties.sasl.mechanism='SCRAM-SHA-512',
+  properties.sasl.username='my-username',
+  properties.sasl.password='my-password'
+) FORMAT PLAIN ENCODE JSON;
+```
+```
+
+**Why this is effective:** This request provides specific details about the feature area, identifies the exact gap, shows who needs it, and includes a concrete SQL example that demonstrates the use case.
+
+### ❌ Bad request example
+
+```
+/docs
+
+The Kafka documentation is confusing and needs to be updated.
+```
+
+**Why this is ineffective:** This request lacks specificity. Maintainers cannot determine:
+- Which Kafka documentation page needs updates
+- What specific content is confusing
+- What should be added or changed
+- Who the target audience is
+- What use case needs to be documented
+
+## Tips for effective documentation requests
+
+<AccordionGroup>
+<Accordion title="Be specific about location">
+Link to the exact page that needs updates, or specify the section if requesting new content. This helps maintainers quickly locate and update the right documentation.
+</Accordion>
+
+<Accordion title="Include working examples">
+If your request involves SQL, configuration, or code, provide complete, runnable examples. This ensures the documentation will include accurate, tested content.
+</Accordion>
+
+<Accordion title="Explain the user impact">
+Describe who is affected by the missing or incorrect documentation. This helps maintainers prioritize requests and tailor the content to the right audience.
+</Accordion>
+
+<Accordion title="Separate multiple issues">
+If you have multiple unrelated documentation issues, submit separate `/docs` requests for each. This makes it easier to track and address each issue independently.
+</Accordion>
+
+<Accordion title="Check existing documentation first">
+Before submitting a request, search the documentation to confirm the information is truly missing or incorrect. You might find it in a different section than expected.
+</Accordion>
+</AccordionGroup>
+
+## What happens after submission
+
+After you submit a `/docs` request with sufficient detail:
+
+1. The documentation team reviews your request
+2. Maintainers may ask clarifying questions if needed
+3. A documentation update is created and reviewed
+4. The updated documentation is published
+5. You'll be notified when the documentation is updated
+
+For urgent documentation needs or complex requests that require discussion, consider opening a [GitHub issue](https://github.com/risingwavelabs/risingwave-docs/issues) in the risingwave-docs repository with the same detailed information.
