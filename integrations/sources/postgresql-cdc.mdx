@@ -352,8 +352,7 @@ When you ingest PostgreSQL CDC data from PostGIS, `GEOMETRY` values are preserve
 - The value may look unreadable in SQL clients. This is expected for raw binary data and does not mean the geometry is corrupted.
 - RisingWave does not provide PostGIS geospatial functions for this ingested `BYTEA` value.
 
-To inspect and validate the ingested bytes, encode them to text in RisingWave (replace `locationpoint` with your geometry column name):
-
+To inspect and validate the ingested bytes, encode them to text in RisingWave (replace `locationpoint` with your geometry column name and `cdc_table` with your CDC table name):
 ```sql
 SELECT
   encode(locationpoint, 'hex') AS locationpoint_hex,
