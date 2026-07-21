@@ -350,7 +350,7 @@ RisingWave cannot correctly parse composite types from PostgreSQL as Debezium do
 When you ingest PostgreSQL CDC data from PostGIS, `GEOMETRY` values are preserved as raw EWKB bytes and stored in RisingWave as `BYTEA`.
 
 - The value may look unreadable in SQL clients. This is expected for raw binary data and does not mean the geometry is corrupted.
-- RisingWave does not provide geospatial functions for this `BYTEA` payload. For example, `ST_AsEWKB(locationpoint)` fails with a function-signature error because the input is `BYTEA`, not a geometry type.
+- RisingWave does not provide PostGIS geospatial functions for this ingested `BYTEA` value.
 
 To inspect and validate the ingested bytes, encode them to text in RisingWave (replace `locationpoint` with your geometry column name):
 
