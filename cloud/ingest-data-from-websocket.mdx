@@ -56,7 +56,7 @@ Wizard steps:
 2. Click **Create source**.
 3. Open **WebSocket ingest**.
 4. Select **Database**, **Schema**, and **Target table**.
-5. If you do not have a target table yet, click **Create table**, enter the table name and signature settings, review the generated SQL, and create the table.
+5. If you do not have a target table yet, click **Create table**, enter the table name and signature settings, choose how the signing key is stored (**RisingWave secret** recommended, or **Inline SQL literal**), review the generated SQL, and create the table. The wizard executes the steps in order: first creates the signing secret (if using the managed option), then creates the target table.
 6. Copy the generated **Endpoint**.
 7. Expand **Wire format** and **Client demo** to copy the generated init frame, DML batch examples, and client template.
 
@@ -156,14 +156,22 @@ Rules and behavior:
 - Non-empty batches are acknowledged after the batch is accepted downstream.
 - Any fatal error closes the connection.
 - `insert` and `update` use the same upsert-style row handling as `upsert`.
-- Each DML batch is sent as one WebSocket text frame. On RisingWave Cloud, RWProxy caps each frame at 10 MiB by default (its `ingestMaxMessageSize` setting, which RisingWave Cloud operators can override); an oversized frame closes the connection with WebSocket code `1009` before any ack is sent. A self-hosted frontend has a larger 16 MiB cap, which is the default of the `tungstenite` WebSocket library that RisingWave uses (RisingWave does not override it).
+- Each DML batch is sent as one WebSocket text frame.
 
-Reconnect and replay behavior:
+### Frame-size limits
+
+Each DML batch is a single WebSocket text frame. The server enforces a maximum frame size:
+
+- **RisingWave Cloud**: RWProxy rejects frames larger than 10 MiB by default (configurable via the `ingestMaxMessageSize` setting). An oversized frame closes the connection with WebSocket code `1009` before any ack is sent.
+- **Self-hosted**: the `tungstenite` WebSocket library (used by RisingWave's frontend without overriding the default) allows up to 16 MiB per frame.
+
+Keep each batch below **8 MiB** to stay safely under both limits.
+
+### Reconnect and replay behavior
 
 - Delivery is at least once.
 - If the connection closes after you send a batch but before you receive its ack, reconnect and replay every batch sent after the last acked `dml_batch_id`.
 - Replaying keyed upserts is idempotent because the primary key determines the final row state. Replaying append-only data without a key can produce duplicates.
-- Keep each batch below 8 MiB to stay safely under both the 10 MiB Cloud limit and the 16 MiB self-hosted frontend limit.
 
 ## Python client example
 
