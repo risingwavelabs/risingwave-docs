@@ -163,7 +163,7 @@ ALTER SINK sink_name CONNECTOR WITH (
 | Parameter         | Description |
 | :---------------- | :---------- |
 | **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing sink without recreating it. |
-| property_name | The properties vary by connector type: <ul><li>For **ClickHouse**, **DeltaLake**, and **StarRocks**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Iceberg**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Kafka**, the supported parameters include: `properties.allow.auto.create.topics`, `properties.batch.num.messages`, `properties.batch.size`, `properties.enable.idempotence`, `properties.max.in.flight.requests.per.connection`, `properties.message.max.bytes`, `properties.message.send.max.retries`, `properties.message.timeout.ms`, `properties.queue.buffering.max.kbytes`, `properties.queue.buffering.max.messages`, `properties.queue.buffering.max.ms`, `properties.request.required.acks`, `properties.retry.backoff.ms`, `properties.receive.message.max.bytes`.</li><li>For **OpenSearch**, the supported parameters are `batch_num_messages`, `batch_size_kb`, and `concurrent_requests`.</li></ul> |
+| property_name | The properties vary by connector type: <ul><li>For **ClickHouse**, **DeltaLake**, and **StarRocks**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Iceberg**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Kafka**, the supported parameters include: `properties.allow.auto.create.topics`, `properties.batch.num.messages`, `properties.batch.size`, `properties.enable.idempotence`, `properties.max.in.flight.requests.per.connection`, `properties.message.max.bytes`, `properties.message.send.max.retries`, `properties.message.timeout.ms`, `properties.queue.buffering.max.kbytes`, `properties.queue.buffering.max.messages`, `properties.queue.buffering.max.ms`, `properties.request.required.acks`, `properties.retry.backoff.ms`, `properties.receive.message.max.bytes`.</li><li>For **OpenSearch**, the supported parameters are `batch_num_messages`, `batch_size_kb`, and `concurrent_requests`.</li><li>For **Pulsar**, the supported parameter is `properties.routing.mode`.</li></ul> |
 
 ```sql
 -- Enable idempotence for the sink
@@ -176,5 +176,10 @@ ALTER SINK my_opensearch_sink CONNECTOR WITH (
   'batch_num_messages' = '500',
   'batch_size_kb' = '4096',
   'concurrent_requests' = '2'
+);
+
+-- Change the routing policy of a Pulsar sink
+ALTER SINK my_pulsar_sink CONNECTOR WITH (
+  'properties.routing.mode' = 'round_robin'
 );
 ```
