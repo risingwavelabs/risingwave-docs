@@ -154,10 +154,13 @@ In addition to automatic background maintenance, you can trigger compaction and 
 This gives you on-demand control over table optimization and storage cleanup.
 
 ```sql
--- Compact small files for a table
+-- Expire old snapshots for a table
 VACUUM my_iceberg_table;
 
--- Compact files and expire snapshots older than 2 days
-VACUUM my_iceberg_table RETAIN 2 DAYS;
+-- Compact files, then expire old snapshots
+VACUUM FULL my_iceberg_table;
 ```
 
+<Note>
+`VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has a pending or in-flight Iceberg compaction task, RisingWave returns an error instead of scheduling another compaction task.
+</Note>
