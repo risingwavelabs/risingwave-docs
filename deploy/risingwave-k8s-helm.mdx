@@ -42,7 +42,7 @@ kubectl create namespace risingwave
 ```
   </Step>
   <Step>
-Customize your configuration for the RisingWave deployment by editing the [values.yml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml) file.
+Customize your configuration for the RisingWave deployment by editing the [values.yaml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml) file.
    * **Customize meta store**: The meta store in RisingWave holds metadata for cluster operations. See [Configuration](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-meta-store) for all the available options and [Examples](https://github.com/risingwavelabs/helm-charts/tree/main/examples/meta-stores) for detailed usage of meta stores.
       <Note>
       If using PostgreSQL as the meta store, make sure the PostgreSQL user configured in your Helm values has at least `USAGE` permission on the `public` schema.
@@ -118,31 +118,54 @@ You can monitor the RisingWave cluster using the monitoring stack. For details, 
 
 ## Optional: Resize a node
 
-By editing the configurations in [values.yml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml), you can resize a worker node. The Compactor Node configurations are in the `compactorComponent` section. Configurations for the Meta Node and Serving / Streaming Node are in `metaComponent` and `computeComponent` sections respectively. See [Customize pods of different components](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-pods-of-different-components) for details.
+By editing the configurations in [values.yaml](https://github.com/risingwavelabs/helm-charts/blob/main/charts/risingwave/values.yaml), you can resize a worker node. The Compactor Node configurations are in the `compactorComponent` section. Configurations for the Meta Node and Serving / Streaming Node are in `metaComponent` and `computeComponent` sections respectively. See [Customize pods of different components](https://github.com/risingwavelabs/helm-charts/blob/main/docs/CONFIGURATION.md#customize-pods-of-different-components) for details.
+
+<Warning>
+**Always set resource `requests` and `limits` to the same values for each component.** Mismatched values place pods in the `Burstable` QoS class, which makes scheduling less predictable and leaves pods more vulnerable to eviction under resource pressure — especially in on-premises deployments.
+</Warning>
+
+Setting `requests` equal to `limits` places pods in the Kubernetes **Guaranteed** QoS class, which provides:
+
+* **Predictable scheduling**: Kubernetes can more accurately schedule pods on nodes with sufficient resources.
+* **Eviction protection**: Guaranteed pods are the last to be evicted under resource pressure.
+* **Consistent performance**: More predictable CPU and memory availability for RisingWave pods.
+* **Resource isolation**: Better protection from noisy neighbors in multi-tenant clusters.
+
+### Recommended minimum sizes
+
+RisingWave is memory-intensive. When sizing components, use a **1:4 CPU:memory ratio** (for example, 1 CPU core to 4 GiB memory). The recommended minimum sizes for each component in distributed mode are:
+
+| Component | Minimum resources |
+|:----------|:-----------------|
+| Compute (Streaming / Serving Node) | 4 CPU cores, 16 GiB memory |
+| Compactor Node | 2 CPU cores, 8 GiB memory |
+| Meta Node | 1 CPU core, 4 GiB memory |
+| Frontend Node | 1 CPU core, 4 GiB memory |
+
+### Example configuration
+
+The following example shows how to set equal `requests` and `limits` with a 1:4 CPU:memory ratio:
 
 ```yaml
-# To resize other types of node, please replace the name with
-# computeComponent, or metaComponent.
+# To resize other types of node, replace the section name with
+# computeComponent, metaComponent, or frontendComponent.
 compactorComponent:
   resources:
-    # The maximum amount of CPU and memory the Pod can use.
     limits:
-      cpu: 1
-      memory: 2Gi
-    # The minimum amount of CPU and memory that the Pod is guaranteed to have.
+      cpu: 2
+      memory: 8Gi
     requests:
-      # 0.1 cores
-      cpu: 100m
-      memory: 64Mi
-
+      cpu: 2
+      memory: 8Gi
 ```
+
 Please note that increasing the CPU resource will not automatically increase the parallelism of existing materialized views. When scaling up (adding more CPU cores) a Streaming Node, you should perform the scaling by following the instructions in [Cluster scaling](/deploy/k8s-cluster-scaling).
 
 ## Set up RisingWave Console
 
 After deploying your RisingWave cluster with Helm, we recommend setting up RisingWave Console. The Console provides a web interface for managing and monitoring your cluster. It simplifies daily operations and helps you quickly collect and share diagnostic information when contacting RisingWave support team.
 
-For detailed instructions, see [RisingWave Console setup guide](/risingwave-console/introduction).
+For detailed instructions, see [RisingWave Console setup guide](/web-ui/introduction).
 
 <head>
   <script type="application/ld+json">

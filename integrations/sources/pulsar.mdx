@@ -54,13 +54,15 @@ For a table with primary key constraints, if a new data record with an existing 
 | oauth.audience                 | **Optional**. The audience for OAuth2\. This field must be filled if other `oauth` fields are specified.                                                                                                                |
 | oauth.scope                    | **Optional**. The scope for OAuth2.                                                                                                                                                                                   |
 | subscription.unacked.resend.delay | **Optional**. Specifies the delay duration after which the broker will resend unacknowledged messages. Accepts duration values such as `'1s'`, `'5m'`, or `'1h'`. Defaults to `None`, meaning the broker will **not** resend unacknowledged messages. |
+| pulsar.operation.retry.max.retries | **Optional**. Maximum number of retry attempts for retryable Pulsar client operations used by the source. If not specified, RisingWave preserves the Pulsar client's default retry behavior. |
+| pulsar.operation.retry.delay      | **Optional**. Delay between retry attempts for retryable Pulsar client operations used by the source. Accepts duration values such as `'1s'`, `'5m'`, or `'1h'`. This is separate from `subscription.unacked.resend.delay`, which only controls broker redelivery of unacknowledged messages. |
 | pulsar.read_compacted             | **Optional**. Controls whether the consumer reads from the compacted topic or the full message backlog. When set to `true`, only the latest value for each key is read. When set to `false` or not specified, all messages are read. This option cannot be changed after the source or table is created. |
 
 ### Other parameters
 
 | Field                                 | Notes                                                                                                                                                                                                                                     |
 | :------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _data\_format_                        | Supported formats: DEBEZIUM, MAXWELL, CANAL, UPSERT, PLAIN.                                                                                                                                                                               |
+| _data\_format_                        | Supported formats: DEBEZIUM, UPSERT, PLAIN.                                                                                                                                                                                            |
 | _data\_encode_                        | Supported encodes: JSON, AVRO, PROTOBUF, CSV, BYTES.                                                                                                                                                                                      |
 | _message_                             | Message name of the main Message in schema definition. Required when data\_encode is PROTOBUF.                                                                                                                                            |
 | _location_                            | Web location of the schema file in `http://...`, `https://...`, or `S3://...` format. Required when `data_encode` is `AVRO` or `PROTOBUF`. Examples:`https://\<example\_host>/risingwave/proto-simple-schema.proto`,`s3://risingwave-demo/schema-location` |
@@ -77,6 +79,8 @@ Added in v2.7.0.
 </Note>
 
 RisingWave automatically sends acknowledgments to the Pulsar broker for consumed messages. You can optionally configure the `subscription.unacked.resend.delay` parameter to control when the broker resends unacknowledged messages.
+
+If you need to bound retryable Pulsar client operations on the source side, configure `pulsar.operation.retry.max.retries` and `pulsar.operation.retry.delay`. These options control Pulsar client retries in RisingWave and do not change broker-side redelivery behavior.
 
 ```sql Example
 CREATE TABLE my_pulsar_table (
@@ -223,6 +227,4 @@ WITH (
 ```
    </Tab>
 </Tabs>
-
-
 

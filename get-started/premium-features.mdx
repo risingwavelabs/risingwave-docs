@@ -27,55 +27,35 @@ The availability of premium features in RisingWave Cloud depends on your subscri
 
 ## Available premium features
 
-The following are premium features, which include a "Premium Feature" note in the documentation.
+Each row below is a premium feature. On RisingWave Cloud, all features in **Connectors** are included on both the Basic and Pro tiers; everything else requires the Pro tier. On self-managed deployments, every premium feature requires a license key.
 
-### Tooling
+| Category                | Feature                                                                                                                                                                              | What it does                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| **Tooling**             | [RisingWave Console](/web-ui/introduction#risingwave-console)                                                                                                                        | Self-hosted operations console for managing multiple clusters, running `risectl`, automating snapshots, and collecting diagnostics. |
+| **Performance & cost**  | [Elastic disk cache](/get-started/disk-cache)                                                                                                                                        | Reduces S3 access costs by up to 90% with local-disk caching.                                                             |
+|                         | [State table memory preload](/deploy/node-specific-configurations#state-table-memory-preload)                                                                                        | Preloads state tables into memory to accelerate stateful operators.                                                       |
+|                         | [Locality backfill](/performance/best-practices#locality-backfill)                                                                                                                   | Preserves data locality across the pipeline for more efficient backfilling.                                               |
+| **SQL & security**      | [Time travel queries](/processing/time-travel-queries)                                                                                                                               | Query historical states of tables and materialized views.                                                                 |
+|                         | [Secret management](/operate/manage-secrets)                                                                                                                                         | Securely store and reference connection credentials.                                                                      |
+|                         | [Database isolation](/operate/workload-isolation-interaction#database-isolation)                                                                                                     | Isolate workloads at the database level.                                                                                  |
+|                         | [Resource groups](/operate/workload-isolation-interaction#resource-groups)                                                                                                           | Pin streaming jobs to dedicated compute resources.                                                                        |
+| **Schema management**   | [Auto schema change — PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc#auto-schema-change)                                                                                       | Apply upstream PostgreSQL schema changes automatically.                                                                   |
+|                         | [Auto schema change — MySQL CDC](/ingestion/sources/mysql/mysql-cdc#auto-schema-change)                                                                                              | Apply upstream MySQL schema changes automatically.                                                                        |
+|                         | [Auto schema change — Elasticsearch Sink](/integrations/destinations/elasticsearch#auto-schema-change)                                                                               | Propagate schema changes to Elasticsearch sinks.                                                                          |
+|                         | [Auto schema change — Snowflake Sink](/integrations/destinations/snowflake-v2#auto-schema-change)                                                                                    | Propagate schema changes to Snowflake sinks.                                                                              |
+|                         | [Auto schema change — Redshift Sink](/integrations/destinations/redshift#auto-schema-change)                                                                                         | Propagate schema changes to Redshift sinks.                                                                               |
+|                         | AWS Glue Schema Registry: [Kafka source](/ingestion/sources/kafka-config#use-aws-glue-schema-registry) / [Kafka sink](/integrations/destinations/apache-kafka#use-aws-glue-schema-registry) | Use AWS Glue as the schema registry for Kafka.                                                                            |
+| **Connectors**          | [Sink to Snowflake](/integrations/destinations/snowflake)                                                                                                                            | Stream data into Snowflake.                                                                                               |
+|                         | [Sink to DynamoDB](/integrations/destinations/amazon-dynamodb)                                                                                                                       | Stream data into DynamoDB.                                                                                                |
+|                         | [Sink to OpenSearch](/integrations/destinations/opensearch)                                                                                                                          | Stream data into OpenSearch.                                                                                              |
+|                         | [Sink to BigQuery](/integrations/destinations/bigquery)                                                                                                                              | Stream data into BigQuery.                                                                                                |
+|                         | [Sink to ClickHouse Cloud SharedMergeTree](/integrations/destinations/clickhouse#supported-table-engines)                                                                            | Stream data into ClickHouse Cloud's SharedMergeTree engine.                                                               |
+|                         | [Sink to SQL Server](/integrations/destinations/sql-server)                                                                                                                          | Stream data into SQL Server.                                                                                              |
+|                         | [SQL Server CDC source](/ingestion/sources/sql-server-cdc)                                                                                                                           | Ingest CDC streams directly from SQL Server.                                                                              |
+|                         | [Glue catalog for Iceberg](/iceberg/catalogs#glue-catalog)                                                                                                                           | Use AWS Glue as the Iceberg catalog.                                                                                      |
+|                         | [Redis Streams](/integrations/destinations/redis#streams)                                                                                                                            | Stream data into Redis Streams.                                                                                           |
 
-Customers with premium features can take advantage of our on-prem management tool to enhance observability for their RisingWave clusters. This tool accelerates issue detection, streamlines troubleshooting, and optimizes performance.
-  
-A lightweight version is available under the Apache 2.0 License: [risingwave-console](https://github.com/risingwavelabs/risingwave-console).
-
-### Performance and cost
-
-The [**Elastic disk cache**](/get-started/disk-cache) feature harnesses modern hardware to dramatically reduce S3 access costs - by up to **90%** - while enhancing performance and improving robustness. [Contact us](https://risingwave.com/contact-us/) to learn more.
-
-The [**State table memory preload**](/deploy/node-specific-configurations#state-table-memory-preload) feature preloads state tables into memory to accelerate query processing and stateful operator performance. [Contact us](https://risingwave.com/contact-us/) to learn more.
-
-The [**Locality backfill**](/performance/best-practices#locality-backfill) feature makes backfilling more efficient by preserving data locality across the entire processing pipeline.
-
-### SQL and security
-
-- [Time travel queries](/processing/time-travel-queries)
-- [Secret management](/operate/manage-secrets)
-- [Database isolation](/operate/workload-isolation-interaction#database-isolation)
-- [Resource groups](/operate/workload-isolation-interaction#resource-groups)
-
-### Schema management
-
-- [Auto schema change for PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc#auto-schema-change)
-- [Auto schema change for MySQL CDC](/ingestion/sources/mysql/mysql-cdc#auto-schema-change)
-- [Auto schema change for Elasticsearch Sink](/integrations/destinations/elasticsearch#auto-schema-change)
-- [Auto schema change for Snowflake Sink](/integrations/destinations/snowflake-v2#auto-schema-change)
-- [Auto schema change for Redshift Sink](/integrations/destinations/redshift#auto-schema-change)
-- [AWS Glue Schema Registry for Kafka Source](/ingestion/sources/kafka-config#use-aws-glue-schema-registry) and [Kafka Sink](/integrations/destinations/apache-kafka#use-aws-glue-schema-registry)
-
-### Connectors
-
-<Note>
-While the following connectors are premium features, they are available to users on both the Basic and Pro tiers of RisingWave Cloud.
-</Note>
-
-- [Sink to Snowflake](/integrations/destinations/snowflake)
-- [Sink to DynamoDB](/integrations/destinations/amazon-dynamodb)
-- [Sink to OpenSearch](/integrations/destinations/opensearch)
-- [Sink to BigQuery](/integrations/destinations/bigquery)
-- [Sink to SharedMergeTree table engine on ClickHouse Cloud](/integrations/destinations/clickhouse#supported-table-engines)
-- [Sink to SQL Server](/integrations/destinations/sql-server)
-- [Direct SQL Server CDC source connector](/ingestion/sources/sql-server-cdc)
-- [Glue catalog for Iceberg](/iceberg/catalogs#glue-catalog)
-- [Redis Streams](/integrations/destinations/redis#streams)
-
-For users who are already using these features in 1.9.x or earlier versions, rest assured that the functionality of these features will be intact if you stay on the version. If you choose to upgrade to v2.0 or later versions, an error will show up to indicate you need a license to use the features.
+For users already on 1.9.x or earlier, the functionality of these features remains intact if you stay on that version. If you upgrade to v2.0 or later, an error will indicate that a license is required.
 
 The premium features are carefully selected based on the following criteria:
 

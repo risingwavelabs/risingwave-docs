@@ -31,10 +31,25 @@ On the **RisingWave Cloud** side, RisingWave Cloud will create an endpoint (spec
 
 On the **Customer** side, you need to set up a PrivateLink service (specifically an AWS endpoint service, GCP published service, or Azure Private Link service) in your VPC network first.
 
+## Serving PrivateLink and Private Service Connect (connect to RisingWave Cloud from your VPC)
+
+In addition to connecting RisingWave Cloud to services in your VPC, RisingWave Cloud also supports a reverse path that lets you connect *to* RisingWave Cloud privately. This feature is called **Serving PrivateLink** on AWS and **Serving Private Service Connect** on GCP.
+
+On AWS, with Serving PrivateLink, RisingWave Cloud creates an AWS endpoint service. You then create an [Interface VPC Endpoint](https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html) in your AWS account to connect to it. All traffic between your VPC and RisingWave Cloud stays on the AWS internal network.
+
+On GCP, with Serving Private Service Connect, RisingWave Cloud publishes a service attachment. You create a Private Service Connect endpoint that targets the service attachment and configure private DNS for the endpoint.
+
+The **Cloud Meta** tab (in **Network Access** → **Cloud Meta**) exposes the provider-specific connection values:
+
+- For AWS, **Endpoint Service Name** and **Private Endpoint** (`host:port`).
+- For GCP, **Service attachment URI**, **DNS suffix**, and **Private endpoint** (`host:port`).
+
+See [Cloud metadata](/cloud/cloud-metadata) for instructions on using these fields.
+
 ## Accessing PrivateLink in the Console
 
-In the [RisingWave Cloud Console](https://cloud.risingwave.com), go to your project and click **Connection** in the left sidebar. Then select the **PrivateLink** tab to create and manage PrivateLink connections.
+In the [RisingWave Cloud Console](https://cloud.risingwave.com), go to your project and click **Network Access** in the left sidebar. Then select the **PrivateLink** tab to create and manage PrivateLink connections.
 
 <Tip>
-When setting up an AWS endpoint service, add the **PrivateLink Principal** from your project's **Cloud Meta** tab ([Cloud metadata](/cloud/cloud-metadata)) to the service's allowed principals list so that RisingWave Cloud can connect.
+When setting up an AWS endpoint service, add the **PrivateLink principals** from your project's **Cloud Meta** tab ([Cloud metadata](/cloud/cloud-metadata)) to the service's allowed principals list so that RisingWave Cloud can connect.
 </Tip>

@@ -1,0 +1,103 @@
+---
+title: "Install the RisingWave Cloud CLI"
+description: "Install and configure `rwc`, the command-line interface for RisingWave Cloud. Use it to manage hosted, BYOC, and BYOK environments, clusters, database users, snapshots, and more."
+---
+
+`rwc` is the RisingWave Cloud CLI. Use it to manage hosted, [BYOC](/cloud/project-byoc), and BYOK environments, clusters, database users, connection endpoints, and snapshots from your terminal or CI pipeline.
+
+## Step 1: Install the binary
+
+Download and install the latest release:
+
+```bash
+curl -L https://cli.risingwave.cloud/download.sh | bash && sudo mv rwc /usr/local/bin
+```
+
+Verify the install:
+
+```bash
+rwc version
+rwc -h
+```
+
+## Step 2: Authenticate
+
+Choose one of the following methods, depending on how your RisingWave Cloud account was created.
+
+<Tabs>
+  <Tab title="API key (recommended)">
+
+  1. Generate an API key and secret from the **RisingWave Cloud console** under **Org → Service accounts**. See [Service account & API key](/cloud/service-account) for details.
+  2. Configure the CLI:
+
+     ```bash
+     rwc auth config --api-key '<api-key>' --api-key-secret '<api-key-secret>'
+     ```
+  </Tab>
+  <Tab title="Email and password">
+
+  Only accounts registered with an email and password can use this method. Accounts created via social login (Google, Microsoft, or GitHub) do not support username/password login — use **API key** instead.
+
+  ```bash
+  rwc auth login --account '<your-email@example.com>' --password '<your-password>'
+  ```
+
+  To register a new password account first, then log in:
+
+  ```bash
+  rwc auth register --account '<your-email@example.com>' --password '<your-password>'
+  # Check your inbox and click the magic link to activate the account before logging in.
+  rwc auth login    --account '<your-email@example.com>' --password '<your-password>'
+  ```
+  </Tab>
+</Tabs>
+
+## Step 3: Select a region
+
+List the regions available to your account, then set the active one:
+
+```bash
+rwc context region list
+rwc context region set --name <region-name>
+```
+
+Example region names include `us-east-1`, `us-west-2`, and `eu-west-1` — use `rwc context region list` to see the exact set available to you.
+
+## Step 4: Verify the setup
+
+Confirm that authentication and region are wired up end-to-end:
+
+```bash
+rwc context list          # shows account URL, region, and auth method
+rwc cluster list          # returns your clusters (or an empty list)
+```
+
+If `rwc cluster list` returns without an authentication or configuration error, your CLI is ready to use.
+
+## (Optional) Install agent skills
+
+`rwc` ships with embedded agent skills (documentation modules describing each command domain) that you can install into your AI coding assistant's configuration directory. This lets Claude Code, Cursor, Codex, and similar tools answer `rwc` questions accurately and route requests to the right subcommand.
+
+```bash
+rwc skill list                                # list available skills
+rwc skill show <skill-name>                   # print a skill to stdout
+rwc skill install --target claude-code        # install into the current project
+rwc skill install --target claude-code --global  # install into ~/.claude
+```
+
+Supported targets include `claude-code`, `cursor`, and `codex`.
+
+## Common issues
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `unauthorized` on `rwc auth login` | Account was created via Google/GitHub/Microsoft social login | Generate an API key from the console and use `rwc auth config` instead |
+| `unauthorized` after working setup | Expired token | Re-run Step 2 |
+| `region not found` | Region name typo, or region not enabled for your account | Run `rwc context region list` and use one of the listed names |
+| `mgmt URL is not configured` on any command | Region has not been selected yet | Run `rwc context region set --name <region>` |
+| Command works locally but fails in CI | CI environment is missing `~/.rwc/config` | Run `rwc auth config` with an API key inside the CI job |
+
+## Next steps
+
+- Run `rwc -h` or `rwc <command> -h` to see the authoritative flag list for any subcommand.
+- Set up a [BYOC environment](/cloud/project-byoc) using your new CLI.

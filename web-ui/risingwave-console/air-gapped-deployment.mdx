@@ -1,0 +1,153 @@
+---
+title: "Air-gapped deployment"
+description: "Prepare RisingWave Console for restricted networks by mirroring images, mounting license files, and providing Helm charts and risectl binaries."
+---
+
+Use this guide when Console and the Kubernetes cluster it manages cannot reach the public internet.
+
+Air-gapped deployments need more preparation because Console may otherwise download `risectl` binaries, pull public images, or fetch Helm charts during environment installation.
+
+## Checklist
+
+Prepare these artifacts before starting Console:
+
+- Console image, usually an `-airgap` tag if you need pre-cached `risectl` binaries.
+- Signed RisingWave license key.
+- Private Docker registry reachable from the Kubernetes nodes.
+- Mirrored images for Console-managed components.
+- cert-manager and RisingWave Operator Helm chart archives.
+- Any RisingWave database images you plan to deploy.
+- Optional Grafana dashboards if your workflow installs Grafana.
+
+## Start Console without internet access
+
+Set:
+
+```shell
+RCONSOLE_NOINTERNET=true
+```
+
+When this flag is enabled, Console expects required artifacts to be available locally. Also configure:
+
+```shell
+RCONSOLE_RISECTLDIR=/risingwave-console-data/risectl
+RCONSOLE_HELM_CHART_DIR=/risingwave-console-data/helm-charts
+RW_LICENSE_KEY_PATH=/etc/rconsole/license.jwt
+```
+
+Mount those directories or files into the Console container or pod.
+
+## Mirror images
+
+Mirror the images used by Console-managed infrastructure into your private registry. Console-managed components pull these core infrastructure images:
+
+| Component                | Image                                            |
+| ------------------------ | ------------------------------------------------ |
+| Metadata PostgreSQL      | `postgres:16`                                    |
+| Object store (MinIO)     | `minio/minio:RELEASE.2023-12-02T10-51-33Z`       |
+| Grafana                  | `grafana/grafana-oss:11.4.0`                     |
+| Init / utility           | `busybox:1.36`                                   |
+| Metrics (VictoriaMetrics)| `victoriametrics/victoria-metrics:v1.108.1`      |
+| Metrics agent            | `victoriametrics/vmagent:v1.108.1`               |
+| Logs                     | `victoriametrics/victoria-logs:v1.3.1-victorialogs` |
+| Log forwarder            | `fluent/fluent-bit:latest`                       |
+
+<Note>
+  Fluent Bit is the one component Console pulls by the mutable `latest` tag by
+  default, so the resolved image can drift over time. For a reproducible
+  air-gapped mirror, pin Fluent Bit to a fixed tag in Console's log-forwarder
+  image setting and mirror that exact tag instead of `latest`.
+</Note>
+
+In addition, mirror:
+
+- the cert-manager images referenced by the cert-manager Helm chart you install,
+- the RisingWave Operator images referenced by the `risingwave-operator` Helm chart,
+- the RisingWave database image tags you plan to deploy, for example `risingwavelabs/risingwave:v2.8.2`.
+
+<Tip>
+  To find the exact cert-manager and operator image tags, render the Helm chart
+  archives you plan to install (`helm template <chart>.tgz`) and look for `image:`
+  lines.
+</Tip>
+
+Mirror each image into your registry with pull / tag / push. Set `REGISTRY` to your registry prefix — the same value you configure in Console below:
+
+```shell
+REGISTRY=registry.example.com/proxy
+
+# Replace the risingwavelabs/risingwave tag below with the RisingWave
+# version(s) you actually plan to deploy.
+for image in \
+  postgres:16 \
+  minio/minio:RELEASE.2023-12-02T10-51-33Z \
+  grafana/grafana-oss:11.4.0 \
+  busybox:1.36 \
+  victoriametrics/victoria-metrics:v1.108.1 \
+  victoriametrics/vmagent:v1.108.1 \
+  victoriametrics/victoria-logs:v1.3.1-victorialogs \
+  fluent/fluent-bit:latest \
+  risingwavelabs/risingwave:v2.8.2 ; do
+  docker pull "$image"
+  docker tag "$image" "$REGISTRY/$image"
+  docker push "$REGISTRY/$image"
+done
+```
+
+## Configure the private registry in Console
+
+1. Open **Settings**.
+2. Find **Docker Registry**.
+3. Set **Private Docker Registry** to the same prefix used when mirroring images, for example `registry.example.com/proxy`.
+4. Click **Save**.
+
+When this setting is present, Console uses the private registry prefix for managed component images, such as Grafana and VictoriaMetrics.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-license-settings.png" />
+</Frame>
+
+## Provide Helm charts
+
+In air-gapped mode, Console cannot fetch missing Helm charts. Put chart archives in the directory configured by `RCONSOLE_HELM_CHART_DIR`, or upload them from the relevant install workflow when the UI prompts for a chart archive.
+
+The default chart directory is:
+
+```text
+/risingwave-console-data/helm-charts
+```
+
+Chart archives must be valid `.tgz` Helm chart files.
+
+## Provide risectl binaries
+
+Console uses `risectl` for cluster operations. In a connected deployment, it can download the needed version. In an air-gapped deployment, use an air-gap Console image with the needed versions pre-cached, or mount binaries under:
+
+```text
+<RCONSOLE_RISECTLDIR>/<risingwave-version>/risectl
+```
+
+For example:
+
+```text
+/risingwave-console-data/risectl/v2.8.2/risectl
+```
+
+## Validate the setup
+
+Before creating production clusters:
+
+1. Confirm Console starts with `RCONSOLE_NOINTERNET=true`.
+2. Confirm **Settings** shows the private Docker registry value.
+3. Create an environment with the same components you plan to use in production.
+4. Watch the install logs for image pull or chart lookup errors.
+5. Run the environment acceptance test.
+
+## Troubleshooting
+
+| Symptom                                               | Check                                                                                                                 |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `helm chart not available for air-gapped install`     | Upload the required chart archive or mount it under `RCONSOLE_HELM_CHART_DIR`.                                        |
+| Kubernetes reports `ImagePullBackOff`                 | Confirm the private registry prefix, mirrored image names, image tags, and node registry credentials.                 |
+| `risectl` command fails because the binary is missing | Mount the expected `risectl` version under `RCONSOLE_RISECTLDIR`, or use an air-gap image with that version included. |
+| Private HTTP registry cannot be pulled by containerd  | Configure the Kubernetes nodes to trust the registry as an insecure registry, or serve it with TLS.                   |

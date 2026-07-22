@@ -55,13 +55,30 @@ ALTER TABLE table_name CONNECTOR WITH (
 | Parameter         | Description |
 | :---------------- | :---------- |
 | **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing table without recreating it. Be aware that the properties defined in CONNECTION should be altered by `ALTER CONNECTION`.|
-| property_name | We currently support altering Kafka connectors only. Support for more connectors and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
+| property_name | We currently support altering Kafka connectors only. Support for more connectors and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.ssl.ca.location`, `properties.ssl.ca.pem`, `properties.ssl.certificate.location`, `properties.ssl.certificate.pem`, `properties.ssl.key.location`, `properties.ssl.key.pem`, `properties.ssl.key.password`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
 
 ```sql Example
 ALTER TABLE plain_students
 CONNECTOR WITH (
   'properties.security.protocol' = 'SASL_SSL'
 );
+```
+
+### `DROP CONNECTOR`
+
+```sql
+ALTER TABLE table_name DROP CONNECTOR;
+```
+
+Removes the connector definition from a table that was created with a connector. The table keeps the same schema and existing data, but ingestion from the upstream source stops.
+
+This clause applies to tables created with connector settings, including CDC tables and tables that use a schema registry. It does not apply to plain tables created without a connector, and it does not apply to standalone `SOURCE` objects.
+
+After you drop the connector, the table becomes a plain `CREATE TABLE ...` and there is no supported way to add a connector back with `ALTER TABLE`. If you need to resume ingestion, recreate the table with the connector configuration you need.
+
+```sql Example
+-- Stop ingesting from Kafka but keep the table and its data.
+ALTER TABLE orders DROP CONNECTOR;
 ```
 
 ### `DROP COLUMN`
@@ -309,6 +326,36 @@ ALTER TABLE kafka_source SET source_rate_limit TO 0;
 ```sql Example
 -- Alter the rate limit of this table
 ALTER TABLE kafka_source SET source_rate_limit TO 1000;
+```
+
+### `SET BACKFILL_PARALLELISM`
+
+```sql
+ALTER TABLE table_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_value [ DEFERRED ];
+```
+
+This statement controls the degree of parallelism used during the backfill phase of a streaming job. It lets you tune resource usage for backfilling independently from the job's steady-state parallelism.
+
+<Note>
+`SET BACKFILL_PARALLELISM` is not supported for tables using the Iceberg engine.
+</Note>
+
+| Parameter or clause           | Description |
+| :---------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_value_           | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+| **DEFERRED**                   | Optional. When specified, the change takes effect after the current backfill completes, without interrupting an ongoing backfill. If omitted, the change is applied immediately. |
+
+```sql
+-- Set backfill parallelism to a fixed value
+ALTER TABLE t1 SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER TABLE t1 SET BACKFILL_PARALLELISM = ADAPTIVE;
+
+-- Defer the parallelism change until the current backfill completes
+ALTER TABLE t1 SET BACKFILL_PARALLELISM = 4 DEFERRED;
 ```
 
 ### `SET BACKFILL_RATE_LIMIT`

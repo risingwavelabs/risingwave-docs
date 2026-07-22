@@ -10,7 +10,7 @@ Change data capture (CDC) lets you replicate real-time data changes from operati
 
 RisingWave reads database change streams differently depending on the source database:
 
-- **PostgreSQL**: RisingWave connects directly to PostgreSQL's logical replication slot and reads the write-ahead log (WAL) using the native replication protocol. No Debezium or Kafka is involved.
+- **PostgreSQL**: RisingWave uses an embedded Debezium connector to connect to PostgreSQL's logical replication slot and read the write-ahead log (WAL) using the native replication protocol, without requiring Kafka or an external Debezium deployment.
 - **MySQL and SQL Server**: RisingWave embeds the [Debezium Embedded Engine](https://debezium.io/documentation/reference/development/engine.html) in-process. The engine reads binlog (MySQL) or CDC (SQL Server) directly, without requiring a Kafka cluster or Kafka Connect worker.
 - **MongoDB**: RisingWave reads MongoDB change streams via the native MongoDB change stream API.
 
@@ -40,6 +40,8 @@ CREATE TABLE users (
   table.name = 'users'
 );
 ```
+
+If you create a CDC-backed table this way, you can later stop CDC ingestion while keeping the table and its data by using [`ALTER TABLE ... DROP CONNECTOR`](/sql/commands/sql-alter-table#drop-connector).
 
 **Shared source with multiple derived tables** (recommended for multi-table replication):
 

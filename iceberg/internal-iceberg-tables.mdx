@@ -18,9 +18,7 @@ An Iceberg `CONNECTION` defines the catalog and object storage configuration.
 
 You must specify the `type` and `warehouse.path` parameters, along with the required parameters for your catalog and object storage. To use the JDBC-based built-in catalog, set `hosted_catalog` to `true`.
 
-`commit_checkpoint_interval` and `commit_checkpoint_size_threshold_mb` are configured on the table or sink `WITH (...)` properties (for example, `CREATE TABLE ... ENGINE = iceberg WITH (...)`), not on the `CONNECTION` object itself. In the default configuration, Iceberg commits happen about every **60 seconds** (`commit_checkpoint_interval = 60`).
-
-You can also set `commit_checkpoint_size_threshold_mb` to trigger early commits based on buffered data size. When uncommitted write data exceeds this threshold (in MB), RisingWave commits at the next checkpoint barrier regardless of `commit_checkpoint_interval`. This value must be greater than `0`; the default is `128` MB. This is especially useful during large backfills to avoid accumulating too much uncommitted data.
+`commit_checkpoint_interval` is configured on the table or sink `WITH (...)` properties (for example, `CREATE TABLE ... ENGINE = iceberg WITH (...)`), not on the `CONNECTION` object itself. In the default configuration, Iceberg commits happen about every **60 seconds** (`commit_checkpoint_interval = 60`).
 
 When you create a `CONNECTION`, you specify the object storage backend where the table data will be stored. You also specify the catalog that will manage the table's metadata.
 
@@ -153,7 +151,7 @@ Supported partitioning strategies include by column, by multiple columns, and by
 
 Once created, you can work with an internal Iceberg table using familiar SQL (insert, query, materialized views).
 
-One important difference: **new writes become queryable only after an Iceberg commit**. By default, Iceberg commits happen about every **60 seconds** (controlled by `commit_checkpoint_interval`), or earlier when the buffered write size exceeds `commit_checkpoint_size_threshold_mb` (default: `128` MB).
+One important difference: **new writes become queryable only after an Iceberg commit**. By default, Iceberg commits happen about every **60 seconds** (controlled by `commit_checkpoint_interval`).
 
 ### Ingest data
 

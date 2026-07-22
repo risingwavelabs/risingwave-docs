@@ -83,6 +83,10 @@ CONNECTOR WITH (
 );
 ```
 
+<Note>
+For routine, supported property updates, prefer using `ALTER SOURCE ... CONNECTOR WITH`. For advanced operational scenarios (such as updating properties not supported by `ALTER SOURCE`), you can use low-level `risectl` commands. These are intended for cluster operators and require direct access to the RisingWave binary. See [Update source properties with risectl](/operate/risectl-source-commands) for details.
+</Note>
+
 ### `REFRESH SCHEMA`
 
 Fetch the latest schema from the schema registry and update the source schema.
@@ -188,6 +192,32 @@ SET PARALLELISM { TO | = } parallelism_number;
 
 ```sql
 ALTER SOURCE s_kafka SET PARALLELISM = 2;
+```
+
+### `SET BACKFILL_PARALLELISM`
+
+```sql
+ALTER SOURCE source_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_value [ DEFERRED ];
+```
+
+This statement controls the degree of parallelism used during the backfill phase of a source. It lets you tune resource usage for backfilling independently from the source's steady-state parallelism.
+
+| Parameter or clause           | Description |
+| :---------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_value_           | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+| **DEFERRED**                   | Optional. When specified, the change takes effect after the current backfill completes, without interrupting an ongoing backfill. If omitted, the change is applied immediately. |
+
+```sql
+-- Set backfill parallelism to a fixed value
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = ADAPTIVE;
+
+-- Defer the parallelism change until the current backfill completes
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = 4 DEFERRED;
 ```
 
 ### `SET SOURCE_RATE_LIMIT`

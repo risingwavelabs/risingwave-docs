@@ -14,6 +14,80 @@ _`alter_option`_ depends on the operation you want to perform on the connection.
 
 ## Clause
 
+### `CONNECTOR WITH`
+
+<Note>
+Added in v2.8.0.
+</Note>
+
+```sql
+ALTER CONNECTION connection_name
+    CONNECTOR WITH ( property_name = value [, ...] );
+```
+
+This clause updates alterable connector properties in an existing connection and propagates the changes to dependent sources and sinks. For connector-backed tables that use the connection, RisingWave applies the updated configuration through the underlying source.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **CONNECTOR WITH**  | Updates connector properties in an existing connection without recreating it. |
+| _property\_name_    | Use the same format as in [`CREATE CONNECTION`](/sql/commands/sql-create-connection). Currently supported for Kafka connections only. Supported properties: `properties.security.protocol`, `properties.ssl.endpoint.identification.algorithm`, `properties.ssl.ca.location`, `properties.ssl.ca.pem`, `properties.ssl.certificate.location`, `properties.ssl.certificate.pem`, `properties.ssl.key.location`, `properties.ssl.key.pem`, `properties.ssl.key.password`, `properties.sasl.mechanism`, `properties.sasl.username`, and `properties.sasl.password`. Secret references are supported. |
+
+#### Permissions
+
+You must have privilege to alter the connection (the same privilege checks as other `ALTER` operations on catalog objects).
+
+#### Behavior
+
+When you run `ALTER CONNECTION ... CONNECTOR WITH (...)`:
+
+1. **Catalog update (atomic)**: The meta service updates the connection's stored properties and secret references, and then updates the stored connector options of dependent sources and sinks in the same transaction. For connector-backed tables that use the connection, this updates the underlying source.
+
+2. **Validation**: The meta service validates that the altered keys are allowed to be changed online, validates the updated connection, and validates each updated dependent source and sink.
+
+3. **Runtime propagation**: The meta service broadcasts a barrier mutation carrying the complete properties for each dependent object. Compute nodes rebuild source readers or sink configurations when they receive the mutation. Running jobs typically pick up the new configuration on the next barrier.
+
+#### Limitations
+
+- Only the Kafka connection properties listed above can be altered online. Attempting to change any other property returns an error.
+- To change `properties.bootstrap.server`, alter the referenced secret first, and then run `ALTER CONNECTION ... CONNECTOR WITH (...)` to propagate the updated configuration online.
+- `ALTER CONNECTION ... CONNECTOR WITH (...)` does not support nested `CONNECTION` references inside the `WITH (...)` options.
+
+#### Example
+
+This example shows how to rotate a Kafka broker stored in a secret and update SASL credentials online:
+
+```sql
+-- Create a secret for the bootstrap broker
+CREATE SECRET s_broker WITH ( backend = 'meta' ) AS 'broker1.example.com:9092';
+
+-- Create a Kafka connection that references the secret
+CREATE CONNECTION kafka_conn WITH (
+  type = 'kafka',
+  properties.bootstrap.server = SECRET s_broker,
+  properties.security.protocol = 'SASL_PLAINTEXT',
+  properties.sasl.mechanism = 'PLAIN',
+  properties.sasl.username = 'user1',
+  properties.sasl.password = 'password1'
+);
+
+-- Create a table that uses the connection
+CREATE TABLE t_conn (x INT) WITH (
+  connector = 'kafka',
+  connection = kafka_conn,
+  topic = 'test_topic'
+) FORMAT PLAIN ENCODE JSON;
+
+-- Rotate the broker stored in the secret
+ALTER SECRET s_broker WITH ( backend = 'meta' ) AS 'broker2.example.com:9092';
+
+-- Trigger online propagation by updating an allowed Kafka connection property
+ALTER CONNECTION kafka_conn CONNECTOR WITH (
+  properties.sasl.username = 'user2'
+);
+```
+
+After running these commands, the connector-backed table `t_conn` continues ingesting with the updated connection configuration without being dropped and recreated.
+
 ### `SET SCHEMA`
 
 ```sql

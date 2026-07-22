@@ -46,24 +46,20 @@ Below is the detailed information about the parameters you may see after using t
 | transaction_isolation                       | read committed                  | See [here](https://www.postgresql.org/docs/current/transaction-iso.html) for details.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | query_epoch                                 | 0                               | Select as of specific epoch. Sets the historical epoch for querying data. If 0, querying latest data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | timezone                                     | UTC                             | Session timezone. Defaults to UTC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| streaming_parallelism                       | ADAPTIVE/0,1,2,...              | If `STREAMING_PARALLELISM` is non-zero, CREATE MATERIALIZED VIEW/TABLE/INDEX will use it as streaming parallelism. The value will be bounded at `STREAMING_MAX_PARALLELISM`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| streaming_parallelism_for_table      | default/1,2,3,... | Specific parallelism for tables. If set to `default`, it will fall back to the global `streaming_parallelism`. |
-| streaming_parallelism_for_materialized_view | default/1,2,3,... | Specific parallelism for materialized views. If set to `default`, it will fall back to the global `streaming_parallelism`. |
-| streaming_parallelism_for_index      | default/1,2,3,... | Specific parallelism for indexes. If set to `default`, it will fall back to the global `streaming_parallelism`. |
-| streaming_parallelism_for_sink       | default/1,2,3,... | Specific parallelism for sinks. If set to `default`, it will fall back to the global `streaming_parallelism`. |
-| streaming_parallelism_for_source     | default/1,2,3,... | Specific parallelism for sources. If set to `default`, it will fall back to the global `streaming_parallelism`. |
-| streaming_parallelism_strategy | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Global adaptive parallelism strategy for streaming jobs. Determines how parallelism is computed for adaptive parallelism. <ul><li>`default`: Inherits from system-level setting.</li><li>`AUTO` or `FULL`: Uses all available CPU cores in the resource group.</li><li>`BOUNDED(N)`: Limits parallelism to a maximum of N (e.g., `BOUNDED(4)`).</li><li>`RATIO(R)`: Uses a ratio of available cores, where R is greater than 0 and less than or equal to 1 (e.g., `RATIO(0.5)` uses half of available cores).</li></ul> This setting only applies when `streaming_parallelism` is set to `ADAPTIVE`. Fixed parallelism values override this strategy. |
-| streaming_parallelism_strategy_for_table | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for tables. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
-| streaming_parallelism_strategy_for_materialized_view | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for materialized views. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
-| streaming_parallelism_strategy_for_index | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for indexes. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
-| streaming_parallelism_strategy_for_sink | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for sinks. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
-| streaming_parallelism_strategy_for_source | default/AUTO/FULL/BOUNDED(N)/RATIO(R) | Adaptive parallelism strategy for sources. If set to `default`, it will fall back to the global `streaming_parallelism_strategy`. |
+| streaming_parallelism                       | default/adaptive/0/`<n>`/bounded(`<n>`)/ratio(`<r>`) | Streaming parallelism policy for `CREATE MATERIALIZED VIEW/TABLE/INDEX/SOURCE/SINK`. Accepts a fixed integer `<n>`, `adaptive` (equivalent to `0`) for full adaptive scheduling, `bounded(<n>)` or `ratio(<r>)` for capped adaptive scheduling, or `default` to use the built-in default, which resolves to `bounded(64)`. The effective parallelism is capped at `streaming_max_parallelism`. See [Adaptive parallelism strategies](#adaptive-parallelism-strategies) for details. |
+| streaming_parallelism_for_backfill   | default/1,2,3,... | Specific parallelism for backfill operations in streaming jobs. If set to `default`, it will fall back to the global `streaming_parallelism`. The job automatically switches to normal streaming parallelism after backfill completes. |
+| streaming_parallelism_for_table      | default/adaptive/0/`<n>`/bounded(`<n>`)/ratio(`<r>`) | Per-job-type policy for tables. Accepts the same value forms as `streaming_parallelism`. `default` resolves to `bounded(4)` when `streaming_parallelism` is also `default`; otherwise it follows the resolved global value. |
+| streaming_parallelism_for_materialized_view | default/adaptive/0/`<n>`/bounded(`<n>`)/ratio(`<r>`) | Per-job-type policy for materialized views. Accepts the same value forms as `streaming_parallelism`. `default` follows the resolved global value. |
+| streaming_parallelism_for_index      | default/adaptive/0/`<n>`/bounded(`<n>`)/ratio(`<r>`) | Per-job-type policy for indexes. Accepts the same value forms as `streaming_parallelism`. `default` follows the resolved global value. |
+| streaming_parallelism_for_sink       | default/adaptive/0/`<n>`/bounded(`<n>`)/ratio(`<r>`) | Per-job-type policy for sinks. Accepts the same value forms as `streaming_parallelism`. `default` follows the resolved global value. |
+| streaming_parallelism_for_source     | default/adaptive/0/`<n>`/bounded(`<n>`)/ratio(`<r>`) | Per-job-type policy for sources. Accepts the same value forms as `streaming_parallelism`. `default` resolves to `bounded(4)` when `streaming_parallelism` is also `default`; otherwise it follows the resolved global value. |
 | streaming_max_parallelism                  | 256                             | The maximum parallelism allowed for streaming queries. For more information, see [Configuring maximum parallelism](/deploy/k8s-cluster-scaling#configuring-maximum-parallelism).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | streaming_enable_delta_join           | true/false                      | Enable delta join for streaming queries. Defaults to false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | streaming_enable_bushy_join           | true/false                      | Enable bushy join for streaming queries. Defaults to true.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | streaming_enable_materialized_expressions           | true/false                      | Enable materialized expressions for impure functions (typically UDF). Defaults to true.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | streaming_enable_unaligned_join           | true/false                      | Control whether the streaming join should be unaligned or not. See [Isolating high-amplification joins](/processing/sql/joins#isolating-high-amplification-joins) for more details.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | streaming_force_filter_inside_join           | true/false                      | Force filter to be pushed down into inner join. Defaults to false. See [inner join](/processing/sql/joins#inner-joins) for more details.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| streaming_unsafe_allow_upsert_sink_pk_mismatch | true/false | Unsafe: allow an upsert sink created with `snapshot=false` to use downstream primary-key columns that are not part of the upstream stream key. Defaults to false. Enable it only for compatibility cases where the sink input still contains complete old and new rows; otherwise downstream primary-key changes may leave stale rows. |
 | streaming_join_encoding | memory_optimized /cpu_optimized | Control which encoding strategy of rows is used in the join operator. <ul><li>`memory_optimized`: Uses more CPU but significantly reduces memory per cached row, allowing more rows to be stored. Recommended when state size exceeds memory or disk cache, often indicated by high cache misses or remote I/O in Grafana.</li><li>`cpu_optimized`: Uses less CPU but more memory per row. Recommended when state fits in memory or cache. Can improve performance by up to 50%, depending on query complexity.</li></ul>  |
 | streaming_separate_consecutive_join           | true/false                      |  Separate consecutive StreamHashJoin by no-shuffle StreamExchange. Defaults to false.                                               |
 | streaming_separate_sink         | true/false                      |  Separate StreamSink by no-shuffle StreamExchange. Defaults to false.                                               |
@@ -72,7 +68,7 @@ Below is the detailed information about the parameters you may see after using t
 | enable_index_selection                  | true/false                      | Enable index selection for streaming and batch queries. Defaults to true. For details, see [Index selection](/performance/best-practices#index-selection).|
 | enable_join_ordering                   | true/false                      | Enable join ordering for streaming and batch queries. Defaults to true.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | enable_locality_backfill | true/false | Enable locality backfill for streaming queries. Defaults to false. For details, see [Locality backfill](/performance/best-practices#locality-backfill).|
-| enable_serverless_backfill | true/false | Enable serverless backfill for materialized view creation in the current session. Defaults to false. Serverless backfilling is not supported for databases in non-default resource groups. In RisingWave Cloud, enable serverless backfilling in the Cloud console first. For details, see [Serverless backfill](/processing/serverless-backfill).|
+| enable_serverless_backfill | true/false | Enable serverless backfilling for materialized view creation in the current session. Defaults to false. Serverless backfilling is not supported for databases in non-default resource groups. In RisingWave Cloud, enable serverless backfilling in the Cloud console first. For details, see [Serverless backfilling](/processing/serverless-backfill).|
 | enable_two_phase_agg                  | true/false                      | Enable two phase agg optimization. Defaults to true. Setting this to true will always set `FORCE_TWO_PHASE_AGG` to false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | force_two_phase_agg                   | true/false                      | Force two phase agg optimization whenever there's a choice between optimizations. Defaults to false. Setting this to true will always set `ENABLE_TWO_PHASE_AGG` to false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | enable_share_plan                      | true/false                      | Enable sharing of common sub-plans. This means that DAG structured query plans can be constructed, rather than only tree structured query plans.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -135,50 +131,114 @@ You can also use the [ALTER SYSTEM SET](/sql/commands/sql-alter-system) command 
 ALTER SYSTEM SET session_param_name TO session_param_value;
 ```
 
+## Usage examples
+
+### Configuring backfill parallelism
+
+The `streaming_parallelism_for_backfill` parameter allows you to specify different parallelism for backfill operations versus normal streaming. This is useful for optimizing resource utilization during the initial data loading phase.
+
+```sql Example
+SET STREAMING_PARALLELISM = 3;
+SET STREAMING_PARALLELISM_FOR_BACKFILL = 2;
+SET BACKFILL_RATE_LIMIT = 1;
+SET BACKGROUND_DDL = true;
+
+CREATE TABLE t(v int);
+INSERT INTO t SELECT * FROM generate_series(1, 10);
+
+CREATE MATERIALIZED VIEW m AS SELECT * FROM t;
+
+-- While backfill is running, check parallelism
+SHOW JOBS;
+SELECT name, parallelism FROM rw_fragment_parallelism WHERE name = 'm';
+-- Output: parallelism = 2 (using streaming_parallelism_for_backfill)
+
+-- After backfill completes, check parallelism again
+SHOW JOBS;
+SELECT name, parallelism FROM rw_fragment_parallelism WHERE name = 'm';
+-- Output: parallelism = 3 (switched to streaming_parallelism)
+```
+
+The materialized view uses parallelism of 2 during the backfill phase, then automatically switches to parallelism of 3 after backfill completes.
+
 ## Adaptive parallelism strategies
 
-When `streaming_parallelism` is set to `ADAPTIVE` (the default), you can control how parallelism is computed using adaptive parallelism strategies. These strategies provide fine-grained control over how streaming jobs utilize available CPU cores.
+Streaming parallelism is configured through a single family of unified parameters:
 
-### Strategy types
+- `streaming_parallelism` — the global policy.
+- `streaming_parallelism_for_<type>` — per-job-type overrides, where `<type>` is one of `table`, `materialized_view`, `index`, `source`, or `sink`.
 
-- **AUTO** or **FULL**: Uses all available CPU cores in the resource group. This maximizes resource utilization for high-throughput workloads.
-- **BOUNDED(N)**: Limits parallelism to a maximum of N. For example, `BOUNDED(4)` ensures the job uses at most 4 parallel workers.
-- **RATIO(R)**: Uses a ratio of available cores, where R is a decimal greater than 0 and less than or equal to 1. For example, `RATIO(0.5)` uses half of the available cores.
-- **DEFAULT**: Falls back to the session or system-level strategy setting.
+Each parameter accepts a value that either pins a fixed parallelism or selects an adaptive strategy, giving you fine-grained control over how streaming jobs utilize available worker parallelism in the resource group.
+
+### Accepted values
+
+Each unified parameter accepts one of the following forms:
+
+- **`<n>`**: A positive integer, for example `4`. Pins the job to a fixed parallelism. The effective parallelism is still capped by `streaming_max_parallelism`.
+- **`adaptive`** (or **`0`**): Uses all available worker parallelism in the resource group. Maximizes resource utilization for high-throughput workloads.
+- **`bounded(<n>)`**: Adaptive scheduling with an upper bound of `<n>`, for example `bounded(4)`. The job scales with the resource group but never exceeds `<n>` parallel workers.
+- **`ratio(<r>)`**: Adaptive scheduling using a fraction of the available worker parallelism, where `0 < r ≤ 1`, for example `ratio(0.5)`.
+- **`default`**: Falls back to the built-in default.
+  - For `streaming_parallelism`, `default` resolves to `bounded(64)`.
+  - For `streaming_parallelism_for_table` and `streaming_parallelism_for_source`, `default` resolves to `bounded(4)` when `streaming_parallelism` is also `default`; otherwise it follows the resolved global value.
+  - For the other `streaming_parallelism_for_<type>` parameters, `default` follows the resolved global value.
 
 ### Examples
 
-Set a system-wide strategy for all streaming jobs (applies to new sessions):
+Set a session-level policy for all streaming jobs:
 
 ```sql
-ALTER SYSTEM SET adaptive_parallelism_strategy TO 'BOUNDED(4)';
+SET streaming_parallelism = 'ratio(0.5)';
 ```
 
-Set a session-level strategy (applies within the current session):
+Pin a fixed parallelism:
 
 ```sql
-SET streaming_parallelism_strategy = 'RATIO(0.5)';
+SET streaming_parallelism = 8;
 ```
 
-Set specific strategies for different job types:
+Cap adaptive parallelism at an upper bound:
 
 ```sql
-SET streaming_parallelism_strategy_for_table = 'FULL';
-SET streaming_parallelism_strategy_for_materialized_view = 'BOUNDED(8)';
-SET streaming_parallelism_strategy_for_sink = 'RATIO(0.3)';
+SET streaming_parallelism = 'bounded(16)';
 ```
 
-Create a table with a specific strategy:
+Override parallelism per job type within the same session:
 
 ```sql
-SET streaming_parallelism_strategy_for_table = 'BOUNDED(2)';
+SET streaming_parallelism_for_table = 'adaptive';
+SET streaming_parallelism_for_materialized_view = 'bounded(8)';
+SET streaming_parallelism_for_sink = 'ratio(0.3)';
+```
+
+Create a table with a specific policy:
+
+```sql
+SET streaming_parallelism_for_table = 'bounded(2)';
 CREATE TABLE my_table (id INT, value VARCHAR);
+```
+
+Restore a parameter to its default:
+
+```sql
+SET streaming_parallelism_for_materialized_view = DEFAULT;
+-- or equivalently
+SET streaming_parallelism_for_materialized_view = 'default';
+```
+
+Set a system-wide default that applies to new sessions:
+
+```sql
+ALTER SYSTEM SET streaming_parallelism TO 'bounded(4)';
 ```
 
 ### Important notes
 
-- Adaptive parallelism strategies only apply when `streaming_parallelism` is set to `ADAPTIVE`.
-- If you set a fixed parallelism value (e.g., `SET streaming_parallelism = 4`), the strategy settings are ignored.
-- Job-specific strategy parameters (e.g., `streaming_parallelism_strategy_for_table`) take precedence over the global `streaming_parallelism_strategy`.
-- The strategy is persisted with the streaming job at creation time and remains effective even if system-level settings change later.
-- Note: The system-level parameter is named `adaptive_parallelism_strategy` (use with `ALTER SYSTEM SET`), while session-level parameters are named `streaming_parallelism_strategy*` (use with `SET`).
+- Per-job-type parameters (`streaming_parallelism_for_<type>`) take precedence over the global `streaming_parallelism`. When a per-type parameter is `default`, it inherits from the resolved global value, with the exceptions for `table` and `source` noted above.
+- The resolved policy is persisted with the streaming job at creation time and remains effective even if session or system-level settings change later.
+- The concrete policy for each job is visible in system catalogs and diagnostics. Fixed parallelism displays as an integer (for example, `4`); adaptive policies display as `adaptive`, `bounded(<n>)`, or `ratio(<r>)`. This applies to `pg_catalog.pg_settings`, `rw_streaming_parallelism`, `rw_streaming_jobs`, `rw_table_fragments`, and diagnose-style output.
+- `ALTER TABLE|SOURCE|SINK|INDEX|MATERIALIZED VIEW ... SET PARALLELISM` accepts the same value forms (`adaptive`, `0`, a fixed integer, `bounded(<n>)`, `ratio(<r>)`). Fragment-level `ALTER ... SET PARALLELISM` remains limited to `adaptive` and fixed integers.
+
+<Note>
+Older releases exposed the deprecated parameters `adaptive_parallelism_strategy` (system-level) and `streaming_parallelism_strategy` / `streaming_parallelism_strategy_for_<type>` (session-level). On upgrade, meta migrates their values into `streaming_parallelism` and `streaming_parallelism_for_<type>` once, then removes the deprecated entries. New clusters only expose the unified parameters, and `pg_catalog.pg_settings` no longer lists `adaptive_parallelism_strategy`.
+</Note>

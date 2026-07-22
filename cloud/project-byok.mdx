@@ -1,0 +1,745 @@
+---
+title: "Bring your own Kubernetes"
+description: "This guide walks you through deploying RisingWave in your own Kubernetes cluster using the BYOK8s (Bring Your Own Kubernetes) model."
+---
+
+<Warning>
+BYOK8s is currently in **early access**. To enable BYOK8s for your organization, contact our [support team](mailto:cloud-support@risingwave-labs.com).
+</Warning>
+
+The Bring Your Own Kubernetes (BYOK8s) plan lets you run RisingWave in your own Kubernetes cluster while RisingWave manages the database workloads. Unlike [BYOC](/cloud/project-byoc) where RisingWave manages the entire data plane infrastructure, BYOK8s gives you full control over the underlying cloud resources — networking, IAM, storage, and the Kubernetes cluster itself — while RisingWave handles the Kubernetes-level workloads and cluster operations.
+
+## BYOC vs BYOK8s
+
+| Aspect | BYOC | BYOK8s |
+| --- | --- | --- |
+| Infrastructure (VPC, K8s, networking) | RisingWave manages | Customer manages |
+| IAM roles and policies | RisingWave provisions | Customer provisions |
+| Security groups and firewalls | RisingWave manages | Customer manages |
+| K8s workloads (Agent, Proxy, Operator) | RisingWave manages | RisingWave manages |
+| RisingWave clusters | RisingWave manages | RisingWave manages |
+| Object storage | RisingWave provisions | Customer provisions |
+| Observability | RisingWave provisions | RisingWave deploys telemetry stack; customer provisions storage (S3 buckets) |
+
+## Architecture overview
+
+In a BYOK8s environment, RisingWave deploys and manages the following components in your Kubernetes cluster:
+
+- **CloudAgent**: Handles operations sent by the RisingWave control plane (cluster provisioning, scaling, upgrades).
+- **RWProxy**: Routes PostgreSQL protocol traffic from the control plane and user clients to the appropriate RisingWave instances.
+- **RisingWave Operator**: Manages RisingWave Custom Resource lifecycle in Kubernetes.
+- **Self-hosted telemetry stack**: VictoriaMetrics (metrics), Loki (logs), and Grafana Alloy (collection) — deployed automatically inside the BYOK8s cluster. No external observability services are required.
+
+Communication between the RisingWave control plane and your BYOK8s cluster is established via private network connectivity (AWS PrivateLink), ensuring all traffic stays off the public internet.
+
+## Prerequisites
+
+Before setting up a BYOK8s environment, you must provision the following resources in your cloud account.
+
+<Tip>
+**Reference Terraform examples** are available at [`risingwavelabs/risingwave-byok-terraform-example`](https://github.com/risingwavelabs/risingwave-byok-terraform-example). They provision all of the prerequisites below and generate the config files used by the `rwc` CLI. Fork and adapt to your network/security requirements.
+
+<Tabs>
+<Tab title="AWS">
+- [`aws/base_env`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/base_env) — VPC, EKS, S3, KMS, IAM, NLBs + VPC Endpoint Services
+- [`aws/k8s_addons`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/k8s_addons) — cert-manager, AWS Load Balancer Controller, Karpenter NodePools (emits `byok_config.yaml`)
+- [`aws/tenant_resources`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/tenant_resources) — per-cluster RDS metastore + IAM role (emits `byok_tenant_config.yaml`)
+</Tab>
+<Tab title="GCP">
+GCP examples will be added when GCP GKE support lands.
+</Tab>
+</Tabs>
+</Tip>
+
+### 1. Kubernetes cluster
+
+<Tabs>
+<Tab title="AWS">
+- **Provider**: Amazon EKS
+- **Version**: Kubernetes 1.32 or higher
+- **Region**: Must be in the same AWS region as the RisingWave Cloud control plane
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+<Warning>
+The following Kubernetes namespaces are reserved for RisingWave-managed components. **Do not create or use these namespaces for your own workloads** — RisingWave will create and manage them during BYOK8s environment setup and cluster provisioning.
+
+| Namespace | Component |
+| --- | --- |
+| `rw-cloudagent` | CloudAgent |
+| `rwproxy` | RWProxy |
+| `risingwave-operator-system` | RisingWave Operator |
+| `rw-victoria-metrics` | VictoriaMetrics (metrics storage) |
+| `rw-loki` | Loki (log storage) |
+| `rw-telemetry-collector` | Grafana Alloy |
+| `rw-kube-state-metrics` | kube-state-metrics |
+| `rw-kubernetes-event-exporter` | kubernetes-event-exporter |
+| `rw-hcm-suppressor` | High cardinality metrics suppressor |
+| `rwc-*` | RisingWave clusters (one namespace per cluster) |
+</Warning>
+
+### 2. Cluster dependencies
+
+<Tabs>
+<Tab title="AWS">
+The following must be pre-installed on your EKS cluster:
+
+| Component | Version | Purpose |
+| --- | --- | --- |
+| cert-manager | v1.19.2+ | Internal certificate management |
+| AWS Load Balancer Controller | v1.17.0+ | Provision NLBs and ALBs |
+| Amazon EBS CSI Driver | v1.54.0+ | Persistent volumes for telemetry and compute cache |
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+### 3. Object storage
+
+Provision **two separate** storage buckets in the same region as your Kubernetes cluster.
+
+| Bucket | Purpose |
+| --- | --- |
+| **Data store** | RisingWave state store (cluster data) |
+| **Log store** | Loki log storage (self-hosted telemetry) |
+
+<Note>
+We recommend separate buckets so that data and logs can have independent lifecycle policies, access controls, and retention. The data store typically contains sensitive cluster state, while the log store contains observability data with different access and retention requirements.
+</Note>
+
+<Tabs>
+<Tab title="AWS">
+Provide the S3 bucket **ARNs** for both buckets.
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+### 4. Encryption at rest
+
+<Tabs>
+<Tab title="AWS">
+Provide a KMS key ARN for EBS encryption. This is used by VictoriaMetrics and Loki persistent volumes, and RisingWave compute cache storage.
+
+<Warning>
+The KMS key policy must allow this key to be used for EBS encryption, either directly or by delegating access to IAM principals. Depending on your setup, the IAM principal used by the EBS CSI controller may also need the relevant KMS permissions. Otherwise, persistent volume claims for VictoriaMetrics, Loki, and the RisingWave compute cache will stay `Pending` and `rwc byok apply` will fail. See the [reference Terraform example](https://github.com/risingwavelabs/risingwave-byok-terraform-example/blob/main/aws/base_env/kms.tf) for a working KMS key policy.
+</Warning>
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+### 5. Terraform state backend
+
+<Tabs>
+<Tab title="AWS">
+Provision an S3 bucket and a DynamoDB table for storing BYOK8s environment Terraform state and state locking. CloudAgent uses this backend to manage Terraform resources inside your Kubernetes cluster, and the IAM policy in the next step references both.
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+### 6. Identity and access management
+
+<Tabs>
+<Tab title="AWS">
+You must create the following IAM roles:
+
+**A. Setup IAM (user context)**
+
+This role is used by the person or CI/CD pipeline running the BYOK8s setup commands. It is not used by any in-cluster workloads.
+
+- Must have `eks:DescribeCluster` permission on the target EKS cluster.
+- Must have an [access entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) in the EKS cluster with the `AmazonEKSClusterAdminPolicy` access policy attached.
+
+**B. CloudAgent IAM (service context)**
+
+This role is assumed by CloudAgent via [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). CloudAgent needs access to both the data store bucket (for cluster state operations) and the [Terraform state backend](#5-terraform-state-backend) (S3 bucket plus DynamoDB lock table) that it uses to manage in-cluster resources. Minimum permissions:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DataStore",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::$DATA_STORE_BUCKET",
+                "arn:aws:s3:::$DATA_STORE_BUCKET/*"
+            ]
+        },
+        {
+            "Sid": "TerraformStateBucket",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::$TFSTATE_BUCKET",
+                "arn:aws:s3:::$TFSTATE_BUCKET/*"
+            ]
+        },
+        {
+            "Sid": "TerraformStateLock",
+            "Effect": "Allow",
+            "Action": "dynamodb:*",
+            "Resource": "arn:aws:dynamodb:$REGION:$ACCOUNT_ID:table/$TFLOCK_TABLE"
+        }
+    ]
+}
+```
+
+Where `$TFSTATE_BUCKET` and `$TFLOCK_TABLE` correspond to the S3 bucket and DynamoDB table provisioned in [Terraform state backend](#5-terraform-state-backend).
+
+**C. Loki IAM (service context)**
+
+This role is assumed by Loki via IRSA for reading and writing logs to S3. Minimum permissions:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::$LOG_STORE_BUCKET",
+                "arn:aws:s3:::$LOG_STORE_BUCKET/*"
+            ]
+        }
+    ]
+}
+```
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+### 7. Network connectivity
+
+<Tabs>
+<Tab title="AWS">
+Provision **two** internal Network Load Balancers with VPC Endpoint Services for PrivateLink connectivity from the RisingWave control plane.
+
+**CloudAgent NLB** — one target group per port:
+
+| Port | Protocol | Purpose |
+| --- | --- | --- |
+| 40001 | TCP | Service port |
+| 40090 | TCP | Metrics and status |
+
+**RWProxy NLB** — one target group per port. The webhook listener port differs from its target port (the control plane reaches it on `443` over TLS; the RWProxy pod listens on `4580`); pgwire and metrics use the same port on both sides.
+
+| Listener port | Target port | Protocol | Purpose |
+| --- | --- | --- | --- |
+| 4566 | 4566 | TCP | PostgreSQL protocol |
+| 443  | 4580 | TCP | Webhook (HTTPS) |
+| 9099 | 9099 | TCP | Metrics and status |
+
+For each NLB, create a [VPC Endpoint Service](https://docs.aws.amazon.com/vpc/latest/privatelink/create-endpoint-service.html) and allow the RisingWave control plane AWS account (`600598779918`) as an allowed principal.
+
+<Accordion title="Terraform example for NLBs and VPC Endpoint Services">
+```hcl
+# CloudAgent NLB
+resource "aws_lb" "cloudagent" {
+  name               = "${var.prefix}-ca"
+  internal           = true
+  load_balancer_type = "network"
+  subnets            = var.private_subnet_ids
+  enable_cross_zone_load_balancing = true
+}
+
+resource "aws_lb_target_group" "cloudagent" {
+  name        = "${var.prefix}-ca"
+  port        = 40001
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = var.vpc_id
+}
+
+resource "aws_lb_target_group" "cloudagent_zpage" {
+  name        = "${var.prefix}-cazp"
+  port        = 40090
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = var.vpc_id
+}
+
+resource "aws_lb_listener" "cloudagent" {
+  load_balancer_arn = aws_lb.cloudagent.arn
+  port              = 40001
+  protocol          = "TCP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.cloudagent.arn
+  }
+}
+
+resource "aws_lb_listener" "cloudagent_zpage" {
+  load_balancer_arn = aws_lb.cloudagent.arn
+  port              = 40090
+  protocol          = "TCP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.cloudagent_zpage.arn
+  }
+}
+
+resource "aws_vpc_endpoint_service" "cloudagent" {
+  acceptance_required        = false
+  network_load_balancer_arns = [aws_lb.cloudagent.arn]
+  allowed_principals         = ["arn:aws:iam::600598779918:root"]
+}
+
+# RWProxy NLB
+resource "aws_lb" "rwproxy" {
+  name               = "${var.prefix}-rp"
+  internal           = true
+  load_balancer_type = "network"
+  subnets            = var.private_subnet_ids
+  enable_cross_zone_load_balancing = true
+}
+
+resource "aws_lb_target_group" "rwproxy_internal" {
+  name        = "${var.prefix}-rpi"
+  port        = 4566
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = var.vpc_id
+}
+
+resource "aws_lb_target_group" "rwproxy_metrics" {
+  name        = "${var.prefix}-rpm"
+  port        = 9099
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = var.vpc_id
+}
+
+resource "aws_lb_target_group" "rwproxy_webhook" {
+  name        = "${var.prefix}-rpw"
+  port        = 4580
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = var.vpc_id
+}
+
+resource "aws_lb_listener" "rwproxy_internal" {
+  load_balancer_arn = aws_lb.rwproxy.arn
+  port              = 4566
+  protocol          = "TCP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.rwproxy_internal.arn
+  }
+}
+
+resource "aws_lb_listener" "rwproxy_metrics" {
+  load_balancer_arn = aws_lb.rwproxy.arn
+  port              = 9099
+  protocol          = "TCP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.rwproxy_metrics.arn
+  }
+}
+
+resource "aws_lb_listener" "rwproxy_webhook" {
+  load_balancer_arn = aws_lb.rwproxy.arn
+  port              = 443 # externally exposed listener port; target group still forwards to pod port 4580
+  protocol          = "TCP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.rwproxy_webhook.arn
+  }
+}
+
+resource "aws_vpc_endpoint_service" "rwproxy" {
+  acceptance_required        = false
+  network_load_balancer_arns = [aws_lb.rwproxy.arn]
+  allowed_principals         = ["arn:aws:iam::600598779918:root"]
+}
+```
+</Accordion>
+
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+## Create a BYOK8s environment
+
+BYOK8s uses the `rwc` CLI to provision and manage environments. Before continuing, install and authenticate the CLI by following [Install the RisingWave Cloud CLI](/cloud/install-cli).
+
+### Step 1: Prepare the configuration file
+
+Create a YAML configuration file with your infrastructure details:
+
+<Tabs>
+<Tab title="AWS">
+```yaml
+cloud_provider: aws
+region: us-west-2
+
+aws:
+  account_id: "123456789012"
+  eks_cluster_name: my-eks-cluster
+
+  s3_buckets:
+    data_store_arn: arn:aws:s3:::my-risingwave-data
+    log_store_arn: arn:aws:s3:::my-risingwave-logs
+
+  ebs_encryption_key_arn: arn:aws:kms:us-west-2:123456789012:key/...
+
+  iam_roles:
+    cloudagent_role_arn: arn:aws:iam::123456789012:role/RisingWaveCloudAgent
+    loki_role_arn: arn:aws:iam::123456789012:role/RisingWaveLoki
+
+  network_load_balancers:
+    cloudagent_target_group_arn: arn:aws:elasticloadbalancing:...
+    cloudagent_zpage_target_group_arn: arn:aws:elasticloadbalancing:...
+    rwproxy_target_group_arn: arn:aws:elasticloadbalancing:...
+    rwproxy_webhook_target_group_arn: arn:aws:elasticloadbalancing:...
+    rwproxy_metrics_target_group_arn: arn:aws:elasticloadbalancing:...
+    cloudagent_subnet_cidrs:
+      - 10.0.1.0/24
+      - 10.0.2.0/24
+    rwproxy_subnet_cidrs:
+      - 10.0.3.0/24
+      - 10.0.4.0/24
+    cloudagent_vpc_endpoint_service_name: com.amazonaws.vpce.us-west-2.vpce-svc-...
+    rwproxy_vpc_endpoint_service_name: com.amazonaws.vpce.us-west-2.vpce-svc-...
+
+  terraform_state:
+    s3_bucket_name: my-risingwave-byok-tfstate
+    dynamodb_table_name: my-risingwave-byok-tflock
+```
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+<Accordion title="Optional: pod scheduling and custom settings">
+You can optionally configure pod scheduling for different workload types and add custom tags:
+
+```yaml
+customized_settings:
+  scheduling:
+    system_workload:
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: risingwave-system
+          effect: NoSchedule
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-type
+                  operator: In
+                  values:
+                    - risingwave-system
+    cluster_workload:
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: risingwave
+          effect: NoSchedule
+    telemetry_workload:
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: telemetry
+          effect: NoSchedule
+    update_workload:
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: update
+          effect: NoSchedule
+  tags:
+    team: data-platform
+    cost-center: engineering
+  metrics_settings:
+    hcm_suppressor_replicas: 1
+    scraping_interval_secs: 30
+    discarded_metrics_regex:
+      - "^rw_connector_.*"
+```
+
+See [Node pool resource requirements](#node-pool-resource-requirements) for sizing guidance on each workload category.
+</Accordion>
+
+### Step 2: Register the environment
+
+```bash
+rwc byok create --name <env-name> --config <path-to-config.yaml>
+```
+
+### Step 3: Deploy resources
+
+```bash
+rwc byok apply --name <env-name>
+```
+
+This deploys all RisingWave-managed components to your EKS cluster via Terraform. The control plane then establishes PrivateLink connectivity and verifies the environment. Once complete, the environment status transitions to `Ready`.
+
+<Tip>
+You can run `rwc byok prepare --name <env-name>` to download the Terraform modules without applying them — useful for reviewing changes before deployment.
+</Tip>
+
+## Create a RisingWave cluster
+
+Creating a RisingWave cluster in a BYOK8s environment uses a **two-phase provisioning flow**. This is because the IRSA trust policy for the cluster's IAM role requires the Kubernetes namespace and service account name, which are only allocated after the cluster is initially created.
+
+<Note>
+Cluster creation in a BYOK8s environment is currently available **only via the `rwc` CLI**. RisingWave Cloud portal support is planned but not yet implemented. Once the cluster is provisioned, you can manage it (including rescaling components and adjusting replicas) from the RisingWave Cloud portal as usual.
+</Note>
+
+### Phase 1: Create the cluster
+
+Create the cluster via the `rwc` CLI. A BYOK8s cluster must use `--tier BYOK` together with per-component sizing flags, and the `--env` flag must point to the BYOK8s environment registered with `rwc byok create`. The metastore is **not** configured at this step — the customer-managed PostgreSQL connection details are supplied in Phase 2 via `rwc cluster byok-config`.
+
+```bash
+rwc cluster create \
+  --name <cluster-name> \
+  --tier BYOK \
+  --env <byok-env-name> \
+  --compute p-4c16g    --compute-replica 1 \
+  --compactor p-2c8g   --compactor-replica 1 \
+  --frontend p-2c8g    --frontend-replica 1 \
+  --meta p-2c8g        --meta-replica 1
+```
+
+Where:
+- `--name` — name of the new RisingWave cluster.
+- `--tier BYOK` — required tier for clusters running in a BYOK8s environment.
+- `--env` — name of the BYOK8s environment registered with `rwc byok create`.
+- `--compute` / `--compactor` / `--frontend` / `--meta` — component-type IDs that match instance shapes available in your Kubernetes cluster. Component IDs follow the pattern `p-<X>c<Y>g`, where `X` is the number of CPU cores and `Y` is the amount of memory in GiB (for example, `p-4c16g` means 4 CPU and 16 GiB memory). The values above are a small example sizing (1 replica each at `p-4c16g` for compute and `p-2c8g` for the rest); replace them to match your workload. Run `rwc cluster create --help` for the full flag list.
+- `--*-replica` — replica count for each component.
+
+The cluster starts in `AwaitingConfig` status. The success message from `rwc cluster create` includes the cluster's UUID and the exact `rwc cluster byok-config` command to run next; you can also list existing clusters and their UUIDs with `rwc cluster list`.
+
+At this point, the control plane has allocated the Kubernetes namespace and service account name. Retrieve them with:
+
+```bash
+rwc cluster describe --uuid <cluster-uuid>
+```
+
+Look for the `Resource Namespace` and `Service Account` fields in the output. You will need these values for the IAM trust policy in the next step.
+
+### Phase 2: Provision IAM and metastore, then configure
+
+<Tabs>
+<Tab title="AWS">
+1. **Create an IAM role** for the RisingWave cluster with an IRSA trust policy. Use the `Resource Namespace` and `Service Account` values from the `rwc cluster describe` output in Phase 1:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "Federated": "arn:aws:iam::$ACCOUNT_ID:oidc-provider/$OIDC_PROVIDER"
+         },
+         "Action": "sts:AssumeRoleWithWebIdentity",
+         "Condition": {
+           "StringEquals": {
+             "$OIDC_PROVIDER:aud": "sts.amazonaws.com",
+             "$OIDC_PROVIDER:sub": "system:serviceaccount:$RESOURCE_NAMESPACE:$SERVICE_ACCOUNT"
+           }
+         }
+       }
+     ]
+   }
+   ```
+
+   Grant S3 access to the cluster's data and backup prefixes in the data store bucket. RisingWave stores cluster state under `data-$RESOURCE_NAMESPACE/` and meta backups under `data-$RESOURCE_NAMESPACE-backup/`, so both prefixes must be included:
+
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Effect": "Allow",
+               "Action": "s3:*",
+               "Resource": [
+                   "arn:aws:s3:::$DATA_STORE_BUCKET",
+                   "arn:aws:s3:::$DATA_STORE_BUCKET/data-$RESOURCE_NAMESPACE/*",
+                   "arn:aws:s3:::$DATA_STORE_BUCKET/data-$RESOURCE_NAMESPACE-backup/*"
+               ]
+           }
+       ]
+   }
+   ```
+
+2. **Provision a PostgreSQL database** as the metadata store. We recommend using [Amazon RDS](https://aws.amazon.com/rds/). Ensure connectivity from the EKS cluster pods to the database.
+
+   <Warning>
+   Choose the metastore password using only these characters: uppercase and lowercase letters (`A-Z`, `a-z`), digits (`0-9`), and the four symbols underscore (`_`), tilde (`~`), period (`.`), and hyphen (`-`). No other characters are allowed — in particular, spaces and symbols such as `@`, `/`, and `:` are not. RisingWave Cloud embeds this password in the metastore connection URL, so a password containing unsupported characters is rejected by `rwc cluster byok-config` with an HTTP 400 error, even though your database may accept it. Fixing that means rotating the password and reconfiguring the database, so pick a compliant one before you create the database.
+   </Warning>
+
+3. **Submit the configuration** via CLI:
+
+   ```bash
+   rwc cluster byok-config --uuid <cluster-uuid> --config <path-to-config.yaml>
+   ```
+
+   Config file format:
+
+   ```yaml
+   aws:
+     iam_role_arn: "arn:aws:iam::123456789012:role/MyRisingWaveRole"
+   metastore:
+     host: "my-rds-instance.abc123.us-west-2.rds.amazonaws.com"
+     port: 5432
+     database: "risingwave_meta"
+     username: "postgres"
+     password: "..."
+   ```
+
+   <Tip>
+   You can set the `RWC_BYOK_METASTORE_PASSWORD` environment variable instead of including the password in the YAML file. The environment variable takes precedence.
+   </Tip>
+
+This transitions the cluster to `Creating` status and triggers provisioning. The metastore password is encrypted at rest.
+</Tab>
+<Tab title="GCP">
+<Note>GCP GKE support is planned. Stay tuned.</Note>
+</Tab>
+</Tabs>
+
+## Connect to a RisingWave cluster
+
+There are two ways to connect to a RisingWave cluster running in a BYOK8s environment.
+
+### Option 1: RisingWave Cloud Console (recommended)
+
+Use the in-portal SQL console — no network setup is required. See [Console overview](/cloud/console-overview) for details.
+
+### Option 2: Direct connection via RWProxy NLB
+
+For programmatic access (e.g., from your own applications, BI tools, or `psql`), connect to the RWProxy NLB you provisioned in the prerequisites.
+
+<Note>
+The RWProxy NLB is **internal-only**. Clients must be inside the same VPC as the BYOK8s environment, or reach the NLB via VPC peering / Transit Gateway.
+</Note>
+
+Because a single RWProxy NLB serves multiple clusters in the BYOK8s environment, you must include the **cluster identifier** (the Kubernetes namespace allocated to your cluster in Phase 1) in the connection. Retrieve it via:
+
+```bash
+rwc cluster describe --uuid <cluster-uuid>
+# Look for: Resource Namespace: rwc-xxxxxxxxxxxx-<cluster-name>
+```
+
+The cluster identifier can be passed via the `options` field, the host (SNI), or the username. See [Connection errors → Tenant identifier methods](/cloud/connection-errors#solution-1-put-the-tenant-identifier-in-the-options-field) for all three methods. Example using the `options` field:
+
+```bash
+psql "postgresql://<username>:<password>@<rwproxy-nlb-dns>:4566/<database>?options=--tenant%3D<cluster-namespace>"
+```
+
+`%3D` is the URL-encoded form of `=`. If your client does not require URL encoding, use `--tenant=<cluster-namespace>` directly.
+
+Where:
+- `<rwproxy-nlb-dns>` — DNS name of the RWProxy NLB (the load balancer behind `rwproxy_target_group_arn`)
+- `4566` — RWProxy PostgreSQL port
+- `<database>` — database name (default: `dev`)
+- `<cluster-namespace>` — the `Resource Namespace` from `rwc cluster describe`
+- `<username>` / `<password>` — credentials created via `rwc cluster dbuser create`
+
+## Node pool resource requirements
+
+If you use dedicated node pools for different workload types (via the `customized_settings.scheduling` configuration), the following minimum resources are required:
+
+| Category | Components | Minimum node pool resources |
+| --- | --- | --- |
+| `system_workload` | CloudAgent, RWProxy, Operator, high cardinality metrics suppressor | 3x `m7g.large` (or machines with equivalent combined resources) |
+| `cluster_workload` | RisingWave cluster pods (meta, frontend, compute, compactor) | Depends on your RisingWave cluster size |
+| `telemetry_workload` | VictoriaMetrics, Loki | 1x `m7g.xlarge` (or a machine with equivalent resources). The workload cannot be split across machines smaller than `m7g.xlarge`. |
+| `update_workload` | Terraform apply task pods | 1x `m7g.2xlarge` (or a machine with equivalent resources). Same constraint: `m7g.2xlarge` is the minimum individual machine size. |
+
+<Note>
+DaemonSet scheduling (Grafana Alloy) is automatically derived from the union of all workload tolerations — no separate configuration is needed.
+</Note>
+
+## Manage a BYOK8s environment
+
+### List environments
+
+```bash
+rwc byok list
+```
+
+### View environment details
+
+```bash
+rwc byok describe --name <env-name>
+```
+
+### Update an environment
+
+To update a BYOK8s environment (e.g., to apply a new version or change custom settings):
+
+```bash
+rwc byok update --name <env-name> [--version <version>] [--custom-settings-path <path>]
+rwc byok apply --name <env-name>
+```
+
+### Delete a BYOK8s environment
+
+1. Delete all RisingWave clusters running in the environment.
+2. Terminate the environment (control plane side):
+
+   ```bash
+   rwc byok terminate --name <env-name>
+   ```
+
+3. Delete the Kubernetes resources and control plane record:
+
+   ```bash
+   rwc byok delete --name <env-name>
+   ```
+
+4. Clean up the cloud resources you provisioned (NLBs, VPC Endpoint Services, IAM roles, storage buckets, etc.).
+
+## Shared responsibility
+
+BYOK8s is a shared responsibility model. The table below outlines what each party is responsible for.
+
+### RisingWave responsibilities
+
+- All cluster and project-level operations available on the RisingWave Cloud portal.
+- 24/7 monitoring backed by the RisingWave support and on-call teams.
+- Version and configuration management of all deployed workloads (CloudAgent, RWProxy, Operator, telemetry stack).
+
+### Customer responsibilities
+
+- Kubernetes cluster and worker nodes (including upgrades to the minimum supported version).
+- Firewall and security group rules.
+- IAM roles / service accounts used by BYOK8s environments and clusters.
+- Object storage buckets for data storage and log storage.
+- Network connectivity resources (NLBs and VPC Endpoint Services on AWS).
+- PostgreSQL databases serving as metadata stores.
+- Terraform state backend.
+- Encryption keys (KMS on AWS).
+
+### Features not available in BYOK8s
+
+<Note>
+BYOK8s uses AWS PrivateLink for control plane connectivity (customer provisions the VPC Endpoint Services, control plane creates the VPC Endpoints). The features below refer to RisingWave-managed capabilities that are available in BYOC but not in BYOK8s.
+</Note>
+
+| Feature | Reason |
+| --- | --- |
+| RisingWave-managed PrivateLink for data access | In BYOC, RisingWave can provision PrivateLink endpoints for connecting your applications to RisingWave clusters. In BYOK8s, you manage your own network connectivity. |
+| Cluster IAM customization via portal | In BYOC, you can add or modify IAM roles for RisingWave clusters through the portal. In BYOK8s, you provision and manage all IAM roles directly. |

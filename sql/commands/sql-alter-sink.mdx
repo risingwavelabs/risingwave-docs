@@ -69,6 +69,32 @@ SET PARALLELISM { TO | = } parallelism_number;
 ALTER SINK s SET PARALLELISM = 4;
 ```
 
+### `SET BACKFILL_PARALLELISM`
+
+```sql
+ALTER SINK sink_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_value [ DEFERRED ];
+```
+
+This statement controls the degree of parallelism used during the backfill phase of a sink. It lets you tune resource usage for backfilling independently from the sink's steady-state parallelism.
+
+| Parameter or clause           | Description |
+| :---------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_value_           | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+| **DEFERRED**                   | Optional. When specified, the change takes effect after the current backfill completes, without interrupting an ongoing backfill. If omitted, the change is applied immediately. |
+
+```sql
+-- Set backfill parallelism to a fixed value
+ALTER SINK s1 SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER SINK s1 SET BACKFILL_PARALLELISM = ADAPTIVE;
+
+-- Defer the parallelism change until the current backfill completes
+ALTER SINK s1 SET BACKFILL_PARALLELISM = 4 DEFERRED;
+```
+
 ### `SET SINK_RATE_LIMIT`
 
 ```sql
@@ -137,11 +163,23 @@ ALTER SINK sink_name CONNECTOR WITH (
 | Parameter         | Description |
 | :---------------- | :---------- |
 | **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing sink without recreating it. |
-| property_name | The properties vary by connector type: <ul><li>For **ClickHouse**, **DeltaLake**, and **StarRocks**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Iceberg**, the supported parameters are `commit_checkpoint_interval` and `commit_checkpoint_size_threshold_mb`.</li><li>For **Kafka**, the supported parameters include: `properties.allow.auto.create.topics`, `properties.batch.num.messages`, `properties.batch.size`, `properties.enable.idempotence`, `properties.max.in.flight.requests.per.connection`, `properties.message.max.bytes`, `properties.message.send.max.retries`, `properties.message.timeout.ms`, `properties.queue.buffering.max.kbytes`, `properties.queue.buffering.max.messages`, `properties.queue.buffering.max.ms`, `properties.request.required.acks`, `properties.retry.backoff.ms`, `properties.receive.message.max.bytes`. </li></ul> |
+| property_name | The properties vary by connector type: <ul><li>For **ClickHouse**, **DeltaLake**, and **StarRocks**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Iceberg**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Kafka**, the supported parameters include: `properties.allow.auto.create.topics`, `properties.batch.num.messages`, `properties.batch.size`, `properties.enable.idempotence`, `properties.max.in.flight.requests.per.connection`, `properties.message.max.bytes`, `properties.message.send.max.retries`, `properties.message.timeout.ms`, `properties.queue.buffering.max.kbytes`, `properties.queue.buffering.max.messages`, `properties.queue.buffering.max.ms`, `properties.request.required.acks`, `properties.retry.backoff.ms`, `properties.receive.message.max.bytes`.</li><li>For **OpenSearch**, the supported parameters are `batch_num_messages`, `batch_size_kb`, and `concurrent_requests`.</li><li>For **Pulsar**, the supported parameter is `properties.routing.mode`.</li></ul> |
 
 ```sql
 -- Enable idempotence for the sink
 ALTER SINK my_kafka_sink CONNECTOR WITH (
   'properties.enable.idempotence' = 'true'
+);
+
+-- Update batching settings for an OpenSearch sink
+ALTER SINK my_opensearch_sink CONNECTOR WITH (
+  'batch_num_messages' = '500',
+  'batch_size_kb' = '4096',
+  'concurrent_requests' = '2'
+);
+
+-- Change the routing policy of a Pulsar sink
+ALTER SINK my_pulsar_sink CONNECTOR WITH (
+  'properties.routing.mode' = 'round_robin'
 );
 ```

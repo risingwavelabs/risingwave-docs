@@ -50,16 +50,53 @@ WITH (
 | `force_append_only`| No | If `true`, converts an `upsert` stream to `append-only`. Updates become inserts and deletes are ignored. Default: `false`. |
 | `is_exactly_once`| No | Set to `true` to enable exactly-once delivery semantics. This provides stronger consistency but may impact performance. Default: `true`. <br/><br/> Exactly-once delivery requires [sink decoupling](/delivery/overview#sink-decoupling) to be enabled (the default behavior). If you `SET sink_decouple = false;`, exactly-once semantics will be automatically disabled for the sink.|
 | `commit_checkpoint_interval`| No | Controls how often RisingWave commits to Iceberg. Default: `60` (about every 60 seconds in the default configuration). |
-| `commit_checkpoint_size_threshold_mb`| No | The buffered write size threshold in MB that triggers an early commit at the next checkpoint barrier. When uncommitted data exceeds this value, RisingWave commits on the next checkpoint instead of waiting for `commit_checkpoint_interval`. Must be greater than `0`. Default: `128`. Useful for large backfills to avoid accumulating too much uncommitted data. |
 | `commit_retry_num`| No| The number of times to retry a failed commit. Default: `8`. |
 | `create_table_if_not_exists` | No | If `true`, RisingWave creates the external Iceberg table automatically when it does not exist. Default: `false`. |
 | `partition_by` | No | Specify partitioning using column names or transformations. Supported transformations include `identity`, `truncate(n)`, `bucket(n)`, `year`, `month`, `day`, `hour`, and `void`. Multiple columns can be separated by commas. Example: `partition_by = 'truncate(4,v2),bucket(5,v1)'`. For more details on Iceberg partitioning, see [Partition transforms](https://iceberg.apache.org/spec/#partition-transforms). |
+| `auto.schema.change` | No | Set to `true` to enable automatic schema evolution. When enabled, RisingWave automatically propagates schema changes (for example, adding columns) from the upstream source to the Iceberg table. Automatic schema evolution is only supported when exactly-once semantics are active (`is_exactly_once = 'true'` and [sink decoupling](/delivery/overview#sink-decoupling) is enabled); if exactly-once is disabled for the sink, this option has no effect and schema changes are not propagated. Currently supports `ADD COLUMN` operations. Default: `false`. |
 
 For detailed storage and catalog configuration:
 - **Object storage**: [Object storage configuration](/iceberg/object-storage)
 - **Catalogs**: [Catalog configuration](/iceberg/catalogs)
 
-You can configure `commit_checkpoint_interval`, `commit_checkpoint_size_threshold_mb`, and `commit_retry_num` to manage commit frequency and retry behavior.
+You can configure `commit_checkpoint_interval` and `commit_retry_num` to manage commit frequency and retry behavior.
+
+## Schema evolution
+
+RisingWave supports automatic schema evolution for Iceberg sinks, allowing schema changes from upstream sources to be automatically propagated to the target Iceberg table. This feature works with exactly-once semantics.
+
+To enable schema evolution, set `auto.schema.change = 'true'` when creating the sink:
+
+```sql
+CREATE SINK my_iceberg_sink FROM upstream_source
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_database',
+    table.name = 'my_table',
+    catalog.type = 'glue',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    auto.schema.change = 'true',
+    is_exactly_once = 'true'
+);
+```
+
+### Supported operations
+
+Currently, RisingWave supports the following schema change operations:
+- **ADD COLUMN**: Automatically adds new columns to the Iceberg table when they are added to the upstream source.
+
+### How it works
+
+When schema evolution is enabled:
+1. RisingWave detects schema changes in the upstream source
+2. Schema changes are applied to the Iceberg table as atomic schema updates in the catalog
+3. The sink coordinates schema commits with data commits to ensure consistency
+4. In exactly-once mode, RisingWave ensures that schema changes are applied exactly once, even in the presence of failures
+
+Schema changes use separate commit operations from data writes, but the sink coordinates them so that the required schema updates are durably committed and not duplicated during recovery. The system checks whether schema changes have already been applied to avoid duplicate schema updates during recovery.
 
 ## Table maintenance
 

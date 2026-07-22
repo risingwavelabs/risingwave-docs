@@ -1,38 +1,42 @@
 ---
-title: "Serverless backfill"
-description: "Use serverless backfill to offload the backfill phase of materialized view creation to a dedicated controller, reducing resource contention on your cluster."
+title: "Serverless backfilling"
+description: "Use serverless backfilling to run the backfill phase of materialized view creation on dedicated backfiller resource groups, reducing resource contention on your main streaming cluster."
 ---
 
 <Note>
-Serverless backfill is available starting from v2.8.0 and is disabled by default.
+Serverless backfilling is available starting from v2.8.0 and is disabled by default.
 </Note>
 
 ## Overview
 
 When you create a materialized view (MV) on existing data, RisingWave must first process all historical records, a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
 
-**Serverless backfill** offloads the backfill phase to a dedicated controller that manages execution independently from your main streaming graph. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
+**Serverless backfilling** runs the backfill phase on dedicated backfiller resources — a temporary resource group that RisingWave Cloud provisions separately from your main streaming compute nodes. It is *serverless* because you don't manually allocate or manage resources for each new materialized view: after the `CREATE MATERIALIZED VIEW` request passes validation and the streaming job is ready to be created, RisingWave Cloud provisions the backfiller resource group and destroys it automatically once the job completes. Failed validation paths therefore do not provision backfiller resources. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
 
-Serverless backfilling is supported only in RisingWave Cloud. Enable it under **Resources -> Backfillings** in the Cloud console first. See [Serverless backfilling](/cloud/serverless-backfilling) for portal setup, SKU, and replicas.
+Serverless backfilling is supported only in RisingWave Cloud. Enable it in the **Backfilling** section of the **Resources** page in the Cloud console first. See [Configure serverless backfilling](/cloud/serverless-backfilling) for portal setup, SKU, and replicas.
+
+<Warning>
+**Scale your compaction resources before running heavy backfill jobs.** Serverless backfilling can use a much larger backfiller SKU than your steady-state cluster — for example, a 32 RWU backfiller for a cluster that normally runs on 4 RWU. The extra write throughput increases compaction load proportionally, so a compactor sized only for steady-state traffic can fall behind and trigger compaction back pressure or write stalls (a critical alert).
+
+We strongly recommend enabling **Serverless Compaction** so compactors scale automatically with the backfill load. Otherwise, scale your compactor manually before running heavy backfill jobs. See [Compute-Compactor sizing](/get-started/architecture#compute-compactor) and [Compaction bottleneck](/performance/specific-bottlenecks#compaction-bottleneck).
+</Warning>
 
 ## How it works
 
-When serverless backfill is enabled for a `CREATE MATERIALIZED VIEW` statement:
+When serverless backfilling is enabled for a `CREATE MATERIALIZED VIEW` statement:
 
-1. The frontend generates a backfill plan and hands it to the serverless backfill controller.
-2. The controller schedules and drives the backfill execution separately from the main streaming graph.
-3. Once all backfill fragments report completion, the MV transitions to the standard incremental streaming phase.
-4. If the cluster restarts during backfill, the controller resumes from the last completed checkpoint rather than starting over.
-
-<Note>
-- Serverless backfilling is not supported for databases in non-default resource groups.
-</Note>
+1. After RisingWave finishes validation and is about to issue the create streaming job command, the serverless backfilling controller provisions a temporary resource group with dedicated backfiller nodes, sized by the Backfiller SKU and replica count you configure in the Cloud console.
+2. The backfill job runs on those dedicated backfiller nodes, separately from your main streaming compute nodes, so it doesn't compete with existing streaming jobs for resources.
+3. Once all backfill fragments report completion, the MV transitions to the standard incremental streaming phase and is migrated to its **steady-state resource group** (the resource group of its parent database) for normal streaming execution.
+4. If the cluster restarts during backfill, the job resumes from the last completed checkpoint rather than starting over.
 
 ## Configuration
 
+You must enable serverless backfilling in the RisingWave Cloud console (in the **Backfilling** section of the **Resources** page) before using it. If it isn't enabled, `CREATE MATERIALIZED VIEW` statements that request serverless backfilling return an error.
+
 ### Session variable
 
-Enable serverless backfill for subsequent `CREATE MATERIALIZED VIEW` statements in the current session:
+Enable serverless backfilling for subsequent `CREATE MATERIALIZED VIEW` statements in the current session:
 
 ```sql
 SET enable_serverless_backfill = true;
@@ -40,9 +44,13 @@ SET enable_serverless_backfill = true;
 
 The default is `false`. This setting only affects new DDL operations issued after the `SET` command; it does not change the behavior of already-running jobs.
 
+<Note>
+If you set `enable_serverless_backfill` through dbt, use dbt-risingwave 1.11.4 or later. Earlier versions of the plugin do not apply this session variable.
+</Note>
+
 ### Per-statement WITH clause
 
-You can also enable serverless backfill for a single `CREATE MATERIALIZED VIEW` statement using the `cloud.serverless_backfill_enabled` option in the `WITH` clause:
+You can also enable serverless backfilling for a single `CREATE MATERIALIZED VIEW` statement using the `cloud.serverless_backfill_enabled` option in the `WITH` clause:
 
 ```sql
 CREATE MATERIALIZED VIEW my_mv
@@ -52,10 +60,10 @@ AS SELECT ...;
 
 ## Example
 
-The following example creates a large materialized view with serverless backfill enabled to reduce the impact of the backfill on existing streaming workloads:
+The following example creates a large materialized view with serverless backfilling enabled to reduce the impact of the backfill on existing streaming workloads:
 
-```sql Example: serverless backfill
--- Enable serverless backfill for this session
+```sql Example: serverless backfilling
+-- Enable serverless backfilling for this session
 SET enable_serverless_backfill = true;
 
 -- Optionally run in the background to avoid blocking the client
@@ -86,23 +94,27 @@ SELECT * FROM rw_catalog.rw_ddl_progress;
 
 ## Monitoring
 
-Use the following system catalog and metrics to track serverless backfill jobs:
+Use the following system catalog and metrics to track serverless backfilling jobs:
 
 | Method | Description |
 |---|---|
 | `SHOW JOBS` | Lists all background DDL jobs and their current status. |
 | `SELECT * FROM rw_catalog.rw_ddl_progress` | Shows per-fragment backfill progress as a percentage. |
-| Grafana / metrics endpoint | Look for `stream_backfill_*` metrics on compute nodes to observe throughput and lag. |
+| Cloud portal **Metrics** page | In the cluster-node panels such as **CPU Utilization**, look for the `risingwave-backfill-*` node series to confirm that the dedicated backfiller nodes are running and to observe their CPU and memory usage. |
+
+For example, the **CPU Utilization** panel below (on the Cloud portal **Metrics** page) lists each cluster node. The highlighted `risingwave-backfill-0-*` series is a dedicated backfiller node that RisingWave Cloud provisions for the serverless backfilling job, separate from your main compute nodes (`risingwave-compute-*`).
+
+<Frame>
+  <img src="/images/processing/serverless-backfill-cpu-utilization.png" />
+</Frame>
 
 ## Limitations
 
-- Serverless backfilling is supported only in RisingWave Cloud, and you must enable it under **Resources -> Backfillings** before requesting it in SQL.
-- Serverless backfilling is not supported for databases in non-default resource groups.
-- Rate-limiting via `backfill_rate_limit` still applies to serverless backfill jobs. See [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+- Serverless backfilling is supported only in RisingWave Cloud, and you must enable it in the **Backfilling** section of the **Resources** page before requesting it in SQL.
 
 ## Related pages
 
-- [Serverless backfilling](/cloud/serverless-backfilling) — Configure backfiller SKU, replicas, and Cloud setup.
+- [Configure serverless backfilling](/cloud/serverless-backfilling) — Set the backfiller SKU, replicas, and other Cloud setup.
 - [Backfill](/processing/backfill) — Overview of all backfill strategies in RisingWave.
 - [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl) — Run DDL operations in the background without blocking the client.
 - [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) — Full syntax and options for creating materialized views.

@@ -85,7 +85,7 @@ By including all columns, RisingWave ensures that an index will cover all of the
 
 For example:
 
-If your queries only access certain columns, you can create an index that includes only those columns. The RisingWave optimizer will automatically select the appropriate index for your query.
+If your queries only access certain columns, you can create an index that includes only those columns. The RisingWave optimizer will automatically select the appropriate index for your query. If a partial index does not cover all referenced columns, RisingWave may use an additional lookup join when that plan is valid. Otherwise, it falls back to scanning the base table or materialized view.
 
 ```sql
 -- Create an index that only includes necessary columns
@@ -170,6 +170,8 @@ EXPLAIN SELECT v2 FROM t WHERE k2=1;
  BatchLookupJoin { type: Inner, predicate: idx_t_k2_partial_columns.k1 IS NOT DISTINCT FROM t.k1 AND idx_t_k2_partial_columns.k2 IS NOT DISTINCT FROM t.k2 AND (t.k2 = 1:Int32), lookup table: t }
  └─BatchExchange { order: [], dist: Single }
    └─BatchScan { table: idx_t_k2_partial_columns, columns: [k2, k1], scan_ranges: [k2 = Int32(1)] }
+
+If RisingWave cannot convert a non-covering index access into a valid lookup join, it falls back to scanning the base table or materialized view instead of forcing the lookup plan.
 
 --- idx_t_k2_all_columns includes all columns.
 CREATE INDEX idx_t_k2_all_columns ON t(k2);

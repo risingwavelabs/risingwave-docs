@@ -1,0 +1,1028 @@
+---
+title: "Single sign-on (SSO)"
+description: "Let users sign in to RisingWave Console through your SAML, LDAP / Active Directory, or OIDC identity provider using the bundled Dex identity broker."
+---
+
+RisingWave Console can federate console sign-in to your identity provider (IdP) so users authenticate with their existing corporate credentials instead of a local Console password.
+
+SSO is powered by a [Dex](https://dexidp.io/) identity broker that runs alongside Console — a sidecar container on Kubernetes, or a second service on Docker Compose. You enable it by deploying Console together with Dex, then register one or more connectors (SAML, LDAP / Active Directory, or OIDC) from the Console UI.
+
+## How it works
+
+Console runs a Dex identity broker next to it and wires itself to Dex. The design avoids the usual SSO operational burden:
+
+- **No separate Dex endpoint.** Console reverse-proxies Dex under its own `/dex` path, so whatever exposes Console also serves Dex. You publish only the Console port — no separate Dex Service, Ingress path, or published port.
+- **No operator-managed client secret.** Console self-registers its OIDC client with Dex at boot and generates the client secret itself.
+- **No certificate wrangling for users.** Console reaches Dex's gRPC admin port over the loopback (Docker network or pod loopback), secured by a self-signed certificate you generate once (Docker) or that an init container mints per pod (Kubernetes).
+- **No forwarded-header configuration.** Console derives both the OAuth redirect URI and the SSO state cookie's `Secure` flag from the configured issuer URL, so SSO works correctly behind a TLS-terminating proxy without trusting `X-Forwarded-*` headers.
+
+Connectors you add from the UI are pushed to Dex immediately over its admin API — no Dex or Console restart is required.
+
+## Requirements
+
+- **A signed RisingWave license key.** Console v0.7.x performs startup license verification and exits without `RW_LICENSE_KEY` / `RW_LICENSE_KEY_PATH`. See [Manage license keys](/web-ui/risingwave-console/license-management).
+- **A stable host for the issuer.** Set the Dex issuer to `<scheme>://<host>/dex`, where `<host>` is exactly the host (and port) browsers use to reach Console. Because Console serves Dex under its own `/dex` path, the issuer host must equal the Console host. Use HTTPS in production; the cookie `Secure` flag follows the issuer scheme.
+- **A single Console instance.** The self-register flow resets the OIDC client secret on every boot, so run exactly one replica. The Kubernetes manifest pins `replicas: 1`; the Docker Compose setup is single-instance by nature.
+
+## Choose a deployment method
+
+| Method                      | Best for                                  | Metadata store                       |
+| --------------------------- | ----------------------------------------- | ------------------------------------ |
+| Docker Compose (single host) | Local evaluation, demos, or a single VM   | Bundled PostgreSQL inside the image  |
+| Kubernetes                  | Production and multi-node deployments      | Bundled or external PostgreSQL       |
+
+Both methods use the same self-register + `/dex`-proxy design, so the Console configuration is identical; only the packaging differs.
+
+## Deploy with Docker Compose
+
+This brings up Console (with bundled PostgreSQL) and a Dex container on one host. Only the Console port is published; Dex stays on the internal Compose network and is reached through Console's `/dex` proxy.
+
+You need Docker with Compose v2, OpenSSL, and a signed RisingWave license token.
+
+### 1. Create a working directory
+
+```shell
+mkdir risingwave-console-sso && cd risingwave-console-sso
+```
+
+### 2. Save your license token
+
+```shell
+printf '%s' '<your-signed-license-token>' > license.jwt
+```
+
+### 3. Generate a certificate for Dex's gRPC admin port
+
+Console talks to Dex's admin port over TLS. Generate a self-signed certificate whose subject alternative name is `dex` (the Compose service name Console connects to):
+
+```shell
+openssl req -x509 -newkey rsa:2048 -nodes -keyout tls.key -out tls.crt \
+  -days 3650 -subj "/CN=dex" -addext "subjectAltName=DNS:dex"
+chmod 644 tls.key tls.crt
+```
+
+### 4. Create `dex-config.yaml`
+
+```yaml dex-config.yaml
+issuer: http://localhost:8020/dex
+storage:
+  type: sqlite3
+  config:
+    file: /dex-data/dex.db
+web:
+  http: 0.0.0.0:5556
+grpc:
+  addr: 0.0.0.0:5557
+  tlsCert: /etc/dex/tls/tls.crt
+  tlsKey: /etc/dex/tls/tls.key
+oauth2:
+  skipApprovalScreen: true
+enablePasswordDB: true
+logger:
+  level: info
+  format: json
+```
+
+### 5. Create `docker-compose.yaml`
+
+```yaml docker-compose.yaml
+services:
+  # One-shot: make the Dex data volume writable by Dex (uid 1001).
+  # Equivalent to fsGroup on Kubernetes; runs once, then exits.
+  dex-init:
+    image: busybox
+    user: "0:0"
+    command: ["sh", "-c", "chown -R 1001:1001 /dex-data"]
+    volumes:
+      - dex-data:/dex-data
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.41.1
+    depends_on:
+      dex-init:
+        condition: service_completed_successfully
+    environment:
+      DEX_API_CONNECTORS_CRUD: "true"
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      - ./dex-config.yaml:/etc/dex/config.yaml:ro
+      - ./tls.crt:/etc/dex/tls/tls.crt:ro
+      - ./tls.key:/etc/dex/tls/tls.key:ro
+      - dex-data:/dex-data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5556/dex/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  console:
+    image: risingwavelabs/risingwave-console:v0.7.4-pgbundle
+    depends_on:
+      dex:
+        condition: service_healthy
+    ports:
+      - "8020:8020"
+    environment:
+      RCONSOLE_ROOT_PASSWORD: your_secure_password
+      RW_LICENSE_KEY_PATH: /etc/rconsole/license.jwt
+      RCONSOLE_SSO_DEX_GRPCADDR: dex:5557
+      RCONSOLE_SSO_DEX_CACERT: /etc/rconsole/dex.crt
+      RCONSOLE_SSO_DEX_ISSUERURL: http://localhost:8020/dex
+      RCONSOLE_SSO_DEX_CLIENTID: risingwave-console
+      RCONSOLE_SSO_DEX_INTERNALISSUERURL: http://dex:5556/dex
+      RCONSOLE_SSO_DEX_SERVEOIDCPROXY: "true"
+      RCONSOLE_SSO_DEX_SELFREGISTERCLIENT: "true"
+    volumes:
+      - ./license.jwt:/etc/rconsole/license.jwt:ro
+      - ./tls.crt:/etc/rconsole/dex.crt:ro
+      - console-data:/var/lib/postgresql
+
+volumes:
+  dex-data:
+  console-data:
+```
+
+### 6. Set the issuer host and password
+
+The files above are ready to run for local evaluation at `http://localhost:8020`. Before exposing Console to other machines:
+
+- Replace `localhost:8020` with the host and port browsers will use, in **both** the `issuer:` in `dex-config.yaml` and `RCONSOLE_SSO_DEX_ISSUERURL` in `docker-compose.yaml` (they must be byte-identical). For production, front Console with a TLS proxy and use an `https://` issuer.
+- Set a strong `RCONSOLE_ROOT_PASSWORD`.
+
+### 7. Start the stack
+
+```shell
+docker compose up -d
+```
+
+The `dex-init` service chowns the Dex data volume so the non-root Dex can write its SQLite store (the Compose equivalent of Kubernetes `fsGroup`). Console waits for Dex to become healthy (`depends_on`), so it self-registers its OIDC client cleanly on the first boot.
+
+### 8. Verify
+
+```shell
+docker compose ps
+docker compose logs console | grep -i "SSO self-register"
+# Expected: SSO self-registered OIDC client "risingwave-console" with Dex
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8020/dex/healthz   # 200
+```
+
+Open `http://localhost:8020` and sign in as `root` with the password from `RCONSOLE_ROOT_PASSWORD` (it defaults to `root` only if you leave that variable unset).
+
+## Deploy on Kubernetes
+
+On Kubernetes, Dex runs as a sidecar container in the Console pod. The manifest below is the bundled-PostgreSQL ("pgbundle") variant — convenient for testing, but its PostgreSQL metadata is not durable across pod rescheduling. For production, use an external PostgreSQL deployment and add the same Dex sidecar; see [Install RisingWave Console](/web-ui/risingwave-console/installation-setup) for the external-PostgreSQL base.
+
+<Note>
+  Dex's own state (signing keys, registered connectors) is stored in SQLite on
+  the pod's PVC and survives restarts. With the bundled-PostgreSQL image, the
+  Console metadata is not on the PVC, so use external PostgreSQL for production.
+</Note>
+
+### 1. Save the manifest
+
+Save the following as `risingwave-console-sso.yaml`. It creates the namespace, service account, RBAC, license Secret, Dex `ConfigMap`, a NodePort Service, and a single-replica StatefulSet whose pod runs the Console container, the Dex sidecar, and an init container that mints the per-pod gRPC certificate.
+
+<Accordion title="risingwave-console-sso.yaml">
+
+```yaml risingwave-console-sso.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: risingwave-console
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: risingwave-console
+  namespace: risingwave-console
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+    rconsole.risingwave.com/rbac-profile: cluster-installer
+  name: risingwave-console-cluster-installer
+rules:
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - bind
+  - escalate
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - configmaps
+  - secrets
+  - serviceaccounts
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  - certificaterequests
+  - issuers
+  - clusterissuers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - podmonitors
+  - servicemonitors
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+    rconsole.risingwave.com/rbac-profile: env-scoped
+  name: risingwave-console-env-scoped
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - events
+  - configmaps
+  - secrets
+  - serviceaccounts
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - services/proxy
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - risingwave.risingwavelabs.com
+  resources:
+  - risingwaves
+  - risingwaves/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+    rconsole.risingwave.com/aggregate-to-seed: "true"
+    rconsole.risingwave.com/rbac-profile: namespace-deleter
+  name: risingwave-console-namespace-deleter-allowlist
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - __rconsole_placeholder__
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+    rconsole.risingwave.com/aggregate-to-seed: "true"
+    rconsole.risingwave.com/rbac-profile: namespace-deleter
+  name: risingwave-console-namespace-deleter-editor
+rules:
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resourceNames:
+  - risingwave-console-namespace-deleter-allowlist
+  resources:
+  - clusterroles
+  verbs:
+  - get
+  - patch
+  - update
+  - escalate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+    rconsole.risingwave.com/aggregate-to-seed: "true"
+    rconsole.risingwave.com/rbac-profile: ops
+  name: risingwave-console-ops
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resourceNames:
+  - risingwave-console-env-scoped
+  resources:
+  - clusterroles
+  verbs:
+  - bind
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+---
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rconsole.risingwave.com/aggregate-to-seed: "true"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+  name: risingwave-console-seed
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+  name: risingwave-console-cluster-installer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: risingwave-console-cluster-installer
+subjects:
+- kind: ServiceAccount
+  name: risingwave-console
+  namespace: risingwave-console
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: risingwave-console
+  name: risingwave-console-seed
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: risingwave-console-seed
+subjects:
+- kind: ServiceAccount
+  name: risingwave-console
+  namespace: risingwave-console
+---
+apiVersion: v1
+data:
+  config.yaml: |
+    # ── EDIT ME ─────────────────────────────────────────────────────
+    # `issuer` MUST be the console's external HTTPS URL + `/dex`, and it
+    # MUST match RCONSOLE_SSO_DEX_ISSUERURL on the console container
+    # (set to the same value in the StatefulSet patch). The host has to
+    # equal the host browsers use to reach the console, because the
+    # console serves Dex under its own `/dex` path.
+    issuer: https://console.example.com/dex
+    # ────────────────────────────────────────────────────────────────
+
+    # sqlite on the Pod's PVC (mounted at /dex-data). Durable across
+    # restarts so Dex's signing keys survive — single-replica only,
+    # which the StatefulSet already enforces (replicas: 1).
+    storage:
+      type: sqlite3
+      config:
+        file: /dex-data/dex.db
+
+    # HTTP OIDC surface. Bound to all interfaces inside the Pod; only
+    # reached via the console reverse-proxy (browser) and localhost
+    # (console back-channel).
+    web:
+      http: 0.0.0.0:5556
+
+    # gRPC admin API — the console drives connector CRUD + its own OIDC
+    # client self-registration here. TLS cert/key are generated per-Pod
+    # by the `gen-dex-cert` initContainer into the shared /dex-tls
+    # volume; the console trusts that same cert via RCONSOLE_SSO_DEX_CACERT.
+    grpc:
+      addr: 0.0.0.0:5557
+      tlsCert: /dex-tls/tls.crt
+      tlsKey: /dex-tls/tls.key
+
+    oauth2:
+      # The console is a first-party client; skip the consent screen.
+      skipApprovalScreen: true
+
+    # Dex refuses to boot with zero auth paths configured. The console
+    # does NOT authenticate users against this Password DB (local
+    # password auth stays in RisingWave Console); it's enabled only to
+    # satisfy Dex's startup invariant. Real SSO connectors (SAML / LDAP
+    # / OIDC) are added at runtime via the console's /sso admin UI.
+    enablePasswordDB: true
+
+    logger:
+      level: info
+      format: json
+kind: ConfigMap
+metadata:
+  name: risingwave-console-dex
+  namespace: risingwave-console
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: risingwave-console-license
+  namespace: risingwave-console
+stringData:
+  license.jwt: <your-signed-license-token>
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: risingwave-console-nodeport
+  namespace: risingwave-console
+spec:
+  ports:
+  - name: risingwave-console
+    nodePort: 30020
+    port: 8020
+    targetPort: 8020
+  - name: risingwave-console-metric
+    nodePort: 30090
+    port: 9020
+    targetPort: 9020
+  selector:
+    app: risingwave-console
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: risingwave-console
+  namespace: risingwave-console
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: risingwave-console
+  serviceName: risingwave-console
+  template:
+    metadata:
+      labels:
+        app: risingwave-console
+    spec:
+      containers:
+      - env:
+        - name: RCONSOLE_SSO_DEX_GRPCADDR
+          value: localhost:5557
+        - name: RCONSOLE_SSO_DEX_CACERT
+          value: /dex-tls/tls.crt
+        - name: RCONSOLE_SSO_DEX_ISSUERURL
+          value: https://console.example.com/dex
+        - name: RCONSOLE_SSO_DEX_CLIENTID
+          value: risingwave-console
+        - name: RCONSOLE_SSO_DEX_INTERNALISSUERURL
+          value: http://localhost:5556/dex
+        - name: RCONSOLE_SSO_DEX_SERVEOIDCPROXY
+          value: "true"
+        - name: RCONSOLE_SSO_DEX_SELFREGISTERCLIENT
+          value: "true"
+        - name: RW_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              key: license.jwt
+              name: risingwave-console-license
+        - name: RCONSOLE_SERVER_PORT
+          value: "8020"
+        - name: RCONSOLE_SERVER_METRICSPORT
+          value: "9020"
+        image: risingwavelabs/risingwave-console:v0.7.4-pgbundle
+        imagePullPolicy: IfNotPresent
+        name: console
+        ports:
+        - containerPort: 8020
+          name: http
+        - containerPort: 9020
+          name: metrics
+        volumeMounts:
+        - mountPath: /dex-tls
+          name: dex-tls
+          readOnly: true
+        - mountPath: /risingwave-console-data
+          name: risingwave-console-data
+      - args:
+        - dex
+        - serve
+        - /etc/dex/config.yaml
+        env:
+        - name: DEX_API_CONNECTORS_CRUD
+          value: "true"
+        image: ghcr.io/dexidp/dex:v2.41.1
+        name: dex
+        ports:
+        - containerPort: 5556
+          name: dex-http
+        - containerPort: 5557
+          name: dex-grpc
+        readinessProbe:
+          httpGet:
+            path: /dex/healthz
+            port: 5556
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 1001
+          runAsUser: 1001
+        volumeMounts:
+        - mountPath: /etc/dex
+          name: dex-config
+          readOnly: true
+        - mountPath: /dex-tls
+          name: dex-tls
+          readOnly: true
+        - mountPath: /dex-data
+          name: risingwave-console-data
+          subPath: dex
+      initContainers:
+      - args:
+        - req
+        - -x509
+        - -newkey
+        - rsa:2048
+        - -nodes
+        - -keyout
+        - /dex-tls/tls.key
+        - -out
+        - /dex-tls/tls.crt
+        - -days
+        - "365"
+        - -subj
+        - /CN=localhost
+        - -addext
+        - subjectAltName=DNS:localhost,IP:127.0.0.1
+        command:
+        - openssl
+        image: alpine/openssl@sha256:a9f7fe590c971c6ec06c32a2ffa64122b30e141ab74d93cfe0a5e28d80ced7b9
+        name: gen-dex-cert
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 1001
+          runAsUser: 1001
+        volumeMounts:
+        - mountPath: /dex-tls
+          name: dex-tls
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: risingwave-console
+      volumes:
+      - configMap:
+          name: risingwave-console-dex
+        name: dex-config
+      - emptyDir: {}
+        name: dex-tls
+  volumeClaimTemplates:
+  - metadata:
+      name: risingwave-console-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+```
+
+</Accordion>
+
+### 2. Edit before applying
+
+- **License**: replace `license.jwt: <your-signed-license-token>` in the `risingwave-console-license` Secret.
+- **Issuer host**: replace `console.example.com` with your Console's external host in **both** places (they must be byte-identical):
+  - `issuer:` in the `risingwave-console-dex` `ConfigMap`
+  - `RCONSOLE_SSO_DEX_ISSUERURL` in the StatefulSet
+- **Root password** (optional): the default login is `root` / `root`. To change it, add a `RCONSOLE_ROOT_PASSWORD` env var to the `console` container.
+
+<Warning>
+  `replicas: 1` is load-bearing. The self-register flow resets the Dex OIDC
+  client secret on every boot; with more than one replica each pod would
+  overwrite the others' secret, causing random `401`s on SSO login.
+</Warning>
+
+### 3. Expose Console over HTTPS
+
+The manifest exposes Console on NodePort `30020`. Add an Ingress (or other TLS-terminating front end) that serves Console at your issuer host over HTTPS. No forwarded-header trust configuration is needed.
+
+### 4. Apply and verify
+
+```shell
+kubectl apply -f risingwave-console-sso.yaml
+kubectl -n risingwave-console get pod risingwave-console-0   # READY should reach 2/2
+kubectl -n risingwave-console logs risingwave-console-0 -c console | grep -i "SSO self-register"
+# Expected: SSO self-registered OIDC client "risingwave-console" with Dex
+```
+
+<Warning>
+  On the **very first boot**, the console can start before the Dex sidecar's
+  gRPC port is ready and log `SSO Dex unreachable` followed by
+  `SSO login disabled this boot`. The console does not retry self-registration
+  within that boot, so SSO login stays disabled until the next restart. If you
+  see this, restart the console once Dex is up:
+
+  ```shell
+  kubectl -n risingwave-console rollout restart statefulset/risingwave-console
+  ```
+
+  After the restart the log shows `SSO self-registered OIDC client` and SSO is
+  ready. (The Docker Compose setup avoids this race with `depends_on`.)
+</Warning>
+
+## SSO configuration reference
+
+Both deployment methods set the `RCONSOLE_SSO_DEX_*` variables for you. You normally edit only the issuer host. The full set is documented here for custom deployments.
+
+| Environment variable                    | Description                                                                                                                              |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `RCONSOLE_SSO_DEX_GRPCADDR`              | Dex gRPC admin endpoint Console connects to, for example `dex:5557` (Docker) or `localhost:5557` (Kubernetes pod loopback).               |
+| `RCONSOLE_SSO_DEX_CACERT`                | Path to the PEM CA certificate Console uses to verify Dex's gRPC server certificate.                                                      |
+| `RCONSOLE_SSO_DEX_CLIENTCERT`            | (Optional) Client certificate for mTLS to Dex's gRPC admin port. Must be set together with `RCONSOLE_SSO_DEX_CLIENTKEY`.                  |
+| `RCONSOLE_SSO_DEX_CLIENTKEY`             | (Optional) Private key for the client certificate above.                                                                                 |
+| `RCONSOLE_SSO_DEX_ISSUERURL`            | Browser-facing OIDC issuer URL, for example `https://console.example.com/dex`. Must match the `issuer` in the Dex config exactly.         |
+| `RCONSOLE_SSO_DEX_CLIENTID`             | OIDC client id Console registers as in Dex. Use `risingwave-console`.                                                                     |
+| `RCONSOLE_SSO_DEX_CLIENTSECRET`         | OIDC client secret. Leave unset when `RCONSOLE_SSO_DEX_SELFREGISTERCLIENT` is `true` (Console generates and owns the secret).             |
+| `RCONSOLE_SSO_DEX_INTERNALISSUERURL`     | Back-channel Dex URL Console uses for token exchange and JWKS, for example `http://dex:5556/dex`. The `iss` claim still uses the external issuer. |
+| `RCONSOLE_SSO_DEX_SELFREGISTERCLIENT`    | When `true`, Console generates its own OIDC client secret at boot and registers itself with Dex. Requires `ISSUERURL` and `CLIENTID`, and that `CLIENTSECRET` be unset. |
+| `RCONSOLE_SSO_DEX_SERVEOIDCPROXY`        | When `true`, Console reverse-proxies Dex's HTTP surface under its own `/dex` path. Requires `RCONSOLE_SSO_DEX_INTERNALISSUERURL`.         |
+
+## Register a connector
+
+After Console is running, sign in as `root` and add a connector for your IdP. Connectors are pushed to Dex immediately; no restart is needed.
+
+1. In the sidebar, open **SSO Connectors**.
+
+   Before you add anything, the page shows an empty state.
+
+   <Frame>
+     <img src="/images/risingwave-console/risingwave-console-sso-empty-state.png" alt="RisingWave Console SSO Connectors page showing the empty state before any connectors are added" />
+   </Frame>
+
+2. Click **Add connector** and fill in the form:
+
+   - **Connector id**: a stable identifier, for example `okta-prod`. This is used internally and cannot be changed later.
+   - **Type**: **SAML 2.0**, **LDAP / Active Directory**, or **OIDC**.
+   - **Display name**: the label shown on the sign-in button, for example `Okta (Production)`.
+   - **Configuration (JSON)**: connector-specific settings passed to Dex. Selecting a type pre-fills a template with the keys that connector expects; fill in the values.
+
+   <Frame>
+     <img src="/images/risingwave-console/risingwave-console-sso-add-connector.png" alt="Add SSO connector dialog with connector id, type, display name, and JSON configuration fields" />
+   </Frame>
+
+3. Click **Create connector**.
+
+Each configured connector appears in the list, where you can edit or delete it.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-sso-connector-list.png" alt="SSO Connectors list showing a SAML and an LDAP / Active Directory connector with edit and delete actions" />
+</Frame>
+
+### Connector configuration
+
+The configuration field holds connector-specific JSON that Dex validates on save. Selecting a type pre-fills the keys that connector expects.
+
+For connectors that verify an IdP or directory server certificate, use the **Load CA certificate** button to fill the inline CA field from a PEM file. Console uses Dex's *inline* CA form (`caData` for SAML, `rootCAData` for LDAP) rather than a filesystem path, because a path would point inside the Dex container.
+
+<Tabs>
+  <Tab title="SAML 2.0">
+~~~json
+{
+  "ssoURL": "https://idp.example.com/sso",
+  "caData": "",
+  "redirectURI": "https://console.example.com/auth/sso/callback",
+  "usernameAttr": "name",
+  "emailAttr": "email",
+  "groupsAttr": "groups",
+  "entityIssuer": "https://console.example.com/auth/sso/callback",
+  "ssoIssuer": "https://idp.example.com/"
+}
+~~~
+
+    Use **Load CA certificate** to fill `caData` with the base64-encoded PEM of the IdP's signing CA. SAML requires it unless signature validation is disabled (dev and test only).
+  </Tab>
+  <Tab title="LDAP / Active Directory">
+~~~json
+{
+  "host": "ldap.example.com:636",
+  "bindDN": "cn=svc-dex,ou=Service,dc=example,dc=com",
+  "bindPW": "",
+  "rootCAData": "",
+  "userSearch": {
+    "baseDN": "ou=Users,dc=example,dc=com",
+    "filter": "(objectClass=person)",
+    "username": "userPrincipalName",
+    "idAttr": "objectGUID",
+    "emailAttr": "mail",
+    "nameAttr": "cn"
+  },
+  "groupSearch": {
+    "baseDN": "ou=Groups,dc=example,dc=com",
+    "filter": "(objectClass=group)",
+    "userMatchers": [{ "userAttr": "DN", "groupAttr": "member" }],
+    "nameAttr": "cn"
+  }
+}
+~~~
+
+    Use **Load CA certificate** to fill `rootCAData` with the base64-encoded PEM of the LDAPS server's CA. Leave it empty for plain LDAP or when the server certificate chains to a publicly trusted root.
+  </Tab>
+  <Tab title="OIDC">
+~~~json
+{
+  "issuer": "https://idp.example.com",
+  "clientID": "",
+  "clientSecret": "",
+  "redirectURI": "https://console.example.com/auth/sso/callback"
+}
+~~~
+
+    Register `https://<console-host>/auth/sso/callback` as an allowed redirect URI with your upstream OIDC provider.
+  </Tab>
+</Tabs>
+
+## Sign in with SSO
+
+Once SSO is enabled — Console is deployed alongside Dex, Dex is reachable, and Console has registered its OIDC client — the login page shows a **Sign in with SSO** button alongside the local username and password fields. Users click it to authenticate through your IdP.
+
+Register at least one IdP connector before pointing users at SSO, so the button leads to a real identity provider rather than only Dex's built-in local login.
+
+<Frame>
+  <img src="/images/risingwave-console/risingwave-console-sso-login.png" alt="RisingWave Console login page showing the Sign in with SSO button below the username and password fields" />
+</Frame>
+
+The local `root` account and any local users you create continue to work, so you retain an administrative path even if the IdP is unavailable.
+
+## Troubleshooting
+
+| Symptom                                              | Check                                                                                                                                                |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The **Sign in with SSO** button does not appear      | Check the console log for `SSO login disabled this boot` (first-boot race with the Dex sidecar) and restart the console. Otherwise confirm Dex is reachable and the OIDC issuer/client fields (or self-register mode) are set. |
+| `SSO login disabled this boot` in the console log     | The console started before Dex's gRPC port was ready and did not retry. On Kubernetes, restart: `kubectl -n risingwave-console rollout restart statefulset/risingwave-console`. The Docker Compose setup avoids this with `depends_on`. |
+| `Unregistered redirect_uri` on SSO login             | The issuer host must equal the host browsers use to reach Console. Make `RCONSOLE_SSO_DEX_ISSUERURL` and the Dex `issuer` byte-identical to that host. |
+| Dex container exits with `permission denied` on its key or DB | Dex runs as a non-root user. Ensure the gRPC cert/key are readable (`chmod 644`) and the Dex data volume is writable (the `dex-init` service handles this on Docker; `fsGroup` handles it on Kubernetes). |
+| Random `401` errors on SSO login                     | The deployment is running more than one replica. The self-register flow requires a single instance.                                                   |
+| Login fails with a certificate or signature error    | Confirm the inline CA (`caData` / `rootCAData`) matches the IdP or LDAPS server certificate. Use **Load CA certificate** to set it from the PEM file. |
+| Console exits at boot with an SSO configuration error | The OIDC fields are all-or-nothing. In self-register mode set `ISSUERURL` and `CLIENTID` and leave `CLIENTSECRET` unset; in hand-configured mode set issuer, client id, and client secret together. |

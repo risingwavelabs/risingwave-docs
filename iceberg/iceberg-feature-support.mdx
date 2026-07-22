@@ -1,95 +1,126 @@
 ---
 title: "Iceberg feature support"
-description: "An overview of RisingWave's support for Apache Iceberg features, including a timeline, competitor comparison, and a list of key capabilities."
+description: "Current support matrix for Apache Iceberg sources, sinks, internal tables, catalogs, storage, and maintenance in RisingWave."
 ---
 
-## RisingWave’s Iceberg journey
+RisingWave supports Apache Iceberg in three main workflows:
 
-| Time | Event |
-| --- | --- |
-| Sep 2022 | Started developing the Iceberg sink |
-| Nov 2022 | Iceberg sink (append-only, Java based) |
-| Jan 2023 | Iceberg sink (mutable, Java based) |
-| Mar 2023 | Iceberg sink (Java based) |
-| Jun 2023 | Initiated Iceberg-rust |
-| Sep 2023 | Iceberg sink (Rust based) |
-| Apr 2024 | Iceberg source & Iceberg ad-hoc query |
-| Jun 2024 | Support log store buffering and tunable freshness for Iceberg sink |
-| Nov 2024 | Released Nimtable, the control plane for Apache Iceberg |
-| Nov 2024 | Rust-based Iceberg compaction |
-| Nov 2024 | Released Iceberg Table Engine |
-| Apr 2025 | Support AWS S3 Tables, Snowflake Catalog, and Databricks Catalog integration |
-| May 2025 | Support exactly-once for Iceberg writer |
-| Sep 2025 | Support CoW mode for Iceberg Table Engine and Iceberg compaction  |
-| Oct 2025 | VACUUM / VACUUM FULL for Iceberg tables and sinks |
-| Oct 2025 | Support for Lakekeeper, a self-hosted Apache Iceberg REST catalog |
-| Dec 2025 | Vended credentials for Iceberg REST catalogs |
-| Dec 2025 | Enhanced Iceberg sink compaction strategies (small-files, files-with-delete) |
-| Dec 2025 | Refreshable Iceberg batch tables with scheduled or on-demand refresh |
-| Feb 2026 | Configurable Parquet writer properties (`compaction.write_parquet_compression`, `compaction.write_parquet_max_row_group_rows`) and unified output file size control (`compaction.target_file_size_mb`) for Iceberg sink writes and compaction |
+- **Read external Iceberg tables** with `CREATE SOURCE`, ad hoc queries, materialized views, or refreshable `CREATE TABLE`.
+- **Write to external Iceberg tables** with `CREATE SINK`.
+- **Create internal Iceberg tables** with `CREATE TABLE ... ENGINE = iceberg`, where RisingWave manages the table lifecycle and stores data in Iceberg format.
 
+This page summarizes the current feature support. For syntax and examples, follow the linked pages in each section.
 
-## Feature comparison
+## Support overview
 
-### Writing to Iceberg
+| Area | Support | Notes |
+| :-- | :-- | :-- |
+| External Iceberg sources | Supported | Use `CREATE SOURCE` for continuous ingestion from append-only tables. Schema is inferred from Iceberg metadata. |
+| Refreshable external Iceberg tables | Supported | Use `CREATE TABLE ... WITH (connector = 'iceberg', refresh_mode = 'FULL_RELOAD')` for on-demand or scheduled full reloads. |
+| External Iceberg sinks | Supported | Use `CREATE SINK` to write append-only or upsert streams to Iceberg tables. |
+| Internal Iceberg tables | Supported | Use `CREATE TABLE ... ENGINE = iceberg` to store RisingWave-managed tables in Iceberg format. |
+| Automatic Iceberg maintenance | Supported | Available for Iceberg sinks and internal Iceberg tables when a dedicated Iceberg compactor is deployed. |
+| Manual maintenance | Supported | Use `VACUUM` to expire snapshots and `VACUUM FULL` to compact files and expire snapshots. |
+| Built-in catalog | Supported | Uses RisingWave's metastore as a JDBC-compatible Iceberg catalog. PostgreSQL or MySQL metastore is required. |
+| External catalogs | Supported | Supports storage, REST, Glue, JDBC, Hive, S3 Tables, Lakekeeper, Snowflake, and Databricks Unity Catalog with catalog-specific limits. |
 
-The following table compares RisingWave with other ETL/ELT tools for Iceberg, such as Spark Streaming, Flink, and Fivetran.
+## Reading from Iceberg
 
-|  | RisingWave | Spark Streaming  | Apache Flink | Fivetran |
-| --- | --- | --- | --- | --- |
-| Interface | Postgres-compatible | Spark SQL/Java/Python | Flink SQL/Java/Python | no code |
-| Position | ETL/ELT | ETL/ELT | ETL/ELT | ELT only |
-| Exactly-once | Yes (decoupled with checkpoint) | No | Yes (no buffering, coupled with checkpoint) | No |
-| Schema evolution (ELT case, e.g., replicating Postgres to Iceberg) | Partially | No | Partially
-(with Flink CDC integration) | No |
-| Data source support | [Rich](/ingestion/overview#supported-sources) (CDC, message queues, batch, webhook, etc) | Rich | Rich | Richest |
-| Iceberg compaction | Yes, using our own engine. Support both MoR (merge-on-read) and CoW (copy-on-write). | Yes, in Databricks managed Iceberg tables | Yes, in Confluent Tableflow | Yes |
-| Catalog support | Rich (Unity Catalog, Polaris, Lakekeeper, S3 Tables, AWS Glue, Hive, JDBC, Snowflake Open Catalog, etc). | Unity Catalog | Unity Catalog, Polaris | AWS Glue, Unity Catalog, etc. |
-| Maturity | Mature (started supporting Iceberg since September 2022) | Mature | Mature | Launched managed Iceberg tables in June 2024. |
+| Capability | Support | Notes |
+| :-- | :-- | :-- |
+| Schema inference | Supported | Iceberg source schemas are inferred automatically. Do not define columns in `CREATE SOURCE`. |
+| Ad hoc snapshot queries | Supported | Query an Iceberg source directly to read the current table snapshot. |
+| One-time loading | Supported | Append-only and mutable Iceberg tables are supported. RisingWave applies Iceberg equality deletes and position deletes when reading mutable tables. |
+| Continuous ingestion from append-only tables | Supported | Use `CREATE SOURCE` and build materialized views on top of the source. |
+| Continuous ingestion from mutable tables | Not supported for update/delete propagation | `CREATE SOURCE` is designed for append-only continuous ingestion. For mutable Iceberg tables, use refreshable `CREATE TABLE` with `FULL_RELOAD` when downstream results must reflect updates and deletes. |
+| On-demand full reload | Supported | Use `REFRESH TABLE` on a refreshable Iceberg table. |
+| Scheduled full reload | Supported | Set `refresh_interval_sec` together with `refresh_mode = 'FULL_RELOAD'`. |
+| Equality deletes | Supported | Supported when reading mutable tables in snapshot/full-reload paths. |
+| Position deletes | Supported | Supported when reading mutable tables in snapshot/full-reload paths. |
+| Predicate pushdown | Supported | Filters can be pushed into Iceberg scans where applicable. |
+| Time travel | Supported | Query committed Iceberg snapshots by timestamp or snapshot ID where the target object supports time travel. |
 
-### Reading from Iceberg
+For configuration details, see [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg).
 
-| | RisingWave | Apache Spark | Apache Flink |
-| :--- | :--- | :--- | :--- |
-| One-time loading (append-only) | Supported | Supported | Supported |
-| One-time loading (mutable, CoW) | Supported | Supported | Supported |
-| One-time loading (mutable, MoR) | Supported | Supported | Supported |
-| Periodic loading (append-only) | Planned (v2.7) | Supported (via scheduled batch query) | Supported (via scheduled batch query) |
-| Periodic loading (mutable, CoW) | Planned (v2.7) | Supported (via scheduled batch query) | Supported (via scheduled batch query) |
-| Periodic loading (mutable, MoR) | Planned (v2.7) | Supported (via scheduled batch query) | Supported (via scheduled batch query) |
-| Continuous loading (append-only) | Supported | Supported | Supported |
-| Continuous loading (mutable, CoW) | Supported | Partially Supported (streams from new snapshots) | Supported (native changelog stream) |
-| Continuous loading (mutable, MoR) | Not Supported | Not Supported | Partially Supported (streams changes after compaction) |
+## Writing to Iceberg
 
-## Key Iceberg features in RisingWave
+| Capability | Support | Notes |
+| :-- | :-- | :-- |
+| Append-only sink | Supported | Set `type = 'append-only'`. Append-only sinks must use merge-on-read mode. |
+| Upsert sink | Supported | Set `type = 'upsert'` and provide `primary_key`. |
+| Force append-only | Supported | Set `force_append_only = 'true'` to write an upsert stream as inserts while ignoring deletes. |
+| Exactly-once delivery | Supported | Iceberg sinks default to exactly-once in the normal sink-decoupled mode. If `sink_decouple` is disabled, exactly-once is disabled automatically unless configured otherwise. |
+| Commit frequency | Supported | Use `commit_checkpoint_interval`. The default is `60`. |
+| Commit retry | Supported | Use `commit_retry_num`. The default is `8`. |
+| Auto-create target table | Supported | Set `create_table_if_not_exists = 'true'`. |
+| Partitioning | Supported | Use `partition_by` with column names or Iceberg transforms such as `bucket`, `truncate`, `year`, `month`, `day`, and `hour`. |
+| Sort order keys | Supported | Use `order_key` when creating the sink. |
+| Merge-on-read | Supported | Default write mode for Iceberg sinks and tables. |
+| Copy-on-write | Supported for upsert only | Append-only sinks and tables must use merge-on-read. |
+| Additive schema evolution | Supported | `auto.schema.change = 'true'` can propagate upstream `ADD COLUMN` changes for exactly-once Iceberg sinks. |
+| Iceberg format v2 | Supported | Default format version. |
+| Parquet writer settings | Supported | Configure output file size and compression with parameters such as `compaction.target_file_size_mb`, `compaction.write_parquet_compression`, and `compaction.write_parquet_max_row_group_bytes`. |
 
-| **Feature** | **Explanation** | **Why Important** | **Possible alternatives** |
-| --- | --- | --- | --- |
-| **ETL / Data Enrichment** | | | |
-| Real-time ETL | RisingWave provides powerful real-time ETL capability, enabling continuous transformation and enrichment of data streams before landing into Iceberg. | Real-time ETL ensures low-latency insights and reduces the need for external ETL pipelines like Spark or Flink. | Spark, Flink |
-| **ELT / Data Replication** | | | |
-| CDC-based ELT | Built on Debezium embedded engine, RisingWave continuously replicates changes from operational DBs into Iceberg. | Simplifies data synchronization and guarantees consistency between operational databases and analytical Iceberg tables. | Flink CDC, Kafka Connect |
-| **Writing to Iceberg** | | | |
-| Built-in Compaction | RisingWave’s internal compaction service merges small files and snapshots efficiently. | Reduces query overhead, storage costs, and improves Iceberg query performance. | Spark/EMR |
-| Controllable Commit Frequency | Users can configure commit frequency based on workload and freshness requirements. | Balances performance, cost, and data freshness for diverse workloads. | Kafka / Kafka Connect |
-| Exactly-Once Semantics | Guarantees no duplicate or missing records while respecting primary key constraints from upstream sources. | Maintains strong data consistency and correctness in streaming pipelines. | Flink (no buffering, coupled with checkpoint) |
-| Embedded Log Store | Uses an internal log store (similar to an embedded Kafka) for buffering data before committing. | Enables durability, backpressure handling, and fault-tolerant data delivery. | Kafka / Kafka Connect |
-| Mutable Stream Modes | Supports two modes: MoR and CoW. MoR writes data and delete files for high freshness; CoW writes compacted data files for compatibility. | Offers flexibility to balance freshness and compatibility with different query engines. | - |
-| **Reading from Iceberg** | | | |
-| One-time Loading (Append-only) | Loads append-only Iceberg tables once for initial data import or snapshot analysis. | Ideal for bootstrapping analytical pipelines or ad-hoc analysis without maintaining state. | Spark, Flink |
-| One-time Loading (Mutable, CoW) | Loads CoW-style Iceberg tables once, applying overwrite semantics to ensure consistent snapshot reads. | Enables consistent point-in-time analysis for mutable tables. | Spark, Flink |
-| One-time Loading (Mutable, MoR) | Loads MoR-style Iceberg tables once, reading both data and delete files. | Allows accurate reconstruction of the latest table state with equality delete handling. | Spark, Flink |
-| Periodic Loading (Append-only) | Periodically imports new appended data from Iceberg snapshots. | Suitable for near-real-time dashboards that don’t require full streaming. | Spark |
-| Periodic Loading (Mutable, CoW) | Periodically reads compacted CoW Iceberg tables at scheduled intervals. | Simplifies incremental updates for mutable datasets while reducing resource usage. | Spark |
-| Periodic Loading (Mutable, MoR) | Periodically synchronizes MoR tables with delete support for better accuracy. | Ensures correctness in workloads where updates or deletes occur. | - |
-| Continuous Loading (Append-only) | Continuously monitors append-only Iceberg tables and ingests new data as it arrives. | Enables true streaming from batch data sources with low latency. | Spark, Flink |
-| Continuous Loading (Mutable, CoW) | Continuously loads compacted CoW tables to maintain up-to-date materialized views. | Combines near-real-time freshness with compatibility for engines lacking delete-file support. | - |
-| Transparent Caching Layer (WIP) | A planned feature exposing an S3-compatible endpoint for caching and query acceleration. | Improves read efficiency while maintaining open, interoperable access. |  |
-| **Compaction & maintenance** | | | |
-| Automatic Optimization | Compacts small files in the background using smart strategies to maintain healthy table structure. | Improves query speed, reduces metadata overhead, and optimizes storage usage. | Databricks managed Iceberg tables, S3 Tables, etc. |
-| Universal Compatibility | Works across all major cloud object stores (AWS, Azure, GCP), even for engines lacking delete support. | Makes Iceberg maintenance cloud-agnostic and engine-independent. | Databricks managed Iceberg tables, S3 Tables, etc. |
-| Iceberg-rust Enhancements | RisingWave maintains a Rust fork of Iceberg-rust with support for V2 spec, partition writer, and fast append. | Extends Iceberg’s native capabilities for better streaming integration. | - |
-| Observability & Custom Policies | Includes status tracking and fine-grained compaction policies. | Allows users to customize optimization behavior per workload, improving control and transparency. | - |
-| **Iceberg Transformation** | | | |
-| Cascading Incremental MVs | Supports cascading materialized views on top of Iceberg tables, maintained incrementally. | Enables Medallion-style architecture (Bronze–Silver–Gold) and reduces compute cost for derived data. | Spark Streaming, Flink |
-| Postgres-style Transformation Operators | Includes dozens of PostgreSQL-compatible streaming operators such as joins, windows, and aggregations. | Provides a rich transformation layer without relying on external frameworks. | Spark Streaming, Flink |
+For configuration details, see [Deliver data to Iceberg tables](/iceberg/deliver-to-iceberg) and [Iceberg write modes](/iceberg/write-modes).
+
+## Internal Iceberg tables
+
+| Capability | Support | Notes |
+| :-- | :-- | :-- |
+| `CREATE TABLE ... ENGINE = iceberg` | Supported | Creates a RisingWave-managed table backed by Iceberg storage. |
+| Primary-key tables | Supported | Upsert semantics are written to Iceberg through the table's internal sink. |
+| Append-only tables | Supported | Use `APPEND ONLY` with `ENGINE = iceberg`. |
+| Inserts and streaming writes | Supported | Write with `INSERT` or stream data into the table with `CREATE SINK ... INTO`. |
+| Materialized views on internal Iceberg tables | Supported | Use internal Iceberg tables as inputs to materialized views. |
+| Partitioning | Supported | Use `partition_by` in table `WITH (...)` options. The partition key must be compatible with the table primary key. |
+| Commit frequency | Supported | Use `commit_checkpoint_interval`; the default is `60`. |
+| Time travel | Supported | Query committed snapshots with `FOR SYSTEM_TIME AS OF` or `FOR SYSTEM_VERSION AS OF`. |
+| Query storage selection | Supported | Use `iceberg_query_storage_mode` to choose Iceberg columnar reads, Hummock row reads, or optimizer-selected mode. |
+| Built-in catalog | Supported | Set `hosted_catalog = true` in the Iceberg connection. |
+| Automatic maintenance | Supported | `enable_compaction` controls background compaction and snapshot expiration. |
+| Manual maintenance | Supported | Use `VACUUM` or `VACUUM FULL` on the table. |
+
+For configuration details, see [Create and manage internal Iceberg tables](/iceberg/internal-iceberg-tables).
+
+## Catalog and storage support
+
+| Catalog or storage | Support | Notes |
+| :-- | :-- | :-- |
+| Storage catalog | Supported | Uses the warehouse path directly. Supports object stores such as S3, GCS, and Azure Blob where configured. |
+| REST catalog | Supported | Works with REST-compatible catalogs. Supports OAuth2-style credentials, bearer tokens, custom headers, SigV4 signing, and vended credentials. |
+| Lakekeeper | Supported | Use Lakekeeper as a self-hosted REST catalog. |
+| Amazon S3 Tables | Supported | Uses the REST catalog path with SigV4 signing. |
+| AWS Glue | Supported | Supports separate Glue credentials and assuming IAM roles. |
+| JDBC catalog | Supported | Can be used for external catalogs and for RisingWave's built-in catalog. |
+| Hive Metastore | Supported | Available as an external Iceberg catalog. |
+| Snowflake catalog | Supported for Iceberg sources | Use Snowflake-managed Iceberg tables as read-only sources. |
+| Databricks Unity Catalog | Supported for Iceberg sinks | Use Unity Catalog for Databricks-managed external Iceberg tables. `CREATE SOURCE` and `CREATE CONNECTION` are not supported for this integration. |
+| S3 and S3-compatible storage | Supported | Configure S3 credentials, endpoint, region, path-style access, or config loading. |
+| Google Cloud Storage | Supported | Configure GCS credentials directly or use REST catalog credential vending where applicable. |
+| Azure Blob Storage and ADLS Gen2 | Supported | Supported through Iceberg storage/catalog configuration where applicable. |
+
+For complete catalog parameters, see [Iceberg catalog configuration](/iceberg/catalogs). For storage parameters, see [Object storage configuration](/iceberg/object-storage).
+
+## Maintenance support
+
+| Capability | Support | Notes |
+| :-- | :-- | :-- |
+| Automatic compaction | Supported | Set `enable_compaction = true`. Requires a dedicated Iceberg compactor node. |
+| Snapshot expiration | Supported | Controlled by `enable_snapshot_expiration` and snapshot expiration parameters. |
+| `VACUUM` | Supported | Expires old snapshots for an Iceberg sink or internal Iceberg table. |
+| `VACUUM FULL` | Supported | Runs compaction and then expires old snapshots. |
+| Full compaction | Supported | Rewrites all data files. |
+| Small-files compaction | Supported | Set `compaction.type = 'small-files'`. |
+| Files-with-delete compaction | Supported | Set `compaction.type = 'files-with-delete'`. |
+| Dynamic maintenance updates | Supported | Many compaction and snapshot-expiration parameters can be updated with `ALTER SINK`. |
+
+For setup and sizing, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor) and [Iceberg table maintenance](/iceberg/maintenance).
+
+## Important limitations
+
+- `CREATE SOURCE` for Iceberg is intended for append-only continuous ingestion. Use refreshable `CREATE TABLE` with `FULL_RELOAD` for mutable external Iceberg tables.
+- Do not define columns in an Iceberg `CREATE SOURCE`; RisingWave infers the schema from Iceberg metadata.
+- `refresh_mode` is supported for `CREATE TABLE`, not `CREATE SOURCE`.
+- Append-only Iceberg sinks and append-only internal Iceberg tables must use merge-on-read mode.
+- Additive schema evolution currently covers `ADD COLUMN`; column drops, renames, and type changes require separate handling.
+- Catalog integrations can have role-specific limits. For example, Snowflake catalog is read-only in RisingWave, while the Databricks Unity Catalog integration is documented for Iceberg sinks.

@@ -103,13 +103,21 @@ RisingWave supports preloading state tables into memory to accelerate query proc
 
 Configurations can be set in `[streaming.developer]` section in the configuration file. For example:
 
-| Configuration                            | Description                             |
-|------------------------------------------|-----------------------------------------|
-| `default_enable_mem_preload_state_table` | Whether to enable preloading all rows in memory for state tables by default. If `true`, all capable state tables preload their state into memory. |
-| `mem_preload_state_table_ids_whitelist`  | List of state table IDs to **enable** preloading all rows in memory. Only takes effect when `default_enable_mem_preload_state_table` is `false`. |
-| `mem_preload_state_table_ids_blacklist`  | List of state table IDs to **disable** preloading all rows in memory. Only takes effect when `default_enable_mem_preload_state_table` is `true`. |
+| Configuration                            | Default | Description                             |
+| :--------------------------------------- | :-----: | :-------------------------------------- |
+| `default_enable_mem_preload_state_table` | `false` | Whether to enable preloading all rows in memory for state tables by default. If `true`, all capable state tables preload their state into memory. |
+| `mem_preload_state_table_ids_whitelist`  | `[]`    | List of state table IDs to **enable** preloading all rows in memory. Only takes effect when `default_enable_mem_preload_state_table` is `false`. |
+| `mem_preload_state_table_ids_blacklist`  | `[]`    | List of state table IDs to **disable** preloading all rows in memory. Only takes effect when `default_enable_mem_preload_state_table` is `true`. |
 
 Using this feature involves certain configuration steps and considerations. To ensure it is set up correctly and used effectively, please contact our [support team](mailto:cloud-support@risingwave-labs.com) for guidance.
+
+### Join hash map eviction
+
+The following configuration controls how often the join hash map cache is evicted in hash join and as-of join executors. It can be set in the `[streaming.developer]` section of the configuration file.
+
+| Configuration                       | Default | Description                             |
+| :---------------------------------- | :-----: | :-------------------------------------- |
+| `join_hash_map_evict_interval_rows` | `16`    | Number of rows processed between periodic evictions of the join hash map cache, for hash join and as-of join executors. Values smaller than `1` are clamped to `1` by the executor. |
 
 ### Storage configurations
 

@@ -22,6 +22,11 @@ After the source or table is created, you can run ad hoc queries against it or m
 
 ## Continuous ingestion with CREATE SOURCE
 
+### Limitations
+
+- **PRIMARY KEY is not supported.** Iceberg `CREATE SOURCE` is for append-only, streaming ingestion. RisingWave internally uses a hidden, system-generated `_row_id` column to uniquely identify each record, which is incompatible with user-defined primary keys. If you need to ingest a mutable Iceberg table (with updates and deletes), use [`CREATE TABLE` with `refresh_mode = 'FULL_RELOAD'`](#periodic-full-reload-with-create-table) instead — note that `FULL_RELOAD` is periodic snapshot-style ingestion, not continuous streaming.
+- **Column definitions are not allowed for Iceberg sources.** RisingWave automatically infers the schema from the Iceberg table metadata. Specifying column definitions in the `CREATE SOURCE` statement will result in an error. Use `CREATE SOURCE <name> WITH (...)` rather than `CREATE SOURCE <name> (<columns>) WITH (...)`.
+
 ### Basic connection example
 
 The following example creates a source for a table in S3 using AWS Glue as the catalog:

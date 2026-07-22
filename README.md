@@ -1,4 +1,3 @@
-
 # Note
 
 This repository contains the latest RisingWave documentation. [The old repository](https://github.com/risingwavelabs/risingwave-docs-legacy) now hosts the archived documentation up to v2.0 of RisingWave.
@@ -25,26 +24,31 @@ Below are the main topic groups. Some groups are elevated to be tabs shown on th
 - cloud
 - changelog
 
-
 ### Development
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the documentation changes locally. To install, use the following command
+The Mintlify CLI package was renamed from `mintlify` to [`mint`](https://www.npmjs.com/package/mint). Either works, but `mint` is the current recommended form for local development.
+
+Note: some repository automation and CI checks may still use the legacy `mintlify` command name (for example, broken-links checks), so you may see either form in this repo.
+Run the dev server from the repo root (where `docs.json` lives) — no global install needed:
 
 ```
-npm i -g mintlify
+npx mint@latest dev
 ```
 
-Run the following command at the root of your documentation (where mint.json is)
+Pass `--port <N>` if the default port is in use, e.g. `npx mint@latest dev --port 3333`.
+
+If you prefer a global install:
 
 ```
-mintlify dev
+npm i -g mint
+mint dev
 ```
 
 ### Publishing Changes
 
-Install our Github App to auto propagate changes from your repo to your deployment. Changes will be deployed to production automatically after pushing to the default branch. Find the link to install on your dashboard. 
+Install our GitHub App to automatically propagate changes from your repo to your deployment. Changes will be deployed to production automatically after pushing to the default branch. Find the link to install on your dashboard.
 
 #### Troubleshooting
 
-- Mintlify dev isn't running - Run `mintlify install` it'll re-install dependencies.
-- Page loads as a 404 - Make sure you are running in a folder with `mint.json`
+- Dev server isn't running — run `mint install` to reinstall dependencies.
+- Page loads as a 404 — make sure you're running in a folder with `docs.json` (the config was previously `mint.json`; Mintlify renamed it).

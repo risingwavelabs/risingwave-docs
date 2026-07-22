@@ -14,7 +14,7 @@ Unlike CDC, which continuously syncs data changes, this function lets you fetch 
 
 ## Syntax
 
-Define `postgres_query` as follows:
+Define `postgres_query` in either of the following forms:
 
 ```sql
 postgres_query(
@@ -26,6 +26,15 @@ postgres_query(
     query varchar          -- SQL query to execute
 )
 ```
+
+```sql
+postgres_query(
+    cdc_source_name varchar, -- Existing PostgreSQL CDC source name
+    query varchar            -- SQL query to execute
+)
+```
+
+The source-based form requires an existing [PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc) source. It reuses the connection properties already defined on that source, including credentials managed as secrets.
 
 ## Example
 
@@ -52,4 +61,24 @@ FROM postgres_query('localhost', '5432', 'postgres', 'postgres', 'mydb', 'SELECT
 98 98
 99 99
 100 100
+```
+
+If you already have a PostgreSQL CDC source, you can reuse its connection properties instead of passing them inline again.
+
+```sql
+CREATE SOURCE pg_source WITH (
+    connector = 'postgres-cdc',
+    hostname = 'postgres',
+    port = '5432',
+    username = 'myuser',
+    password = secret pg_password,
+    database.name = 'mydb',
+    schema.name = 'public'
+);
+
+SELECT *
+FROM postgres_query(
+    'pg_source',
+    'SELECT * FROM test WHERE id > 90;'
+);
 ```

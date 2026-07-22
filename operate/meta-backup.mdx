@@ -23,7 +23,7 @@ Meta snapshot is created by meta service whenever requested by users. There is n
 
 **Using RisingWave Console**
 
-You can create and manage metadata snapshots through the [RisingWave Console](/risingwave-console/manage-monitor-clusters#managing-metadata-snapshots), which provides a web-based interface for snapshot operations including manual snapshot creation and automated backup configuration.
+You can create and manage metadata snapshots through the [RisingWave Console](/web-ui/risingwave-console/manage-monitor-clusters#managing-metadata-snapshots), which provides a web-based interface for snapshot operations including manual snapshot creation and automated backup configuration.
 
 **Using Command Line**
 
@@ -74,15 +74,38 @@ Below are two separate methods to restore from a meta snapshot using SQL databas
 
 If the cluster has been using a SQL database as meta store backend, follow these steps to restore from a meta snapshot.
 
-1. Shut down the meta service.
+1. Shut down RisingWave nodes, including meta, compute, compactor and frontend.
    <Note>
    This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
    </Note>
-2. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. To achieve this, you can either: 
-   * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas, or
+
+2. If the Elastic Disk Cache feature is enabled, clear the disk cache on every node where disk cache is enabled before starting the restored cluster. Specifically, delete the contents of the directories configured by `storage.meta_file_cache.dir` and `storage.data_file_cache.dir`, or delete and then recreate those directories with the correct permissions before starting the restored cluster.
+
+3. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. Use one of the following methods to achieve this:
+   * (Preferred) Create the meta store schema using `risectl meta create-meta-store-schema`.
+     * For RisingWave v3.1 and above, use the RisingWave image where the embedded `risectl` supports `create-meta-store-schema`. Ensure the RisingWave image version matches your meta snapshot.
+     ```
+     /risingwave/bin/risingwave ctl meta create-meta-store-schema \
+      --meta-store-type postgres \
+      --sql-endpoint 127.0.0.1:8432 \
+      --sql-username placeholder \
+      --sql-password placeholder \
+      --sql-database placeholder
+     ```
+     * For RisingWave prior to v3.1, use the [dedicated risectl image](https://github.com/risingwavelabs/risingwave/pkgs/container/risectl) that supports create-meta-store-schema. Ensure risectl image version matches your meta snapshot. For example, for a RisingWave v2.8.3 meta snapshot, use risectl v2.8.
+      ```bash
+     /risingwave/bin/risectl meta create-meta-store-schema \
+      --meta-store-type postgres \
+      --sql-endpoint 127.0.0.1:8432 \
+      --sql-username placeholder \
+      --sql-password placeholder \
+      --sql-database placeholder
+     ```
+      * After running the command, truncate tables populated during `create-meta-store-schema`, such as `seaql_migrations`.
+   * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas.
    * Use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool. The version of the migration tool must match the version of the meta snapshot. For example, if the meta snapshot was created with RisingWave v2.4.3, the migration tool should also be from RisingWave v2.4.3.
 
-3. Restore the meta snapshot to the new meta store.
+4. Restore the meta snapshot to the new meta store.
    ```
    risectl \
    meta \
@@ -122,13 +145,13 @@ If the cluster has been using a SQL database as meta store backend, follow these
    - `--overwrite-backup-storage-directory`: Override backup storage directory in restored meta store
    - `--sql-url-params`: Additional SQL connection parameters (e.g., `sslmode=disable`)
 
-4. Configure meta service to use the new meta store.
+5. Configure meta service to use the new meta store.
 
 ### etcd as meta store backends
 
 If the cluster has been using etcd as meta store backend, follow these steps to restore from a meta snapshot.
 
-1. Shut down the meta service.
+1. Shut down RisingWave nodes, including meta, compute, compactor and frontend.
    <Note>
    This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
    </Note>
