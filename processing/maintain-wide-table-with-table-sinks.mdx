@@ -26,18 +26,17 @@ CREATE SINK sink3 INTO wide_d (v3,k) AS
 
 `ON CONFLICT` only controls how `INSERT` and `UPDATE` events are handled. By default, `CREATE SINK ... INTO` forwards `DELETE` events as well. If any upstream deletes a row with a given primary key, the corresponding row in the wide table will be deleted.
 
-To prevent `DELETE` events from removing rows in the wide table, force the sink to be append-only:
+To prevent `DELETE` events from removing rows in the wide table, set `ignore_delete = 'true'`:
 
 ```sql
 CREATE SINK sink1 INTO wide_d (v1, k) AS
   SELECT v1, k FROM d1
   WITH (
-    type = 'append-only',
-    force_append_only = 'true'
+    ignore_delete = 'true'
   );
 ```
 
-For RisingWave v2.6 and earlier, you must set `type = 'append-only'` and `force_append_only = 'true'` for this pattern.
+For RisingWave v2.6 and earlier, use `type = 'append-only'` and `force_append_only = 'true'` for this pattern.
 </Note>
 
 ## Enrich data with foreign keys in Star/Snowflake schema model
@@ -57,29 +56,26 @@ CREATE TABLE wide_fact(pk int primary key, v1 int, v2 int, v3 int)
 CREATE SINK fact_sink INTO wide_fact (pk) AS
   SELECT pk FROM fact;
 
-/* Dimension sinks are force-append-only to avoid propagating DELETE into the wide table. */
+/* Dimension sinks ignore DELETE to avoid propagating them into the wide table. */
 CREATE SINK sink1 INTO wide_fact (pk, v1) AS
   SELECT fact.pk, d1.v
   FROM fact JOIN d1 ON fact.k1 = d1.pk
   WITH (
-    type = 'append-only',
-    force_append_only = 'true'
+    ignore_delete = 'true'
   );
 
 CREATE SINK sink2 INTO wide_fact (pk, v2) AS
   SELECT fact.pk, d2.v
   FROM fact JOIN d2 ON fact.k2 = d2.pk
   WITH (
-    type = 'append-only',
-    force_append_only = 'true'
+    ignore_delete = 'true'
   );
 
 CREATE SINK sink3 INTO wide_fact (pk, v3) AS
   SELECT fact.pk, d3.v
   FROM fact JOIN d3 ON fact.k3 = d3.pk
   WITH (
-    type = 'append-only',
-    force_append_only = 'true'
+    ignore_delete = 'true'
   );
 ```
 
