@@ -117,7 +117,7 @@ For append-only sinks, at-least-once semantics mean duplicate records may appear
 
 A sink will buffer incoming data within each barrier interval if the stream's internal primary key (stream key) differs from the user-defined sink primary key and the sink is not `append-only`. This mismatch can cause update events for the same sink key to be split across multiple upstream fragments in a distributed execution, leading to out-of-order operations if sent directly. Buffering allows the sink to compact and reorder updates so that delete events are emitted before insert events, ensuring correct semantics. 
 
-If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or `force_append_only`, no buffering is performed and the sink emits changes immediately as they arrive.
+If the stream key matches the sink primary key exactly, or if the sink is configured as `append-only` or with `ignore_delete = 'true'`, no buffering is performed and the sink emits changes immediately as they arrive.
 
 ### Force compaction
 
@@ -155,12 +155,12 @@ WITH (
     s3.endpoint_url = 'https://{config['S3_ENDPOINT']}'
     s3.path = '',
     type = 'append-only',
-    force_append_only='true'
-) FORMAT PLAIN ENCODE PARQUET(force_append_only='true');
+    ignore_delete='true'
+) FORMAT PLAIN ENCODE PARQUET(ignore_delete='true');
 ```
 
 <Note>
-File sink currently supports only append-only mode, so please change the query to `append-only` and specify this explicitly after the `FORMAT ... ENCODE ...` statement.
+File sink currently supports only append-only mode, so please set `type = 'append-only'`. If the upstream is not append-only, also set `ignore_delete = 'true'` in the sink options.
 </Note>
 
 ## Batching strategy for file sink
@@ -224,7 +224,7 @@ WITH (
     rollover_seconds = '10',
     type = 'append-only',
     path_partition_prefix = 'day'
-) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
+) FORMAT PLAIN ENCODE PARQUET (ignore_delete=true);
 ```
 
 In this example, a file is finalized as soon as either 100 rows have been written **or** 10 seconds have elapsed — whichever comes first. Once finalized, the file becomes visible in the downstream sink system.
@@ -252,7 +252,7 @@ WITH (
     max_row_count = '1000000',
     rollover_seconds = '3600',
     type = 'append-only'
-) FORMAT PLAIN ENCODE PARQUET (force_append_only=true);
+) FORMAT PLAIN ENCODE PARQUET (ignore_delete=true);
 ```
 
 ## See also

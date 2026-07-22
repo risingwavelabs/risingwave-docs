@@ -228,7 +228,7 @@ The BYTES encoding allows you to sink raw binary data directly to Kafka topics. 
 **Requirements:**
 - Only supported with `FORMAT PLAIN`
 - The source table or materialized view must have exactly one column of type `bytea`
-- `force_append_only='true'` must be specified
+- `ignore_delete='true'` must be specified
 
 ```sql Example
 CREATE TABLE t_binary_data (
@@ -240,7 +240,7 @@ CREATE SINK sink_bytes FROM t_binary_data WITH (
     properties.bootstrap.server = 'localhost:9092',
     topic = 'binary-topic'
 ) FORMAT PLAIN ENCODE BYTES (
-    force_append_only = 'true'
+    ignore_delete = 'true'
 );
 ```
 
@@ -332,7 +332,7 @@ WITH (
    privatelink.targets = '[{"port": 8001}, {"port": 8002}]'
 )
 FORMAT PLAIN ENCODE JSON (
-   force_append_only='true'
+   ignore_delete='true'
 );
 ```
 

@@ -72,7 +72,7 @@ WITH (
   connector = 'kafka',
   properties.bootstrap.server = 'localhost:9092',
   topic = 'enriched-clicks'
-) FORMAT PLAIN ENCODE JSON (force_append_only = 'true');
+) FORMAT PLAIN ENCODE JSON (ignore_delete = 'true');
 ```
 
 ## Key points
@@ -80,7 +80,7 @@ WITH (
 - The JOIN between a streaming source and a CDC table is maintained incrementally — no periodic recompute
 - When a row in `users` changes in PostgreSQL, the `enriched_clicks` MV updates to reflect the new value
 - For late-arriving events or joins where the reference data may not exist yet, use a `LEFT JOIN` to avoid dropping records
-- Use `force_append_only = 'true'` on Kafka sinks from materialized views that contain aggregations or joins
+- Use `ignore_delete = 'true'` on Kafka sinks from materialized views that contain aggregations or joins
 
 ## Next steps
 
