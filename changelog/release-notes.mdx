@@ -18,21 +18,15 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Supports `ALTER DATABASE ... SET/RESET RESOURCE_GROUP ... DEFERRED`, and extends `ALTER ... SET/RESET RESOURCE_GROUP` with optional `DEFERRED` to sinks and indexes. [#25954](https://github.com/risingwavelabs/risingwave/pull/25954)
 - Supports enabling serverless backfill for sinks and indexes with `WITH (cloud.serverless_backfill_enabled = true)`. [#25953](https://github.com/risingwavelabs/risingwave/pull/25953)
 - Allows CDC source hostnames and ports to be updated with `ALTER SOURCE ... CONNECTOR WITH`. [#26019](https://github.com/risingwavelabs/risingwave/pull/26019)
-
-## SQL functions and operators
-
 - Adds retry and observability for OpenAI embedding calls. [#26001](https://github.com/risingwavelabs/risingwave/pull/26001)
+- Fixes snapshot backfill progress, rate limiting, barrier handling, cross-database creation stalls, and unsafe snapshot merges. [#25952](https://github.com/risingwavelabs/risingwave/pull/25952), [#26022](https://github.com/risingwavelabs/risingwave/pull/26022), [#26119](https://github.com/risingwavelabs/risingwave/pull/26119), [#26288](https://github.com/risingwavelabs/risingwave/pull/26288), [#26346](https://github.com/risingwavelabs/risingwave/pull/26346)
+- Supports background DDL recovery for materialized views that contain temporal joins. [#26359](https://github.com/risingwavelabs/risingwave/pull/26359)
 
-## Query engine
+## Optimizer
 
 - Improves streaming project performance by evaluating chunks concurrently. [#26000](https://github.com/risingwavelabs/risingwave/pull/26000)
 - Fixes ASOF left join predicate semantics, mirrored Iceberg comparison boundaries, large parameterized `IN` lists, invalid index lookup selection, and planning of impure project expressions. [#26198](https://github.com/risingwavelabs/risingwave/pull/26198), [#26195](https://github.com/risingwavelabs/risingwave/pull/26195), [#26310](https://github.com/risingwavelabs/risingwave/pull/26310), [#26287](https://github.com/risingwavelabs/risingwave/pull/26287), [#26024](https://github.com/risingwavelabs/risingwave/pull/26024)
 - Corrects stream table scan and materialized view primary-key derivation. [#25783](https://github.com/risingwavelabs/risingwave/pull/25783), [#25804](https://github.com/risingwavelabs/risingwave/pull/25804)
-
-## Streaming and backfill
-
-- Fixes snapshot backfill progress, rate limiting, barrier handling, cross-database creation stalls, and unsafe snapshot merges. [#25952](https://github.com/risingwavelabs/risingwave/pull/25952), [#26022](https://github.com/risingwavelabs/risingwave/pull/26022), [#26119](https://github.com/risingwavelabs/risingwave/pull/26119), [#26288](https://github.com/risingwavelabs/risingwave/pull/26288), [#26346](https://github.com/risingwavelabs/risingwave/pull/26346)
-- Supports background DDL recovery for materialized views that contain temporal joins. [#26359](https://github.com/risingwavelabs/risingwave/pull/26359)
 
 ## Connectors
 
@@ -51,22 +45,25 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Fixes ClickHouse sink encoding for `DateTime64` values. [#20909](https://github.com/risingwavelabs/risingwave/pull/20909)
 - Clears Iceberg maintenance state when user-created sinks are cascade-dropped and promptly retries maintenance jobs after pre-dispatch failures. [#26258](https://github.com/risingwavelabs/risingwave/pull/26258), [#26230](https://github.com/risingwavelabs/risingwave/pull/26230)
 
-## Operations and observability
+## Administration
 
-- Adds table change log request latency and cache hit/miss metrics. [#26292](https://github.com/risingwavelabs/risingwave/pull/26292)
 - Adds `risectl meta create-meta-store-schema` for initializing or upgrading a meta store schema without a running meta node. [#26154](https://github.com/risingwavelabs/risingwave/pull/26154)
 - Streams meta snapshot backup and restore payloads to reduce memory usage. [#26267](https://github.com/risingwavelabs/risingwave/pull/26267)
 - Prevents time travel vacuum from deleting retained versions needed by queries and snapshot backfill. [#26326](https://github.com/risingwavelabs/risingwave/pull/26326), [#26390](https://github.com/risingwavelabs/risingwave/pull/26390)
 - Fixes meta-node panics and recovery stalls involving finishing snapshot backfill jobs, overlapping partial-graph resets, and recovered jobs without actor metadata. [#26060](https://github.com/risingwavelabs/risingwave/pull/26060), [#26271](https://github.com/risingwavelabs/risingwave/pull/26271), [#26175](https://github.com/risingwavelabs/risingwave/pull/26175)
 - Prevents an unreachable CDC upstream from holding a source split lock and stalling barriers and DDL cluster-wide. [#26276](https://github.com/risingwavelabs/risingwave/pull/26276)
 - Fixes a connection-pool livelock that could hang SQLite-backed meta stores. [#26131](https://github.com/risingwavelabs/risingwave/pull/26131)
+
+## Observability
+
+- Adds table change log request latency and cache hit/miss metrics. [#26292](https://github.com/risingwavelabs/risingwave/pull/26292)
 - Removes stale error metric queries and stale `last_committed_barrier_time` series from monitoring. [#26245](https://github.com/risingwavelabs/risingwave/pull/26245), [#26231](https://github.com/risingwavelabs/risingwave/pull/26231)
 
 </Update>
 
 <Update label="v3.0.1" description="2026-06-30">
 
-## Streaming and backfill
+## SQL features
 
 - Prevents compute-node panics when an upsert watermark filter is used with an implicit row-ID primary key. [#25979](https://github.com/risingwavelabs/risingwave/pull/25979)
 - Fixes recovery and buffered event handling for CDC and parallel CDC backfill. [#25906](https://github.com/risingwavelabs/risingwave/pull/25906), [#25907](https://github.com/risingwavelabs/risingwave/pull/25907)
@@ -80,7 +77,7 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Fails PostgreSQL CDC replication slot initialization promptly when the required WAL is no longer available. [#25993](https://github.com/risingwavelabs/risingwave/pull/25993)
 - Fixes Iceberg automatic schema change equivalence checks, branch-scoped snapshot backlog counting, and sink schema propagation. [#25970](https://github.com/risingwavelabs/risingwave/pull/25970)
 
-## Meta and storage
+## Administration
 
 - Rejects compaction group merges that would exceed write-stop or emergency L0 thresholds. [#26002](https://github.com/risingwavelabs/risingwave/pull/26002)
 - Refreshes compaction write limits after compaction group rewrites, preventing stale write-stop states. [#25813](https://github.com/risingwavelabs/risingwave/pull/25813)
