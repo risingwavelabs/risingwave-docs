@@ -56,14 +56,31 @@ Below are all supported custom settings:
 | Setting | Type | Description |
 | --- | --- | --- |
 | `container_security_context` | Object | Kubernetes [SecurityContext](https://pkg.go.dev/k8s.io/api/core/v1#SecurityContext) applied to all containers in RisingWave-managed namespaces: `cloudagent`, `rwproxy`, `risingwave-operator-system`, and `rwc-*`. |
+| `pod_security_context` | Object | Kubernetes [PodSecurityContext](https://pkg.go.dev/k8s.io/api/core/v1#PodSecurityContext) applied to all RisingWave-managed pods in `cloudagent`, `rwproxy`, `risingwave-operator-system`, and `rwc-*`. |
 | `pod_security_admission_labels` | Map | [Pod Security Admission labels](https://kubernetes.io/docs/concepts/security/pod-security-admission/#pod-security-admission-labels-for-namespaces) applied to all RisingWave-managed namespaces. |
 | `extra_tags` | Map | Custom tags applied to cloud vendor resources managed by RisingWave. |
 | `disable_external_cluster_access` | Boolean | When set to `true`, disables external (Internet-facing) access to RisingWave clusters. |
+| `disable_internet_access` | Boolean | When set to `true`, disables access to the Internet from the VPC. |
+| `extra_machine_families` | List | Extra machine families supported in the BYOC environment. Currently supported: `1c8m`. |
+| `enable_heap_storage` | Boolean | Enables object storage FUSE mount for heap dump persistence in BYOC clusters. If omitted, this is enabled by default on AWS and GCP. |
+| `disable_public_kubernetes_endpoint` | Boolean | When set to `true`, restricts the Kubernetes control-plane API to in-VPC access only. It must be `false` when creating or terminating a BYOC environment, and can be enabled later through an update. |
 ### AWS settings (`aws_settings`)
 
 | Setting | Type | Description |
 | --- | --- | --- |
 | `eks_node_ami_release_version` | String | Custom AMI release version for EKS nodes. If omitted, the default AMI is used. |
+| `zone_ids` | List | AWS AZ IDs, such as `use1-az2`, that the BYOC environment will be provisioned into. Provide exactly 3 unique AZ IDs matching `^[a-z0-9-]+-az[0-9]+$`. This can only be set when creating the environment. If omitted, RisingWave uses the control-plane default. |
+| `central_service_cidr` | String | CIDR reserved for VPC peering to access AWS central services. This is only applicable when `disable_external_cluster_access` is `true`. |
+| `merge_non_node_subnets` | Boolean | When set to `true`, merges the non-node subnets used for BYOC infrastructure. |
+| `additional_node_security_group_ids` | List | Extra security group IDs to include in the Karpenter `EC2NodeClass`. Use this when external systems such as AWS Firewall Manager attach additional security groups to instances, to avoid `SecurityGroupDrift` on repeated Terraform applies. |
+| `enable_hosted_telemetry_lb` | Boolean | Exposes hosted telemetry through an internal load balancer. |
+| `iam_role_permissions_boundary` | String | ARN of an IAM permissions boundary policy to attach to all IAM roles created by BYOC Terraform. Use this when your AWS account attaches a permissions boundary out of band, so Terraform does not report `iam:DeleteRolePermissionsBoundary` drift on every apply. |
+
+### GCP settings (`gcp_settings`)
+
+| Setting | Type | Description |
+| --- | --- | --- |
+| `enable_hosted_telemetry_lb` | Boolean | Exposes hosted telemetry through an internal load balancer. |
 
 ### Metrics settings (`metrics_settings`)
 
@@ -88,15 +105,39 @@ Below are all supported custom settings:
      runAsUser: 65521
      seccompProfile:
        type: RuntimeDefault
+   pod_security_context:
+     fsGroup: 65521
+     runAsNonRoot: true
+     seccompProfile:
+       type: RuntimeDefault
    pod_security_admission_labels:
      pod-security.kubernetes.io/enforce: restricted
    extra_tags:
      foo: bar
    disable_external_cluster_access: true
+   disable_internet_access: true
+   extra_machine_families:
+     - 1c8m
+   enable_heap_storage: true
+   disable_public_kubernetes_endpoint: false
 
    # AWS-specific settings
    aws_settings:
+     zone_ids:
+       - use1-az2
+       - use1-az4
+       - use1-az6
      eks_node_ami_release_version: 1.32.0-20241225
+     central_service_cidr: 172.29.248.0/25
+     merge_non_node_subnets: true
+     additional_node_security_group_ids:
+       - sg-0123456789abcdef0
+     enable_hosted_telemetry_lb: true
+     iam_role_permissions_boundary: arn:aws:iam::123456789012:policy/example-permissions-boundary
+
+   # GCP-specific settings
+   gcp_settings:
+     enable_hosted_telemetry_lb: true
 
    # Metrics settings
    metrics_settings:
