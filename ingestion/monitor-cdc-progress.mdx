@@ -28,7 +28,7 @@ To check the progress of the initial data backfill:
 2.  **Query the internal table:**  Use a `SELECT` statement to query the internal table. The specific columns and their meanings may vary slightly depending on the source, but generally, you'll find information about:
     *   `split_id`:  An identifier for the backfill task.
     *   `backfill_finished`: A boolean indicating whether the backfill is complete (`t` for true, `f` for false).
-    *   `row_count`: The number of rows processed so far.
+    *   `row_count`: The total number of rows processed so far. This value is persisted, so after recovery it continues to reflect the full backfill row count instead of restarting from zero.
     *   `cdc_offset`:  Information about the current position in the source database's change log (e.g., LSN for PostgreSQL, binlog position for MySQL).
 
     **Example (PostgreSQL):**
@@ -46,6 +46,8 @@ To check the progress of the initial data backfill:
     ```
 
     This indicates that the backfill is complete (`backfill_finished = t`), 4 rows have been processed, and the current LSN (Log Sequence Number) in the PostgreSQL WAL is 4558482960.
+
+    RisingWave also uses this persisted backfill row count when reporting snapshot backfill progress in `rw_catalog.rw_ddl_progress`, so the reported count remains cumulative after recovery.
 
     **Example (MySQL):**
      ```sql
