@@ -9,7 +9,7 @@ Serverless backfilling is available starting from v2.8.0 and is disabled by defa
 
 ## Overview
 
-When you create a materialized view, sink, or index on existing data, RisingWave must first process all historical records, a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
+When you create a materialized view (MV), sink, or index on existing data, RisingWave must first process all historical records, a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
 
 **Serverless backfilling** runs the backfill phase on dedicated backfiller resources — a temporary resource group that RisingWave Cloud provisions separately from your main streaming compute nodes. It is *serverless* because you don't manually allocate or manage resources for each new job: after the `CREATE MATERIALIZED VIEW`, `CREATE SINK`, or `CREATE INDEX` request passes validation and the streaming job is ready to be created, RisingWave Cloud provisions the backfiller resource group and destroys it automatically once the job completes. Failed validation paths therefore do not provision backfiller resources. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
 
@@ -32,7 +32,7 @@ When serverless backfilling is enabled for a `CREATE MATERIALIZED VIEW`, `CREATE
 
 ## Configuration
 
-You must enable serverless backfilling in the RisingWave Cloud console (in the **Backfilling** section of the **Resources** page) before using it. If it isn't enabled, statements that request serverless backfilling return an error.
+You must enable serverless backfilling in the RisingWave Cloud console (in the **Backfilling** section of the **Resources** page) before using it. If it isn't enabled, `CREATE MATERIALIZED VIEW`, `CREATE SINK`, and `CREATE INDEX` statements that request serverless backfilling return an error.
 
 ### Session variable
 
@@ -56,6 +56,23 @@ You can also enable serverless backfilling for a single `CREATE MATERIALIZED VIE
 CREATE MATERIALIZED VIEW my_mv
 WITH (cloud.serverless_backfill_enabled = true)
 AS SELECT ...;
+```
+
+For sinks and indexes, use the same option in the statement-level `WITH` clause:
+
+```sql
+CREATE SINK my_sink AS
+SELECT * FROM my_mv
+WITH (
+  connector = 'blackhole',
+  cloud.serverless_backfill_enabled = true
+);
+
+CREATE INDEX my_index
+ON my_table(id)
+WITH (
+  cloud.serverless_backfill_enabled = true
+);
 ```
 
 ## Example
