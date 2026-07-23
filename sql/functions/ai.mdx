@@ -23,10 +23,33 @@ The `config` parameter is a JSONB object that supports the following options:
 | `model` | Yes | The embedding model to use (e.g., `text-embedding-3-small`) |
 | `api_key` | No | OpenAI API key |
 | `org_id` | No | OpenAI organization ID |
-| `proj_id` | No | OpenAI project ID |
+| `project_id` | No | OpenAI project ID |
 | `api_base` | No | Custom API base URL. Default: `https://api.openai.com/v1` |
 
 ```sql Example
 openai_embedding('{"model": "text-embedding-3-small", "api_key": "sk-proj-1234567890"}'::jsonb, 'Hello, world!') -> {0.0001, 0.0002, 0.0003, ...}
 ```
 
+#### Retry behavior
+
+If an OpenAI embedding request fails, RisingWave retries it with exponential
+backoff. The delay starts at 100 milliseconds and is capped at 10 seconds.
+Retries continue until the request returns a valid embedding response.
+
+#### Metrics
+
+RisingWave exposes the following Prometheus metrics for `openai_embedding`.
+Each metric has `model` and `api_base` labels.
+
+| Metric | Description |
+| :----- | :---------- |
+| `openai_embedding_success_count` | Total number of successful embedding requests. |
+| `openai_embedding_failure_count` | Total number of failed request attempts. Retries are counted as separate failed attempts. |
+| `openai_embedding_latency` | Latency in seconds for successful request attempts. |
+| `openai_embedding_input_rows` | Total number of non-null, non-empty input rows submitted for embedding. |
+| `openai_embedding_input_row_word_count` | Distribution of word counts for non-null, non-empty input rows. |
+| `openai_embedding_inflight_requests` | Number of embedding requests currently in flight. |
+| `openai_embedding_inflight_rows` | Number of input rows in in-flight embedding requests. |
+
+For information about accessing Prometheus metrics, see
+[Prometheus metrics reference](/operate/prometheus-metrics-reference).
