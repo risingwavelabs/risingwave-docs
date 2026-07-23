@@ -55,6 +55,24 @@ WITH (
 | password         | **Optional**. Password for accessing the OpenSearch endpoint. It must be used with username.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | delimiter        | **Optional**. Delimiter for OpenSearch ID when the sink's primary key has multiple columns.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
+## Alter batching settings for an existing sink
+
+You can update the batching behavior of an existing OpenSearch sink without recreating it by using [`ALTER SINK ... CONNECTOR WITH`](/sql/commands/sql-alter-sink#connector-with).
+
+```sql
+ALTER SINK sink_name CONNECTOR WITH (
+  'batch_num_messages' = '500',
+  'batch_size_kb' = '4096',
+  'concurrent_requests' = '2'
+);
+```
+
+The alterable batching parameters are:
+
+- `batch_num_messages`
+- `batch_size_kb`
+- `concurrent_requests`
+
 ## Notes about primary keys and OpenSearch IDs
 
 The OpenSearch sink defaults to the `upsert` sink type. It does not support the `append-only` sink type.

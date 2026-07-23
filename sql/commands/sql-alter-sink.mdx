@@ -112,6 +112,35 @@ ALTER SINK s1 SET SINK_RATE_LIMIT = default;
 ALTER SINK s1 SET SINK_RATE_LIMIT = 1000;
 ```
 
+### `SET RESOURCE_GROUP`
+
+```sql
+ALTER SINK sink_name
+    SET RESOURCE_GROUP { TO | = } { DEFAULT | resource_group_name } [ DEFERRED ];
+```
+
+```sql
+ALTER SINK sink_name
+    RESET RESOURCE_GROUP [ DEFERRED ];
+```
+
+Use this statement to change the resource group used by the sink's streaming job.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RESOURCE_GROUP** | Assigns the sink to a specific resource group. |
+| **RESET RESOURCE_GROUP** | Resets the sink to the default resource group. |
+| _resource_group_name_ | The target resource group. |
+| **DEFERRED** | Optional. Defers applying the resource group change. |
+
+```sql
+-- Assign the sink to a resource group
+ALTER SINK orders_sink SET RESOURCE_GROUP = high_priority;
+
+-- Reset the sink to the default resource group
+ALTER SINK orders_sink RESET RESOURCE_GROUP DEFERRED;
+```
+
 ### `RENAME TO`
 
 ```sql
@@ -163,11 +192,23 @@ ALTER SINK sink_name CONNECTOR WITH (
 | Parameter         | Description |
 | :---------------- | :---------- |
 | **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing sink without recreating it. |
-| property_name | The properties vary by connector type: <ul><li>For **ClickHouse**, **DeltaLake**, and **StarRocks**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Iceberg**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Kafka**, the supported parameters include: `properties.allow.auto.create.topics`, `properties.batch.num.messages`, `properties.batch.size`, `properties.enable.idempotence`, `properties.max.in.flight.requests.per.connection`, `properties.message.max.bytes`, `properties.message.send.max.retries`, `properties.message.timeout.ms`, `properties.queue.buffering.max.kbytes`, `properties.queue.buffering.max.messages`, `properties.queue.buffering.max.ms`, `properties.reconnect.backoff.ms`, `properties.reconnect.backoff.max.ms`, `properties.request.required.acks`, `properties.retry.backoff.ms`, `properties.retry.backoff.max.ms`, `properties.receive.message.max.bytes`, `properties.socket.connection.setup.timeout.ms`. </li></ul> |
+| property_name | The properties vary by connector type: <ul><li>For **ClickHouse**, **DeltaLake**, and **StarRocks**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Iceberg**, the supported parameter is `commit_checkpoint_interval`.</li><li>For **Kafka**, the supported parameters include: `properties.allow.auto.create.topics`, `properties.batch.num.messages`, `properties.batch.size`, `properties.enable.idempotence`, `properties.max.in.flight.requests.per.connection`, `properties.message.max.bytes`, `properties.message.send.max.retries`, `properties.message.timeout.ms`, `properties.queue.buffering.max.kbytes`, `properties.queue.buffering.max.messages`, `properties.queue.buffering.max.ms`, `properties.reconnect.backoff.ms`, `properties.reconnect.backoff.max.ms`, `properties.request.required.acks`, `properties.retry.backoff.ms`, `properties.retry.backoff.max.ms`, `properties.receive.message.max.bytes`, `properties.socket.connection.setup.timeout.ms`.</li><li>For **OpenSearch**, the supported parameters are `batch_num_messages`, `batch_size_kb`, and `concurrent_requests`.</li><li>For **Pulsar**, the supported parameter is `properties.routing.mode`.</li></ul> |
 
 ```sql
 -- Enable idempotence for the sink
 ALTER SINK my_kafka_sink CONNECTOR WITH (
   'properties.enable.idempotence' = 'true'
+);
+
+-- Update batching settings for an OpenSearch sink
+ALTER SINK my_opensearch_sink CONNECTOR WITH (
+  'batch_num_messages' = '500',
+  'batch_size_kb' = '4096',
+  'concurrent_requests' = '2'
+);
+
+-- Change the routing policy of a Pulsar sink
+ALTER SINK my_pulsar_sink CONNECTOR WITH (
+  'properties.routing.mode' = 'round_robin'
 );
 ```
