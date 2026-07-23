@@ -1,7 +1,7 @@
 ---
 title: "Iceberg table maintenance"
 sidebarTitle: "Maintenance"
-description: "Configure compaction and snapshot expiration for Iceberg sinks and internal tables in RisingWave."
+description: "Configure compaction, manifest rewrite, and snapshot expiration for Iceberg sinks and internal tables in RisingWave."
 ---
 
 When RisingWave streams data into Iceberg, it generates many small data files, fragmented manifests, and frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction, manifest rewrite, and snapshot expiration.
@@ -19,12 +19,12 @@ When RisingWave streams data into Iceberg, it generates many small data files, f
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
 
-You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Automatic manifest rewrite is currently available for Iceberg sinks.
+You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Automatic manifest rewrite is currently available for Iceberg sinks. Periodic manifest rewrite runs in the meta-node maintenance loop, controlled by `iceberg_gc_interval_sec` (default: `3600` seconds), rather than by the per-sink `compaction_interval_sec` parameter.
 
 <Warning>
-**Dedicated compactor required**
+**Dedicated compactor required for data file compaction**
 
-Automatic Iceberg maintenance requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
+Automatic data file compaction requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. Manifest rewrite and snapshot expiration run on the meta node and do not require a dedicated compactor. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
 </Warning>
 
 ### Compaction types
@@ -49,8 +49,8 @@ Configure automatic maintenance by specifying the following parameters in the `W
 
 | Parameter | Description |
 |:--|:--|
-| `enable_compaction` | Required. Set to `true` to enable automatic compaction and snapshot expiration. |
-| `compaction_interval_sec` | Optional. The interval in seconds between maintenance runs. Default: `3600`. |
+| `enable_compaction` | Optional. Set to `true` to enable automatic data file compaction. Default: `false`. |
+| `compaction_interval_sec` | Optional. The interval in seconds between data file compaction runs. It does not control manifest rewrite or snapshot expiration. Default: `3600`. |
 | `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
 | `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. To keep only the latest snapshot, set this to `0`. |
 | `snapshot_expiration_retain_last` | Optional. The minimum number of snapshots to retain, regardless of their age. |
@@ -187,12 +187,14 @@ WITH (
 
 In addition to automatic background maintenance, you can trigger maintenance manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
 
-`VACUUM` rewrites eligible manifests immediately and then expires snapshots. `VACUUM FULL` first compacts data files, then rewrites manifests, and finally expires snapshots.
+`VACUUM` immediately checks whether manifests are eligible for rewrite, and then checks for snapshots to expire. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
+
+`VACUUM FULL` first compacts data files, then performs the same gated manifest rewrite and snapshot expiration checks. The manifest rewrite and snapshot expiration steps do not override their corresponding maintenance settings.
 
 ```sql
--- Rewrite manifests and expire snapshots
+-- Check for eligible manifests to rewrite, then check for snapshots to expire
 VACUUM my_iceberg_table;
 
--- Compact files, then rewrite manifests and expire snapshots
+-- Compact files, then run the same manifest rewrite and snapshot expiration checks
 VACUUM FULL my_iceberg_table;
 ```

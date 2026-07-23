@@ -11,15 +11,18 @@ RisingWave supports `VACUUM` syntax for Iceberg engine tables and Iceberg sinks.
 VACUUM [FULL] schema_name.object_name;
 ```
 
-- `VACUUM`: Immediately runs manifest rewrite when the target Iceberg table or sink is eligible, then **expires** old snapshots.
-- `VACUUM FULL`: **Compacts** the specified Iceberg table or sink first, then rewrites manifests, and finally **expires** outdated snapshots. This operation takes longer and requires extra disk space, as a new copy is written before the old copy is released.
+- `VACUUM`: Checks for eligible manifests to rewrite, then checks for old snapshots to expire.
+- `VACUUM FULL`: **Compacts** the specified Iceberg table or sink first, then performs the same manifest rewrite and snapshot expiration checks. This operation takes longer and requires extra disk space, as a new copy is written before the old copy is released.
 
+<Note>
+The manifest rewrite and snapshot expiration steps do not override their maintenance settings. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
+</Note>
 
 ## Parameters
 
 | Parameter             | Description     |
 | :-------------------- | :-------------- |
-| FULL | Optional. If specified, compacts the table first, then rewrites manifests and expires snapshots. |
+| FULL | Optional. If specified, compacts the table first, then checks for eligible manifests to rewrite and snapshots to expire. |
 | object_name | Can be an Iceberg engine table or an Iceberg sink. |
 
 
