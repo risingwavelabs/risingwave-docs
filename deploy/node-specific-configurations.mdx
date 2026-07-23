@@ -72,6 +72,22 @@ backup_storage_directory = "hummock_001/backup"
 
 For more information on system parameters, please refer to [View and configure system parameters](/operate/view-configure-system-parameters).
 
+### Session initialization configurations
+
+You can use the `[session_init]` section in `risingwave.toml` to bootstrap selected [runtime parameters](/operate/view-configure-runtime-parameters) when a cluster starts for the first time.
+
+```toml
+[session_init]
+streaming_parallelism = "bounded(8)"
+streaming_parallelism_for_table = "default"
+```
+
+The values in `[session_init]` are seeded into the Meta store during cluster bootstrap only. On existing clusters, persisted session parameter values, such as those set with `ALTER SYSTEM SET`, take precedence. Updating `risingwave.toml` later does not retroactively change already persisted session parameters.
+
+Currently, `[session_init]` supports the streaming parallelism family of runtime parameters: `streaming_parallelism`, `streaming_parallelism_for_backfill`, `streaming_parallelism_for_table`, `streaming_parallelism_for_source`, `streaming_parallelism_for_sink`, `streaming_parallelism_for_index`, and `streaming_parallelism_for_materialized_view`.
+
+For details about these parameters and valid values, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+
 ### Streaming configurations
 
 Streaming configurations can be set in `[streaming]` section in the configuration file. For example:
