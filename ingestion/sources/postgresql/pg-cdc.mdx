@@ -97,6 +97,10 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 For PostgreSQL CDC sources, RisingWave manages the publication and replication slot automatically. By default, RisingWave will create the publication and slot if they don't exist (`publication.create.enable = 'true'`). If you want to use an existing publication, set `publication.create.enable = 'false'`. This is useful when the RisingWave database user doesn't have `CREATE PUBLICATION` permissions.
 </Note> 
 
+<Note>
+If `publication.create.enable = 'true'`, the PostgreSQL user must have `CREATE` on the database and must own the tables that RisingWave adds to the publication. If the tables are owned by another user, create the publication in advance with a table owner account and set `publication.create.enable = 'false'`.
+</Note>
+
 
 These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
 
