@@ -128,6 +128,10 @@ FROM pg_mydb TABLE 'public.large_table';
 
 You can also specify any valid [Debezium PostgreSQL connector configuration property](https://debezium.io/documentation/reference/2.6/connectors/postgresql.html#postgresql-advanced-configuration-properties) in the `WITH` clause. Prefix the Debezium parameter name with `debezium.`.
 
+If `debezium.time.precision.mode` is not specified, RisingWave uses
+`microseconds`. Set it to `connect` only when the upstream temporal values use
+millisecond precision.
+
 For example, to skip unknown DDL statements, use:
 
 ```sql
@@ -356,9 +360,13 @@ Currently, RisingWave supports the `ALTER TABLE` command with the following oper
 * `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table. Only constant value expressions are supported for the default value.
 * `DROP COLUMN`: Allows you to remove an existing column from a table.
 
+During automatic schema changes, RisingWave maps PostgreSQL enum arrays, such
+as `mood_enum[]`, to `varchar[]`. Arrays of PostgreSQL composite types are not
+supported by this mapping.
+
 To enable this feature, set `auto.schema.change = 'true'` in your PostgreSQL CDC source configuration:
 
-```SQL
+```sql
 CREATE SOURCE pg_source WITH (
  connector = 'postgres-cdc',
  hostname = 'localhost',
@@ -373,7 +381,7 @@ CREATE SOURCE pg_source WITH (
 
 Create a RisingWave table from the PostgreSQL source:
 
-```SQL
+```sql
 CREATE TABLE my_table (
     id INT PRIMARY KEY,
     name VARCHAR
