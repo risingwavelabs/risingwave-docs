@@ -164,6 +164,22 @@ WITH (
 ) FORMAT UPSERT ENCODE JSON;
 ```
 </Tab>
+<Tab title="Upsert Protobuf">
+```sql
+CREATE TABLE IF NOT EXISTS source_abc (
+  PRIMARY KEY (rw_key)
+)
+INCLUDE KEY AS rw_key
+WITH (
+   connector='kafka',
+   properties.bootstrap.server='localhost:9092',
+   topic='test_topic'
+) FORMAT UPSERT ENCODE PROTOBUF (
+   message = 'test.User',
+   schema.registry = 'http://127.0.0.1:8081'
+);
+```
+</Tab>
 <Tab title="Protobuf">
 ```sql
 CREATE SOURCE IF NOT EXISTS source_abc
@@ -207,7 +223,22 @@ WITH (
    topic='topic1',
    properties.bootstrap.server='localhost:9093',
 ) FORMAT PLAIN ENCODE BYTES;
-``` 
+```
+
+To implement key-based upsert semantics for bytes payloads, use `INCLUDE KEY` and declare the Kafka key as the primary key:
+
+```sql
+CREATE TABLE t (
+   data BYTEA,
+   PRIMARY KEY (rw_key)
+)
+INCLUDE KEY AS rw_key
+WITH (
+   connector='kafka',
+   topic='topic1',
+   properties.bootstrap.server='localhost:9093'
+) FORMAT PLAIN ENCODE BYTES;
+```
 </Tab>
 </Tabs>
 
