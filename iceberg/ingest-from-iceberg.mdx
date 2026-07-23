@@ -131,7 +131,7 @@ Do not define column types in the `CREATE TABLE` statement. RisingWave automatic
 | `refresh_mode` | Must be set to `'FULL_RELOAD'` to enable periodic refresh functionality | Yes | `'FULL_RELOAD'` |
 | `refresh_interval_sec` | Interval in seconds between automatic refresh operations | No | `'60'` |
 
-RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `stream_refresh_scheduler_interval_sec` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
+RisingWave checks all refreshable tables at a configurable interval (default: 60 seconds, configured by `refresh_scheduler_interval_sec` under `[streaming.developer]` in the RisingWave configuration file). Setting a `refresh_interval_sec` value lower than this scheduler interval may result in refresh triggers not occurring at the expected frequency.
 
 <Note>
 If you omit `refresh_interval_sec`, the table will only refresh when you manually execute `REFRESH TABLE`, giving you complete control over when data is loaded.
@@ -251,4 +251,3 @@ SELECT * FROM my_iceberg_source$history;
 -- View table manifests
 SELECT * FROM my_iceberg_source$manifests;
 ```
-
