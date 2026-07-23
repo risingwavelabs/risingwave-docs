@@ -187,6 +187,29 @@ Below is an example of the cache refill configuration for your reference.
 
 Except for the above, RisingWave also provides some other storage configurations to help control the overall buffer and cache limits. Please see [Dedicated Compute Nodes](/operate/dedicated-compute-node) for more.
 
+### Meta configurations
+
+Meta configurations can be set in the `[meta]` section in the configuration file. For example:
+
+```toml
+[meta]
+checkpoint_compression_algorithm = "zstd"
+checkpoint_read_chunk_size = 134217728
+checkpoint_read_max_in_flight_chunks = 4
+```
+
+The following table lists the available meta configurations related to Hummock version checkpoint:
+
+| Configuration | Default | Description |
+| :--- | :--- | :--- |
+| `checkpoint_compression_algorithm` | `"zstd"` | Compression algorithm for Hummock version checkpoint data. Supported values: `"none"` (no compression), `"zstd"` (Zstandard, good balance of compression ratio and speed), `"lz4"` (faster compression with lower ratio). |
+| `checkpoint_read_chunk_size` | `134217728` (128 MB) | Chunk size in bytes for reading large Hummock version checkpoints. Large checkpoints are read in parallel chunks to avoid single-request timeout issues. |
+| `checkpoint_read_max_in_flight_chunks` | `4` | Maximum number of concurrent chunk reads when loading large checkpoints. Higher values may improve read throughput at the cost of increased memory usage. Memory usage is roughly `checkpoint_read_chunk_size × checkpoint_read_max_in_flight_chunks`. |
+
+<Note>
+Hummock version checkpoints are stored with an xxHash64 checksum for integrity verification. The compression format is backward-compatible: newer versions of RisingWave can read uncompressed checkpoints written by older versions, but older versions cannot read compressed checkpoints written by newer versions.
+</Note>
+
 ### UDF configurations
 
 <Note>
