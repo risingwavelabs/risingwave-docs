@@ -5,6 +5,30 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 <Update label="v3.1.0" description="Upcoming">
 
+## Bug fixes
+
+- Fixes a meta-node crash loop during recovery when partial-graph resets from multiple databases overlap. [#26271](https://github.com/risingwavelabs/risingwave/pull/26271)
+
+</Update>
+
+<Update label="v3.0.2" description="Upcoming">
+
+## SQL features
+
+- SQL commands:
+    - Supports `ALTER DATABASE ... SET RESOURCE_GROUP ... DEFERRED` and `ALTER DATABASE ... RESET RESOURCE_GROUP DEFERRED` to update a database's resource group assignment for inherited streaming jobs. [#25954](https://github.com/risingwavelabs/risingwave/pull/25954)
+    - Supports `ALTER SINK ... SET/RESET RESOURCE_GROUP` and `ALTER INDEX ... SET/RESET RESOURCE_GROUP`, with optional `DEFERRED`, to move individual streaming jobs between resource groups. [#25954](https://github.com/risingwavelabs/risingwave/pull/25954)
+    - Supports enabling serverless backfill for `CREATE SINK` and `CREATE INDEX` with `WITH (cloud.serverless_backfill_enabled = true)`. [#25953](https://github.com/risingwavelabs/risingwave/pull/25953)
+
+## Connectors
+
+- **PostgreSQL CDC**:
+    - Supports quoted upstream PostgreSQL table names such as `TABLE 'public."Note"'`. [#25742](https://github.com/risingwavelabs/risingwave/pull/25742)
+    - Supports enum arrays during auto schema change by mapping them to `varchar[]`. [#25959](https://github.com/risingwavelabs/risingwave/pull/25959)
+- **Turbopuffer sink** (new):
+    - Supports writing stream changes to turbopuffer namespaces with a native sink connector. [#25984](https://github.com/risingwavelabs/risingwave/pull/25984)
+    - Supports `write_batch_size` and `max_linger_second` to control batching and flush latency. [#26036](https://github.com/risingwavelabs/risingwave/pull/26036)
+
 </Update>
 
 <Update label="v3.0.0" description="2026-06-11">

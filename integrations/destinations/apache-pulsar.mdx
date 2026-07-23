@@ -44,6 +44,7 @@ FORMAT data_format ENCODE data_encode [ (
 | max\_retry\_num                     | **Optional**. The maximum number of times to retry sending a batch to Pulsar. This allows retrying in case of transient errors. The default value is 3.                                  |
 | retry\_interval                     | **Optional**. The time in milliseconds to wait after a failure before retrying to send a batch. The default value is 100ms.                                                              |
 | primary\_key                        | **Optional**. The primary keys of the sink. Use `,` to delimit the primary key columns. Primary keys are optional when creating a PLAIN sink but required for UPSERT and DEBEZIUM sinks. |
+| properties.routing.mode             | **Optional**. Controls the Pulsar producer routing policy for the sink. Supported values are `round_robin` and `single`. When omitted, RisingWave preserves Pulsar's existing default routing behavior. Set this to `round_robin` if you want Pulsar partition keys to affect partition selection. This property can also be updated with [`ALTER SINK ... CONNECTOR WITH`](/sql/commands/sql-alter-sink#connector-with). |
 
 ## FORMAT and ENCODE options
 
@@ -79,7 +80,18 @@ WITH (
 
   -- S3 credential for oauth file
   aws.credentials.access_key_id = 'xxx',
-  aws.credentials.secret_access_key = 'xxx'
+  aws.credentials.secret_access_key = 'xxx',
+
+  -- Optional routing policy
+  properties.routing.mode = 'round_robin'
 )
 FORMAT DEBEZIUM ENCODE JSON;
+```
+
+You can also update the routing policy for an existing Pulsar sink without recreating it:
+
+```sql
+ALTER SINK pulsar_sink CONNECTOR WITH (
+  'properties.routing.mode' = 'single'
+);
 ```

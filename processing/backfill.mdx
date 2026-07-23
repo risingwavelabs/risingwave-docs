@@ -18,7 +18,10 @@ Used when creating MVs on tables with a consistent snapshot. The executor:
 2. Scans the snapshot data in batches
 3. Applies the query transformation
 4. Writes results to the MV state
-5. Transitions to incremental mode once the snapshot is fully processed
+5. Waits until the job's pending barrier backlog is within the configured limit before merging into the database graph
+6. Transitions to incremental mode once the snapshot is fully processed
+
+To reduce streaming stalls during snapshot backfill completion, RisingWave gates the merge step on the pending barrier backlog. You can tune this threshold with `snapshot_backfill_finish_max_lagged_barriers` in the `[streaming]` section of `risingwave.toml`. For details, see [Node-specific configurations](/deploy/node-specific-configurations#streaming-configurations).
 
 ### Arrangement backfill
 

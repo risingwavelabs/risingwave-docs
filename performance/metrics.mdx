@@ -15,9 +15,15 @@ RisingWave provides two Grafana dashboard templates, generated from Python scrip
 The source code and generation details can be found at [github.com/risingwavelabs/risingwave/tree/main/grafana](https://github.com/risingwavelabs/risingwave/tree/main/grafana). The two dashboard scripts are:
 
 1. [Dev dashboard (`risingwave-dev-dashboard.dashboard.py`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.dashboard.py) — finer-grained metrics covering all components. **Recommended** for most monitoring needs.
-2. [User dashboard (`risingwave-user-dashboard.dashboard.py`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py) — summarizes high-level metrics. Also available.
+2. [User dashboard (`risingwave-user-dashboard.dashboard.py`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py) — summarizes high-level metrics such as source and sink throughput, barrier latency, cluster alerts, and compute/source/sink streaming error rates.
 
 Both dashboards support multi-cluster deployments via environment variable configuration during generation (see the [Grafana README](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md)).
+
+<Note>
+Use the dashboard JSON generated from the same RisingWave version that you run. Dashboard queries are updated as Prometheus metrics evolve, so older exported dashboards can contain stale queries and leave panels blank after an upgrade. If you upgrade RisingWave or regenerate dashboards, re-import the latest `risingwave-dev-dashboard.json` or `risingwave-user-dashboard.json`.
+</Note>
+
+If you need the full list of exposed Prometheus metric families instead of the curated dashboard views, see [Prometheus metrics reference](/operate/prometheus-metrics-reference).
 
 ## Resource utilization
 

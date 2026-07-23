@@ -1,0 +1,246 @@
+---
+title: "Ingest data from WebSocket"
+description: "Use managed WebSocket ingest endpoints in RisingWave Cloud to stream batched DML into webhook tables."
+---
+
+This guide covers WebSocket ingestion for **managed RisingWave Cloud** projects, where connections are routed through the managed RWProxy ingest endpoint.
+
+<Warning>
+WebSocket ingestion for managed RisingWave Cloud is currently in **preview**. If you'd like to enable it, contact us at [cloud-support@risingwave-labs.com](mailto:cloud-support@risingwave-labs.com) and we'll help you get set up.
+</Warning>
+
+<Info>
+If you are running self-hosted RisingWave (Operator/Helm/bare metal), use [Ingest data from webhook](/integrations/sources/webhook). The same `webhook` table can also accept WebSocket ingest at `ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>`.
+</Info>
+
+## How managed WebSocket routing works
+
+In managed RisingWave Cloud, WebSocket ingest connections are accepted by RWProxy over WSS and forwarded to your project's frontend ingest listener.
+
+- Public ingress: WSS `:443`
+- Ingest path format: `/ingest/<database>/<schema>/<table>`
+
+Tenant routing:
+
+1. Hosted projects: SNI hostname first, then `tenant` query parameter fallback.
+2. BYOC projects: currently use the `tenant` query parameter (SNI is not supported).
+
+## Prerequisites
+
+1. A running RisingWave Cloud project.
+2. The tenant identifier of your project (for example, `rwc-g1huxxxxxx-mycluster`).
+3. A `webhook` table in your target database/schema.
+
+For details on tenant identifier and project connection details, see [Connection errors](/cloud/connection-errors).
+
+<Warning>
+Current BYOC limitations:
+- SNI is not supported yet. Use `?tenant=<tenant identifier>` in the ingest URL.
+- TLS certificate verification may fail unless verification is disabled on the client side. For testing, temporarily disable TLS verification in your WebSocket client if needed.
+</Warning>
+
+## Hosted vs BYOC requirements
+
+| Project type | Tenant routing requirement | TLS note |
+| :-- | :-- | :-- |
+| Hosted | Use `wss://<cloud-host>/ingest/<database>/<schema>/<table>`. Hosted projects support SNI routing, with query-parameter fallback. | Use standard TLS verification. |
+| BYOC | Use `wss://<cloud-host>/ingest/<database>/<schema>/<table>?tenant=<tenant identifier>`. BYOC currently does not support SNI routing. | TLS verification can fail in some BYOC environments. For testing, disable verification in your client temporarily. |
+
+## Use the Cloud Portal WebSocket ingest wizard (recommended)
+
+Use the wizard as the primary setup path so you do not need to manually construct hostnames, endpoint URLs, or signature validation SQL.
+
+Wizard steps:
+
+1. Open your project workspace and go to **Data Catalog**.
+2. Click **Create source**.
+3. Open **WebSocket ingest**.
+4. Select **Database**, **Schema**, and **Target table**.
+5. If you do not have a target table yet, click **Create table**, enter the table name and signature settings, choose how the signing key is stored (**RisingWave secret** recommended, or **Inline SQL literal**), review the generated SQL, and create the table. The wizard executes the steps in order: first creates the signing secret (if using the managed option), then creates the target table.
+6. Copy the generated **Endpoint**.
+7. Expand **Wire format** and **Client demo** to copy the generated init frame, DML batch examples, and client template.
+
+Wizard screenshots:
+
+**WebSocket ingest entry in Data Catalog**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-websocket/websocket-card-in-data-catalog-page.jpeg" alt="WebSocket ingest card in the Data Catalog create source dialog in RisingWave Cloud" />
+</Frame>
+
+**Create a WebSocket ingest target and review generated SQL**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-websocket/websocket-create-table-and-sql-review.jpeg" alt="Create WebSocket ingest target dialog showing generated SQL preview" />
+</Frame>
+
+**Generated endpoint and client examples**
+<Frame>
+  <img src="/images/cloud/ingest-data-from-websocket/websocket-endpoint-and-client-examples.jpeg" alt="RisingWave Cloud WebSocket ingest wizard showing the generated endpoint, wire format examples, and client demo" />
+</Frame>
+
+<Note>
+If WebSocket ingest does not appear in your Cloud Portal yet, use the manual endpoint format below as a fallback.
+</Note>
+
+## Manual endpoint format
+
+In hosted projects, use the following URL format:
+
+```text
+wss://<cloud-host>/ingest/<database>/<schema>/<table>
+```
+
+For BYOC projects, append the tenant identifier:
+
+```text
+wss://<cloud-host>/ingest/<database>/<schema>/<table>?tenant=<tenant identifier>
+```
+
+## Reference SQL and client example
+
+Use these as reference commands. In practice, prefer the wizard-generated SQL, endpoint, and client template.
+
+**Create a WebSocket ingest target table**
+
+The client signs the init frame with HMAC-SHA256 using a shared secret and sends the signature in the `x-rw-signature` handshake header. Only the init frame is validated; subsequent DML batch frames are not signed. In the `VALIDATE` expression, `payload` is the init frame text and `headers` is the HTTP upgrade header map.
+
+Store the signing key as a RisingWave secret and reference it by name (recommended):
+
+```sql
+CREATE SECRET ws_signing_key WITH (backend = 'meta') AS 'your-signing-secret';
+
+CREATE TABLE ws_orders (
+  id int,
+  customer_name varchar,
+  amount double precision,
+  primary key (id)
+) WITH (
+  connector = 'webhook'
+) VALIDATE SECRET ws_signing_key AS secure_compare(
+  headers->>'x-rw-signature',
+  'sha256=' || encode(hmac(ws_signing_key, payload, 'sha256'), 'hex')
+);
+```
+
+For a quick local test, you can inline the secret as a SQL string literal instead:
+
+```sql
+CREATE TABLE ws_orders (
+  id int,
+  customer_name varchar,
+  amount double precision,
+  primary key (id)
+) WITH (
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'x-rw-signature',
+  'sha256=' || encode(hmac('TEST_WEBSOCKET', payload, 'sha256'), 'hex')
+);
+```
+
+## Protocol reference
+
+Use the following protocol after connecting to the WebSocket endpoint:
+
+- Handshake header: `x-rw-signature: sha256=<hmac_of_init_message>`
+- First frame: `{"type":"init","timestamp":<epoch_ms>}`
+- DML batch frame: `{"dml_batch_id":<u64>,"items":[{"op":"upsert|insert|update|delete","data":{...}}]}`
+- Server ack: `{"ack":<dml_batch_id>}`
+- Fatal error: `{"fatal":"<reason>"}`
+
+Rules and behavior:
+
+- The init frame must be the first text frame.
+- `timestamp` must be a non-negative epoch millisecond within the configured clock-skew window.
+- `dml_batch_id` must increase monotonically within a connection.
+- Empty batches are valid and are acknowledged immediately.
+- Non-empty batches are acknowledged after the batch is accepted downstream.
+- Any fatal error closes the connection.
+- `insert` and `update` use the same upsert-style row handling as `upsert`.
+- Each DML batch is sent as one WebSocket text frame.
+
+### Frame-size limits
+
+Each DML batch is a single WebSocket text frame. The server enforces a maximum frame size:
+
+- **RisingWave Cloud**: RWProxy rejects frames larger than 10 MiB by default (configurable via the `ingestMaxMessageSize` setting). An oversized frame closes the connection with WebSocket code `1009` before any ack is sent.
+- **Self-hosted**: the `tungstenite` WebSocket library (used by RisingWave's frontend without overriding the default) allows up to 16 MiB per frame.
+
+Keep each batch below **8 MiB** to stay safely under both limits.
+
+### Reconnect and replay behavior
+
+- Delivery is at least once.
+- If the connection closes after you send a batch but before you receive its ack, reconnect and replay every batch sent after the last acked `dml_batch_id`.
+- Replaying keyed upserts is idempotent because the primary key determines the final row state. Replaying append-only data without a key can produce duplicates.
+
+## Python client example
+
+This example computes the HMAC of the init frame, opens the WebSocket connection, sends one batch, and waits for the ack.
+
+```python
+import asyncio
+import hashlib
+import hmac
+import json
+import time
+
+import websockets
+
+SECRET = b"your-signing-secret"
+INIT_MSG = json.dumps(
+    {"type": "init", "timestamp": int(time.time() * 1000)},
+    separators=(",", ":"),
+)
+SIGNATURE = "sha256=" + hmac.new(SECRET, INIT_MSG.encode(), hashlib.sha256).hexdigest()
+
+URL = "wss://<cloud-host>/ingest/<database>/<schema>/<table>"
+
+
+async def main():
+    async with websockets.connect(
+        URL,
+        additional_headers={"x-rw-signature": SIGNATURE},
+    ) as ws:
+        await ws.send(INIT_MSG)
+        await ws.send(
+            json.dumps(
+                {
+                    "dml_batch_id": 1,
+                    "items": [
+                        {
+                            "op": "upsert",
+                            "data": {
+                                "id": 1,
+                                "customer_name": "Alice",
+                                "amount": 99.99,
+                            },
+                        }
+                    ],
+                },
+                separators=(",", ":"),
+            )
+        )
+        print(await ws.recv())
+
+
+asyncio.run(main())
+```
+
+For BYOC projects that require the tenant query parameter, use the BYOC URL format shown above. If TLS verification fails in your BYOC environment, create a client SSL context that disables certificate verification for testing only.
+
+## HTTP webhook vs WebSocket ingest
+
+| Option | Best for | Transport | Delivery pattern |
+| :-- | :-- | :-- | :-- |
+| HTTP webhook | Per-event pushes from SaaS webhook providers | HTTPS `POST` | One request per event |
+| WebSocket ingest | Low-latency app-driven streaming and batched DML | Long-lived WSS connection | Async batch acknowledgements |
+
+## Troubleshooting
+
+- Invalid signature: recompute `x-rw-signature` from the exact init frame bytes.
+- Stale or skewed init timestamp: regenerate the init frame immediately before connecting.
+- Non-monotonic `dml_batch_id`: increase the batch ID for every batch sent on the same connection.
+- Missing primary key fields: include all PK columns for `upsert`, `insert`, `update`, and `delete`.
+- JSON decode failures: verify field names and value types in each batch item.
+- Connection closed with no ack after a large batch: your client likely exceeded the WebSocket frame-size limit. Split the batch into smaller frames and keep each batch below 8 MiB.
+- Connection closed before you received the last ack: reconnect, then replay every batch sent after the last acked `dml_batch_id`.

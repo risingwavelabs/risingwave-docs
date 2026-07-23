@@ -1,0 +1,125 @@
+---
+title: "Sink data from RisingWave to Turbopuffer"
+sidebarTitle: Turbopuffer
+description: "This guide describes how to sink data from RisingWave to Turbopuffer and configure Turbopuffer batching controls."
+---
+
+Use the Turbopuffer sink to continuously write data from a RisingWave table or materialized view into a Turbopuffer namespace.
+
+## Prerequisites
+
+* Ensure your Turbopuffer endpoint is reachable from RisingWave.
+* Enable sink decoupling before creating the sink:
+
+```sql
+SET sink_decouple = true;
+```
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+  connector = 'turbopuffer',
+  type = 'append-only' | 'upsert',
+  base_url = 'https://<your-turbopuffer-endpoint>',
+  { namespace = '<static-namespace>' | namespace_column = '<varchar-column>' },
+  api_key = '<your-api-key>',
+  primary_key = '<single integer or varchar column>',
+  connector_parameter = 'value', ...
+);
+```
+
+## Parameters
+
+| Parameter | Description |
+| :--- | :--- |
+| `connector` | Sink connector type. Must be `turbopuffer`. |
+| `type` | Sink type. Supports `append-only` and `upsert`. |
+| `base_url` | **Required**. The Turbopuffer base URL. |
+| `namespace` | Use a fixed Turbopuffer namespace for all rows. Mutually exclusive with `namespace_column`. |
+| `namespace_column` | Use a varchar column from the sink input as the Turbopuffer namespace. Mutually exclusive with `namespace`. |
+| `api_key` | **Required**. The Turbopuffer API key. We recommend storing it with `CREATE SECRET`. |
+| `primary_key` | **Required**. The document ID column. Turbopuffer sinks require exactly one primary key column, and it must be an integer or `varchar`. |
+| `distance_metric` | Required when the sink schema contains a `vector(...)` column. |
+| `disable_backpressure` | **Optional**. Whether to disable backpressure for Turbopuffer writes. |
+| `full_text_search_columns` | **Optional**. Comma-separated list of string or `varchar[]` columns to mark for full-text search. |
+| `filterable_columns` | **Optional**. Comma-separated list of columns to mark as filterable. Use `*` to mark all supported columns as filterable. |
+| `write_batch_size` | **Optional**. Maximum number of pending rows buffered across chunks before RisingWave flushes a Turbopuffer write request. Default: `1000`. This option can be changed online with `ALTER SINK ... CONNECTOR WITH`. |
+| `max_linger_second` | **Optional**. Maximum number of seconds RisingWave waits before flushing buffered Turbopuffer writes when `write_batch_size` has not been reached. Default: `1`. This option can be changed online with `ALTER SINK ... CONNECTOR WITH`. |
+
+<Note>
+`write_batch_size` and `max_linger_second` must both be greater than `0`.
+</Note>
+
+## Notes
+
+* Turbopuffer sinks can only be created with `sink_decouple` enabled.
+* Provide either `namespace` or `namespace_column`, but not both.
+* The primary key column is written as the Turbopuffer document ID and is not included as a document attribute.
+* If you use `namespace_column`, that column is used only for routing and is not included as a document attribute.
+* No non-key attribute column can be named `id`.
+
+## Data type mapping
+
+| RisingWave type | Turbopuffer type |
+| :--- | :--- |
+| `boolean` | `bool` |
+| `int16`, `int32`, `int64`, `serial` | `int` |
+| `float32`, `float64`, `decimal` | `float` |
+| `varchar` | `string` |
+| `date`, `timestamp`, `timestamptz` | `datetime` |
+| `boolean[]` | `[]bool` |
+| `int16[]`, `int32[]`, `int64[]`, `serial[]` | `[]int` |
+| `float32[]`, `float64[]`, `decimal[]` | `[]float` |
+| `varchar[]` | `[]string` |
+| `date[]`, `timestamp[]`, `timestamptz[]` | `[]datetime` |
+| `vector(N)` | `[N]f32` |
+
+`timestamp` values are encoded as ISO 8601 strings without a timezone suffix. `timestamptz` values are encoded as UTC strings with a `Z` suffix.
+
+## Examples
+
+Create an upsert sink that writes vectors into a fixed namespace:
+
+```sql
+CREATE SINK tpuf_sink FROM search_documents
+WITH (
+  connector = 'turbopuffer',
+  type = 'upsert',
+  base_url = 'https://aws-us-east-2.turbopuffer.com',
+  namespace = 'docs-search',
+  api_key = secret tpuf_api_key,
+  primary_key = 'doc_id',
+  distance_metric = 'cosine_distance',
+  full_text_search_columns = 'title,body',
+  filterable_columns = '*',
+  write_batch_size = '2000',
+  max_linger_second = '2'
+);
+```
+
+Use a column to route rows to different namespaces:
+
+```sql
+CREATE SINK tpuf_multi_tenant_sink FROM tenant_documents
+WITH (
+  connector = 'turbopuffer',
+  type = 'upsert',
+  base_url = 'https://aws-us-east-2.turbopuffer.com',
+  namespace_column = 'tenant_id',
+  api_key = secret tpuf_api_key,
+  primary_key = 'doc_id',
+  distance_metric = 'cosine_distance'
+);
+```
+
+Update the batching controls for an existing sink without recreating it:
+
+```sql
+ALTER SINK tpuf_sink CONNECTOR WITH (
+  write_batch_size = 3000,
+  max_linger_second = 1
+);
+```

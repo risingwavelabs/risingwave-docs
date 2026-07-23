@@ -258,6 +258,24 @@ Creating a cross-database Materialized View or Sink introduces a dependency betw
 Additionally, RisingWave provides safeguards: `DROP MATERIALIZED VIEW ... CASCADE` or `DROP SINK ... CASCADE` operations are rejected if they have cross-database dependencies to prevent accidental data loss in the upstream database.
 </Note>
 
+### Handling stale cross-database consumers
+
+The upstream subscription only retains its changelog for the configured `retention` duration. If a cross-database MV or Sink cannot consume the changelog fast enough — for example, because the downstream database is paused, a compute node is offline for an extended period, or the downstream job is significantly under-provisioned — its last-consumed epoch can fall outside the retention window.
+
+When this happens, the cross-database consumer detects that the required upstream data is no longer retained and enters a **terminal stopped state**:
+
+*   The affected actors keep participating in cluster checkpoints (they continue accepting barriers, so they do not block recovery for other jobs).
+*   They stop producing further changes to the downstream MV or Sink. Existing rows in the downstream object are preserved, but new upstream updates are not applied.
+*   The consumer does not repeatedly retry the miss, so it no longer triggers cluster-wide recovery loops when the retention window has already elapsed.
+
+To resume replication from the latest upstream state, drop the affected cross-database MV or Sink and recreate it. To make this less likely to recur, either increase the upstream subscription's `retention` window or reduce the downstream job's lag (for example, by scaling the resource group or unpausing the downstream database) before falling behind again.
+
+**Monitoring**
+
+The `Streaming Backfill` section of the shipped Grafana `RisingWave Dev Dashboard` includes the **Cross-DB Change Log Expiry Headroom** panel. It reports, per cross-database changelog stream scan, how long remains until the last-consumed epoch falls outside the upstream subscription's retention window. Negative values indicate that the consumer has already fallen behind retention and has entered the stopped state described above.
+
+The `Cluster Alerts` > `Streaming Alerts` section adds a **Cross-DB Log Retention Expiring** signal in the `Streaming Alert Signals` panel. It fires when the same headroom drops below 12 hours for any cross-database consumer, giving operators a chance to intervene before the consumer becomes stale.
+
 ## Common use cases and benefits summary
 
 Leveraging database isolation, resource groups, and cross-database queries together enables several powerful patterns:
