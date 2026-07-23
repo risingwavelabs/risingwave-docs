@@ -81,30 +81,24 @@ ALTER INDEX index_name
     SET RESOURCE_GROUP { TO | = } { DEFAULT | resource_group_name } [ DEFERRED ];
 ```
 
-Use this statement to move the index's streaming job to a different resource group.
-
-| Parameter or clause | Description |
-| :------------------ | :---------- |
-| **SET RESOURCE_GROUP** | Reassigns the index's streaming job to a resource group. |
-| _resource_group_name_ | The target resource group. The resource group must already exist. |
-| **DEFAULT** | Reassigns the job to the default resource group. |
-| **DEFERRED** | Optional. Applies the change in deferred mode. |
-
-```sql
-ALTER INDEX idx_orders SET RESOURCE_GROUP = DEFAULT;
-ALTER INDEX idx_orders SET RESOURCE_GROUP TO rg_batch DEFERRED;
-```
-
-### `RESET RESOURCE_GROUP`
-
 ```sql
 ALTER INDEX index_name
     RESET RESOURCE_GROUP [ DEFERRED ];
 ```
 
-`RESET RESOURCE_GROUP` is equivalent to resetting the index to the default resource group.
+Use this statement to change the resource group used by the index's streaming job.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RESOURCE_GROUP** | Assigns the index to a specific resource group. |
+| **RESET RESOURCE_GROUP** | Resets the index to the default resource group. |
+| _resource_group_name_ | The target resource group. |
+| **DEFERRED** | Optional. Defers applying the resource group change. |
 
 ```sql
-ALTER INDEX idx_orders RESET RESOURCE_GROUP;
+-- Assign the index to a resource group
+ALTER INDEX idx_orders SET RESOURCE_GROUP TO high_priority;
+
+-- Reset the index to the default resource group
 ALTER INDEX idx_orders RESET RESOURCE_GROUP DEFERRED;
 ```
