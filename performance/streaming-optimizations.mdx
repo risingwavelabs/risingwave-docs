@@ -6,6 +6,36 @@ description: "Learn about how to improve the performance of streaming queries by
 This section covers best practices for optimizing streaming queries.
 You can often achieve better performance by rewriting your SQL to follow certain recommended patterns.
 
+## Plan streaming jobs before creating them
+
+Unlike ad-hoc queries, a streaming query becomes a long-running job on the cluster after you create it. In most cases, changing the logic of an existing materialized view means creating a new one and switching over. For details, see [Alter a streaming job](/operate/alter-streaming).
+
+Before creating a materialized view or sink, inspect the plan first:
+
+```sql
+EXPLAIN CREATE MATERIALIZED VIEW mv AS
+SELECT ...
+;
+
+EXPLAIN (TYPE DISTSQL, VERBOSE) CREATE MATERIALIZED VIEW mv AS
+SELECT ...
+;
+```
+
+Use `EXPLAIN` to check whether a query introduces expensive stateful operators such as joins, aggregations, or over windows. For an existing streaming job, use [`DESCRIBE FRAGMENTS`](/sql/commands/sql-describe#describe-fragments) to inspect its distributed execution fragments.
+
+## Watch state growth
+
+Streaming performance is strongly affected by state size and access patterns. Stateful operators such as joins, aggregations, and over windows maintain internal state, and RisingWave persists that state in object storage backed by Hummock.
+
+Larger state usually means:
+
+- More storage usage.
+- More memory pressure for caches.
+- More remote reads when the working set no longer fits in cache.
+
+To inspect the state tables associated with a job, use [`SHOW INTERNAL TABLES`](/sql/commands/sql-show-internal-tables). To understand cache behavior and remote I/O impact, see [Monitoring and metrics](/performance/metrics#cache-performance).
+
 ## SQL optimizations
 
 ### UNION vs UNION ALL
@@ -26,6 +56,12 @@ select *, row_number() over (PARTITION BY v1 order by v2) r from t3
 This can be optimized by using the `GroupTopN` operator instead.
 
 Checkout [Converting StreamOverWindow to StreamGroupTopN](/processing/sql/top-n-by-group#converting-streamoverwindow-to-streamgrouptopn) for more details.
+
+## Prefer append-only streams and watermarks when they match your data
+
+If the upstream data is truly insert-only, declare it as append-only when possible. Append-only inputs let RisingWave use more efficient execution strategies and can reduce the amount of state needed for some queries. For a broader discussion, see [Best practices for optimizing performance](/performance/best-practices#when-to-create-a-source-or-declare-append-only-on-a-table).
+
+For event-time workloads, define a [watermark](/processing/watermarks) so windowed queries can make progress based on event time. If you need finalized append-only window results for downstream systems, see [Emit on window close](/processing/emit-on-window-close).
 
 ## Join optimizations
 
