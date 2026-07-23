@@ -134,6 +134,14 @@ For example, to skip unknown DDL statements, use:
 debezium.schema.history.internal.skip.unparseable.ddl = 'true'
 ```
 
+To ingest PostgreSQL user-defined composite types, set:
+
+```sql
+debezium.include.unknown.datatypes = 'true'
+```
+
+Composite columns are ingested as `VARCHAR` values in PostgreSQL's native text form, such as `(USD,12.34)`.
+
 ## Features and reference
 
 ### Data format
@@ -145,7 +153,7 @@ The PostgreSQL CDC connector uses the Debezium JSON format for data.
 The following table shows the data type mapping from PostgreSQL to RisingWave.
 
 <Note>
-RisingWave does not support directly creating tables from PostgreSQL composite types. If you want to read composite type data, you will need to use a source and create a materialized view based off that source.
+To ingest PostgreSQL user-defined composite types, set `debezium.include.unknown.datatypes = 'true'`. RisingWave maps composite columns to `VARCHAR` and stores their values in PostgreSQL's native text form, such as `(a,b,c)`.
 </Note>
 
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -181,6 +189,7 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | TSTZRANGE                                            | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | DATERANGE                                            | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ENUM                                                 | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| User-defined composite types                         | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | DATE                                                 | DATE                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | TIME(1), TIME(2), TIME(3), TIME(4), TIME(5), TIME(6) | TIME WITHOUT TIME ZONE (limited to [1973-03-03 09:46:40, 5138-11-16 09:46:40))                                                                                                                                                                                                                                                                                                                                                                                                              |
 | TIMESTAMP(1), TIMESTAMP(2), TIMESTAMP(3)             | TIMESTAMP WITHOUT TIME ZONE (limited to [1973-03-03 09:46:40, 5138-11-16 09:46:40))                                                                                                                                                                                                                                                                                                                                                                                                         |
