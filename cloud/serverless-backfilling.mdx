@@ -1,13 +1,13 @@
 ---
 title: "Configure serverless backfilling"
-description: "Enable serverless backfilling in RisingWave Cloud and configure the backfiller resources used for materialized view backfill jobs."
+description: "Enable serverless backfilling in RisingWave Cloud and configure the backfiller resources used for materialized view, sink, and index backfill jobs."
 ---
 
 ## Overview
 
-Serverless backfilling in RisingWave Cloud runs materialized view backfill jobs on dedicated backfiller resources instead of your main streaming compute nodes.
+Serverless backfilling in RisingWave Cloud runs materialized view, sink, and index backfill jobs on dedicated backfiller resources instead of your main streaming compute nodes.
 
-After a `CREATE MATERIALIZED VIEW` request using serverless backfilling passes validation and is ready to create the streaming job, RisingWave Cloud provisions a temporary resource group for that job by using the configured **Backfiller SKU** and **Replicas** as template values. Failed validation paths do not provision backfiller resources.
+After a `CREATE MATERIALIZED VIEW`, `CREATE SINK`, or `CREATE INDEX` request using serverless backfilling passes validation and is ready to create the streaming job, RisingWave Cloud provisions a temporary resource group for that job by using the configured **Backfiller SKU** and **Replicas** as template values. Failed validation paths do not provision backfiller resources.
 
 This page focuses on enabling and sizing the Cloud resources. For SQL usage, session variables, `WITH` clause options, limitations, and monitoring, see [Serverless backfilling](/processing/serverless-backfill).
 
@@ -51,12 +51,12 @@ We strongly recommend enabling **Serverless Compaction** so compactors scale aut
 RisingWave Cloud manages the backfill resources automatically:
 
 1. After RisingWave validates a new serverless backfilling job and is about to create the streaming job, the serverless backfilling controller creates a dynamic resource group for that job by using the configured Backfiller SKU and Replicas.
-2. The backfill job runs in that dynamic resource group during materialized view creation.
-3. After the materialized view is created successfully, the materialized view is migrated to its **steady-state resource group** (the resource group of its parent database) for normal streaming execution.
+2. The backfill job runs in that dynamic resource group during creation.
+3. After the job is created successfully, it is migrated to its **steady-state resource group** (the resource group of its parent database) for normal streaming execution.
 
 ## Use serverless backfilling in SQL
 
-After enabling serverless backfilling in the Cloud console, use either `SET enable_serverless_backfill = true` or `WITH (cloud.serverless_backfill_enabled = true)` when creating a materialized view.
+After enabling serverless backfilling in the Cloud console, use either `SET enable_serverless_backfill = true` or `WITH (cloud.serverless_backfill_enabled = true)` when creating a materialized view, sink, or index.
 
 See [Serverless backfilling](/processing/serverless-backfill) for:
 
