@@ -107,6 +107,7 @@ Support for certain earlier versions will end following the release of v3.0. Ple
 
 ## Cluster configuration changes
 
+- `enable_compaction_group_normalize` now defaults to `true` (previously `false`). Overlap normalization for compaction groups is now triggered only before merge scheduling, not before regular split scheduling. This reduces latency on the split path. The description for `periodic_scheduling_compaction_group_split_interval_sec` is updated to reflect that it does not disable merge-triggered normalize splits. [#25334](https://github.com/risingwavelabs/risingwave/pull/25334)
 - Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
 - Supports setting session parameters via the PostgreSQL `StartupMessage` `options` field. [#24754](https://github.com/risingwavelabs/risingwave/pull/24754)
 - Adds `RW_TRACING_EXTRA_ATTRIBUTES` environment variable for injecting custom attributes into distributed traces. [#24946](https://github.com/risingwavelabs/risingwave/pull/24946)
