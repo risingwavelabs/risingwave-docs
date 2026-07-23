@@ -4,9 +4,10 @@ sidebarTitle: "Maintenance"
 description: "Configure compaction and snapshot expiration for Iceberg sinks and internal tables in RisingWave."
 ---
 
-When RisingWave streams data into Iceberg, it generates many small data files and creates frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction and snapshot expiration.
+When RisingWave streams data into Iceberg, it generates many small data files, fragmented manifests, and frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction, manifest rewrite, and snapshot expiration.
 
 - **Compaction**: Merges small data files and delete files into larger, optimized files to improve read performance.
+- **Manifest rewrite**: Merges fragmented data manifests into fewer, better-sized manifests to reduce metadata overhead during planning.
 - **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
 
 ## Automatic maintenance
@@ -18,7 +19,7 @@ When RisingWave streams data into Iceberg, it generates many small data files an
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
 
-You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables.
+You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Automatic manifest rewrite is currently available for Iceberg sinks.
 
 <Warning>
 **Dedicated compactor required**
@@ -54,6 +55,14 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. To keep only the latest snapshot, set this to `0`. |
 | `snapshot_expiration_retain_last` | Optional. The minimum number of snapshots to retain, regardless of their age. |
 
+#### Manifest rewrite parameters
+
+| Parameter | Description |
+|:--|:--|
+| `enable_manifest_rewrite` | Optional. Set to `true` to periodically rewrite fragmented data manifests for an Iceberg sink. Default: `false`. |
+| `manifest_rewrite_target_size_bytes` | Optional. The target size in bytes for rewritten manifests. Must be greater than `0`. Default: `8388608` (8 MiB). |
+| `manifest_rewrite_min_count_to_merge` | Optional. The minimum number of manifests required to rewrite an under-filled batch. Must be greater than `0`. Default: `100`. |
+
 #### Compaction parameters
 
 | Parameter | Description |
@@ -88,6 +97,33 @@ CREATE TABLE my_iceberg_table (
     snapshot_expiration_retain_last = 10
 ) ENGINE = iceberg;
 ```
+
+#### Manifest rewrite
+
+For Iceberg sinks with fragmented metadata, enable manifest rewrite to periodically merge data manifests:
+
+```sql
+CREATE SINK my_iceberg_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_db',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    s3.access.key = 'your-key',
+    s3.secret.key = 'your-secret',
+    enable_manifest_rewrite = true,
+    manifest_rewrite_target_size_bytes = 8388608,
+    manifest_rewrite_min_count_to_merge = 100
+);
+```
+
+<Note>
+Manifest rewrite is not supported for Iceberg format version 3 tables because the current rewrite path cannot preserve row lineage.
+</Note>
 
 #### Small files compaction
 
@@ -149,14 +185,14 @@ WITH (
 
 ## Manual maintenance
 
-In addition to automatic background maintenance, you can trigger compaction and snapshot expiration manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
+In addition to automatic background maintenance, you can trigger maintenance manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
 
-This gives you on-demand control over table optimization and storage cleanup.
+`VACUUM` rewrites eligible manifests immediately and then expires snapshots. `VACUUM FULL` first compacts data files, then rewrites manifests, and finally expires snapshots.
 
 ```sql
--- Compact small files for a table
+-- Rewrite manifests and expire snapshots
 VACUUM my_iceberg_table;
 
--- Compact files and expire snapshots older than 2 days
-VACUUM my_iceberg_table RETAIN 2 DAYS;
+-- Compact files, then rewrite manifests and expire snapshots
+VACUUM FULL my_iceberg_table;
 ```
