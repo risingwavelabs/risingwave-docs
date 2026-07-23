@@ -13,7 +13,11 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 <Update label="v3.0.2" description="Upcoming">
 
-## Features
+Support for certain earlier versions will end following the release of v3.0. Please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+
+## Patch releases
+
+### v3.0.2
 
 - Supports `ALTER DATABASE ... SET/RESET RESOURCE_GROUP ... DEFERRED`, and extends `ALTER ... SET/RESET RESOURCE_GROUP` with optional `DEFERRED` to sinks and indexes. [#25954](https://github.com/risingwavelabs/risingwave/pull/25954)
 - Supports enabling serverless backfill for sinks and indexes with `WITH (cloud.serverless_backfill_enabled = true)`. [#25953](https://github.com/risingwavelabs/risingwave/pull/25953)
@@ -29,9 +33,6 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Streams meta snapshot backup and restore payloads to reduce memory usage. [#26267](https://github.com/risingwavelabs/risingwave/pull/26267)
 - Improves streaming project performance by evaluating chunks concurrently, and adds retry and observability for OpenAI embedding calls. [#26000](https://github.com/risingwavelabs/risingwave/pull/26000), [#26001](https://github.com/risingwavelabs/risingwave/pull/26001)
 - Changes the default Debezium `time.precision.mode` to `microseconds`. [#26035](https://github.com/risingwavelabs/risingwave/pull/26035)
-
-## Fixes
-
 - Fixes PostgreSQL CDC handling for quoted table names and enum arrays during automatic schema changes. [#25742](https://github.com/risingwavelabs/risingwave/pull/25742), [#25959](https://github.com/risingwavelabs/risingwave/pull/25959)
 - Prevents PostgreSQL CDC offsets from moving backward after reconnects and keeps LSN metrics active. [#25624](https://github.com/risingwavelabs/risingwave/pull/25624), [#26301](https://github.com/risingwavelabs/risingwave/pull/26301)
 - Fixes CDC snapshot restarts, MariaDB privilege validation, and unsigned MySQL primary-key comparisons during backfill. [#26129](https://github.com/risingwavelabs/risingwave/pull/26129), [#26234](https://github.com/risingwavelabs/risingwave/pull/26234), [#25947](https://github.com/risingwavelabs/risingwave/pull/25947)
@@ -49,17 +50,10 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Fixes a connection-pool livelock that could hang SQLite-backed meta stores. [#26131](https://github.com/risingwavelabs/risingwave/pull/26131)
 - Removes stale error metric queries and stale `last_committed_barrier_time` series from monitoring. [#26245](https://github.com/risingwavelabs/risingwave/pull/26245), [#26231](https://github.com/risingwavelabs/risingwave/pull/26231)
 
-</Update>
-
-<Update label="v3.0.1" description="2026-06-30">
-
-## Features
+### v3.0.1
 
 - Adds a write-stop snapshot gate for Iceberg sinks through `compaction.max_snapshots_num`. When compaction is enabled, the default threshold is `1000`. [#25687](https://github.com/risingwavelabs/risingwave/pull/25687)
 - Adds Pulsar source acknowledgement metrics, including categorized failure reasons. [#25995](https://github.com/risingwavelabs/risingwave/pull/25995)
-
-## Fixes
-
 - Prevents compute-node panics when an upsert watermark filter is used with an implicit row-ID primary key. [#25979](https://github.com/risingwavelabs/risingwave/pull/25979)
 - Rejects compaction group merges that would exceed write-stop or emergency L0 thresholds. [#26002](https://github.com/risingwavelabs/risingwave/pull/26002)
 - Fixes recovery and buffered event handling for CDC and parallel CDC backfill. [#25906](https://github.com/risingwavelabs/risingwave/pull/25906), [#25907](https://github.com/risingwavelabs/risingwave/pull/25907)
@@ -71,12 +65,6 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Cleans up orphaned pending sink state when sinks are dropped, reducing meta snapshot growth and out-of-memory risk. [#26045](https://github.com/risingwavelabs/risingwave/pull/26045)
 - Fixes table change log migration when upgrading an existing cluster. [#26048](https://github.com/risingwavelabs/risingwave/pull/26048)
 - Fixes Iceberg automatic schema change equivalence checks, branch-scoped snapshot backlog counting, and sink schema propagation. [#25970](https://github.com/risingwavelabs/risingwave/pull/25970)
-
-</Update>
-
-<Update label="v3.0.0" description="2026-06-11">
-
-Support for certain earlier versions will end following the release of v3.0. Please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
 
 ## SQL features
 
