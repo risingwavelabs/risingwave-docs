@@ -1,0 +1,185 @@
+---
+title: "Google Cloud Lakehouse runtime catalog"
+sidebarTitle: "Google Cloud Lakehouse"
+description: "Connect RisingWave to the Google Cloud Lakehouse runtime catalog for Apache Iceberg tables stored in Cloud Storage."
+---
+
+The Google Cloud **Lakehouse runtime catalog** (formerly **BigLake metastore**) exposes an Apache Iceberg REST catalog for tables stored in Google Cloud Storage (GCS). RisingWave can read existing tables and write or create tables in a single-bucket Lakehouse runtime catalog.
+
+<Note>
+This integration is available in RisingWave v2.8.0 and later. Google still uses the `biglake.googleapis.com` API endpoint and `gcloud biglake` commands after the product rename.
+</Note>
+
+<Warning>
+This integration is for Lakehouse runtime catalog tables stored in GCS. It does not enable RisingWave to write to [BigQuery Iceberg managed tables](https://cloud.google.com/bigquery/docs/biglake-iceberg-tables-in-bigquery). Google recommends modifying those managed tables only through BigQuery.
+</Warning>
+
+## Supported configuration
+
+This guide uses the following configuration:
+
+- A single-bucket (`gs://`) Lakehouse runtime catalog.
+- Google's **end-user credentials** catalog mode.
+- Google Application Default Credentials (ADC) for catalog authentication.
+- Direct GCS IAM permissions for reading and writing table files.
+
+<Warning>
+Google recommends multiple-bucket (`bl://`) catalogs with credential vending for new projects. RisingWave does not currently support that configuration end to end: Google catalog authentication and vended GCS storage credentials are not both applied on that path. Use the single-bucket configuration in this guide, do not set `vended_credentials = true`, and grant the RisingWave identity direct access to the GCS bucket.
+</Warning>
+
+For more information about the two catalog types, see [About the Apache Iceberg REST catalog endpoint](https://cloud.google.com/lakehouse/docs/about-iceberg-rest-catalog-endpoint).
+
+## Prerequisites
+
+Before configuring RisingWave:
+
+1. Create or select a Google Cloud project and a GCS bucket.
+2. [Enable the BigLake API](https://console.cloud.google.com/flows/enableapi?apiid=biglake.googleapis.com).
+3. Make a Google service account available to the RisingWave connector processes through ADC. For production deployments on Google Cloud, prefer an attached service account or GKE Workload Identity over a service account key.
+4. Grant the service account the required IAM roles.
+
+The following roles are sufficient for a sink that creates and writes tables:
+
+| Scope | Role | Purpose |
+|---|---|---|
+| Billing project | `roles/serviceusage.serviceUsageConsumer` | Lets the identity use the project specified by `x-goog-user-project` for quota and billing. |
+| Catalog project | `roles/biglake.editor` | Creates and updates catalog namespaces, tables, and metadata. |
+| GCS bucket | `roles/storage.objectUser` | Reads, creates, updates, and deletes Iceberg metadata and data files. |
+
+For a read-only source, you can instead use `roles/biglake.viewer` on the catalog project and `roles/storage.objectViewer` on the bucket.
+
+## Create a single-bucket catalog
+
+Set the following shell variables:
+
+```bash
+export PROJECT_ID="<google-cloud-project-id>"
+export BUCKET_NAME="<gcs-bucket-name>"
+export RISINGWAVE_SERVICE_ACCOUNT="<service-account-email>"
+```
+
+For a single-bucket catalog, the catalog ID must match the GCS bucket name. Create the catalog in end-user credentials mode:
+
+```bash
+gcloud biglake iceberg catalogs create "$BUCKET_NAME" \
+  --project="$PROJECT_ID" \
+  --catalog-type=gcs-bucket \
+  --credential-mode=end-user
+```
+
+Grant the service account the roles required for a sink:
+
+```bash
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:$RISINGWAVE_SERVICE_ACCOUNT" \
+  --role="roles/serviceusage.serviceUsageConsumer"
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:$RISINGWAVE_SERVICE_ACCOUNT" \
+  --role="roles/biglake.editor"
+
+gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
+  --member="serviceAccount:$RISINGWAVE_SERVICE_ACCOUNT" \
+  --role="roles/storage.objectUser"
+```
+
+See [Create a catalog](https://cloud.google.com/lakehouse/docs/create-catalog) for catalog administration permissions and other setup methods.
+
+## Configure ADC
+
+`catalog.security = 'google'` configures the Iceberg REST client to obtain a Google OAuth token through ADC.
+
+For a keyless deployment on Google Cloud, attach the service account to the VM or configure GKE Workload Identity. The GCS client can use the metadata service directly, so you do not need to set `enable_config_load`.
+
+For a self-hosted deployment that uses a credential file:
+
+1. Mount the file on every RisingWave node that runs connector workloads.
+2. Set `GOOGLE_APPLICATION_CREDENTIALS` for those processes.
+3. Add `enable_config_load = 'true'` to the RisingWave source or sink configuration so that GCS file I/O can load the environment credential.
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+```
+
+<Note>
+In this REST catalog configuration, `gcs.credential` configures GCS file I/O but does not authenticate the catalog request. The catalog still uses ADC through `catalog.security = 'google'`. Prefer using the same ADC identity for both catalog and storage access.
+
+`enable_config_load = 'true'` is supported only in self-hosted deployments.
+</Note>
+
+## Read from an existing table
+
+Create an Iceberg source. RisingWave infers the columns from the Iceberg table metadata.
+
+```sql
+CREATE SOURCE gcp_lakehouse_source
+WITH (
+    connector = 'iceberg',
+
+    catalog.type = 'rest',
+    catalog.uri = 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+    catalog.name = '<gcs-bucket-name>',
+    catalog.security = 'google',
+    catalog.header = 'x-goog-user-project=<google-cloud-project-id>',
+    catalog.io_impl = 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+
+    warehouse.path = 'gs://<gcs-bucket-name>',
+    database.name = '<namespace-name>',
+    table.name = '<table-name>'
+);
+```
+
+If ADC comes from `GOOGLE_APPLICATION_CREDENTIALS` or a local ADC file, also add:
+
+```sql
+enable_config_load = 'true'
+```
+
+For Iceberg source behavior and limitations, see [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg).
+
+## Write to a table
+
+The following append-only sink writes to an existing table or creates it if it does not exist:
+
+```sql
+CREATE SINK gcp_lakehouse_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'append-only',
+
+    catalog.type = 'rest',
+    catalog.uri = 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+    catalog.name = '<gcs-bucket-name>',
+    catalog.security = 'google',
+    catalog.header = 'x-goog-user-project=<google-cloud-project-id>',
+    catalog.io_impl = 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+
+    warehouse.path = 'gs://<gcs-bucket-name>',
+    database.name = '<namespace-name>',
+    table.name = '<table-name>',
+    create_table_if_not_exists = 'true'
+);
+```
+
+If ADC comes from `GOOGLE_APPLICATION_CREDENTIALS` or a local ADC file, also add:
+
+```sql
+enable_config_load = 'true'
+```
+
+For other sink modes and options, see [Deliver data to Iceberg tables](/iceberg/deliver-to-iceberg).
+
+## Configuration reference
+
+| Parameter | Description |
+|---|---|
+| `catalog.type` | Set to `'rest'` to use the Iceberg REST catalog. |
+| `catalog.uri` | Set to `https://biglake.googleapis.com/iceberg/v1/restcatalog`. |
+| `catalog.name` | A local name for the catalog. Using the single-bucket catalog ID keeps the configuration easy to identify. |
+| `catalog.security` | Set to `'google'` to authenticate catalog requests with Google ADC. |
+| `catalog.header` | Set `x-goog-user-project=<project-id>` to select the quota and billing project. Separate multiple headers with semicolons. |
+| `catalog.io_impl` | Set to `org.apache.iceberg.gcp.gcs.GCSFileIO` for the Java Iceberg catalog client. |
+| `warehouse.path` | For the supported single-bucket configuration, set to `gs://<bucket-name>`. This identifies the Lakehouse catalog and its storage bucket. |
+| `gcp.auth.scopes` | Optional comma-separated OAuth scopes. The default `https://www.googleapis.com/auth/cloud-platform` scope is sufficient for this setup. |
+| `enable_config_load` | In self-hosted deployments, set to `'true'` when GCS ADC must be loaded from environment variables or a local credential file. It is not required for VM metadata or GKE Workload Identity. |
+| `gcs.credential` | Optional Base64-encoded service account JSON for GCS file I/O. It does not replace ADC for catalog authentication in this configuration. |
