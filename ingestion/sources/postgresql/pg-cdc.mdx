@@ -149,7 +149,7 @@ The PostgreSQL CDC connector uses the Debezium JSON format for data.
 The following table shows the data type mapping from PostgreSQL to RisingWave.
 
 <Note>
-RisingWave does not support directly creating tables from PostgreSQL composite types. If you want to read composite type data, you will need to use a source and create a materialized view based off that source.
+RisingWave does not support directly creating tables from PostgreSQL composite types. If you want to read scalar composite type data, you will need to use a source and create a materialized view based off that source. Arrays of user-defined composite types are supported and are ingested as `varchar[]`, with each element preserved in PostgreSQL text format.
 </Note>
 
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -361,8 +361,8 @@ Currently, RisingWave supports the `ALTER TABLE` command with the following oper
 * `DROP COLUMN`: Allows you to remove an existing column from a table.
 
 During automatic schema changes, RisingWave maps PostgreSQL enum arrays, such
-as `mood_enum[]`, to `varchar[]`. Arrays of PostgreSQL composite types are not
-supported by this mapping.
+as `mood_enum[]`, and arrays of user-defined composite types to `varchar[]`.
+Composite array elements are preserved in PostgreSQL text format.
 
 To enable this feature, set `auto.schema.change = 'true'` in your PostgreSQL CDC source configuration:
 
