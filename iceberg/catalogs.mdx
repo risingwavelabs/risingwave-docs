@@ -66,6 +66,8 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 | `catalog.token` | A bearer token for a REST catalog. |
 | `catalog.oauth2_server_uri` | The token endpoint URI for a REST catalog's OAuth2 flow. |
 | `catalog.scope` | The OAuth2 scope for a REST catalog. |
+| `catalog.header` | Custom HTTP headers for REST catalog requests, formatted as `key1=value1;key2=value2`. For Google Cloud Lakehouse Iceberg REST catalogs, set `catalog.header = 'x-goog-user-project=PROJECT_ID'` to specify the billing project. |
+| `catalog.io_impl` | Custom Iceberg `FileIO` implementation class. For example, use `org.apache.iceberg.aws.s3.S3FileIO` for Amazon S3, `org.apache.iceberg.gcp.gcs.GCSFileIO` for Google Cloud Storage, or `org.apache.iceberg.azure.adlsv2.ADLSFileIO` for Azure Data Lake Storage Gen2. Google Cloud Lakehouse Iceberg REST catalogs with credential vending require `org.apache.iceberg.gcp.gcs.GCSFileIO`. |
 | `catalog.rest.signing_region` | For Amazon S3 Tables: the AWS region for signing requests. |
 | `catalog.rest.signing_name` | For Amazon S3 Tables: the service name for signing requests. |
 | `catalog.rest.sigv4_enabled` | For Amazon S3 Tables: enables SigV4 signing. Must be `true`. |
@@ -74,4 +76,4 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 | `glue.secret.key` | The AWS secret access key for Glue authentication. If not specified, defaults to `s3.secret.key`. |
 | `glue.iam_role_arn` | The IAM role ARN to assume for Glue catalog access via STS. When set, the connector assumes the specified role for Glue catalog operations. |
 | `enable_config_load` | If set to `true`, load AWS config/credentials from the environment (for example, to assume an IAM role via STS). |
-| `vended_credentials` | Enable vended credentials for a REST catalog. When set to `true` with `catalog.type = 'rest'`, requests credentials from the REST catalog server instead of managing them directly. Default: `false`. |
+| `vended_credentials` | Enable vended credentials for a REST catalog. When set to `true` with `catalog.type = 'rest'`, RisingWave requests credentials from the REST catalog server instead of managing them directly. For Google Cloud Lakehouse Iceberg REST catalogs, this sends `X-Iceberg-Access-Delegation: vended-credentials`. Default: `false`. |
