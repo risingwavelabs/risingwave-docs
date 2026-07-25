@@ -41,25 +41,40 @@ ALTER FRAGMENT 10, 11, 12 SET PARALLELISM = ADAPTIVE;
 ALTER FRAGMENT 7 SET PARALLELISM = DEFAULT;
 ```
 
-### `SET BACKFILL_RATE_LIMIT`
+### `SET { SOURCE_RATE_LIMIT | BACKFILL_RATE_LIMIT | DML_RATE_LIMIT | SINK_RATE_LIMIT }`
 
 ```sql
 ALTER FRAGMENT fragment_id
-SET BACKFILL_RATE_LIMIT { TO | = } rate_limit_number;
+SET { SOURCE_RATE_LIMIT | BACKFILL_RATE_LIMIT | DML_RATE_LIMIT | SINK_RATE_LIMIT } { TO | = } { DEFAULT | rate_limit_number };
 ```
 
 | Parameter or clause | Description |
 | :------------------ | :---------- |
-| **SET BACKFILL_RATE_LIMIT** | This clause controls the rate limit for backfilling operations on the specified fragment. |
+| **SET SOURCE_RATE_LIMIT** | Controls the source rate limit for the specified fragment. |
+| **SET BACKFILL_RATE_LIMIT** | Controls the backfill rate limit for the specified fragment. |
+| **SET DML_RATE_LIMIT** | Controls the DML rate limit for the specified fragment. |
+| **SET SINK_RATE_LIMIT** | Controls the sink rate limit for the specified fragment. |
 | _fragment\_id_ | The ID of the fragment to modify. Only a single fragment ID is supported for this operation. |
-| _rate\_limit\_number_ | The rate limit value in records per second. Set to 0 to pause backfilling. |
+| **DEFAULT** | Resets the selected rate limit to the default value. |
+| _rate\_limit\_number_ | The rate limit value in records per second. Set to 0 to pause the selected fragment activity. |
+
+`ALTER FRAGMENT ... SET RATE_LIMIT ...` remains supported as a backward-compatible alias for `SET BACKFILL_RATE_LIMIT`.
 
 ```sql Example
 -- Set backfill rate limit for fragment 3
 ALTER FRAGMENT 3 SET BACKFILL_RATE_LIMIT = 1000;
 
+-- Set sink rate limit for fragment 3
+ALTER FRAGMENT 3 SET SINK_RATE_LIMIT = 500;
+
 -- Pause backfilling for fragment 3
 ALTER FRAGMENT 3 SET BACKFILL_RATE_LIMIT = 0;
+
+-- Reset source rate limit for fragment 3
+ALTER FRAGMENT 3 SET SOURCE_RATE_LIMIT = DEFAULT;
+
+-- RATE_LIMIT is an alias for BACKFILL_RATE_LIMIT
+ALTER FRAGMENT 3 SET RATE_LIMIT = 1000;
 ```
 
 ## See also
