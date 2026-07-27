@@ -27,6 +27,11 @@ These parameters control how RisingWave consumes data from the Kafka topic.
 
 `scan.startup.mode` only applies to streaming jobs, such as when building a table or creating a materialized view on a Kafka source. When directly querying a source, RisingWave will always read from the earliest available messages. For more information about querying sources, see [Querying a source](/ingestion/create-source-vs-create-table).
 
+<Note>
+RisingWave reads Kafka messages compressed with [zstd](https://www.zstd.net/)
+without additional connector configuration.
+</Note>
+
 ## General Kafka properties
 
 These parameters provide additional control over the Kafka consumer behavior. Most correspond to standard Kafka configuration properties, and for those, the RisingWave parameter name is prefixed with `properties.` For detailed explanations of these parameters, refer to the official [librdkafka configuration documentation](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md).
@@ -93,6 +98,12 @@ The following table summarizes the parameters used for configuring security:
 | `properties.sasl.kerberos.kinit.cmd`    | The shell command used to obtain or refresh a Kerberos ticket. Required for SASL/GSSAPI.                                                                                                                              | Yes (for GSSAPI)     |
 | `properties.sasl.kerberos.min.time.before.relogin` | The minimum time in milliseconds that must pass before the client automatically refreshes the Kerberos ticket.                                                                                                 | Yes (for GSSAPI)     |
 | `properties.sasl.oauthbearer.config`    | The configuration string for SASL/OAUTHBEARER. See the [librdkafka documentation](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md) for details on the format. *Important:* RisingWave only supports unsecured client-side tokens for `OAUTHBEARER`. | Yes (for OAUTHBEARER)|
+
+<Warning>
+RisingWave's `OAUTHBEARER` support enables only unsecured client-side JWTs and
+does not support OpenID Connect (OIDC). Do not use unsecured tokens in
+production.
+</Warning>
 
 ## Format and encoding options
 

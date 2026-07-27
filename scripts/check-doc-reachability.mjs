@@ -44,6 +44,70 @@ const routes = new Map(
   ]),
 );
 
+function parseFrontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) {
+    return { body: content, url: null };
+  }
+
+  const urlMatch = match[1].match(/^url:\s*(.*?)\s*$/m);
+  const url = urlMatch?.[1]?.replace(/^(['"])(.*)\1$/, "$2") ?? null;
+  return { body: content.slice(match[0].length), url };
+}
+
+function stripNonRenderedContent(content) {
+  const renderedLines = [];
+  let fenceCharacter = null;
+  let fenceLength = 0;
+
+  for (const line of content.split(/\r?\n/)) {
+    const fence = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fence && fenceCharacter === null) {
+      fenceCharacter = fence[1][0];
+      fenceLength = fence[1].length;
+      continue;
+    }
+    if (
+      fence &&
+      fence[1][0] === fenceCharacter &&
+      fence[1].length >= fenceLength
+    ) {
+      fenceCharacter = null;
+      fenceLength = 0;
+      continue;
+    }
+    if (fenceCharacter === null) {
+      renderedLines.push(line);
+    }
+  }
+
+  return renderedLines
+    .join("\n")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+    .replace(/(`+)([^`\n]*?)\1/g, "");
+}
+
+const documents = new Map(
+  [...routes].map(([route, file]) => {
+    const { body, url } = parseFrontmatter(fs.readFileSync(file, "utf8"));
+    return [route, { body, file, url }];
+  }),
+);
+const pageAliasRoutes = new Set(
+  [...documents]
+    .filter(([, { url }]) => url !== null)
+    .map(([route]) => route),
+);
+const internalPageAliases = new Map(
+  [...documents]
+    .filter(([, { url }]) => url?.startsWith("/"))
+    .map(([route, { url }]) => [
+      route,
+      normalizeRoute(url.replace(/[?#].*$/, "")),
+    ]),
+);
+
 const navigationRoutes = new Set();
 function collectNavigationRoutes(value, parentKey = "") {
   if (Array.isArray(value)) {
@@ -60,16 +124,20 @@ function collectNavigationRoutes(value, parentKey = "") {
 }
 collectNavigationRoutes(docsConfig.navigation);
 
-const redirects = new Map(
+const configuredRedirects = new Map(
   (docsConfig.redirects ?? []).map(({ source, destination }) => [
     normalizeRoute(source),
     normalizeRoute(destination.replace(/[?#].*$/, "")),
   ]),
 );
+const redirects = new Map([...configuredRedirects, ...internalPageAliases]);
 
 function followRedirect(route) {
   const visited = new Set();
-  while (redirects.has(route) && !visited.has(route)) {
+  while (redirects.has(route)) {
+    if (visited.has(route)) {
+      return null;
+    }
     visited.add(route);
     route = redirects.get(route);
   }
@@ -96,7 +164,11 @@ function resolveTarget(sourceRoute, rawTarget) {
         path.posix.normalize(path.posix.join(path.posix.dirname(sourceRoute), target)),
       );
   const canonicalRoute = followRedirect(route);
-  return routes.has(canonicalRoute) ? canonicalRoute : null;
+  return canonicalRoute &&
+    routes.has(canonicalRoute) &&
+    !pageAliasRoutes.has(canonicalRoute)
+    ? canonicalRoute
+    : null;
 }
 
 const edges = new Map([...routes.keys()].map((route) => [route, new Set()]));
@@ -106,8 +178,8 @@ const linkPatterns = [
   /\bfrom\s+["']([^"']+)["']/g,
 ];
 
-for (const [sourceRoute, file] of routes) {
-  const content = fs.readFileSync(file, "utf8");
+for (const [sourceRoute, { body }] of documents) {
+  const content = stripNonRenderedContent(body);
   for (const pattern of linkPatterns) {
     for (const match of content.matchAll(pattern)) {
       const targetRoute = resolveTarget(sourceRoute, match[1]);
@@ -119,7 +191,54 @@ for (const [sourceRoute, file] of routes) {
 }
 
 const errors = [];
-const shadowedRoutes = [...redirects.keys()].filter((route) => routes.has(route));
+const conflictingRedirectSources = [...internalPageAliases.keys()].filter((route) =>
+  configuredRedirects.has(route),
+);
+if (conflictingRedirectSources.length > 0) {
+  errors.push(
+    "Routes must not define both a docs.json redirect and a frontmatter URL:\n" +
+      conflictingRedirectSources.map((route) => `  - ${route}`).join("\n"),
+  );
+}
+
+const nonEmptyPageAliases = [...pageAliasRoutes].filter(
+  (route) => documents.get(route).body.trim() !== "",
+);
+if (nonEmptyPageAliases.length > 0) {
+  errors.push(
+    "Pages with a frontmatter URL must not also contain page content:\n" +
+      nonEmptyPageAliases.map((route) => `  - ${route}.mdx`).join("\n"),
+  );
+}
+
+const cyclicRedirects = [...redirects.keys()].filter(
+  (route) => followRedirect(route) === null,
+);
+if (cyclicRedirects.length > 0) {
+  errors.push(
+    "Redirect cycles detected:\n" +
+      cyclicRedirects.map((route) => `  - ${route}`).join("\n"),
+  );
+}
+
+const missingRedirectDestinations = [...redirects].filter(
+  ([, destination]) => {
+    const canonicalRoute = followRedirect(destination);
+    return canonicalRoute === null || !routes.has(canonicalRoute);
+  },
+);
+if (missingRedirectDestinations.length > 0) {
+  errors.push(
+    "Redirect destinations do not resolve to .mdx files:\n" +
+      missingRedirectDestinations
+        .map(([source, destination]) => `  - ${source} -> ${destination}`)
+        .join("\n"),
+  );
+}
+
+const shadowedRoutes = [...configuredRedirects.keys()].filter((route) =>
+  routes.has(route),
+);
 if (shadowedRoutes.length > 0) {
   errors.push(
     "Redirect sources must not also exist as .mdx files:\n" +
@@ -128,7 +247,17 @@ if (shadowedRoutes.length > 0) {
 }
 
 const missingNavigationPages = [...navigationRoutes].filter(
-  (route) => !routes.has(followRedirect(route)),
+  (route) => {
+    if (
+      routes.has(route) &&
+      pageAliasRoutes.has(route) &&
+      !internalPageAliases.has(route)
+    ) {
+      return false;
+    }
+    const canonicalRoute = followRedirect(route);
+    return canonicalRoute === null || !routes.has(canonicalRoute);
+  },
 );
 if (missingNavigationPages.length > 0) {
   errors.push(
@@ -140,7 +269,13 @@ if (missingNavigationPages.length > 0) {
 const reachableRoutes = new Set(
   [...navigationRoutes]
     .map(followRedirect)
-    .filter((route) => routes.has(route) && !redirects.has(route)),
+    .filter(
+      (route) =>
+        route !== null &&
+        routes.has(route) &&
+        !pageAliasRoutes.has(route) &&
+        !redirects.has(route),
+    ),
 );
 const queue = [...reachableRoutes];
 while (queue.length > 0) {
@@ -160,7 +295,12 @@ const allowedOrphans = new Map(
   ]),
 );
 const orphanedRoutes = [...routes.keys()]
-  .filter((route) => !reachableRoutes.has(route) && !redirects.has(route))
+  .filter(
+    (route) =>
+      !reachableRoutes.has(route) &&
+      !redirects.has(route) &&
+      !pageAliasRoutes.has(route),
+  )
   .sort();
 const unexpectedOrphans = orphanedRoutes.filter(
   (route) => !allowedOrphans.has(route),
