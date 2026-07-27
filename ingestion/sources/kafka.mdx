@@ -94,9 +94,11 @@ WITH (
 
 ### Query the implicit Kafka timestamp
 
-If a Kafka source or table does not explicitly include the Kafka timestamp with
+If a Kafka source does not explicitly include the Kafka timestamp with
 `INCLUDE timestamp`, RisingWave adds the implicit `_rw_kafka_timestamp` column.
-This column contains the timestamp of each Kafka message.
+This column contains the timestamp of each Kafka message. RisingWave does not
+add this implicit column to a Kafka table; use `INCLUDE timestamp` when creating
+the table to expose the timestamp under the specified column name.
 
 You can use the column in a view or materialized view:
 
