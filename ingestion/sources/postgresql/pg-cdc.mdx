@@ -50,6 +50,8 @@ WITH (
 FROM <shared_source_name> TABLE <upstream_table_name>;
 ```
 
+If an upstream PostgreSQL schema or table name is a quoted identifier, preserve the PostgreSQL double quotes inside the string literal. For example, use `TABLE 'public."QuotedTable"'`.
+
 ### Basic connection example
 
 ```sql
@@ -71,6 +73,14 @@ CREATE TABLE my_table (
 )
 FROM shared_source TABLE 'public.my_upstream_table';
 ```
+
+For example, the following statement derives its schema from an upstream mixed-case table named `public."QuotedNote"`:
+
+```sql
+CREATE TABLE quoted_note (*)
+FROM shared_source TABLE 'public."QuotedNote"';
+```
+
 ## Parameters
 
 These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
@@ -345,6 +355,9 @@ Instead of defining columns individually, you can use `*` when creating a table 
 ```sql
 CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_name>';
 ```
+
+Keep double quotes around quoted upstream identifiers in the `TABLE` value. For example: `TABLE 'public."QuotedTable"'`.
+
 ### Auto schema change
 
 <Tip>

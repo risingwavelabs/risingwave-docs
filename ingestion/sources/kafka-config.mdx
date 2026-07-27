@@ -54,6 +54,23 @@ These parameters provide additional control over the Kafka consumer behavior. Mo
 | `properties.statistics.interval.ms`   | The interval (in milliseconds) at which RisingWave emits Kafka consumer statistics. Set to a non-zero value to enable statistics collection. These statistics can be monitored using tools like Grafana.                                                                         | int     |
 | `properties.ssl.endpoint.identification.algorithm` | Set it to `none` to skip the hostname verification if you don't provide the client certificate. See more details at [TLS/SSL encryption and SASL authentication](#tlsssl-encryption-and-sasl-authentication).                                                                | string  |
 
+<Tip>
+**Troubleshoot `GroupAuthorizationFailed`**
+
+If Kafka returns `GroupAuthorizationFailed` while RisingWave consumes a topic, add the consumer groups that use your `group.id.prefix` (the default is `rw-consumer`) to the Kafka ACL allowlist. For example:
+
+```bash
+./kafka-acls.sh --bootstrap-server <broker-address> \
+  --add --allow-principal User:<user-or-service-account> \
+  --consumer-group 'rw-consumer-.*' \
+  --operation READ
+```
+</Tip>
+
+<Note>
+During source enumerator cleanup, RisingWave deletes the Kafka consumer groups derived from `group.id.prefix`. Cleanup is best-effort. Failures appear in warning logs and in the Prometheus metric `source_kafka_consumer_group_delete_failure_count{source_id,consumer_group}`. In the Grafana development dashboard, see **Kafka Metrics** > **Kafka Consumer Group Delete Failures** for the failure rate grouped by source and consumer group.
+</Note>
+
 ## Security (TLS/SSL and SASL)
 
 RisingWave supports connecting to Kafka clusters secured with TLS/SSL encryption and/or SASL authentication. See the main [Connect to Kafka](/ingestion/sources/kafka) guide for detailed examples.
@@ -101,6 +118,28 @@ These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave s
 <Note>
 In RisingWave Cloud, AWS credentials (`access_key`, `secret_key` or `aws.credentials.*`) are required and cannot be omitted. In self-hosted deployments, you may omit them to rely on the AWS SDK default credential chain (for example, EC2 instance profile or environment variables).
 </Note>
+
+## Use Confluent Schema Registry
+
+RisingWave supports Confluent Schema Registry and compatible registries such as [Karapace](https://aiven.io/docs/products/kafka/karapace). When you create a source, RisingWave uses the configured subject naming strategy (`TopicNameStrategy` by default), retrieves the subject's latest schema, and derives the source columns and data types from it.
+
+Specify the registry in the `ENCODE` options:
+
+```sql
+ENCODE <encoding> (
+  schema.registry = 'https://<schema-registry-address>'
+)
+```
+
+<Note>
+For Protobuf data, RisingWave bundles only protobuf [well-known types](https://protobuf.dev/reference/protobuf/google.protobuf/), such as `google/protobuf/timestamp.proto`, `duration.proto`, `any.proto`, `empty.proto`, `struct.proto`, and wrappers. Other imports, including Google common types such as `google/type/date.proto`, `google/type/latlng.proto`, `google/rpc/*`, `google/api/*`, and `confluent/meta.proto`, must be available as schema references in Confluent Schema Registry.
+
+If an error reports missing schema references, the upstream Confluent serializer or converter might be treating these imports as known types and skipping their registration. Set `skip.known.types = false` on the serializer or converter so that Schema Registry stores the dependencies as references. See Confluent's [known-types list](https://github.com/confluentinc/schema-registry/blob/v8.4.0-124/protobuf-provider/src/main/java/io/confluent/kafka/schemaregistry/protobuf/ProtobufSchema.java#L271).
+</Note>
+
+### Schema evolution
+
+RisingWave continues to use the schema version retrieved when the source is created. To use a newer writer schema after a compatible schema evolution, drop and recreate the source.
 
 ## Use AWS Glue Schema Registry
 
