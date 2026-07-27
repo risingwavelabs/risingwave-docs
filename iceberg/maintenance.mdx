@@ -67,6 +67,18 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | `compaction.small_files_threshold_mb` | Optional. For `small-files` compaction type, the threshold size in MB below which files will be compacted. |
 | `compaction.delete_files_count_threshold` | Optional. For `files-with-delete` compaction type, the minimum number of delete files associated with a data file required to trigger compaction. |
 
+#### Manifest rewrite parameters
+
+| Parameter | Description |
+|:--|:--|
+| `enable_manifest_rewrite` | Optional. Set to `true` to periodically rewrite fragmented Iceberg manifests. Default: `false`. This option is supported in Iceberg sinks and in `CREATE TABLE ... ENGINE = iceberg` `WITH (...)` clauses. |
+| `manifest_rewrite_target_size_bytes` | Optional. The target size in bytes for rewritten manifests. Must be greater than `0`. If not set, RisingWave uses the Iceberg default target manifest size. |
+| `manifest_rewrite_min_count_to_merge` | Optional. The minimum number of small manifests required before RisingWave merges them. Must be greater than `0`. If not set, RisingWave uses the Iceberg default minimum merge count. |
+
+<Note>
+`enable_manifest_rewrite` is not supported when `format_version = 3`, because manifest rewriting cannot preserve row lineage for Iceberg v3 tables.
+</Note>
+
 <Warning>
 **Deprecated storage config**: The node-level storage config `iceberg_compaction_write_parquet_max_row_group_rows` is deprecated. Use the sink-level parameter `compaction.write_parquet_max_row_group_rows` instead.
 </Warning>
@@ -145,6 +157,19 @@ WITH (
     enable_snapshot_expiration = true,
     snapshot_expiration_retain_last = 10
 );
+```
+
+#### Manifest rewrite for internal Iceberg tables
+
+You can also enable manifest rewriting on internal Iceberg tables through the table `WITH` clause:
+
+```sql
+CREATE TABLE my_iceberg_table (
+    id INT PRIMARY KEY,
+    name VARCHAR
+) WITH (
+    enable_manifest_rewrite = true
+) ENGINE = iceberg;
 ```
 
 ## Manual maintenance
