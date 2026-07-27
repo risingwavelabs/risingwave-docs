@@ -6,6 +6,55 @@ sidebarTitle: Kafka config
 
 This page provides a comprehensive reference for all configuration parameters available when creating a Kafka source or table in RisingWave using the `WITH` clause of a `CREATE SOURCE` or `CREATE TABLE` statement.
 
+## Syntax
+
+Use the following syntax to create a Kafka source or table:
+
+```sql
+CREATE { SOURCE | TABLE } [ IF NOT EXISTS ] source_or_table_name
+[ (
+    { * | column_name data_type [ column_constraint ] }, ...
+    [ PRIMARY KEY ( column_name, ... ) ]
+    [ WATERMARK FOR column_name AS expression ]
+) ]
+[ INCLUDE kafka_metadata [ AS column_name ] ] [...]
+WITH (
+    connector = 'kafka',
+    topic = 'topic_name',
+    properties.bootstrap.server = 'broker:port',
+    connector_parameter = 'value',
+    ...
+)
+FORMAT data_format ENCODE data_encode [ (
+    encode_option = 'value',
+    ...
+) ];
+```
+
+For `kafka_metadata`, use one of the following forms:
+
+```sql
+{ key | timestamp | partition | offset | payload | header }
+header '<header_key>' [ data_type ]
+```
+
+You can repeat the `INCLUDE` clause to extract multiple metadata fields. For
+example:
+
+```sql
+INCLUDE key AS kafka_key
+INCLUDE timestamp AS kafka_timestamp
+INCLUDE header 'trace_id' VARCHAR AS trace_id
+```
+
+Column constraints differ between sources and tables. See
+[`CREATE SOURCE`](/sql/commands/sql-create-source) and
+[`CREATE TABLE`](/sql/commands/sql-create-table) for their complete
+column-definition options. For Avro and Protobuf, you can omit the column
+definitions when RisingWave derives the schema from the configured schema
+location or registry. See [Format and encoding options](#format-and-encoding-options)
+for the supported `FORMAT`, `ENCODE`, and encoding options.
+
 ## Basic connection parameters
 
 These parameters are typically required to establish a basic connection to your Kafka cluster.
