@@ -42,7 +42,7 @@ Before setting up a BYOK8s environment, you must provision the following resourc
 <Tabs>
 <Tab title="AWS">
 - [`aws/base_env`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/base_env) — VPC, EKS, S3, KMS, IAM, NLBs + VPC Endpoint Services
-- [`aws/k8s_addons`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/k8s_addons) — cert-manager, AWS Load Balancer Controller, Karpenter NodePools (emits `byok_config.yaml`)
+- [`aws/k8s_addons`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/k8s_addons) — cert-manager and mode-specific node pools; standard EKS also installs the AWS Load Balancer Controller and Karpenter (emits `byok_config.yaml`)
 - [`aws/tenant_resources`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/tenant_resources) — per-cluster RDS metastore + IAM role (emits `byok_tenant_config.yaml`)
 </Tab>
 <Tab title="GCP">
@@ -58,6 +58,9 @@ GCP examples will be added when GCP GKE support lands.
 - **Provider**: Amazon EKS
 - **Version**: Kubernetes 1.32 or higher
 - **Region**: Must be in the same AWS region as the RisingWave Cloud control plane
+- **Cluster mode**: Standard EKS or EKS Auto Mode
+
+Choose the cluster mode before you register the BYOK8s environment. The `aws.eks_auto_mode` setting is stored when you run `rwc byok create` and cannot be changed with `rwc byok update`. RisingWave does not support an in-place migration between standard EKS and EKS Auto Mode; create a new BYOK8s environment to change modes.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
@@ -85,13 +88,14 @@ The following Kubernetes namespaces are reserved for RisingWave-managed componen
 
 <Tabs>
 <Tab title="AWS">
-The following must be pre-installed on your EKS cluster:
+Install cert-manager v1.19.2 or later in both cluster modes. The remaining dependencies differ by mode:
 
-| Component | Version | Purpose |
-| --- | --- | --- |
-| cert-manager | v1.19.2+ | Internal certificate management |
-| AWS Load Balancer Controller | v1.17.0+ | Provision NLBs and ALBs |
-| Amazon EBS CSI Driver | v1.54.0+ | Persistent volumes for telemetry and compute cache |
+| Cluster mode | Additional software dependencies |
+| --- | --- |
+| Standard EKS | AWS Load Balancer Controller Helm chart 1.17.0 or later and Amazon EBS CSI Driver v1.54.0 or later |
+| EKS Auto Mode | None. Use the built-in load-balancing and EBS storage capabilities. Do not install the self-managed AWS Load Balancer Controller or Amazon EBS CSI Driver for this setup. |
+
+In EKS Auto Mode, RisingWave creates native `eks.amazonaws.com/v1` `TargetGroupBinding` resources. In a standard EKS cluster, RisingWave creates `elbv2.k8s.aws/v1beta1` `TargetGroupBinding` resources that the self-managed AWS Load Balancer Controller reconciles.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
@@ -124,11 +128,21 @@ Provide the S3 bucket **ARNs** for both buckets.
 
 <Tabs>
 <Tab title="AWS">
-Provide a KMS key ARN for EBS encryption. This is used by VictoriaMetrics and Loki persistent volumes, and RisingWave compute cache storage.
+Provide a KMS key ARN for EBS encryption. This is used by VictoriaMetrics and Loki persistent volumes, RisingWave compute cache storage, and encrypted EKS worker-node storage.
 
 <Warning>
-The KMS key policy must allow this key to be used for EBS encryption, either directly or by delegating access to IAM principals. Depending on your setup, the IAM principal used by the EBS CSI controller may also need the relevant KMS permissions. Otherwise, persistent volume claims for VictoriaMetrics, Loki, and the RisingWave compute cache will stay `Pending` and `rwc byok apply` will fail. See the [reference Terraform example](https://github.com/risingwavelabs/risingwave-byok-terraform-example/blob/main/aws/base_env/kms.tf) for a working KMS key policy.
+The KMS key policy must allow the key to be used for EBS encryption. Otherwise, worker nodes can fail to join the cluster or become `NotReady`, persistent volume claims for VictoriaMetrics, Loki, and the RisingWave compute cache can remain `Pending`, and `rwc byok apply` will fail.
 </Warning>
+
+For standard EKS, grant the IAM principal used by the Amazon EBS CSI controller the required KMS permissions.
+
+For EKS Auto Mode, the key policy must grant:
+
+- Allow the EKS cluster IAM role and the `AWSServiceRoleForAutoScaling` service-linked role to encrypt, decrypt, and re-encrypt data; generate data keys; describe the key; and create grants for AWS resources.
+- Allow the EKS cluster IAM role to create, list, and revoke grants for AWS resources.
+- Allow principals in the same AWS account that are authorized to use EBS to use the key through EC2. Restrict this statement with `kms:CallerAccount` and `kms:ViaService` set to `ec2.<region>.amazonaws.com`.
+
+The IAM role used by an Auto Mode `NodeClass` does not need to be an explicit key-policy principal when the account-scoped EBS condition is present. See the [reference Terraform example](https://github.com/risingwavelabs/risingwave-byok-terraform-example/blob/main/aws/base_env/kms.tf) for a working policy.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
@@ -245,7 +259,20 @@ Provision **two** internal Network Load Balancers with VPC Endpoint Services for
 
 For each NLB, create a [VPC Endpoint Service](https://docs.aws.amazon.com/vpc/latest/privatelink/create-endpoint-service.html) and allow the RisingWave control plane AWS account (`600598779918`) as an allowed principal.
 
-<Accordion title="Terraform example for NLBs and VPC Endpoint Services">
+#### EKS Auto Mode load-balancing requirements
+
+EKS Auto Mode reconciles the pre-created target groups through its native `TargetGroupBinding` API. In addition to the shared NLB requirements above:
+
+- Add the tag `eks:eks-cluster-name=<cluster-name>` to all five target groups.
+- Attach a target-traffic security group to both NLBs, and allow outbound TCP traffic from it to ports `40001`, `40090`, `4566`, `4580`, and `9099`.
+- Allow inbound TCP traffic from the target-traffic security group to the EKS cluster primary security group on the same five ports.
+- If clients connect directly to the RWProxy NLB, attach a separate client-access security group only to that NLB and allow inbound TCP traffic on port `4566` from the approved client CIDRs or security groups.
+- Ensure every Auto Mode `NodeClass` selects the EKS cluster primary security group.
+- Set the NLB attribute `enforce_security_group_inbound_rules_on_private_link_traffic` to `off` for the PrivateLink traffic used by this setup.
+
+The standard EKS bindings carry their own target network rules, so these NLB security-group resources are Auto Mode-only. The [AWS reference example](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/base_env) configures the control-plane PrivateLink path for both modes. In Auto Mode, it attaches the target-traffic security group to both NLBs and a dedicated client-access security group only to the RWProxy NLB. The client-access security group allows direct RWProxy connections from the VPC CIDR by default; set `rwproxy_additional_client_cidrs` for clients that arrive through peering, Transit Gateway, or another routed network.
+
+<Accordion title="Standard EKS Terraform example for NLBs and VPC Endpoint Services">
 ```hcl
 # CloudAgent NLB
 resource "aws_lb" "cloudagent" {
@@ -392,6 +419,7 @@ region: us-west-2
 aws:
   account_id: "123456789012"
   eks_cluster_name: my-eks-cluster
+  eks_auto_mode: false # Set to true for an EKS Auto Mode cluster.
 
   s3_buckets:
     data_store_arn: arn:aws:s3:::my-risingwave-data
@@ -427,6 +455,10 @@ aws:
 <Note>GCP GKE support is planned. Stay tuned.</Note>
 </Tab>
 </Tabs>
+
+<Note>
+For a standard EKS cluster, leave `aws.eks_auto_mode` set to `false`. For EKS Auto Mode, set it to `true`. The value defaults to `false` when omitted, must match the existing cluster mode when you register the environment, and cannot be changed later with `rwc byok update`.
+</Note>
 
 <Accordion title="Optional: pod scheduling and custom settings">
 You can optionally configure pod scheduling for different workload types and add custom tags:
@@ -635,6 +667,10 @@ For programmatic access (e.g., from your own applications, BI tools, or `psql`),
 The RWProxy NLB is **internal-only**. Clients must be inside the same VPC as the BYOK8s environment, or reach the NLB via VPC peering / Transit Gateway.
 </Note>
 
+<Note>
+For EKS Auto Mode, attach a client-access security group only to the RWProxy NLB before using direct connections. Allow inbound TCP traffic on port `4566` from the approved client CIDRs or security groups. The reference Terraform example allows its VPC CIDR by default and accepts additional routed CIDRs through `rwproxy_additional_client_cidrs`. Disabling NLB security-group enforcement for PrivateLink traffic does not allow direct VPC client traffic.
+</Note>
+
 Because a single RWProxy NLB serves multiple clusters in the BYOK8s environment, you must include the **cluster identifier** (the Kubernetes namespace allocated to your cluster in Phase 1) in the connection. Retrieve it via:
 
 ```bash
@@ -660,6 +696,8 @@ Where:
 ## Node pool resource requirements
 
 If you use dedicated node pools for different workload types (via the `customized_settings.scheduling` configuration), the following minimum resources are required:
+
+The same workload categories and minimum sizing apply to both standard EKS and EKS Auto Mode:
 
 | Category | Components | Minimum node pool resources |
 | --- | --- | --- |
@@ -694,6 +732,8 @@ To update a BYOK8s environment (e.g., to apply a new version or change custom se
 rwc byok update --name <env-name> [--version <version>] [--custom-settings-path <path>]
 rwc byok apply --name <env-name>
 ```
+
+The cluster mode cannot be updated. To switch between standard EKS and EKS Auto Mode, create a new BYOK8s environment configured for the target mode.
 
 ### Delete a BYOK8s environment
 
