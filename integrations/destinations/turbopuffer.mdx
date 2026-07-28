@@ -46,6 +46,7 @@ WITH (
 | `disable_backpressure` | **Optional**. Whether to disable backpressure for Turbopuffer writes. |
 | `full_text_search_columns` | **Optional**. Comma-separated list of string or `varchar[]` columns to mark for full-text search. |
 | `filterable_columns` | **Optional**. Comma-separated list of columns to mark as filterable. Use `*` to mark all supported columns as filterable. |
+| `num_shards` | **Optional**. Number of shards to configure for the Turbopuffer namespace. Must be greater than `0`. Set this only when writing to a new namespace, because Turbopuffer does not allow sharding to be added or changed after the namespace is created. |
 | `write_batch_size` | **Optional**. Maximum number of pending rows buffered across chunks before RisingWave flushes a Turbopuffer write request. Default: `1000`. This option can be changed online with `ALTER SINK ... CONNECTOR WITH`. |
 | `max_linger_second` | **Optional**. Maximum number of seconds RisingWave waits before flushing buffered Turbopuffer writes when `write_batch_size` has not been reached. Default: `1`. This option can be changed online with `ALTER SINK ... CONNECTOR WITH`. |
 
@@ -57,6 +58,7 @@ WITH (
 
 * Turbopuffer sinks can only be created with `sink_decouple` enabled.
 * Provide either `namespace` or `namespace_column`, but not both.
+* If you set `num_shards`, configure it before the target namespace receives its first write.
 * The primary key column is written as the Turbopuffer document ID and is not included as a document attribute.
 * If you use `namespace_column`, that column is used only for routing and is not included as a document attribute.
 * No non-key attribute column can be named `id`.
@@ -95,6 +97,7 @@ WITH (
   distance_metric = 'cosine_distance',
   full_text_search_columns = 'title,body',
   filterable_columns = '*',
+  num_shards = '8',
   write_batch_size = '2000',
   max_linger_second = '2'
 );
