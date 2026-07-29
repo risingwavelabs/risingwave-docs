@@ -1,12 +1,13 @@
 ---
 title: "Iceberg table maintenance"
 sidebarTitle: "Maintenance"
-description: "Configure compaction and snapshot expiration for Iceberg sinks and internal tables in RisingWave."
+description: "Configure compaction, manifest rewrite, and snapshot expiration for Iceberg sinks and internal tables in RisingWave."
 ---
 
-When RisingWave streams data into Iceberg, it generates many small data files and creates frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction and snapshot expiration.
+When RisingWave streams data into Iceberg, it generates many small data files, fragmented manifests, and frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction, manifest rewrite, and snapshot expiration.
 
 - **Compaction**: Merges small data files and delete files into larger, optimized files to improve read performance.
+- **Manifest Rewrite**: Rewrites fragmented Iceberg manifests to reduce metadata overhead.
 - **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
 
 ## Automatic maintenance
@@ -14,6 +15,7 @@ When RisingWave streams data into Iceberg, it generates many small data files an
 <Note>
 **Version notes**
 - RisingWave introduced Iceberg automatic maintenance (default) in v2.5.0 and added `compaction.type` with the `small-files` and `files-with-delete` compaction types in v2.7.0.
+- Newly created internal Iceberg tables (`CREATE TABLE ... ENGINE = iceberg`) using Iceberg format V2 enable `enable_manifest_rewrite` by default. External Iceberg sinks remain opt-in, and Iceberg format V3 does not support manifest rewrite.
 - `compaction.write_parquet_compression` and `compaction.write_parquet_max_row_group_rows` were added in v2.9.0. The `compaction.target_file_size_mb` parameter now also controls the output file size for sink writes (previously only applied to compaction).
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
@@ -49,6 +51,7 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | Parameter | Description |
 |:--|:--|
 | `enable_compaction` | Required. Set to `true` to enable automatic compaction and snapshot expiration. |
+| `enable_manifest_rewrite` | Optional. Periodically rewrites fragmented Iceberg data manifests. For newly created internal Iceberg tables using Iceberg format V2, RisingWave enables this by default unless you explicitly set it to `false`. External Iceberg sinks remain disabled by default. |
 | `compaction_interval_sec` | Optional. The interval in seconds between maintenance runs. Default: `3600`. |
 | `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. By default, it removes snapshots older than 5 days. |
 | `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. To keep only the latest snapshot, set this to `0`. |
@@ -62,6 +65,8 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. If `enable_compaction = true` and this parameter is not set, RisingWave uses `1000` by default. If `enable_compaction = false`, the gate remains disabled unless you explicitly set a positive value. `0` is not allowed. |
 | `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. |
 | `compaction.target_file_size_mb` | Optional. The target output file size in MB. Applies to both sink writes and compaction. Default: `1024`. |
+| `manifest_rewrite_target_size_bytes` | Optional. The target size in bytes for rewritten Iceberg data manifests. |
+| `manifest_rewrite_min_count_to_merge` | Optional. The minimum number of manifests required to rewrite an under-filled batch. |
 | `compaction.write_parquet_compression` | Optional. The Parquet compression codec for output files. Accepted values: `uncompressed`, `snappy`, `gzip`, `lzo`, `brotli`, `lz4`, `zstd`. Default: `snappy`. Supports dynamic updates via `ALTER SINK`. |
 | `compaction.write_parquet_max_row_group_rows` | Optional. The maximum number of rows per Parquet row group. Must be greater than 0. Default: `122880`. Supports dynamic updates via `ALTER SINK`. |
 | `compaction.small_files_threshold_mb` | Optional. For `small-files` compaction type, the threshold size in MB below which files will be compacted. |
