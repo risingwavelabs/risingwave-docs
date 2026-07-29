@@ -184,6 +184,25 @@ Below is an example of the cache refill configuration for your reference.
 | recent\_filter\_layers               | 6       | Number of layers in the recent filter.                                                |
 | recent\_filter\_rotate\_interval\_ms | 10000   | Time interval for rotating recent filter layers.                                      |
 
+You can also override cache refill behavior per materialized view by setting `streaming.developer.cache_refill_policy`:
+
+```sql
+ALTER MATERIALIZED VIEW mv_name
+SET config(streaming.developer.cache_refill_policy = 'both');
+```
+
+Supported values are:
+
+| Value | Description |
+| :---- | :---------- |
+| `enabled` | Enable the default cache refill behavior for the materialized view. |
+| `disabled` | Disable cache refill for the materialized view. |
+| `streaming` | Refill cache only for streaming vnode ownership. |
+| `serving` | Refill cache only for serving vnode ownership. |
+| `both` | Refill cache for both streaming and serving vnode ownership. |
+
+The override is persisted with the materialized view. After recovery, RisingWave rebuilds the cache refill runtime state from the persisted config automatically. For `serving`, `streaming`, and `both`, the runtime state also refreshes when worker ownership changes, so a full cluster recovery is not required to pick up serving worker changes.
+
 #### Other storage configurations
 
 Except for the above, RisingWave also provides some other storage configurations to help control the overall buffer and cache limits. Please see [Dedicated Compute Nodes](/operate/dedicated-compute-node) for more.
