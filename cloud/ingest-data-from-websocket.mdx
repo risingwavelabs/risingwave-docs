@@ -158,6 +158,22 @@ Rules and behavior:
 - `insert` and `update` use the same upsert-style row handling as `upsert`.
 - Each DML batch is sent as one WebSocket text frame.
 
+### Optional decoder headers
+
+WebSocket ingest uses the same JSON decoding path as HTTP webhook ingestion. If you need non-default timestamp, time, bigint, or TOAST handling, send the same decoder option headers during the WebSocket handshake:
+
+- `x-rw-webhook-json-timestamp-handling-mode`
+- `x-rw-webhook-json-timestamptz-handling-mode`
+- `x-rw-webhook-json-time-handling-mode`
+- `x-rw-webhook-json-bigint-unsigned-handling-mode`
+- `x-rw-webhook-json-handle-toast-columns`
+
+Invalid decoder header values return a fatal error and close the connection.
+
+### Payload shape
+
+For normal multi-column tables, each batch item `data` field should be a JSON object whose keys map to table columns. If the target table uses a single `jsonb` column payload schema, RisingWave also accepts scalar JSON values in `data`.
+
 ### Frame-size limits
 
 Each DML batch is a single WebSocket text frame. The server enforces a maximum frame size:
