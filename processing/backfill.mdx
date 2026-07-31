@@ -70,6 +70,30 @@ CREATE MATERIALIZED VIEW mv AS SELECT * FROM large_table;
 
 The materialized view will use parallelism of 2 during backfill, then automatically switch to parallelism of 4 after completion. For more details, see [Configuring backfill parallelism](/operate/view-configure-runtime-parameters#configuring-backfill-parallelism).
 
+### Rate limiting
+
+The **`backfill_rate_limit`** runtime parameter caps how many rows per second, per parallelism, a backfill reads from its upstream. Use it to stop a large backfill from starving regular streaming jobs.
+
+The value is applied when a job is created and is then fixed for that job:
+
+| Value | Effect |
+| :---- | :----- |
+| `-1` or `default` | No rate limit. `-1` is the default. |
+| `0` | **Pauses** the backfill. |
+| positive integer | Rows per second, per parallelism. |
+
+```sql
+-- Throttle new backfills to 1000 rows/s per parallelism
+SET BACKFILL_RATE_LIMIT = 1000;
+CREATE MATERIALIZED VIEW mv AS SELECT * FROM large_table;
+```
+
+<Warning>
+`0` pauses the backfill; it does not mean "unlimited". A job created while `backfill_rate_limit` is `0` stays at `0.00%` progress indefinitely and reports no error, which is easy to miss when combined with `SET BACKGROUND_DDL = true`. Use `-1` or `default` for no limit. To check the value in effect for existing jobs, query `rw_catalog.rw_rate_limit`.
+</Warning>
+
+Setting the parameter only affects jobs created afterwards. To change an existing job, use `ALTER`: [materialized views](/sql/commands/sql-alter-materialized-view#set-backfill-rate-limit), [CDC tables](/sql/commands/sql-alter-table#set-backfill-rate-limit), [sinks](/sql/commands/sql-alter-sink#set-backfill-rate-limit), and [fragments](/sql/commands/sql-alter-fragment#set-backfill-rate-limit). For related parameters, see [runtime parameters](/operate/view-configure-runtime-parameters).
+
 ### Concurrent backfills
 
 The `max_concurrent_creating_streaming_jobs` system parameter (default: 1) limits how many backfills can run simultaneously. This prevents resource exhaustion when creating multiple MVs at once.
