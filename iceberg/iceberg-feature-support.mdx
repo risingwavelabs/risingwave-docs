@@ -11,6 +11,24 @@ RisingWave supports Apache Iceberg in three main workflows:
 
 This page summarizes the current feature support. For syntax and examples, follow the linked pages in each section.
 
+## Per-table metadata relations
+
+You can query metadata for a single Iceberg object through relation names with an Iceberg metadata suffix:
+
+```sql
+SELECT * FROM "orders$snapshots";
+SELECT * FROM "orders$manifests";
+SELECT * FROM "orders$files";
+```
+
+These relations are supported for:
+
+- Iceberg engine tables created with `CREATE TABLE ... ENGINE = iceberg`
+- Iceberg sources created with `CREATE SOURCE ... WITH (connector = 'iceberg', ...)`
+- Standalone Iceberg sinks created with `CREATE SINK ... WITH (connector = 'iceberg', ...)`
+
+You can use normal batch `SELECT` operations such as projection, filters, and `LIMIT` when querying these relations. Time travel is supported for `$manifests` and `$files` with `FOR SYSTEM_TIME AS OF` or `FOR SYSTEM_VERSION AS OF`, but not for `$snapshots`.
+
 ## Support overview
 
 | Area | Support | Notes |
@@ -19,6 +37,7 @@ This page summarizes the current feature support. For syntax and examples, follo
 | Refreshable external Iceberg tables | Supported | Use `CREATE TABLE ... WITH (connector = 'iceberg', refresh_mode = 'FULL_RELOAD')` for on-demand or scheduled full reloads. |
 | External Iceberg sinks | Supported | Use `CREATE SINK` to write append-only or upsert streams to Iceberg tables. |
 | Internal Iceberg tables | Supported | Use `CREATE TABLE ... ENGINE = iceberg` to store RisingWave-managed tables in Iceberg format. |
+| Per-table metadata relations | Supported | Query `<name>$snapshots`, `<name>$manifests`, and `<name>$files` for one Iceberg engine table, Iceberg source, or standalone Iceberg sink. |
 | Automatic Iceberg maintenance | Supported | Available for Iceberg sinks and internal Iceberg tables when a dedicated Iceberg compactor is deployed. |
 | Manual maintenance | Supported | Use `VACUUM` to expire snapshots and `VACUUM FULL` to compact files and expire snapshots. |
 | Built-in catalog | Supported | Uses RisingWave's metastore as a JDBC-compatible Iceberg catalog. PostgreSQL or MySQL metastore is required. |
