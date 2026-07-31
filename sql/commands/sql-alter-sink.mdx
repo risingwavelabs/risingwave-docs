@@ -112,6 +112,30 @@ ALTER SINK s1 SET SINK_RATE_LIMIT = default;
 ALTER SINK s1 SET SINK_RATE_LIMIT = 1000;
 ```
 
+### `SET BACKFILL_RATE_LIMIT`
+
+```sql
+ALTER SINK sink_name
+    SET BACKFILL_RATE_LIMIT { TO | = } { default | rate_limit_number };
+```
+
+This statement controls the rate limit of a sink's backfilling process, which reads the historical data of the upstream relation when the sink is created. It is separate from `SINK_RATE_LIMIT`, which throttles writes to the external system. For the specific value of `BACKFILL_RATE_LIMIT`, refer to [How to view runtime parameters](/operate/view-configure-runtime-parameters/#how-to-view-runtime-parameters).
+
+```sql Examples
+-- Pause the backfill
+ALTER SINK s1 SET BACKFILL_RATE_LIMIT=0;
+
+-- Set backfill rate limit to 1000
+ALTER SINK s1 SET BACKFILL_RATE_LIMIT=1000;
+
+-- Disable the backfill rate limit
+ALTER SINK s1 SET BACKFILL_RATE_LIMIT=DEFAULT;
+```
+
+<Note>
+A `BACKFILL_RATE_LIMIT` of `0` pauses the backfill rather than removing the limit. A sink whose backfill is paused stays at `0.00%` in [`rw_ddl_progress`](/operate/monitor-statement-progress) indefinitely, with no error reported. Use `DEFAULT` (equivalent to `-1`) to remove the limit. To check the current value for each fragment, query `rw_catalog.rw_rate_limit`.
+</Note>
+
 ### `SET RESOURCE_GROUP`
 
 ```sql
