@@ -1,0 +1,74 @@
+---
+title: "VARIANT"
+description: "Use the `VARIANT` data type to store semi-structured values while preserving supported leaf types."
+---
+
+`VARIANT` stores semi-structured values using Parquet/Iceberg Variant encoding. Compared with `JSONB`, `VARIANT` can preserve supported leaf types such as integers with their width, decimals, timestamps, binary values, arrays, and nested objects.
+
+## Define a VARIANT type
+
+Syntax: `VARIANT`
+
+### Example
+
+```sql
+CREATE TABLE events (
+    id INT PRIMARY KEY,
+    payload VARIANT
+);
+```
+
+## Add values to a VARIANT column
+
+You can populate a `VARIANT` column in two main ways:
+
+* Parse a serialized value with `::VARIANT`.
+* Convert an existing SQL value with `to_variant(...)`.
+
+### Examples
+
+```sql
+INSERT INTO events VALUES
+    (1, '{"user":{"id":42,"active":true}}'::VARIANT),
+    (2, to_variant(ROW(1, 'blue')::STRUCT<id INT, label VARCHAR>)),
+    (3, to_variant(MAP {'region': 'us-east-1', 'retries': 3}));
+```
+
+When casting from `VARCHAR`, RisingWave parses the string as a serialized Variant value. `to_variant` instead boxes the SQL value itself.
+
+```sql
+SELECT
+    '{"a":1}'::VARIANT AS parsed_object,
+    to_variant('{"a":1}') AS boxed_string;
+```
+
+## Access nested values
+
+Use `variant_get(value, path)` to access nested values and `variant_typeof(value)` to inspect the stored Variant type.
+
+### Example
+
+```sql
+SELECT
+    variant_get(payload, '$.user.id')::VARCHAR AS user_id,
+    variant_typeof(variant_get(payload, '$.user.id')) AS user_id_type
+FROM events;
+```
+
+If you want invalid paths to return `NULL` instead of an error, use `try_variant_get(value, path)`.
+
+## Casts
+
+RisingWave supports these casts for `VARIANT`:
+
+| From | To |
+| :-- | :-- |
+| `VARCHAR` | `VARIANT` |
+| `JSONB` | `VARIANT` |
+| `VARIANT` | `VARCHAR` |
+| `VARIANT` | `JSONB` |
+
+## Limitations
+
+* `VARIANT` cannot be used as a key type. This includes primary keys, index keys, `GROUP BY`, `DISTINCT`, `ORDER BY`, join keys, and set operations such as `UNION`, `INTERSECT`, and `EXCEPT`.
+* `VARIANT` is not supported in non-SQL UDF signatures yet.
