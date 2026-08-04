@@ -138,6 +138,132 @@ For example, to skip unknown DDL statements, use:
 debezium.schema.history.internal.skip.unparseable.ddl = 'true'
 ```
 
+If you are configuring PostgreSQL 17 standby promotion, set `debezium.slot.failover = 'true'` when RisingWave creates the replication slot. This passes `slot.failover = true` to Debezium so PostgreSQL creates a failover logical slot. If the slot already exists, this property does not modify it.
+
+## High availability and standby promotion
+
+If you use PostgreSQL high availability (HA) and plan to promote a standby, RisingWave direct CDC can continue after failover only if all of the following are true:
+
+- RisingWave reconnects through a stable endpoint such as a DNS name, VIP, or proxy that now points to the promoted primary.
+- The logical replication slot is synchronized to the failover candidate before promotion.
+- The promoted server still retains the WAL needed by RisingWave's last committed LSN.
+
+When you use standby promotion, specify `slot.name` explicitly instead of relying on an auto-generated slot name. This makes it easier to inspect, synchronize, and reuse the same logical slot across failover.
+
+### PostgreSQL 17
+
+PostgreSQL 17 has built-in failover logical slots. When RisingWave creates the slot, set `debezium.slot.failover = 'true'` so the slot is created with `FAILOVER true`.
+
+```sql
+CREATE SOURCE orders_source WITH (
+    connector = 'postgres-cdc',
+    hostname = 'pg-ha-endpoint',
+    port = '5432',
+    username = 'rw_cdc',
+    password = 'your_password',
+    database.name = 'app',
+    schema.name = 'public',
+    slot.name = 'rw_orders',
+    publication.name = 'rw_publication',
+    debezium.slot.failover = 'true'
+);
+```
+
+On the PostgreSQL primary, configure:
+
+```conf
+wal_level = logical
+max_wal_senders = 20
+max_replication_slots = 20
+wal_sender_timeout = 0
+synchronized_standby_slots = 'pg17_physical'
+```
+
+On the standby, configure:
+
+```conf
+hot_standby = on
+hot_standby_feedback = on
+sync_replication_slots = on
+primary_slot_name = 'pg17_physical'
+primary_conninfo = 'host=<primary> port=5432 user=<replication-user> dbname=<source-db> ...'
+```
+
+If you create the slot yourself instead of letting RisingWave create it, make sure the slot is created with `FAILOVER true` and then pass its name to RisingWave through `slot.name`.
+
+If an existing slot was created without `FAILOVER true`, stop its consumer first and update it manually:
+
+```bash
+psql "host=<primary> dbname=<db> user=<replication-user> replication=database" \
+  -c "ALTER_REPLICATION_SLOT <slot> (FAILOVER true);"
+```
+
+Before promoting the standby, verify that the slot is synchronized:
+
+```sql
+SELECT slot_name, slot_type, active, failover, synced,
+       temporary, invalidation_reason, restart_lsn, confirmed_flush_lsn
+FROM pg_replication_slots
+WHERE slot_name = 'rw_orders';
+```
+
+Promotion is safe only after the slot exists on the standby and the query shows:
+
+- `failover = true`
+- `synced = true`
+- `temporary = false`
+- `invalidation_reason IS NULL`
+
+### PostgreSQL 16
+
+PostgreSQL 16 does not have built-in logical slot failover. You need external slot synchronization, such as the [`pg_failover_slots`](https://www.enterprisedb.com/docs/pg_extensions/pg_failover_slots/installing/) extension. The following configuration was validated on PostgreSQL 16.
+
+On the primary, configure:
+
+```conf
+wal_level = logical
+max_wal_senders = 20
+max_replication_slots = 20
+wal_sender_timeout = 0
+shared_preload_libraries = 'pg_failover_slots'
+pg_failover_slots.standby_slot_names = 'pg16_physical'
+pg_failover_slots.standby_slots_min_confirmed = -1
+```
+
+On the standby, configure:
+
+```conf
+hot_standby = on
+hot_standby_feedback = on
+primary_slot_name = 'pg16_physical'
+shared_preload_libraries = 'pg_failover_slots'
+pg_failover_slots.synchronize_slot_names = 'name:rw_orders'
+pg_failover_slots.drop_extra_slots = true
+```
+
+<Note>
+With `pg_failover_slots`, do not run `CREATE EXTENSION`. The extension works through `shared_preload_libraries`.
+</Note>
+
+Before promoting the standby, verify that the logical slot has been synchronized:
+
+```sql
+SELECT slot_name, slot_type, active, restart_lsn, confirmed_flush_lsn
+FROM pg_replication_slots
+WHERE slot_name = 'rw_orders';
+```
+
+The slot must exist and show `active = false`. If the slot is missing or `active = true`, it is still initializing and the standby is not ready for promotion.
+
+### Troubleshooting failover recovery
+
+If RisingWave reconnects to the promoted primary but the source does not resume and PostgreSQL reports an error such as `Last recorded offset is no longer available`, the promoted server usually cannot continue from RisingWave's saved LSN. Check whether:
+
+- the logical slot was recreated instead of synchronized;
+- the PostgreSQL 17 slot was created without `FAILOVER true`;
+- the standby was promoted before the slot finished synchronizing;
+- the promoted primary no longer retains the WAL range needed by RisingWave's last committed offset.
+
 ## Features and reference
 
 ### Data format
