@@ -1,19 +1,26 @@
 ---
 title: "Ingest data from WebSocket"
-description: "Use managed WebSocket ingest endpoints in RisingWave Cloud to stream batched DML into webhook tables."
+description: "Use WebSocket ingest endpoints in RisingWave to stream batched DML into webhook tables."
 ---
 
-This guide covers WebSocket ingestion for **managed RisingWave Cloud** projects, where connections are routed through the managed RWProxy ingest endpoint.
+This guide covers WebSocket ingestion in both **RisingWave Cloud** and **self-hosted RisingWave** deployments. In self-hosted deployments, WebSocket ingest requires a license and uses the frontend ingest listener directly.
 
 <Warning>
-WebSocket ingestion for managed RisingWave Cloud is currently in **preview**. If you'd like to enable it, contact us at [cloud-support@risingwave-labs.com](mailto:cloud-support@risingwave-labs.com) and we'll help you get set up.
+WebSocket ingestion for RisingWave Cloud is currently in **preview**. If you'd like to enable it, contact us at [cloud-support@risingwave-labs.com](mailto:cloud-support@risingwave-labs.com) and we'll help you get set up.
 </Warning>
 
 <Info>
-If you are running self-hosted RisingWave (Operator/Helm/bare metal), use [Ingest data from webhook](/integrations/sources/webhook). The same `webhook` table can also accept WebSocket ingest at `ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>`.
+WebSocket ingest uses the same `webhook` table type described in [Ingest data from webhook](/integrations/sources/webhook).
 </Info>
 
-## How managed WebSocket routing works
+## How WebSocket routing works
+
+RisingWave supports WebSocket ingest through the same webhook listener used for HTTP webhook ingestion.
+
+- **RisingWave Cloud** routes WebSocket ingest connections through RWProxy over WSS.
+- **Self-hosted RisingWave** accepts WebSocket ingest connections on the frontend webhook listener and requires a license.
+
+### RisingWave Cloud routing
 
 In managed RisingWave Cloud, WebSocket ingest connections are accepted by RWProxy over WSS and forwarded to your project's frontend ingest listener.
 
@@ -27,11 +34,15 @@ Tenant routing:
 
 ## Prerequisites
 
-1. A running RisingWave Cloud project.
-2. The tenant identifier of your project (for example, `rwc-g1huxxxxxx-mycluster`).
-3. A `webhook` table in your target database/schema.
+1. A RisingWave deployment with WebSocket ingest enabled:
+   - RisingWave Cloud project, or
+   - Self-hosted RisingWave deployment with a license.
+2. A `webhook` table in your target database/schema.
+3. For RisingWave Cloud, the tenant identifier of your project (for example, `rwc-g1huxxxxxx-mycluster`).
 
 For details on tenant identifier and project connection details, see [Connection errors](/cloud/connection-errors).
+
+For self-hosted deployments, WebSocket ingest uses `ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>` by default.
 
 <Warning>
 Current BYOC limitations:
