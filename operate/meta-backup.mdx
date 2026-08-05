@@ -7,13 +7,36 @@ A meta snapshot is a backup of meta service's data at a specific point in time. 
 
 ## Set backup parameters
 
-Before you can create a meta snapshot, you need to set the `backup_storage_url` and `backup_storage_directory` system parameters prior to the first backup attempt.
+Meta backup writes snapshots of the meta service state to object storage. Those snapshots are what `risectl meta restore-meta` reads during recovery, so your backup settings determine where snapshots are written and which backup history restore can see.
+
+The snapshot location is determined by two system parameters:
+
+- `backup_storage_url`: The object store endpoint or bucket.
+- `backup_storage_directory`: The directory inside that storage location.
+
+Together, these parameters define the physical location of your meta snapshots. `risectl meta backup-meta`, `SELECT ... FROM rw_catalog.rw_meta_snapshot`, and `risectl meta restore-meta` all operate on the snapshot history stored at that location.
+
+If you do not set these parameters explicitly, RisingWave initializes them from your state store configuration:
+
+- `backup_storage_url` defaults to the `state_store` URL, with the `hummock+` prefix removed. If you use the in-memory state store, it defaults to `memory`.
+- `backup_storage_directory` defaults to `{data_directory}/backup`.
+
+This default keeps meta snapshots next to your state data, which is simple to operate because backup and state storage share the same backend and credentials. The trade-off is that backup history and live state also share the same blast radius, lifecycle policies, and access boundary. If you need separate retention rules, stricter environment isolation, or a different restore path, set dedicated backup storage before you create the first snapshot.
+
+Set `backup_storage_url` and `backup_storage_directory` before the first backup attempt. After snapshots exist, treat changes to either parameter as the start of a new backup history.
 
 <Warning>
-Be careful not to set the `backup_storage_url` and `backup_storage_directory` when there are snapshots. However, it's not strictly forbidden. If you insist on doing so, please note the snapshots taken before the setting will all be invalidated and cannot be used in restoration anymore.
+Changing `backup_storage_url` or `backup_storage_directory` after snapshots already exist does not move or rewrite the old snapshots. It points new backup and restore operations at a different location, so the previously written snapshots are no longer visible there and cannot be used for restore or time-travel workflows unless you keep using the original settings or migrate the snapshot data yourself.
 </Warning>
 
-If these parameters are not explicitly set, RisingWave will automatically initialize them from your state store configuration: `backup_storage_url` will default to your `state_store` URL (or "memory" if using in-memory state store), and `backup_storage_directory` will default to `{data_directory}/backup`.
+To verify that your configuration is working, create a snapshot with [`risectl meta backup-meta`](#create-a-meta-snapshot), then [view existing meta snapshots](#view-existing-meta-snapshots). Plan retention and cleanup for the chosen storage location before relying on it for recovery. When you need to recover a cluster, continue with [Restore from a meta snapshot](#restore-from-a-meta-snapshot).
+
+### Parameters
+
+| Parameter | Description |
+| --- | --- |
+| `backup_storage_url` | The object store URL where meta snapshots are stored. RisingWave supports the object storage backends listed at the top of this page. |
+| `backup_storage_directory` | The directory within `backup_storage_url` where meta snapshots are stored. |
 
 To learn about how to configure system parameters, see [How to configure system parameters](/operate/view-configure-system-parameters#how-to-configure-system-parameters).
 
