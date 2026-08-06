@@ -133,6 +133,16 @@ GROUP BY d;
 
 MVs provide low-latency queries and allow for the reuse of computation results, making them especially suitable for real-time aggregation, data cleaning, and analysis. In most cases, the upstream of a Sink will be an MV.
 
+## `CREATE MATERIALIZED VIEW` vs `CREATE SINK INTO`
+
+`CREATE MATERIALIZED VIEW` and `CREATE SINK ... INTO` can both run a continuous transformation defined by SQL. Neither is the universal default. The main difference is where the result lives and how you plan to evolve the pipeline.
+
+Use `CREATE MATERIALIZED VIEW` when you want the derived result itself to be a materialized view that users and downstream jobs can query directly.
+
+Use `CREATE SINK ... INTO` when you want the derived result to be written into an existing RisingWave table instead. This is useful when you want multiple streaming jobs to write into the same table, or when you want to modify the streaming logic in place by replacing one sink with another while keeping the target table.
+
+Compared with a materialized view, `CREATE SINK ... INTO` may require conflict resolution on the target table, so it can have additional overhead. Choose it for the flexibility of writing into a table, not because it is a weaker version of a materialized view.
+
 
 ## Sink
 
