@@ -124,3 +124,15 @@ WHERE taxi_id IN (
 GROUP BY taxi_id
 ORDER BY total_distance, total_duration;
 ```
+
+### Query per-row update time with `_rw_timestamp`
+
+RisingWave exposes a hidden system column named `_rw_timestamp` on tables and materialized views. You can select it in a **batch query** to see when each row was last updated.
+
+```sql
+SELECT *, _rw_timestamp
+FROM my_materialized_view
+ORDER BY _rw_timestamp DESC;
+```
+
+To inspect hidden columns on a relation, use [`SHOW COLUMNS`](/sql/commands/sql-show-columns) or [`DESCRIBE`](/sql/commands/sql-describe).
