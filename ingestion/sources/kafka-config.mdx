@@ -6,6 +6,55 @@ sidebarTitle: Kafka config
 
 This page provides a comprehensive reference for all configuration parameters available when creating a Kafka source or table in RisingWave using the `WITH` clause of a `CREATE SOURCE` or `CREATE TABLE` statement.
 
+## Syntax
+
+Use the following syntax to create a Kafka source or table:
+
+```sql
+CREATE { SOURCE | TABLE } [ IF NOT EXISTS ] source_or_table_name
+[ (
+    { * | column_name data_type [ column_constraint ] }, ...
+    [ PRIMARY KEY ( column_name, ... ) ]
+    [ WATERMARK FOR column_name AS expression ]
+) ]
+[ INCLUDE kafka_metadata [ AS column_name ] ] [...]
+WITH (
+    connector = 'kafka',
+    topic = 'topic_name',
+    properties.bootstrap.server = 'broker:port',
+    connector_parameter = 'value',
+    ...
+)
+FORMAT data_format ENCODE data_encode [ (
+    encode_option = 'value',
+    ...
+) ];
+```
+
+For `kafka_metadata`, use one of the following forms:
+
+```sql
+{ key | timestamp | partition | offset | payload | header }
+header '<header_key>' [ data_type ]
+```
+
+You can repeat the `INCLUDE` clause to extract multiple metadata fields. For
+example:
+
+```sql
+INCLUDE key AS kafka_key
+INCLUDE timestamp AS kafka_timestamp
+INCLUDE header 'trace_id' VARCHAR AS trace_id
+```
+
+Column constraints differ between sources and tables. See
+[`CREATE SOURCE`](/sql/commands/sql-create-source) and
+[`CREATE TABLE`](/sql/commands/sql-create-table) for their complete
+column-definition options. For Avro and Protobuf, you can omit the column
+definitions when RisingWave derives the schema from the configured schema
+location or registry. See [Format and encoding options](#format-and-encoding-options)
+for the supported `FORMAT`, `ENCODE`, and encoding options.
+
 ## Basic connection parameters
 
 These parameters are typically required to establish a basic connection to your Kafka cluster.
@@ -26,6 +75,11 @@ These parameters control how RisingWave consumes data from the Kafka topic.
 | `scan.startup.timestamp.millis` | Start consuming from a specific UNIX timestamp (in milliseconds).  If this parameter is set, it *overrides* `scan.startup.mode`. Example: `1678886400000` (for March 15, 2023, 00:00:00 GMT)           | No       |            |
 
 `scan.startup.mode` only applies to streaming jobs, such as when building a table or creating a materialized view on a Kafka source. When directly querying a source, RisingWave will always read from the earliest available messages. For more information about querying sources, see [Querying a source](/ingestion/create-source-vs-create-table).
+
+<Note>
+RisingWave reads Kafka messages compressed with [zstd](https://www.zstd.net/)
+without additional connector configuration.
+</Note>
 
 ## General Kafka properties
 
@@ -54,6 +108,23 @@ These parameters provide additional control over the Kafka consumer behavior. Mo
 | `properties.statistics.interval.ms`   | The interval (in milliseconds) at which RisingWave emits Kafka consumer statistics. Set to a non-zero value to enable statistics collection. These statistics can be monitored using tools like Grafana.                                                                         | int     |
 | `properties.ssl.endpoint.identification.algorithm` | Set it to `none` to skip the hostname verification if you don't provide the client certificate. See more details at [TLS/SSL encryption and SASL authentication](#tlsssl-encryption-and-sasl-authentication).                                                                | string  |
 
+<Tip>
+**Troubleshoot `GroupAuthorizationFailed`**
+
+If Kafka returns `GroupAuthorizationFailed` while RisingWave consumes a topic, add the consumer groups that use your `group.id.prefix` (the default is `rw-consumer`) to the Kafka ACL allowlist. For example:
+
+```bash
+./kafka-acls.sh --bootstrap-server <broker-address> \
+  --add --allow-principal User:<user-or-service-account> \
+  --consumer-group 'rw-consumer-.*' \
+  --operation READ
+```
+</Tip>
+
+<Note>
+During source enumerator cleanup, RisingWave deletes the Kafka consumer groups derived from `group.id.prefix`. Cleanup is best-effort. Failures appear in warning logs and in the Prometheus metric `source_kafka_consumer_group_delete_failure_count{source_id,consumer_group}`. In the Grafana development dashboard, see **Kafka Metrics** > **Kafka Consumer Group Delete Failures** for the failure rate grouped by source and consumer group.
+</Note>
+
 ## Security (TLS/SSL and SASL)
 
 RisingWave supports connecting to Kafka clusters secured with TLS/SSL encryption and/or SASL authentication. See the main [Connect to Kafka](/ingestion/sources/kafka) guide for detailed examples.
@@ -76,6 +147,12 @@ The following table summarizes the parameters used for configuring security:
 | `properties.sasl.kerberos.kinit.cmd`    | The shell command used to obtain or refresh a Kerberos ticket. Required for SASL/GSSAPI.                                                                                                                              | Yes (for GSSAPI)     |
 | `properties.sasl.kerberos.min.time.before.relogin` | The minimum time in milliseconds that must pass before the client automatically refreshes the Kerberos ticket.                                                                                                 | Yes (for GSSAPI)     |
 | `properties.sasl.oauthbearer.config`    | The configuration string for SASL/OAUTHBEARER. See the [librdkafka documentation](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md) for details on the format. *Important:* RisingWave only supports unsecured client-side tokens for `OAUTHBEARER`. | Yes (for OAUTHBEARER)|
+
+<Warning>
+RisingWave's `OAUTHBEARER` support enables only unsecured client-side JWTs and
+does not support OpenID Connect (OIDC). Do not use unsecured tokens in
+production.
+</Warning>
 
 ## Format and encoding options
 
@@ -101,6 +178,28 @@ These parameters are used with `FORMAT` and `ENCODE` to specify how RisingWave s
 <Note>
 In RisingWave Cloud, AWS credentials (`access_key`, `secret_key` or `aws.credentials.*`) are required and cannot be omitted. In self-hosted deployments, you may omit them to rely on the AWS SDK default credential chain (for example, EC2 instance profile or environment variables).
 </Note>
+
+## Use Confluent Schema Registry
+
+RisingWave supports Confluent Schema Registry and compatible registries such as [Karapace](https://aiven.io/docs/products/kafka/karapace). When you create a source, RisingWave uses the configured subject naming strategy (`TopicNameStrategy` by default), retrieves the subject's latest schema, and derives the source columns and data types from it.
+
+Specify the registry in the `ENCODE` options:
+
+```sql
+ENCODE <encoding> (
+  schema.registry = 'https://<schema-registry-address>'
+)
+```
+
+<Note>
+For Protobuf data, RisingWave bundles only protobuf [well-known types](https://protobuf.dev/reference/protobuf/google.protobuf/), such as `google/protobuf/timestamp.proto`, `duration.proto`, `any.proto`, `empty.proto`, `struct.proto`, and wrappers. Other imports, including Google common types such as `google/type/date.proto`, `google/type/latlng.proto`, `google/rpc/*`, `google/api/*`, and `confluent/meta.proto`, must be available as schema references in Confluent Schema Registry.
+
+If an error reports missing schema references, the upstream Confluent serializer or converter might be treating these imports as known types and skipping their registration. Set `skip.known.types = false` on the serializer or converter so that Schema Registry stores the dependencies as references. See Confluent's [known-types list](https://github.com/confluentinc/schema-registry/blob/v8.4.0-124/protobuf-provider/src/main/java/io/confluent/kafka/schemaregistry/protobuf/ProtobufSchema.java#L271).
+</Note>
+
+### Schema evolution
+
+RisingWave continues to use the schema version retrieved when the source is created. To use a newer writer schema after a compatible schema evolution, drop and recreate the source.
 
 ## Use AWS Glue Schema Registry
 
