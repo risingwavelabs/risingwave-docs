@@ -1,0 +1,116 @@
+---
+title: "CREATE SUBSCRIPTION"
+description: "Use the `CREATE SUBSCRIPTION` command to create a subscription. A subscription allows you to monitor all data changes from a table or materialized view without relying on external event stores like Kafka."
+---
+
+## Syntax
+
+```sql
+CREATE SUBSCRIPTION [ IF NOT EXISTS ] subscription_name 
+FROM { table_name | mv_name } 
+WITH (
+    retention = 'duration'
+);
+```
+
+## Parameters
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **IF NOT EXISTS** | If specified, no error will be thrown if a subscription with the same name already exists. A notice is issued in this case. |
+| _subscription\_name_ | The name of the subscription to be created. |
+| _table\_name_ | The name of the table to subscribe to. |
+| _mv\_name_ | The name of the materialized view to subscribe to. |
+| **retention** | Required. The duration for which incremental data will be retained. Must be provided as a string in interval format (e.g., `'1D'`, `'12h'`, `'30m'`). Any incremental data that exceeds the specified retention duration will be automatically deleted and will no longer be accessible. |
+
+## Examples
+
+### Create a subscription from a table
+
+First, create a table and insert some data:
+
+```sql
+CREATE TABLE users (
+    user_id INT PRIMARY KEY,
+    name VARCHAR,
+    age INT
+);
+
+INSERT INTO users VALUES (1, 'Alice', 30), (2, 'Bob', 25);
+```
+
+Then create a subscription with a 1-day retention period:
+
+```sql
+CREATE SUBSCRIPTION sub_users FROM users WITH (retention = '1D');
+```
+
+### Create a subscription from a materialized view
+
+Create a materialized view and subscribe to it:
+
+```sql
+CREATE MATERIALIZED VIEW active_users AS 
+SELECT user_id, name, age 
+FROM users 
+WHERE age >= 18;
+
+CREATE SUBSCRIPTION sub_active_users FROM active_users WITH (retention = '2D');
+```
+
+### Create a subscription with IF NOT EXISTS
+
+```sql
+CREATE SUBSCRIPTION IF NOT EXISTS sub_users FROM users WITH (retention = '1D');
+```
+
+## Usage
+
+After creating a subscription, you need to create a subscription cursor to consume data from it. See [Subscribe to real-time updates](/serve/subscription) for complete details on:
+
+- Creating subscription cursors with different starting points (`SINCE`, `FULL`)
+- Fetching data from cursors
+- Understanding the returned data format (`op` and `rw_timestamp` columns)
+- Implementing exactly-once delivery
+
+### Quick example
+
+```sql
+-- Create a subscription cursor to get full snapshot then incremental updates
+DECLARE cur SUBSCRIPTION CURSOR FOR sub_users FULL;
+
+-- Fetch data from the cursor
+FETCH NEXT FROM cur;
+```
+
+## Related topics
+
+<CardGroup>
+  <Card
+    title="Subscribe to real-time updates"
+    icon="rotate"
+    iconType="solid"
+    href="/serve/subscription"
+    horizontal
+  >
+    Complete guide on using subscriptions
+  </Card>
+  <Card
+    title="ALTER SUBSCRIPTION"
+    icon="pen-to-square"
+    iconType="solid"
+    href="/sql/commands/sql-alter-subscription"
+    horizontal
+  >
+    Modify subscription properties
+  </Card>
+  <Card
+    title="SHOW SUBSCRIPTIONS"
+    icon="list"
+    iconType="solid"
+    href="/sql/commands/sql-show-subscriptions"
+    horizontal
+  >
+    List all subscriptions
+  </Card>
+</CardGroup>
