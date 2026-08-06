@@ -10,14 +10,12 @@ Performance metrics provide crucial insights into the health and efficiency of y
 
 You can also monitor your RisingWave cluster using the [RisingWave Console](/web-ui/risingwave-console/manage-monitor-clusters), which provides built-in monitoring capabilities and diagnostic collection for comprehensive cluster observability.
 
-RisingWave provides two Grafana dashboard templates, generated from Python scripts using `grafanalib`:
+RisingWave provides two pre-generated Grafana dashboards that you can import directly:
 
-The source code and generation details can be found at [github.com/risingwavelabs/risingwave/tree/main/grafana](https://github.com/risingwavelabs/risingwave/tree/main/grafana). The two dashboard scripts are:
+1. [Dev dashboard (`risingwave-dev-dashboard.json`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.json) — finer-grained metrics covering all components. **Recommended** for most monitoring needs.
+2. [User dashboard (`risingwave-user-dashboard.json`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.json) — summarizes high-level metrics such as source and sink throughput, barrier latency, cluster alerts, and compute/source/sink streaming error rates.
 
-1. [Dev dashboard (`risingwave-dev-dashboard.dashboard.py`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.dashboard.py) — finer-grained metrics covering all components. **Recommended** for most monitoring needs.
-2. [User dashboard (`risingwave-user-dashboard.dashboard.py`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py) — summarizes high-level metrics such as source and sink throughput, barrier latency, cluster alerts, and compute/source/sink streaming error rates.
-
-Both dashboards support multi-cluster deployments via environment variable configuration during generation (see the [Grafana README](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md)).
+The Python scripts under [`grafana/`](https://github.com/risingwavelabs/risingwave/tree/main/grafana) are the source of truth used by RisingWave developers with `grafanalib` to generate these JSON dashboards. Most users should import the pre-generated JSON above and can ignore the Python. If you need to customize or regenerate the dashboards, see the [Grafana README](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md).
 
 <Note>
 Use the dashboard JSON generated from the same RisingWave version that you run. Dashboard queries are updated as Prometheus metrics evolve, so older exported dashboards can contain stale queries and leave panels blank after an upgrade. If you upgrade RisingWave or regenerate dashboards, re-import the latest `risingwave-dev-dashboard.json` or `risingwave-user-dashboard.json`.
