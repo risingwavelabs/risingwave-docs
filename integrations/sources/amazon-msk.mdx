@@ -165,7 +165,7 @@ psql -h localhost -p 4566 -d dev -U root
 
 To learn about the specific syntax used to consume data from a Kafka topic, see [Ingest data from Kafka](/integrations/sources/kafka).
 
-For example, the following query creates a table that consumes data from an MSK topic connected to Kafka.
+For example, the following query creates a table that consumes data from an MSK topic connected to Kafka by using the SASL/SCRAM credentials configured earlier in this guide. To connect with IAM instead, see [Access MSK using IAM](#access-msk-using-iam).
 
 ```sql
 CREATE TABLE s (v1 int, v2 varchar)
@@ -173,7 +173,7 @@ WITH (
   connector = 'kafka', topic = '<topic-name>',
   properties.bootstrap.server = '<broker-url>',
   scan.startup.mode = 'earliest',
-  properties.sasl.mechanism = 'AWS_MSK_IAM',
+  properties.sasl.mechanism = 'SCRAM-SHA-512',
   properties.security.protocol = 'sasl_ssl',
   properties.sasl.username = '<your-username>',
   properties.sasl.password = '<your-password>'
