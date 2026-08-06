@@ -18,6 +18,76 @@ WITH table_name AS CHANGELOG FROM source_table;
 
 This is done using the CTE syntax. It converts the `source_table` change record to a column of `table_name`.
 
+## Common use cases
+
+### Emit partial updates as change events
+
+You can combine `AS CHANGELOG` with `CREATE SINK INTO` and `ON CONFLICT DO UPDATE IF NOT NULL` to merge sparse updates into a state table, then expose the resulting inserts and updates as an append-only stream.
+
+```sql
+CREATE TABLE raw_data (
+  ts TIMESTAMP,
+  foo INT,
+  bar INT
+) APPEND ONLY;
+
+CREATE TABLE latest (
+  id INT,
+  ts TIMESTAMP,
+  foo INT,
+  bar INT,
+  PRIMARY KEY (id)
+) ON CONFLICT DO UPDATE IF NOT NULL WITH VERSION COLUMN(ts);
+
+CREATE SINK s INTO latest AS
+SELECT 1 AS id, ts, foo, bar
+FROM raw_data;
+
+CREATE MATERIALIZED VIEW changes AS
+WITH cl AS CHANGELOG FROM latest
+SELECT ts, foo, bar
+FROM cl
+WHERE id = 1 AND (changelog_op = 1 OR changelog_op = 3);
+```
+
+This pattern is useful when each input event updates only a subset of columns, but downstream consumers need the merged state transitions.
+
+### Build SCD Type 2-style history from an upsert table
+
+You can also use `AS CHANGELOG` to convert an upsert table into an append-only event stream, add a processing-time column, and derive validity windows for each version of a row.
+
+```sql
+CREATE TABLE t (
+  pk INT PRIMARY KEY,
+  v INT
+);
+
+CREATE TABLE t_changelog (
+  pk INT,
+  v INT,
+  inserted_at TIMESTAMPTZ AS PROCTIME()
+);
+
+CREATE SINK s INTO t_changelog AS
+WITH c AS CHANGELOG FROM t
+SELECT pk, v
+FROM c
+WHERE changelog_op = 1 OR changelog_op = 3
+WITH (
+  type = 'append-only'
+);
+
+SELECT *,
+       end_at IS NULL AS is_valid
+FROM (
+  SELECT *,
+         lag(inserted_at) OVER (PARTITION BY pk ORDER BY inserted_at DESC) AS end_at
+  FROM t_changelog
+);
+```
+
+This lets you keep a full change history for each primary key while marking the current version with `is_valid = true`.
+
 ## Example
 
 ```sql Create MV
