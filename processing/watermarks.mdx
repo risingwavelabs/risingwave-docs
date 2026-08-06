@@ -113,3 +113,14 @@ CREATE TABLE deposits_src (
     scan.startup.mode = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 ```
+
+## Redefine a watermark
+
+If you need to change the watermark column or expression for an existing source or table, create a replacement object with the new watermark definition and then swap names.
+
+For example:
+
+1. Create a new source or table with the same schema and the new `WATERMARK FOR ...` clause.
+2. Validate the new object.
+3. Use [`ALTER SOURCE ... SWAP WITH`](/sql/commands/sql-alter-source#swap-with) or [`ALTER TABLE ... SWAP WITH`](/sql/commands/sql-alter-table#swap-with) to swap the old and new names.
+4. Drop the old object after confirming downstream jobs are using the replacement object.
