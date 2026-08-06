@@ -39,6 +39,7 @@ FORMAT data_format ENCODE data_encode (
 | match\_pattern       | **Conditional**. This field is used to find object keys in the bucket that match the given pattern. Standard Unix-style [glob](https://en.wikipedia.org/wiki/Glob%5F%28programming%29) syntax is supported. A typical usage follows the `prefix/*.suffix` pattern. For example, `your_directory/*.parquet` matches all Parquet files under `your_directory/`. If `match_pattern` does not contain `/`, the scan runs from the container root. |
 | compression\_format  | **Optional**. This field specifies the compression format of the file being read. You can define `compression_format` in the CREATE TABLE statement. When set to gzip or gz, the file reader reads all files with the `.gz` suffix. When set to None or not defined, the file reader will automatically read and decompress `.gz` and `.gzip` files.   |
 | refresh.interval.sec       | **Optional**. Configure the time interval between operations of listing files. It determines the delay in discovering new files, with a default value of 60 seconds.   |
+| parquet.case\_insensitive       | **Optional**. For Parquet files only. When set to `true`, enables case-insensitive column name matching. This is useful when the Parquet file has column names with different casing than your table schema (e.g., `ID` in the file, `id` in the table). If multiple columns match case-insensitively, the match is ambiguous and ignored. Default is `false`.   |
 
 ### Other parameters
 
@@ -141,8 +142,25 @@ CREATE TABLE t(
 WITH (
     connector = 'gcs',
     gcs.bucket_name = 'example-bucket',
-    gcs.credential = 'xxxxx'
+    gcs.credential = 'xxxxx',
+    match_pattern = '*.parquet'
+) FORMAT PLAIN ENCODE PARQUET;
+```
+
+To handle Parquet files with mixed-case column names (e.g., `ID`, `Name`, `Age`), use the `parquet.case_insensitive` option:
+
+```sql Example with case-insensitive matching
+CREATE TABLE t(
+    id int,
+    name varchar,
+    age int
+)
+WITH (
+    connector = 'gcs',
+    gcs.bucket_name = 'example-bucket',
+    gcs.credential = 'xxxxx',
     match_pattern = '*.parquet',
+    parquet.case_insensitive = 'true'
 ) FORMAT PLAIN ENCODE PARQUET;
 ```
     </Tab>
