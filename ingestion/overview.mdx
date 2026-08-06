@@ -1,7 +1,7 @@
 ---
 title: "Data ingestion patterns"
 sidebarTitle: "Overview"
-description: "Learn how to ingest data into RisingWave: continuous streaming from Kafka and CDC, one-time batch loads from S3 and Iceberg, and periodic ingestion."
+description: "Learn how to ingest data into RisingWave: continuous streaming, one-time batch loads, ad-hoc full reloads, and periodic ingestion."
 ---
 
 Need help generating SQL? Use [Claude Code](https://claude.ai/claude-code) or [Cursor](https://cursor.com) with the [RisingWave MCP server](https://github.com/risingwavelabs/risingwave-mcp) to generate and run SQL interactively.
@@ -189,9 +189,37 @@ CREATE TABLE customers AS
 SELECT * FROM iceberg_data;
 ```
 
-## Periodic ingestion with external orchestration
+## Ad-hoc batch ingestion
 
-**What it is**: RisingWave doesn't have a built-in scheduler, but you can achieve periodic ingestion using external orchestration tools like Cron or Airflow.
+**What it is**: Loading or reloading a batch table on demand with `REFRESH TABLE`, without configuring a refresh schedule.
+
+**When to use**: For controlled backfills, one-off reloads, or external tables that change occasionally and should only be pulled when you decide.
+
+This pattern is available for tables created with `refresh_mode = 'FULL_RELOAD'`. If you omit `refresh_interval_sec`, the table loads only when you manually run `REFRESH TABLE`. See [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg), [Ingest data from Snowflake](/ingestion/sources/snowflake), and [`REFRESH TABLE`](/sql/commands/sql-refresh-table) for connector-specific details.
+
+### Example: Manual refresh for an Iceberg table
+
+```sql
+CREATE TABLE iceberg_manual_snapshot (
+    PRIMARY KEY (id)
+) WITH (
+    connector = 'iceberg',
+    catalog.type = 'storage',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'public',
+    table.name = 'customer_data',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    s3.region = 'us-west-2',
+    refresh_mode = 'FULL_RELOAD'
+);
+
+REFRESH TABLE iceberg_manual_snapshot;
+```
+
+## Periodic ingestion
+
+**What it is**: For most connectors, RisingWave doesn't provide a general-purpose scheduler for arbitrary ingestion jobs, so recurring loads are typically orchestrated with external tools like Cron or Airflow. Some refreshable batch tables, such as Iceberg and Snowflake, can also refresh natively when `refresh_interval_sec` is set.
 
 **When to use**: For scheduled data updates, daily/hourly batch processing, or when you need precise control over ingestion timing.
 
@@ -283,8 +311,8 @@ CREATE TABLE test_users (
 | **AWS S3** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
 | **Google Cloud Storage** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
 | **Azure Blob** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
-| **Apache Iceberg** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
-| **Snowflake** | ❌ | ✅ | ✅ | Manual one-time load via `REFRESH TABLE`; periodic refresh when `refresh_interval_sec` is set |
+| **Apache Iceberg** | ❌ | ✅ | ✅ | Manual one-time load via `REFRESH TABLE`; native periodic refresh when `refresh_interval_sec` is set |
+| **Snowflake** | ❌ | ✅ | ✅ | Manual one-time load via `REFRESH TABLE`; native periodic refresh when `refresh_interval_sec` is set |
 | **Datagen** | ✅ | ❌ | ❌ | Test data generation only |
 | **Direct INSERT** | ❌ | ✅ | ⚠️ | Manual insertion; periodic via external tools |
 | **Webhook** | ✅ | ✅ | ⚠️ | Push-based HTTP ingestion; best for SaaS webhooks + request validation/signatures |
@@ -301,7 +329,7 @@ CREATE TABLE test_users (
 
 - **Streaming**: Use for real-time requirements and continuous data flows.
 - **Batch**: Use for historical data, large one-time loads, or static datasets.
-- **Periodic**: Use for scheduled updates with external orchestration tools.
+- **Periodic**: Use native refresh intervals for refreshable Iceberg or Snowflake tables, or external orchestration for other connectors.
 
 ### Performance considerations
 
