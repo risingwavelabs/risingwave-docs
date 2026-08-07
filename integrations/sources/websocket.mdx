@@ -3,34 +3,20 @@ title: "Ingest data from WebSocket"
 description: "Use WebSocket ingest endpoints in RisingWave to stream batched DML into webhook tables."
 ---
 
-This guide covers WebSocket ingestion in both **RisingWave Cloud** and **self-hosted RisingWave** deployments. In self-hosted deployments, WebSocket ingest requires a license and uses the frontend ingest listener directly.
-
-<Warning>
-WebSocket ingestion for RisingWave Cloud is currently in **preview**. If you'd like to enable it, contact us at [cloud-support@risingwave-labs.com](mailto:cloud-support@risingwave-labs.com) and we'll help you get set up.
-</Warning>
+This guide describes the WebSocket ingest protocol and common behavior for RisingWave deployments. WebSocket ingest uses the same `webhook` table type described in [Ingest data from webhook](/integrations/sources/webhook).
 
 <Info>
-WebSocket ingest uses the same `webhook` table type described in [Ingest data from webhook](/integrations/sources/webhook).
+Using managed RisingWave Cloud? See [Ingest data from WebSocket](/cloud/ingest-data-from-websocket) for Cloud-specific routing, wizard steps, hosted vs BYOC behavior, and endpoint formats.
 </Info>
 
-## How WebSocket routing works
+## Deployment-specific endpoint routing
 
 RisingWave supports WebSocket ingest through the same webhook listener used for HTTP webhook ingestion.
 
-- **RisingWave Cloud** routes WebSocket ingest connections through RWProxy over WSS.
 - **Self-hosted RisingWave** accepts WebSocket ingest connections on the frontend webhook listener and requires a license.
+- **RisingWave Cloud** routes WebSocket ingest through RWProxy. For Cloud-specific setup details, see [Ingest data from WebSocket](/cloud/ingest-data-from-websocket).
 
-### RisingWave Cloud routing
-
-In managed RisingWave Cloud, WebSocket ingest connections are accepted by RWProxy over WSS and forwarded to your project's frontend ingest listener.
-
-- Public ingress: WSS `:443`
-- Ingest path format: `/ingest/<database>/<schema>/<table>`
-
-Tenant routing:
-
-1. Hosted projects: SNI hostname first, then `tenant` query parameter fallback.
-2. BYOC projects: currently use the `tenant` query parameter (SNI is not supported).
+For self-hosted deployments, WebSocket ingest uses `ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>` by default.
 
 ## Prerequisites
 
@@ -38,77 +24,10 @@ Tenant routing:
    - RisingWave Cloud project, or
    - Self-hosted RisingWave deployment with a license.
 2. A `webhook` table in your target database/schema.
-3. For RisingWave Cloud, the tenant identifier of your project (for example, `rwc-g1huxxxxxx-mycluster`).
-
-For details on tenant identifier and project connection details, see [Connection errors](/cloud/connection-errors).
-
-For self-hosted deployments, WebSocket ingest uses `ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>` by default.
-
-<Warning>
-Current BYOC limitations:
-- SNI is not supported yet. Use `?tenant=<tenant identifier>` in the ingest URL.
-- TLS certificate verification may fail unless verification is disabled on the client side. For testing, temporarily disable TLS verification in your WebSocket client if needed.
-</Warning>
-
-## Hosted vs BYOC requirements
-
-| Project type | Tenant routing requirement | TLS note |
-| :-- | :-- | :-- |
-| Hosted | Use `wss://<cloud-host>/ingest/<database>/<schema>/<table>`. Hosted projects support SNI routing, with query-parameter fallback. | Use standard TLS verification. |
-| BYOC | Use `wss://<cloud-host>/ingest/<database>/<schema>/<table>?tenant=<tenant identifier>`. BYOC currently does not support SNI routing. | TLS verification can fail in some BYOC environments. For testing, disable verification in your client temporarily. |
-
-## Use the Cloud Portal WebSocket ingest wizard (recommended)
-
-Use the wizard as the primary setup path so you do not need to manually construct hostnames, endpoint URLs, or signature validation SQL.
-
-Wizard steps:
-
-1. Open your project workspace and go to **Data Catalog**.
-2. Click **Create source**.
-3. Open **WebSocket ingest**.
-4. Select **Database**, **Schema**, and **Target table**.
-5. If you do not have a target table yet, click **Create table**, enter the table name and signature settings, choose how the signing key is stored (**RisingWave secret** recommended, or **Inline SQL literal**), review the generated SQL, and create the table. The wizard executes the steps in order: first creates the signing secret (if using the managed option), then creates the target table.
-6. Copy the generated **Endpoint**.
-7. Expand **Wire format** and **Client demo** to copy the generated init frame, DML batch examples, and client template.
-
-Wizard screenshots:
-
-**WebSocket ingest entry in Data Catalog**
-<Frame>
-  <img src="/images/cloud/ingest-data-from-websocket/websocket-card-in-data-catalog-page.jpeg" alt="WebSocket ingest card in the Data Catalog create source dialog in RisingWave Cloud" />
-</Frame>
-
-**Create a WebSocket ingest target and review generated SQL**
-<Frame>
-  <img src="/images/cloud/ingest-data-from-websocket/websocket-create-table-and-sql-review.jpeg" alt="Create WebSocket ingest target dialog showing generated SQL preview" />
-</Frame>
-
-**Generated endpoint and client examples**
-<Frame>
-  <img src="/images/cloud/ingest-data-from-websocket/websocket-endpoint-and-client-examples.jpeg" alt="RisingWave Cloud WebSocket ingest wizard showing the generated endpoint, wire format examples, and client demo" />
-</Frame>
-
-<Note>
-If WebSocket ingest does not appear in your Cloud Portal yet, use the manual endpoint format below as a fallback.
-</Note>
-
-## Manual endpoint format
-
-In hosted projects, use the following URL format:
-
-```text
-wss://<cloud-host>/ingest/<database>/<schema>/<table>
-```
-
-For BYOC projects, append the tenant identifier:
-
-```text
-wss://<cloud-host>/ingest/<database>/<schema>/<table>?tenant=<tenant identifier>
-```
 
 ## Reference SQL and client example
 
-Use these as reference commands. In practice, prefer the wizard-generated SQL, endpoint, and client template.
+Use these as reference commands.
 
 **Create a WebSocket ingest target table**
 
@@ -220,7 +139,7 @@ INIT_MSG = json.dumps(
 )
 SIGNATURE = "sha256=" + hmac.new(SECRET, INIT_MSG.encode(), hashlib.sha256).hexdigest()
 
-URL = "wss://<cloud-host>/ingest/<database>/<schema>/<table>"
+URL = "ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>"
 
 
 async def main():
@@ -253,21 +172,11 @@ async def main():
 asyncio.run(main())
 ```
 
-For BYOC projects that require the tenant query parameter, use the BYOC URL format shown above. If TLS verification fails in your BYOC environment, create a client SSL context that disables certificate verification for testing only.
+For RisingWave Cloud endpoint formats, tenant routing, and BYOC TLS notes, see [Ingest data from WebSocket](/cloud/ingest-data-from-websocket).
 
 ## HTTP webhook vs WebSocket ingest
 
 | Option | Best for | Transport | Delivery pattern |
 | :-- | :-- | :-- | :-- |
-| HTTP webhook | Per-event pushes from SaaS webhook providers | HTTPS `POST` | One request per event |
-| WebSocket ingest | Low-latency app-driven streaming and batched DML | Long-lived WSS connection | Async batch acknowledgements |
-
-## Troubleshooting
-
-- Invalid signature: recompute `x-rw-signature` from the exact init frame bytes.
-- Stale or skewed init timestamp: regenerate the init frame immediately before connecting.
-- Non-monotonic `dml_batch_id`: increase the batch ID for every batch sent on the same connection.
-- Missing primary key fields: include all PK columns for `upsert`, `insert`, `update`, and `delete`.
-- JSON decode failures: verify field names and value types in each batch item.
-- Connection closed with no ack after a large batch: your client likely exceeded the WebSocket frame-size limit. Split the batch into smaller frames and keep each batch below 8 MiB.
-- Connection closed before you received the last ack: reconnect, then replay every batch sent after the last acked `dml_batch_id`.
+| HTTP webhook | Simple event delivery from external services | One HTTP request per event or batch | Request/response |
+| WebSocket ingest | Low-latency streaming with client-managed batching and replay | Persistent WebSocket connection | Acked DML batches over a long-lived connection |
