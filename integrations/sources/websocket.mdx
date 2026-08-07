@@ -1,0 +1,182 @@
+---
+title: "Ingest data from WebSocket"
+description: "Use WebSocket ingest endpoints in RisingWave to stream batched DML into webhook tables."
+---
+
+This guide describes the WebSocket ingest protocol and common behavior for RisingWave deployments. WebSocket ingest uses the same `webhook` table type described in [Ingest data from webhook](/integrations/sources/webhook).
+
+<Info>
+Using managed RisingWave Cloud? See [Ingest data from WebSocket](/cloud/ingest-data-from-websocket) for Cloud-specific routing, wizard steps, hosted vs BYOC behavior, and endpoint formats.
+</Info>
+
+## Deployment-specific endpoint routing
+
+RisingWave supports WebSocket ingest through the same webhook listener used for HTTP webhook ingestion.
+
+- **Self-hosted RisingWave** accepts WebSocket ingest connections on the frontend webhook listener and requires a license.
+- **RisingWave Cloud** routes WebSocket ingest through RWProxy. For Cloud-specific setup details, see [Ingest data from WebSocket](/cloud/ingest-data-from-websocket).
+
+For self-hosted deployments, WebSocket ingest uses `ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>` by default.
+
+## Prerequisites
+
+1. A RisingWave deployment with WebSocket ingest enabled:
+   - RisingWave Cloud project, or
+   - Self-hosted RisingWave deployment with a license.
+2. A `webhook` table in your target database/schema.
+
+## Reference SQL and client example
+
+Use these as reference commands.
+
+**Create a WebSocket ingest target table**
+
+The client signs the init frame with HMAC-SHA256 using a shared secret and sends the signature in the `x-rw-signature` handshake header. Only the init frame is validated; subsequent DML batch frames are not signed. In the `VALIDATE` expression, `payload` is the init frame text and `headers` is the HTTP upgrade header map.
+
+Store the signing key as a RisingWave secret and reference it by name (recommended):
+
+```sql
+CREATE SECRET ws_signing_key WITH (backend = 'meta') AS 'your-signing-secret';
+
+CREATE TABLE ws_orders (
+  id int,
+  customer_name varchar,
+  amount double precision,
+  primary key (id)
+) WITH (
+  connector = 'webhook'
+) VALIDATE SECRET ws_signing_key AS secure_compare(
+  headers->>'x-rw-signature',
+  'sha256=' || encode(hmac(ws_signing_key, payload, 'sha256'), 'hex')
+);
+```
+
+For a quick local test, you can inline the secret as a SQL string literal instead:
+
+```sql
+CREATE TABLE ws_orders (
+  id int,
+  customer_name varchar,
+  amount double precision,
+  primary key (id)
+) WITH (
+  connector = 'webhook'
+) VALIDATE AS secure_compare(
+  headers->>'x-rw-signature',
+  'sha256=' || encode(hmac('TEST_WEBSOCKET', payload, 'sha256'), 'hex')
+);
+```
+
+## Protocol reference
+
+Use the following protocol after connecting to the WebSocket endpoint:
+
+- Handshake header: `x-rw-signature: sha256=<hmac_of_init_message>`
+- First frame: `{"type":"init","timestamp":<epoch_ms>}`
+- DML batch frame: `{"dml_batch_id":<u64>,"items":[{"op":"upsert|insert|update|delete","data":{...}}]}`
+- Server ack: `{"ack":<dml_batch_id>}`
+- Fatal error: `{"fatal":"<reason>"}`
+
+Rules and behavior:
+
+- The init frame must be the first text frame.
+- `timestamp` must be a non-negative epoch millisecond within the configured clock-skew window.
+- `dml_batch_id` must increase monotonically within a connection.
+- Empty batches are valid and are acknowledged immediately.
+- Non-empty batches are acknowledged after the batch is accepted downstream.
+- Any fatal error closes the connection.
+- `insert` and `update` use the same upsert-style row handling as `upsert`.
+- Each DML batch is sent as one WebSocket text frame.
+
+### Optional decoder headers
+
+WebSocket ingest uses the same JSON decoding path as HTTP webhook ingestion. If you need non-default timestamp, time, bigint, or TOAST handling, send the same decoder option headers during the WebSocket handshake:
+
+- `x-rw-webhook-json-timestamp-handling-mode`
+- `x-rw-webhook-json-timestamptz-handling-mode`
+- `x-rw-webhook-json-time-handling-mode`
+- `x-rw-webhook-json-bigint-unsigned-handling-mode`
+- `x-rw-webhook-json-handle-toast-columns`
+
+Invalid decoder header values return a fatal error and close the connection.
+
+### Payload shape
+
+For normal multi-column tables, each batch item `data` field should be a JSON object whose keys map to table columns. If the target table uses a single `jsonb` column payload schema, RisingWave also accepts scalar JSON values in `data`.
+
+### Frame-size limits
+
+Each DML batch is a single WebSocket text frame. The server enforces a maximum frame size:
+
+- **RisingWave Cloud**: RWProxy rejects frames larger than 10 MiB by default (configurable via the `ingestMaxMessageSize` setting). An oversized frame closes the connection with WebSocket code `1009` before any ack is sent.
+- **Self-hosted**: the `tungstenite` WebSocket library (used by RisingWave's frontend without overriding the default) allows up to 16 MiB per frame.
+
+Keep each batch below **8 MiB** to stay safely under both limits.
+
+### Reconnect and replay behavior
+
+- Delivery is at least once.
+- If the connection closes after you send a batch but before you receive its ack, reconnect and replay every batch sent after the last acked `dml_batch_id`.
+- Replaying keyed upserts is idempotent because the primary key determines the final row state. Replaying append-only data without a key can produce duplicates.
+
+## Python client example
+
+This example computes the HMAC of the init frame, opens the WebSocket connection, sends one batch, and waits for the ack.
+
+```python
+import asyncio
+import hashlib
+import hmac
+import json
+import time
+
+import websockets
+
+SECRET = b"your-signing-secret"
+INIT_MSG = json.dumps(
+    {"type": "init", "timestamp": int(time.time() * 1000)},
+    separators=(",", ":"),
+)
+SIGNATURE = "sha256=" + hmac.new(SECRET, INIT_MSG.encode(), hashlib.sha256).hexdigest()
+
+URL = "ws://<frontend-host>:4560/ingest/<database>/<schema>/<table>"
+
+
+async def main():
+    async with websockets.connect(
+        URL,
+        additional_headers={"x-rw-signature": SIGNATURE},
+    ) as ws:
+        await ws.send(INIT_MSG)
+        await ws.send(
+            json.dumps(
+                {
+                    "dml_batch_id": 1,
+                    "items": [
+                        {
+                            "op": "upsert",
+                            "data": {
+                                "id": 1,
+                                "customer_name": "Alice",
+                                "amount": 99.99,
+                            },
+                        }
+                    ],
+                },
+                separators=(",", ":"),
+            )
+        )
+        print(await ws.recv())
+
+
+asyncio.run(main())
+```
+
+For RisingWave Cloud endpoint formats, tenant routing, and BYOC TLS notes, see [Ingest data from WebSocket](/cloud/ingest-data-from-websocket).
+
+## HTTP webhook vs WebSocket ingest
+
+| Option | Best for | Transport | Delivery pattern |
+| :-- | :-- | :-- | :-- |
+| HTTP webhook | Simple event delivery from external services | One HTTP request per event or batch | Request/response |
+| WebSocket ingest | Low-latency streaming with client-managed batching and replay | Persistent WebSocket connection | Acked DML batches over a long-lived connection |
