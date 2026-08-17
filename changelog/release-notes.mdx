@@ -3,6 +3,39 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v3.0.3" description="2026-08-17">
+
+## SQL features
+
+- Fixes Iceberg Engine table creation with `enable_compaction = false` when the license does not include `SinkAutoSchemaChange`. For Iceberg Engine tables, `ALTER TABLE ADD COLUMN` still requires this feature. [#26545](https://github.com/risingwavelabs/risingwave/pull/26545)
+- Improves over-window query memory management by evicting cold partition-cache entries at chunk boundaries instead of waiting for the next barrier. [#26424](https://github.com/risingwavelabs/risingwave/pull/26424)
+
+## Connectors
+
+- Adds Microsoft Entra service-principal authentication for Iceberg sinks and Iceberg Engine REST catalogs on Azure Data Lake Storage Gen2. Configure `adlsgen2.tenant_id`, `adlsgen2.client_id`, and `adlsgen2.client_secret`; optionally set `adlsgen2.authority_host` for sovereign clouds. [#26124](https://github.com/risingwavelabs/risingwave/pull/26124)
+- Fixes exactly-once coordinated sinks getting stuck after recovery when an empty pre-commit epoch had no durable coordinator record. [#26498](https://github.com/risingwavelabs/risingwave/pull/26498)
+- Prevents a no-op `ALTER SINK ... CONNECTOR WITH` update from stopping the sink consumer and forcing database recovery. [#26484](https://github.com/risingwavelabs/risingwave/pull/26484)
+- Improves cluster recovery stability when many sinks reconnect simultaneously by throttling coordinator initialization and adding retry backoff. [#26639](https://github.com/risingwavelabs/risingwave/pull/26639)
+- Fixes writer panics when an Iceberg table contains malformed snapshot summary totals. [#26628](https://github.com/risingwavelabs/risingwave/pull/26628)
+- Reuses Iceberg S3 and GCS storage operators per bucket, reducing repeated credential and token loading, including repeated STS calls for IRSA-backed S3 deployments. [#26634](https://github.com/risingwavelabs/risingwave/pull/26634)
+
+## Administration
+
+- Reconciles serving vnode mappings during startup, recovery, and dirty-job cleanup so stale fragment mappings are removed. [#26352](https://github.com/risingwavelabs/risingwave/pull/26352)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.3-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.3/risingwave-v3.0.3-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.3.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.3.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.3/risectl-v3.0.3-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.2...v3.0.3).
+
+</Update>
+
 <Update label="v3.0.2" description="2026-07-24">
 
 ## SQL features
