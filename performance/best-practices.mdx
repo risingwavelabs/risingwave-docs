@@ -143,13 +143,15 @@ Locality backfill is controlled by the session variables `enable_locality_backfi
 
 ```sql
 SET enable_locality_backfill = true;
-SET locality_backfill_mode = auto;
+SET locality_backfill_mode = 'auto';
 ```
 
 `enable_locality_backfill` is the master switch. It defaults to `true` on new clusters, while upgraded clusters keep their persisted value. When locality backfill is enabled, `locality_backfill_mode` controls how RisingWave applies it:
 
-- `auto` (default) enables locality backfill only for snapshot backfills whose estimated scan size reaches `auto_locality_backfill_min_size`, which defaults to `10737418240` bytes (10 GiB).
+- `auto` is the default on new clusters. It enables locality backfill only for snapshot backfills when the locality backfill premium feature is available and the estimated scan size reaches `auto_locality_backfill_min_size`, which defaults to `10737418240` bytes (10 GiB).
 - `always` skips the size check and preserves the earlier explicitly enabled behavior.
+
+When upgrading a cluster that has a persisted `enable_locality_backfill` value but no persisted `locality_backfill_mode`, RisingWave sets the mode to `always` to preserve the previous behavior.
 
 Set `enable_locality_backfill = false` to disable locality backfill entirely.
 
@@ -160,7 +162,7 @@ If you are doing a rolling upgrade from a version that does not have `locality_b
 <Tip>
 **PREMIUM FEATURE**
 
-The default `auto` mode requires the locality backfill premium feature. In `always` mode, plans that use more than five `LocalityProvider` operators are considered complex queries and require the same premium feature; otherwise, RisingWave falls back to regular backfill. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+The `auto` mode requires the locality backfill premium feature. Without this feature, RisingWave uses regular backfill. In `always` mode, plans with at most five `LocalityProvider` operators do not require the premium feature and continue to use locality backfill. Plans with more than five `LocalityProvider` operators require the premium feature; without it, RisingWave falls back to regular backfill. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 ## Using materialized views
