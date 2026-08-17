@@ -1,0 +1,86 @@
+---
+title: "Sink data from RisingWave to HTTP endpoints"
+sidebarTitle: HTTP
+description: "This guide describes how to sink data from RisingWave to HTTP endpoints by sending append-only rows as POST requests."
+---
+
+Use the HTTP sink connector to send RisingWave output to a generic HTTP service or webhook. RisingWave sends one `POST` request per row.
+
+## Prerequisites
+
+Before creating an HTTP sink, ensure the following:
+
+* The RisingWave cluster is running.
+* The target HTTP endpoint is reachable from RisingWave.
+* The target endpoint accepts `POST` requests and returns a `2xx` status code for successful writes.
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector = 'http',
+   url = 'https://example.com/webhook',
+   type = 'append-only',
+   [ content_type = 'application/json', ]
+   [ header.<name> = 'value', ... ]
+   [ ignore_delete = 'true' ]
+);
+```
+
+## Parameters
+
+| Parameter | Description |
+| :--- | :--- |
+| `url` | **Required**. The absolute HTTP endpoint URL that RisingWave sends `POST` requests to. |
+| `type` | **Required**. Must be `append-only`. |
+| `content_type` | **Optional**. Sets the `Content-Type` request header. If omitted, RisingWave uses `text/plain` for `varchar` payloads and `application/json` for `jsonb` payloads. |
+| `header.<name>` | **Optional**. Adds a custom HTTP request header. For example, `header.authorization = 'Bearer <token>'`. |
+| `ignore_delete` | **Optional**. Drops `DELETE` events and converts `UPDATE` events to `INSERT` before sending requests. Use this when the upstream is not append-only but you still want to emit insert-style payloads only. |
+
+## Upstream requirements
+
+The HTTP sink accepts a narrow input shape:
+
+* The upstream query must produce exactly one column.
+* That column must be `varchar` or `jsonb`.
+* The sink only supports append-only output. If the upstream can emit updates or deletes, set `ignore_delete = 'true'` to drop deletes and convert updates to inserts.
+* Schema changes are not supported for this connector.
+
+## Example: send plain text payloads
+
+```sql
+CREATE TABLE webhook_events (
+  payload varchar
+);
+
+CREATE SINK webhook_sink
+FROM webhook_events
+WITH (
+  connector = 'http',
+  url = 'https://example.com/webhook',
+  type = 'append-only',
+  header.x-api-key = 'demo-key'
+);
+```
+
+Each inserted row is sent as the HTTP request body. For `varchar` payloads, the default `Content-Type` is `text/plain`.
+
+## Example: send JSON payloads
+
+```sql
+CREATE TABLE order_events (
+  payload jsonb
+);
+
+CREATE SINK order_webhook_sink
+FROM order_events
+WITH (
+  connector = 'http',
+  url = 'https://example.com/orders',
+  type = 'append-only'
+);
+```
+
+For `jsonb` payloads, RisingWave uses `application/json` by default.
