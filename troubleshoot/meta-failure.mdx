@@ -1,7 +1,10 @@
 ---
 title: "Meta failure"
-description: "If the meta fails to start or abruptly exits during operation, there is currently only one known issue that can cause this problem: the Meta Node fails to remain active while participating in the campaign."
+description: "Troubleshoot Meta Node failures caused by leader election keepalive timeouts in legacy etcd-backed deployments."
 ---
+
+This page applies only to legacy deployments that still use **etcd** as the meta store backend.
+For current deployments, RisingWave uses **PostgreSQL** as the default meta store backend, and etcd is deprecated. If your cluster still uses etcd, consider [migrating to a SQL backend](/deploy/migrate-to-sql-backend).
 
 ## Symptoms
 
@@ -12,11 +15,11 @@ If you come across the following logs in the Meta Node, it is likely that you ar
 
 ## Possible causes
 
-The observed issue is most likely a result of ETCD experiencing fluctuations, which can be attributed to either using a low-quality disk for ETCD or sending excessively large requests to it.
+In etcd-backed deployments, this issue is most likely caused by etcd instability, such as low disk performance or excessively large requests.
 
 ## Solutions
 
-1. Check etcd configures, whether `-auto-compaction-mode`, `-max-request-bytes` are set properly.
+1. Check your etcd configuration and verify that `-auto-compaction-mode` and `-max-request-bytes` are set properly.
 2. If only one Meta Node is deployed, you can set the parameter `meta_leader_lease_secs` to `86400` to avoid impact on leader election by the disk performance. For multi-node deployment, you can also increase the value of this parameter.
 3. For better performance and stability of the cluster, it is recommended to use higher-performance disks and configure etcd correctly.
 
