@@ -33,6 +33,9 @@ External catalogs are required when you need to connect to Iceberg tables that a
   <Card title="REST" href="/iceberg/catalogs/rest">
     Uses a RESTful API to manage table metadata.
   </Card>
+  <Card title="Google Cloud Lakehouse" href="/iceberg/catalogs/google-cloud-lakehouse">
+    Integrate with the Google Cloud Lakehouse runtime catalog.
+  </Card>
   <Card title="Lakekeeper" href="/iceberg/catalogs/lakekeeper">
     Deploy a self-hosted REST catalog with Lakekeeper.
   </Card>
@@ -66,6 +69,10 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 | `catalog.token` | A bearer token for a REST catalog. |
 | `catalog.oauth2_server_uri` | The token endpoint URI for a REST catalog's OAuth2 flow. |
 | `catalog.scope` | The OAuth2 scope for a REST catalog. |
+| `catalog.header` | Custom HTTP headers for REST catalog requests, formatted as `key1=value1;key2=value2`. |
+| `catalog.security` | Authentication mode for the Java REST catalog client. Supported values: `'none'`, `'oauth2'`, and `'google'`. The `'google'` mode uses Google Application Default Credentials. |
+| `gcp.auth.scopes` | Optional comma-separated OAuth scopes used when `catalog.security = 'google'`. Defaults to `https://www.googleapis.com/auth/cloud-platform`. |
+| `catalog.io_impl` | Custom Java Iceberg `FileIO` implementation class. For Google Cloud Storage, use `org.apache.iceberg.gcp.gcs.GCSFileIO`. |
 | `catalog.rest.signing_region` | For Amazon S3 Tables: the AWS region for signing requests. |
 | `catalog.rest.signing_name` | For Amazon S3 Tables: the service name for signing requests. |
 | `catalog.rest.sigv4_enabled` | For Amazon S3 Tables: enables SigV4 signing. Must be `true`. |
@@ -73,5 +80,5 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 | `glue.access.key` | The AWS access key ID for Glue authentication. If not specified, defaults to `s3.access.key`. |
 | `glue.secret.key` | The AWS secret access key for Glue authentication. If not specified, defaults to `s3.secret.key`. |
 | `glue.iam_role_arn` | The IAM role ARN to assume for Glue catalog access via STS. When set, the connector assumes the specified role for Glue catalog operations. |
-| `enable_config_load` | If set to `true`, load AWS config/credentials from the environment (for example, to assume an IAM role via STS). |
+| `enable_config_load` | In self-hosted deployments, set to `true` to load object storage credentials from the environment or local configuration. |
 | `vended_credentials` | Enable vended credentials for a REST catalog. When set to `true` with `catalog.type = 'rest'`, requests credentials from the REST catalog server instead of managing them directly. Default: `false`. |
