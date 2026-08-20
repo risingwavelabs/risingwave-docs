@@ -1,0 +1,105 @@
+---
+title: "SeaweedFS catalog"
+sidebarTitle: "SeaweedFS"
+description: "Connect RisingWave to SeaweedFS table buckets, which serve an Iceberg REST catalog and store table data behind one S3 gateway."
+---
+
+[SeaweedFS](https://github.com/seaweedfs/seaweedfs) is an open-source distributed object store whose S3 Table Buckets provide both halves of an Iceberg deployment: the embedded Iceberg REST catalog serves the table metadata, and the table bucket stores the table data as Parquet files behind the same S3 gateway. You can use it with RisingWave when creating an Iceberg `SOURCE` or `SINK`.
+
+<Note>
+For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+</Note>
+
+## Deploy SeaweedFS
+
+For local testing, create a file `s3config.json` with the S3 credentials:
+
+```json
+{
+  "identities": [
+    {
+      "name": "analyst",
+      "credentials": [
+        {
+          "accessKey": "your_access_key",
+          "secretKey": "your_secret_key"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
+```
+
+Then start the whole SeaweedFS stack in one container. The `-tableBucket` flag pre-creates a table bucket named `analytics` that serves as the Iceberg warehouse:
+
+```bash
+docker run -d --name seaweedfs -p 8333:8333 -p 8181:8181 \
+    -v "$(pwd)/s3config.json:/etc/seaweedfs/s3config.json" \
+    chrislusf/seaweedfs:latest \
+    mini -dir=/data -s3.config=/etc/seaweedfs/s3config.json -tableBucket=analytics
+```
+
+The S3 endpoint listens on port 8333 and the Iceberg REST catalog on port 8181.
+
+## Required REST parameters
+
+SeaweedFS authenticates catalog requests with AWS SigV4 signing, using the same access key and secret key as the S3 gateway:
+
+| Parameter | Description | Value for SeaweedFS |
+|---|---|---|
+| `catalog.uri` | The SeaweedFS Iceberg REST endpoint. | `http://<seaweedfs-host>:8181` |
+| `catalog.rest.sigv4_enabled` | Enables SigV4 signing. Must be `true`. | `true` |
+| `catalog.rest.signing_region` | The region for signing requests. | e.g., `us-east-1` |
+| `catalog.rest.signing_name` | The service name for signing requests. | `s3` |
+
+## Read from an Iceberg table
+
+```sql
+CREATE SOURCE seaweedfs_orders WITH (
+    connector = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://<seaweedfs-host>:8181',
+    catalog.name = 'default',
+    database.name = 'default',
+    table.name = 'orders',
+    warehouse.path = 's3://analytics',
+    s3.endpoint = 'http://<seaweedfs-host>:8333',
+    s3.region = 'us-east-1',
+    s3.access.key = '<your_access_key>',
+    s3.secret.key = '<your_secret_key>',
+    s3.path.style.access = 'true',
+    catalog.rest.sigv4_enabled = 'true',
+    catalog.rest.signing_region = 'us-east-1',
+    catalog.rest.signing_name = 's3'
+);
+
+SELECT * FROM seaweedfs_orders;
+```
+
+## Write to an Iceberg table
+
+```sql
+CREATE SINK seaweedfs_sink FROM my_table
+WITH (
+    connector = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://<seaweedfs-host>:8181',
+    catalog.name = 'default',
+    database.name = 'default',
+    table.name = 'orders',
+    warehouse.path = 's3://analytics',
+    s3.endpoint = 'http://<seaweedfs-host>:8333',
+    s3.region = 'us-east-1',
+    s3.access.key = '<your_access_key>',
+    s3.secret.key = '<your_secret_key>',
+    s3.path.style.access = 'true',
+    catalog.rest.sigv4_enabled = 'true',
+    catalog.rest.signing_region = 'us-east-1',
+    catalog.rest.signing_name = 's3',
+    type = 'append-only',
+    force_append_only = 'true'
+);
+```
+
+Rows are committed to the Iceberg table on RisingWave checkpoints, and other engines can read them through the same catalog.
