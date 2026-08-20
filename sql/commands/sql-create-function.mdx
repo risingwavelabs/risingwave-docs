@@ -105,9 +105,17 @@ For more details, see [Use UDFs in Rust](/sql/udfs/use-udfs-in-rust).
 Added in v3.2.0.
 </Note>
 
-By default, RisingWave treats calls to external and embedded UDFs as impure for streaming planning. Where result materialization is required on a retract or upsert input, RisingWave stores the complete projected expression so that delete and update-delete records can reuse the previously evaluated result.
+By default, RisingWave treats calls to external and embedded UDFs as impure for streaming planning. Result materialization depends on the input stream kind:
 
-For a deterministic, side-effect-free UDF, set `skip_materializing_eval_result` to `true` to prevent that UDF from making an otherwise pure expression require result materialization. The option defaults to `false`.
+| Stream kind | Result materialization |
+| --- | --- |
+| Append-only | Always skipped. |
+| UPSERT | Always skipped, regardless of the UDF option or session setting. |
+| RETRACT | Controlled by expression purity and the per-UDF option. The session-level override skips planner-inserted materialization for all impure expressions. |
+
+On a RETRACT input, RisingWave stores the complete projected expression when result materialization is required so that delete and update-delete records can reuse the previously evaluated result.
+
+For a deterministic, side-effect-free UDF, set `skip_materializing_eval_result` to `true` to prevent that UDF from making an otherwise pure expression require result materialization on a RETRACT input. The option defaults to `false`.
 
 <Note>
 This option applies only to external and embedded UDFs. A `LANGUAGE sql` definition currently accepts but ignores `skip_materializing_eval_result`, so specifying it for a SQL UDF does not change result-materialization planning.
@@ -135,16 +143,20 @@ RisingWave rejects `skip_materializing_eval_result = true` unless both of these 
 - Set `always_retry_on_network_error = true`. For external scalar UDF calls, this option retries supported remote transport errors indefinitely. A persistent network failure can therefore stall streaming progress.
 
 <Warning>
-Enable this option only when repeated evaluations with the same input always return the same result and have no side effects. RisingWave checks for the `IMMUTABLE` clause but cannot verify the UDF implementation. Without a stored result, RisingWave can reevaluate the UDF for delete and update-delete records. A different result can cause inconsistent retractions or an execution panic.
+Enable this option only when repeated evaluations with the same input always return the same result and have no side effects. RisingWave checks for the `IMMUTABLE` clause but cannot verify the UDF implementation. On a RETRACT input, RisingWave can reevaluate the UDF for delete and update-delete records when no result is stored. A different result can cause inconsistent retractions or an execution panic.
 </Warning>
 
-If an argument contains an unmarked UDF or another impure expression, RisingWave still materializes the complete top-level projected expression. The option does not selectively materialize nested subexpressions.
+On a RETRACT input with the session-level override disabled, RisingWave still materializes the complete top-level projected expression if an argument contains an unmarked UDF or another impure expression. The per-UDF option does not selectively materialize nested subexpressions.
+
+<Note>
+UPSERT projects always skip result materialization because computed expressions cannot be part of the internal stream key. By default, sink planning rejects a computed downstream primary key that does not match the key derived from the stream. If [`streaming_unsafe_allow_upsert_sink_pk_mismatch`](/operate/view-configure-runtime-parameters) permits this mismatch, a downstream primary-key change whose old value is not emitted can leave stale rows in the downstream system.
+</Note>
 
 ### Interaction with the session-level override
 
-Keep [`streaming_unsafe_allow_unmaterialized_impure_expr`](/operate/view-configure-runtime-parameters) set to `false` to use the scoped per-function behavior. In this mode, only UDFs marked with `skip_materializing_eval_result = true` stop making an otherwise pure expression require materialization; other impure expressions retain the default protection.
+Keep [`streaming_unsafe_allow_unmaterialized_impure_expr`](/operate/view-configure-runtime-parameters) set to `false` to use the scoped per-function behavior on RETRACT inputs. In this mode, only UDFs marked with `skip_materializing_eval_result = true` stop making an otherwise pure expression require materialization; other impure expressions on RETRACT inputs retain the default protection.
 
-If `streaming_unsafe_allow_unmaterialized_impure_expr` is `true` when RisingWave plans a streaming job, RisingWave skips planner-inserted result materialization for all impure expressions in that job, regardless of each UDF's `skip_materializing_eval_result` setting. This session-level override is broader and carries the same risk of inconsistent results or execution panics.
+If `streaming_unsafe_allow_unmaterialized_impure_expr` is `true` when RisingWave plans a streaming job, RisingWave skips planner-inserted result materialization for all impure expressions on RETRACT inputs in that job, regardless of each UDF's `skip_materializing_eval_result` setting. This session-level override is broader and carries the same risk of inconsistent results or execution panics. It does not change append-only or UPSERT behavior because those projects already skip result materialization.
 
 ## SQL UDFs
 
