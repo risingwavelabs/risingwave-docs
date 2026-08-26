@@ -33,6 +33,14 @@ The built-in UI is a read-only inspection tool. From it, you can:
 
 For step-by-step troubleshooting workflows that use the built-in UI, see [Troubleshooting overview](/troubleshoot/overview#get-an-overview-of-the-cluster).
 
+## Diagnose report API
+
+The meta node also exposes a diagnose report through the built-in UI API at `/api/monitor/diagnose/`.
+
+- Use `http://<meta-host>:5691/api/monitor/diagnose/` to fetch the report.
+- Set `actor_traces_format=text` or `actor_traces_format=json` to control the await-tree trace format. For example: `http://localhost:5691/api/monitor/diagnose/?actor_traces_format=text`.
+- The streaming-actor summary is grouped by fragment. The report uses a `FRAGMENT` section with `fragment_id`, `job_id`, `schema_id`, `type`, `name`, `actor_count`, and `actors`, instead of listing one row per actor under an `ACTOR` section.
+
 ## Built-in UI vs. Grafana vs. RisingWave Console
 
 The built-in UI covers cluster introspection, but it is not a metrics or alerting product. For different needs:
