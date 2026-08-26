@@ -1,0 +1,84 @@
+---
+title: "Sink data from RisingWave to HTTP endpoints"
+description: "Use the HTTP sink connector to send append-only data from RisingWave to an HTTP endpoint with either a static URL or a per-row dynamic URL."
+sidebarTitle: HTTP
+---
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[FROM sink_from | AS select_query]
+WITH (
+   connector = 'http',
+   connector_parameter = 'value', ...
+);
+```
+
+## Basic parameters
+
+| Parameter | Description |
+| :--- | :--- |
+| `url` | **Optional**. The target URL to POST data to. This is required when the sink outputs exactly one column. Do not set this option when the sink output includes a `url` column for dynamic per-row targets. |
+| `content_type` | **Optional**. The HTTP `Content-Type` header. If omitted, RisingWave uses `text/plain` for `varchar` payloads and `application/json` for `jsonb` payloads. |
+| `header.<name>` | **Optional**. Adds a custom HTTP header. For example, `header.authorization = 'Bearer <token>'`. |
+| `type` | **Required**. Must be `append-only`. |
+
+## Sink output schema
+
+The HTTP sink supports two output shapes:
+
+- **Single-column sink**: Output exactly one column of type `varchar` or `jsonb`, and set `WITH (url = '...')`.
+- **Dynamic URL sink**: Output columns named `payload` and `url`. The `payload` column must be `varchar` or `jsonb`, and the `url` column must be `varchar`.
+
+For multi-column HTTP sinks, only `payload` and `url` are allowed. When using a dynamic URL sink, do not also set the `url` option in the `WITH` clause.
+
+## Examples
+
+### Static URL
+
+```sql
+CREATE TABLE http_events (
+  payload jsonb
+);
+
+CREATE SINK http_sink
+FROM http_events
+WITH (
+  connector = 'http',
+  url = 'https://example.com/events',
+  type = 'append-only'
+);
+```
+
+### Dynamic URL from a sink column
+
+```sql
+CREATE TABLE http_events_dynamic (
+  payload jsonb,
+  url varchar
+);
+
+CREATE SINK dynamic_http_sink
+FROM http_events_dynamic
+WITH (
+  connector = 'http',
+  type = 'append-only',
+  force_append_only = 'true'
+);
+```
+
+### Dynamic URL with `CREATE SINK AS SELECT`
+
+```sql
+CREATE SINK dynamic_http_sink AS
+SELECT
+  event_body AS payload,
+  format('https://example.com/workspaces/%s/events', workspace_id) AS url
+FROM source_events
+WITH (
+  connector = 'http',
+  type = 'append-only',
+  force_append_only = 'true'
+);
+```
