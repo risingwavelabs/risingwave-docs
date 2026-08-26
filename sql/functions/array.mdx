@@ -167,6 +167,24 @@ array_ndims ( array ) → int
 array_ndims(array[array[2, 3], array[4, 5]]) → 2
 ```
 
+### `array_overlaps`[](#array%5Foverlaps "Direct link to array_overlaps")
+
+Checks whether two arrays share any non-NULL element.
+
+Aliases: `array_is_overlap`, `array_is_intersect`
+
+```sql
+array_overlaps ( array, array ) → boolean
+```
+
+```sql
+array_overlaps(array['a', 'b'], array['b', 'c']) → t
+
+array_is_overlap(array['a', 'b'], array['c', 'd']) → f
+
+array_is_intersect(array['a', 'b'], array['b', 'c']) → t
+```
+
 ### `array_position`[](#array%5Fposition "Direct link to array_position")
 
 Returns the subscript of the first occurrence of `any_compatible` element in `array`.
@@ -458,6 +476,18 @@ This operator checks if the left array is contained by the right array.
 
 ```sql
 array[2,3] <@ array[1,2,3] → t
+```
+
+### `array && array -> boolean`
+
+This operator checks if two arrays share any non-NULL element.
+
+```sql
+array[1,2,3] && array[3,4] → t
+
+array[1,2,3] && array[4,5] → f
+
+array[null]::int[] && array[null]::int[] → f
 ```
 
 ### `array || anycompatible → array`[](#array--anycompatible--array "Direct link to array--anycompatible--array")
