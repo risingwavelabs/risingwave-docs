@@ -9,6 +9,24 @@ Temporal filters will enable you to filter data based on a particular time, such
 If you only want to clean table state while keeping downstream materialized views stable (TTL semantics), use a watermark with `WITH TTL` on the table instead. See [Watermarks](/processing/watermarks) and [CREATE TABLE](/sql/commands/sql-create-table#watermark-based-ttl-event-time).
 </Note>
 
+## Comparison with `retention_seconds` and Flink TTL
+
+These three mechanisms all limit how long data is kept, but they operate at different layers and have different semantics.
+
+| Mechanism | Where you configure it | What decides expiration | What happens when data expires | Best for |
+| :--- | :--- | :--- | :--- | :--- |
+| Temporal filter | In a query, using `NOW()` in `WHERE` or `HAVING` | The row no longer matches the SQL time predicate | The row is removed from the query result and a retraction is emitted downstream | Keeping downstream materialized views or sinks aligned to a moving time window |
+| Append-only `retention_seconds` | In `CREATE TABLE ... APPEND ONLY WITH (retention_seconds = ...)` | How long a row has been retained in the append-only table | Old rows are cleaned from the table and its indexes; this is storage retention, not a SQL time predicate | Bounding storage for append-only staging or landing tables |
+| Flink TTL | In a Flink state descriptor (`StateTtlConfig`) | TTL on keyed operator state | Expired keyed state is cleaned on a best-effort basis | Managing operator state in Flink applications |
+
+Key differences:
+
+- Temporal filters are part of SQL query semantics. They define which rows are currently visible in the result.
+- `retention_seconds` is a table option, not a query predicate. It does not look at an event-time column, and it is only supported on append-only tables.
+- Flink TTL applies to keyed state in operators, not to SQL result visibility. It is a state-management feature rather than a relational time filter.
+
+If you want downstream results to stay limited to "the last N minutes/hours/days", use a temporal filter. If you only want an append-only table to stop growing forever, use `retention_seconds`. If you need event-time-based cleanup on a RisingWave table without downstream retractions, use a watermark with `WITH TTL` instead.
+
 ## Syntax
 
 A temporal filter is a filter condition with a `NOW()` function call. It can only be used in the `WHERE` and `HAVING` clauses in the query.
