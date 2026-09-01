@@ -1,0 +1,65 @@
+---
+title: "Cross-database subscription changelog expiry headroom low"
+sidebarTitle: "Cross-database changelog expiry headroom low"
+description: "Diagnose and resolve low changelog expiry headroom for a cross-database streaming job in RisingWave Cloud."
+---
+
+This critical alert indicates that at least one cross-database materialized view or sink in your project has less than three hours before required upstream changelog data expires. Restore the affected job's progress before the retention window elapses to avoid interrupting updates.
+
+<Note>
+This alert is disabled by default. To enable it for a project, select the project in the RisingWave Cloud console, then select **Alert Rules** under **Management** and enable **Cross-database subscription changelog expiry headroom low**.
+</Note>
+
+## Common triggers
+
+- A downstream streaming job is stalled by an error or sustained backpressure.
+- Streaming resources are insufficient for the downstream job to keep up with upstream changes.
+- The upstream subscription's retention period is too short for the current interruption or processing lag.
+
+## Diagnosis
+
+1. Note the upstream relation ID (`table_id`) in the alert, connect to its source database, and identify the relation:
+
+   ```sql
+   SELECT r.id, s.name AS schema_name, r.name, r.relation_type
+   FROM rw_catalog.rw_relations AS r
+   JOIN rw_catalog.rw_schemas AS s ON r.schema_id = s.id
+   WHERE r.id = <table_id>;
+   ```
+
+2. Check cross-database materialized views or sinks that read from this relation for errors, sustained backpressure, or stale output.
+3. Check Streaming Node CPU and memory utilization in the affected project.
+4. Review the configured retention period for subscriptions on the upstream relation:
+
+   ```sql
+   SELECT schema_name, name, retention_seconds, definition
+   FROM rw_catalog.rw_subscriptions
+   ORDER BY schema_name, name;
+   ```
+
+## Resolution
+
+If the required changelog data has not expired:
+
+1. Resolve errors or backpressure that prevent the downstream materialized view or sink from making progress.
+2. If Streaming Nodes are fully utilized, scale the project. For more information, see [Scale a project manually](/cloud/scale-a-project-manually).
+3. If the subscription retention period is too short, increase it in the source database:
+
+   ```sql
+   ALTER SUBSCRIPTION <subscription_name>
+   SET RETENTION TO '<duration>';
+   ```
+
+The alert resolves after all cross-database consumers in the project have at least three hours of expiry headroom.
+
+If the required changelog data has already expired, the affected materialized view or sink stops consuming new upstream changes. Drop and recreate that materialized view or sink to resume from the current upstream state.
+
+<Warning>
+Recreating a sink can backfill rows and resend them to the downstream system. Before recreating a sink, verify that the downstream system can handle duplicate records or otherwise account for its delivery semantics.
+</Warning>
+
+## Related topics
+
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
+- [Workload isolation and interaction](/operate/workload-isolation-interaction#handling-stale-cross-database-consumers)
+- [Subscribe to real-time updates](/serve/subscription)
