@@ -13,9 +13,12 @@ This guide is regularly updated to address emerging scenarios.
 
 A RisingWave container was terminated due to an Out of Memory (OOM) condition in the project.
 
+See the dedicated [Out of memory error playbook](/cloud/alert-playbooks/service-health/out-of-memory-error).
+
 **Triggers**
-    - Large backfill operations.
-    - Sudden spikes in workload.
+
+- Large backfill operations.
+- Sudden spikes in workload.
 
 **Resolution**
 
@@ -25,24 +28,31 @@ Scale the node resources. For more information, see [Configure node resources](/
 
 ### Barrier pending for too long
 
-No barrier has been committed in this project for more than 15 minutes.
+No barrier has been committed in this project for longer than the configured threshold.
+
+See the dedicated [Barrier pending for too long playbook](/cloud/alert-playbooks/streaming/barrier-pending-for-too-long).
 
 **Triggers**
-    - Streaming graph bottlenecks. Typical causes include: join amplification, insufficient resources, and suboptimal streaming query (e.g., OverWindow, Joins).
-    - Compaction write stalls result in longer barrier sync duration.
+
+- Streaming graph bottlenecks. Typical causes include join amplification, insufficient resources, and suboptimal streaming queries such as over-window queries and joins.
+- Compaction write stalls that result in longer barrier synchronization times.
 
 **Diagnosis**
-    - Check CPU and Memory utilization for all nodes. If those are maxed out, it suggests there’s insufficient resource.
-    - Check if there are any creating jobs, which are being backfilled via `SHOW JOBS`. Backfilling can induce higher pressure on the cluster.
+
+- Check CPU and memory utilization for all nodes. If the nodes are fully utilized, the project might have insufficient resources.
+- Run `SHOW JOBS` and check for jobs that are being created. Backfilling a newly created job can increase pressure on the project.
 
 **Resolution**
 
 If either resources are maxed out, or backfilling is happening, scale out the cluster to alleviate the pressure.
 
 ### Sink lag too large
-Data for a particular sink has been pending in RisingWave's internal log store for more than 30 minutes.
+Data for a particular sink has been pending in RisingWave's internal log store for longer than the configured threshold.
+
+See the dedicated [Sink lag too large playbook](/cloud/alert-playbooks/streaming/sink-lag-too-large).
 
 **Triggers**
+
 - Slow external sink processing.
 - Insufficient sink parallelism.
 
@@ -56,11 +66,14 @@ Check the downstream of the sink to see if there’s any abnormality.
 
 Back pressure from compaction detected in your cluster.
 
+See the dedicated [Compaction back pressure playbook](/cloud/alert-playbooks/compaction/compaction-back-pressure).
+
 **Triggers**
 
-Insufficient compaction resource.
+- Insufficient compaction resources.
 
 **Diagnosis**
+
 - Check compaction CPU usage.
 - Check the CPU ratio of Compute Nodes (including Streaming and Serving Nodes) and Compactor Nodes.
 

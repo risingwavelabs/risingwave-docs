@@ -1,0 +1,25 @@
+---
+title: "Barrier pending for too long"
+sidebarTitle: "Barrier pending for too long"
+description: "Diagnose and resolve a barrier pending alert in RisingWave Cloud."
+---
+
+This alert indicates that no barrier has been committed in your project for longer than the configured threshold. Data freshness can be affected while barriers remain pending.
+
+## Common triggers
+
+- Streaming graph bottlenecks. Typical causes include join amplification, insufficient resources, and suboptimal streaming queries such as over-window queries and joins.
+- Compaction write stalls that result in longer barrier synchronization times.
+
+## Diagnosis
+
+- Check CPU and memory utilization for all nodes. If the nodes are fully utilized, the project might have insufficient resources.
+- Run `SHOW JOBS` and check for jobs that are being created. Backfilling a newly created job can increase pressure on the project.
+
+## Resolution
+
+If node resources are fully utilized or a backfill is running, scale out the project to alleviate the pressure. For more information, see [Scale a project manually](/cloud/scale-a-project-manually).
+
+## Related topics
+
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
