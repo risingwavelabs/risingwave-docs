@@ -17,8 +17,10 @@ The `CREATE FUNCTION` command is used to declare these UDFs. After that, you can
 CREATE FUNCTION [ IF NOT EXISTS ] function_name ( argument_type [, ...] )
     [ RETURNS return_type | RETURNS TABLE ( column_name column_type [, ...] ) ]
     [ LANGUAGE language_name ]
+    [ IMMUTABLE | STABLE | VOLATILE ]
     AS function_name_defined_in_server
-    USING LINK 'udf_server_address';
+    USING LINK 'udf_server_address'
+    [ WITH ( function_option = boolean [, ...] ) ];
 ```
 
 <Note>
@@ -34,8 +36,10 @@ Added in v2.3.0: Support `IF NOT EXISTS`.
 | **RETURNS** _return\_type_                   | Use this if the function returns a single value (i.e., scalar). It specifies the data type of the return value from the UDF.The struct type, which can contain multiple values, is supported. But the field names must be consistent between the programming language and SQL definitions, or it will be considered a type mismatch. |
 | **RETURNS TABLE**                            | Use this if the function is a table-valued function (TVF). It specifies the structure of the table that the UDF returns.                                                                                                                                                                                                             |
 | **LANGUAGE**                                 | **Optional**. Specifies the programming language used to implement the UDF.  Currently, Python, Java,Rust, and JavaScript are supported.                                                                                                                                                                                                 |
+| **IMMUTABLE \| STABLE \| VOLATILE**          | **Optional**. Specifies a volatility declaration. Currently, only `IMMUTABLE` has an effect, and only as a prerequisite check when `unsafe_skip_materializing_exprs` is `true`. `STABLE` and `VOLATILE` are accepted but have no effect.                                                                                                   |
 | **AS** _function\_name\_defined\_in\_server_ | Specifies the function name defined in the UDF server.                                                                                                                                                                                                                                                                               |
 | **USING LINK** '_udf\_server\_address_'      | Specifies the UDF server address. If you are running RisingWave in your local environment, the address is http://localhost: \<port>  If you are running RisingWave using Docker, the address is http://host.docker.internal: \<port>/                                                                                                    |
+| **WITH**                                     | **Optional**. Specifies UDF execution options. For result materialization options, see [Skip result materialization for a UDF](#skip-result-materialization-for-a-udf).                                                                                                                                                                  |
 
 ### Examples
 
@@ -94,6 +98,63 @@ $$;
 ```
 
 For more details, see [Use UDFs in Rust](/sql/udfs/use-udfs-in-rust).
+
+## Skip result materialization for a UDF
+
+<Note>
+Added in v3.2.0.
+</Note>
+
+By default, RisingWave treats calls to external and embedded UDFs as impure for streaming planning. Result materialization depends on the input stream kind:
+
+| Stream kind | Result materialization |
+| --- | --- |
+| Append-only | Always skipped. |
+| UPSERT | Always skipped, regardless of the UDF option or session setting. |
+| RETRACT | Controlled by expression purity and the per-UDF option. The session-level override skips planner-inserted materialization for all impure expressions. |
+
+On a RETRACT input, RisingWave stores the complete projected expression when result materialization is required so that delete and update-delete records can reuse the previously evaluated result.
+
+For a deterministic, side-effect-free UDF, set `unsafe_skip_materializing_exprs` to `true` to prevent that UDF from making an otherwise pure expression require result materialization on a RETRACT input. This is an unsafe optimization, not a correctness guarantee: RisingWave cannot verify the implementation, and re-evaluation can still produce inconsistent results or fail stream processing. The option defaults to `false`.
+
+<Note>
+This option applies only to external and embedded UDFs. A `LANGUAGE sql` definition currently accepts but ignores `unsafe_skip_materializing_exprs`, so specifying it for a SQL UDF does not change result-materialization planning.
+</Note>
+
+```sql Skip result materialization for a deterministic UDF
+CREATE FUNCTION identity_without_stored_result(v int)
+RETURNS int
+LANGUAGE javascript
+IMMUTABLE
+AS $$
+export function identity_without_stored_result(v) {
+    return v;
+}
+$$
+WITH (
+    unsafe_skip_materializing_exprs = true
+);
+```
+
+RisingWave rejects `unsafe_skip_materializing_exprs = true` unless the function is declared `IMMUTABLE`.
+
+For an external scalar UDF, you must also set `always_retry_on_network_error = true`. This option retries supported remote transport errors indefinitely, so a persistent network failure can stall streaming progress. Embedded scalar UDFs and table UDFs do not require this option because their execution paths do not use the `always_retry_on_network_error` flag to enable retries.
+
+<Warning>
+Enable this option only when repeated evaluations with the same input always return the same result and have no side effects. RisingWave checks for the `IMMUTABLE` clause but cannot verify the UDF implementation, so it trusts your determinism declaration. On a RETRACT input, RisingWave can reevaluate the UDF for delete and update-delete records when no result is stored. Incorrectly marking a non-deterministic UDF can therefore produce silently incorrect results. An existing consistency check might detect an inconsistency and fail a stream actor or compute node, but detection is not guaranteed when result materialization is skipped.
+</Warning>
+
+On a RETRACT input with the session-level override disabled, RisingWave still materializes the complete top-level projected expression if an argument contains an unmarked UDF or another impure expression. The per-UDF option does not selectively materialize nested subexpressions.
+
+<Note>
+UPSERT projects always skip result materialization because computed expressions cannot be part of the internal stream key. By default, sink planning rejects a computed downstream primary key that does not match the key derived from the stream. If [`streaming_unsafe_allow_upsert_sink_pk_mismatch`](/operate/view-configure-runtime-parameters) permits this mismatch, a downstream primary-key change whose old value is not emitted can leave stale rows in the downstream system.
+</Note>
+
+### Interaction with the session-level override
+
+Keep [`streaming_unsafe_allow_unmaterialized_impure_expr`](/operate/view-configure-runtime-parameters) set to `false` to use the scoped per-function behavior on RETRACT inputs. In this mode, only UDFs marked with `unsafe_skip_materializing_exprs = true` stop making an otherwise pure expression require materialization; other impure expressions on RETRACT inputs retain the default protection.
+
+If `streaming_unsafe_allow_unmaterialized_impure_expr` is `true` when RisingWave plans a streaming job, RisingWave skips planner-inserted result materialization for all impure expressions on RETRACT inputs in that job, regardless of each UDF's `unsafe_skip_materializing_exprs` setting. This session-level override is broader and carries the same risks described above: results can be silently incorrect, and consistency checks might fail stream processing but cannot detect every inconsistency. It does not change append-only or UPSERT behavior because those projects already skip result materialization.
 
 ## SQL UDFs
 
