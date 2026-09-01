@@ -48,6 +48,25 @@ ALTER SUBSCRIPTION subscription_name
 ALTER SUBSCRIPTION sub0 RENAME TO sub1;
 ```
 
+### `SET RETENTION`
+
+```sql
+ALTER SUBSCRIPTION subscription_name
+    SET RETENTION TO '<duration>';
+```
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RETENTION TO** | Changes how long incremental subscription data is retained. |
+| _duration_ | An interval such as `3H` or `2D`. |
+
+```sql
+-- Retain incremental data for two days.
+ALTER SUBSCRIPTION user_updates SET RETENTION TO '2D';
+```
+
+Increasing the retention period preserves incremental data for longer. Data that has already expired cannot be restored by increasing retention.
+
 ### `SET SCHEMA`
 
 ```sql
