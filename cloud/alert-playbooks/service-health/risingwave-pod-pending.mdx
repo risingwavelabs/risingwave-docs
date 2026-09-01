@@ -1,13 +1,46 @@
 ---
 title: "RisingWave pod pending"
 sidebarTitle: "RisingWave pod pending"
-description: "The playbook for the RisingWave pod pending alert is under development."
+description: "Assess the impact of a pending RisingWave pod and protect connected systems."
 ---
 
-<Note>
-This playbook is under development. If this alert is triggered, contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com) for assistance.
-</Note>
+This alert indicates that a RisingWave pod has remained in a `Pending` state longer than the configured threshold.
+
+## Assess the impact
+
+1. Open the project's [metrics page](/cloud/check-status-and-metrics) in the RisingWave Cloud portal. Select a time range that starts before the alert was triggered and includes the current time.
+2. Compare the following metrics with the project's normal baseline and with your application-level metrics.
+
+   | Metrics tab | Metric | Look for |
+   | --- | --- | --- |
+   | **Resource** | **CPU Utilization** | A sudden change or sustained high utilization around the time of the alert. |
+   | **Streaming** | **Streaming Freshness** | An increase that indicates streaming results are becoming less fresh. |
+   | **Streaming** | **Source Rows Processed** | An unexpected decrease or interruption in rows processed from sources. |
+   | **Query** | **Query Local Average Latency** and **Query Distributed Average Latency** | An increase in query latency. |
+   | **Query** | **Queries Per Second** | An unexpected decrease accompanied by application-side query latency or failures. |
+
+   Do not treat high **Memory Usage** alone as evidence of degradation. High memory usage can be normal because RisingWave uses memory for caching.
+
+If these metrics and your application-level signals remain normal, no customer-side mitigation is required. Continue monitoring the project while RisingWave Cloud engineers investigate.
+
+## Protect connected systems
+
+If RisingWave performance is degrading, take appropriate action outside RisingWave to limit the impact:
+
+- For upstream systems, buffer incoming events, reduce the producer rate, or pause non-critical ingestion if those systems support it. Ensure that retention is sufficient to cover the delay.
+- For downstream systems, allow for delayed or stale results, defer non-critical dependent work, retry transient query failures, or use an application fallback if one is available.
+
+## Investigation and support
+
+RisingWave Cloud on-call engineers receive this alert automatically and own pod-level investigation and recovery. You can also contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com), especially if the degradation affects a production workload or you need help coordinating recovery. Contact support before using the **Pause** or **Resume** controls, and use them only if support directs you to do so.
+
+Include the project name, alert name and trigger time, affected workloads, relevant metric screenshots, and any upstream or downstream mitigation already applied.
+
+## Confirm recovery
+
+Continue monitoring until the affected performance metrics return to their normal baseline. Confirm that upstream buffers have drained or caught up and that downstream applications are processing results normally. If the pod condition clears but the performance impact continues, contact RisingWave Cloud support.
 
 ## Related topics
 
+- [Check status and metrics of projects](/cloud/check-status-and-metrics)
 - [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
