@@ -1,0 +1,40 @@
+---
+title: "MySQL CDC binlog file lag"
+sidebarTitle: "MySQL CDC binlog file lag"
+description: "Diagnose and resolve a MySQL CDC binlog file lag alert in RisingWave Cloud."
+---
+
+This alert indicates that a MySQL CDC source is falling behind its upstream database. It is triggered when either of the following conditions persists for at least 15 minutes: RisingWave's saved read position is at least 20 binlog files behind the newest upstream file, or it is behind the newest file and has entered the older half of the binlog files that the upstream database currently retains.
+
+If the lag continues to grow, data freshness can be affected. The source can stop replicating changes if the upstream database removes a binlog file before RisingWave reads it.
+
+## Common triggers
+
+- A connectivity or availability problem between RisingWave and the upstream MySQL database.
+- Streaming backpressure or insufficient project resources.
+- A sustained increase in changes written to the upstream database.
+- An upstream binlog retention period that is too short for the current workload.
+
+## Diagnosis
+
+1. Note the affected MySQL CDC source in the alert.
+2. In RisingWave Cloud, open the source details and check its running status, throughput, and recent errors.
+3. Check the upstream MySQL database for connectivity problems and confirm that binary logging is enabled.
+4. Review the upstream binlog retention settings and confirm that files needed by the lagging source have not been removed.
+5. Check the project for other streaming or resource alerts that could indicate backpressure.
+
+## Resolution
+
+- Resolve any connectivity or upstream database availability problems.
+- If the project is resource-constrained, scale its streaming resources so that the source can catch up. For more information, see [Scale a project manually](/cloud/scale-a-project-manually).
+- Increase the upstream binlog retention period if necessary, and do not manually remove binlog files that the source might still need.
+- If a required binlog file has already been removed, or the source does not resume after the underlying issue is resolved, contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com) before recreating the source.
+
+## Confirm recovery
+
+Confirm that the source is running and its recent errors have stopped. If the upstream database is producing changes, confirm that source throughput has resumed. The alert resolves after RisingWave's saved read position no longer meets either firing condition.
+
+## Related topics
+
+- [Manage sources](/cloud/manage-sources)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
