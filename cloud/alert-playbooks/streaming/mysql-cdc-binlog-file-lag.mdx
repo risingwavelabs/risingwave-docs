@@ -17,7 +17,15 @@ If the lag continues to grow, data freshness can be affected. The source can sto
 
 ## Diagnosis
 
-1. Note the affected MySQL CDC source in the alert.
+1. Note the `source_id` in the alert. To identify the source name, connect to the project and run:
+
+   ```sql
+   SELECT id, name
+   FROM rw_catalog.rw_sources
+   WHERE id = <source_id>;
+   ```
+
+   Replace `<source_id>` with the value in the alert. Use the returned source name to open the matching source in RisingWave Cloud.
 2. In RisingWave Cloud, open the source details and check its running status, throughput, and recent errors.
 3. Check the upstream MySQL database for connectivity problems and confirm that binary logging is enabled.
 4. Review the upstream binlog retention settings and confirm that files needed by the lagging source have not been removed.
