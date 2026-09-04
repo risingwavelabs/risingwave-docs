@@ -1,13 +1,49 @@
 ---
 title: "PostgreSQL CDC WAL lag"
 sidebarTitle: "PostgreSQL CDC WAL lag"
-description: "The playbook for the PostgreSQL CDC WAL lag alert is under development."
+description: "Diagnose and resolve a PostgreSQL CDC WAL lag alert in RisingWave Cloud."
 ---
 
-<Note>
-This playbook is under development. If this alert is triggered, contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com) for assistance.
-</Note>
+This alert means that a PostgreSQL CDC source is more than 20 GiB behind its
+upstream write-ahead log (WAL) for at least 15 minutes. If the lag continues
+to grow, the replication slot can retain WAL files for too long or the source
+can no longer resume if required WAL has already been removed.
+
+## Common triggers
+
+- The source cannot connect to, or authenticate with, the upstream PostgreSQL database.
+- Streaming backpressure or insufficient project resources prevents the source from catching up.
+- A sustained increase in upstream writes exceeds the source's consumption rate.
+- The replication slot is inactive, unhealthy, or cannot retain the required WAL.
+
+## Diagnosis
+
+1. Note the `source_id` and replication slot name in the alert. To identify the source name, connect to the project and run:
+
+   ```sql
+   SELECT id, name
+   FROM rw_catalog.rw_sources
+   WHERE id = <source_id>;
+   ```
+
+   Replace `<source_id>` with the value in the alert. Use the returned source name to open the matching source in RisingWave Cloud.
+2. Check the source's running status, throughput, and recent errors in RisingWave Cloud.
+3. Check the upstream PostgreSQL database for connectivity and authentication errors, and confirm that logical replication remains available.
+4. Inspect the replication slot named in the alert. Confirm that it is active and that the upstream database has enough disk capacity and WAL retention for the source to catch up.
+5. Check the project for other streaming or resource alerts that could indicate backpressure.
+
+## Resolution
+
+- Resolve upstream PostgreSQL connectivity, authentication, or logical-replication problems.
+- If the project is resource-constrained, scale its streaming resources so that the source can catch up. For more information, see [Scale a project manually](/cloud/scale-a-project-manually).
+- Restore or increase the upstream WAL retention and disk capacity as needed while the source catches up.
+- If the required WAL has already been removed, or the source does not resume after the underlying issue is resolved, contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com) before recreating the source.
+
+## Confirm recovery
+
+Confirm that the source is running and that recent errors have stopped. If the upstream database is producing changes, confirm that source throughput has resumed. The alert resolves automatically after the source catches up enough that its WAL lag remains below the firing threshold.
 
 ## Related topics
 
+- [Manage sources](/cloud/manage-sources)
 - [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
