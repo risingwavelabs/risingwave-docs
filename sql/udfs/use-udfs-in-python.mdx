@@ -208,7 +208,9 @@ if __name__ == "__main__":
         p.map(start_server, range(8816, 8816 + n))
 ```
 
-Then, you can start a load balancer, such as Nginx. It listens on port 8815 and forwards requests to UDF servers on ports 8816-8819.
+Then start a gRPC-aware (L7) load balancer, such as Envoy or Nginx with gRPC proxying (`grpc_pass`), that listens on port 8815 and routes requests to ports 8816-8819. The balancer must route individual gRPC calls, not TCP connections: each RisingWave process keeps a long-lived HTTP/2 connection to the balancer, so a TCP (L4) proxy pins all its calls to a single server.
+
+On Kubernetes, you can skip the proxy: run the UDF servers as multiple pods, each listening on the same port, behind a headless Service (`clusterIP: None`) and point `USING LINK` at it, e.g. `http://<service>.<namespace>.svc.cluster.local:8815`. RisingWave resolves all pod IPs and balances calls across them on the client side, periodically refreshing DNS to track scaling.
 
 ## Data Types
 

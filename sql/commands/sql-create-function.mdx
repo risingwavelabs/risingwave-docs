@@ -23,6 +23,8 @@ CREATE FUNCTION [ IF NOT EXISTS ] function_name ( argument_type [, ...] )
 
 <Note>
 Added in v2.3.0: Support `IF NOT EXISTS`.
+
+Added in v3.2.0: `USING LINK` accepts standard URLs: `https://` enables TLS, an omitted port defaults to the scheme (80/443), and a missing scheme defaults to `http://`.
 </Note>
 
 ### Parameters
@@ -35,7 +37,7 @@ Added in v2.3.0: Support `IF NOT EXISTS`.
 | **RETURNS TABLE**                            | Use this if the function is a table-valued function (TVF). It specifies the structure of the table that the UDF returns.                                                                                                                                                                                                             |
 | **LANGUAGE**                                 | **Optional**. Specifies the programming language used to implement the UDF.  Currently, Python, Java,Rust, and JavaScript are supported.                                                                                                                                                                                                 |
 | **AS** _function\_name\_defined\_in\_server_ | Specifies the function name defined in the UDF server.                                                                                                                                                                                                                                                                               |
-| **USING LINK** '_udf\_server\_address_'      | Specifies the UDF server address. If you are running RisingWave in your local environment, the address is http://localhost: \<port>  If you are running RisingWave using Docker, the address is http://host.docker.internal: \<port>/                                                                                                    |
+| **USING LINK** '_udf\_server\_address_'      | Specifies the UDF server address as an `http://` / `https://` URL; a link without a scheme, such as `host:port`, defaults to `http://`. `https` connects over TLS and verifies the server certificate against the system trust store; an omitted port defaults to 80 (`http`) or 443 (`https`). |
 
 ### Examples
 
