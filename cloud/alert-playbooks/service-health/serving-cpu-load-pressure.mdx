@@ -1,13 +1,44 @@
 ---
 title: "Serving CPU load pressure"
 sidebarTitle: "Serving CPU load pressure"
-description: "The playbook for the Serving CPU load pressure alert is under development."
+description: "Diagnose and mitigate Serving Node CPU load pressure in RisingWave Cloud."
 ---
 
-<Note>
-This playbook is under development. If this alert is triggered, contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com) for assistance.
-</Note>
+This alert indicates that Serving Node CPU utilization has remained above the configured threshold. Sustained CPU pressure can increase query latency or reduce query throughput.
+
+## Assess serving health
+
+1. Open the project's [metrics page](/cloud/check-status-and-metrics) in the RisingWave Cloud portal. Select a time range that starts before the alert was triggered and includes the current time.
+2. Compare the following metrics with the project's normal baseline and with your application-level query metrics.
+
+   | Metrics tab | Metric | Look for |
+   | --- | --- | --- |
+   | **Resource** | **CPU Utilization** | Node CPU utilization that remains elevated during the alert period. Use the query metrics and application signals below to determine whether serving performance is affected. |
+   | **Query** | **Query Local Average Latency** and **Query Distributed Average Latency** | An increase in query latency that coincides with the CPU pressure. |
+   | **Query** | **Queries Per Second** | A sustained increase in query volume, or an unexpected decrease accompanied by application-side latency or failures. |
+
+3. Check application-level signals for increased latency, timeouts, or failed queries.
+
+## Scale serving resources
+
+If serving performance is affected or the project does not have sufficient CPU headroom, [rescale the project](/cloud/scale-a-project-manually):
+
+1. Open the project overview page.
+2. Select **Rescale**.
+3. Open the custom configuration for **Serving**.
+4. Apply one or both of the following changes:
+   - To scale up, increase the RWUs allocated to each Serving Node.
+   - To scale out, increase the number of Serving Nodes.
+5. Review and apply the new configuration.
+
+## Confirm recovery
+
+Monitor **CPU Utilization** and the query metrics until they return to their normal baselines. Confirm that application query latency and error rates have recovered and that the alert has cleared.
+
+If CPU pressure or query degradation continues after rescaling, contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com). Include the project name, alert trigger time, metric screenshots, and the serving-resource changes already applied.
 
 ## Related topics
 
+- [Check status and metrics of projects](/cloud/check-status-and-metrics)
+- [Scale a project manually](/cloud/scale-a-project-manually)
 - [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
