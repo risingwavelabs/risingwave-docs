@@ -72,7 +72,12 @@ WITH (
 ### Dynamic URL with `CREATE SINK AS SELECT`
 
 ```sql
-CREATE SINK dynamic_http_sink AS
+CREATE TABLE source_events_append_only (
+  event_body jsonb,
+  workspace_id varchar
+) APPEND ONLY;
+
+CREATE SINK dynamic_query_http_sink AS
 SELECT
   event_body AS payload,
   format('https://example.com/workspaces/%s/events', workspace_id) AS url
