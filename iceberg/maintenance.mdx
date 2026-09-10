@@ -7,7 +7,7 @@ description: "Configure compaction, manifest rewrite, and snapshot expiration fo
 When RisingWave streams data into Iceberg, it generates many small data files, fragmented manifests, and frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction, manifest rewrite, and snapshot expiration.
 
 - **Compaction**: Merges small data files and delete files into larger, optimized files to improve read performance.
-- **Manifest Rewrite**: Rewrites fragmented Iceberg manifests to reduce metadata overhead.
+- **Manifest Rewrite**: Merges fragmented data manifests into fewer, better-sized manifests to reduce metadata overhead during planning.
 - **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
 
 ## Automatic maintenance
@@ -20,12 +20,12 @@ When RisingWave streams data into Iceberg, it generates many small data files, f
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
 
-You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables.
+You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Periodic manifest rewrite and snapshot expiration run in the meta-node maintenance loop, rather than using the per-sink `compaction_interval_sec` parameter. Configure the interval with `iceberg_gc_interval_sec` in the `[meta]` section of `risingwave.toml` (default: `3600` seconds).
 
 <Warning>
-**Dedicated compactor required**
+**Dedicated compactor required for data file compaction**
 
-Automatic Iceberg maintenance requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
+Automatic data file compaction requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. Manifest rewrite and snapshot expiration run on the meta node and do not require a dedicated compactor. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
 </Warning>
 
 ### Compaction types
@@ -50,12 +50,19 @@ Configure automatic maintenance by specifying the following parameters in the `W
 
 | Parameter | Description |
 |:--|:--|
-| `enable_compaction` | Required. Set to `true` to enable automatic compaction and snapshot expiration. |
-| `enable_manifest_rewrite` | Optional. Periodically rewrites fragmented Iceberg data manifests. For newly created internal Iceberg tables using Iceberg format V2, RisingWave enables this by default unless you explicitly set it to `false`. External Iceberg sinks remain disabled by default. |
-| `compaction_interval_sec` | Optional. The interval in seconds between maintenance runs. Default: `3600`. |
+| `enable_compaction` | Optional. Set to `true` to enable automatic data file compaction. Default: `false`. |
+| `compaction_interval_sec` | Optional. The interval in seconds between data file compaction runs. It does not control manifest rewrite or snapshot expiration. Default: `3600`. |
 | `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. Default: `true`. |
 | `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. If unspecified, RisingWave uses the default retention behavior. To keep only the latest snapshot, set this to `0`. |
 | `snapshot_expiration_retain_last` | Optional. The minimum number of snapshots to retain, regardless of their age. If unspecified, RisingWave uses the default retention behavior. |
+
+#### Manifest rewrite parameters
+
+| Parameter | Description |
+|:--|:--|
+| `enable_manifest_rewrite` | Optional. Periodically rewrites fragmented Iceberg data manifests. Newly created internal Iceberg tables using Iceberg format V2 enable this by default unless explicitly set to `false`. External Iceberg sinks remain disabled by default. |
+| `manifest_rewrite_target_size_bytes` | Optional. The target size in bytes for rewritten manifests. Must be greater than `0`. Default: `8388608` (8 MiB). |
+| `manifest_rewrite_min_count_to_merge` | Optional. The minimum number of manifests required to rewrite an under-filled batch. Must be greater than `0`. Default: `100`. |
 
 #### Compaction parameters
 
@@ -65,8 +72,6 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. If `enable_compaction = true` and this parameter is not set, RisingWave uses `1000` by default. If `enable_compaction = false`, the gate remains disabled unless you explicitly set a positive value. `0` is not allowed. |
 | `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. |
 | `compaction.target_file_size_mb` | Optional. The target output file size in MB. Applies to both sink writes and compaction. Default: `1024`. |
-| `manifest_rewrite_target_size_bytes` | Optional. The target size in bytes for rewritten Iceberg data manifests. |
-| `manifest_rewrite_min_count_to_merge` | Optional. The minimum number of manifests required to rewrite an under-filled batch. |
 | `compaction.write_parquet_compression` | Optional. The Parquet compression codec for output files. Accepted values: `uncompressed`, `snappy`, `gzip`, `lzo`, `brotli`, `lz4`, `zstd`. Default: `snappy`. Supports dynamic updates via `ALTER SINK`. |
 | `compaction.write_parquet_max_row_group_rows` | Optional. The maximum number of rows per Parquet row group. Must be greater than 0. Default: `122880`. Supports dynamic updates via `ALTER SINK`. |
 | `compaction.small_files_threshold_mb` | Optional. For `small-files` compaction type, the threshold size in MB below which files will be compacted. |
@@ -93,6 +98,33 @@ CREATE TABLE my_iceberg_table (
     snapshot_expiration_retain_last = 10
 ) ENGINE = iceberg;
 ```
+
+#### Manifest rewrite
+
+For Iceberg sinks with fragmented metadata, enable manifest rewrite to periodically merge data manifests:
+
+```sql
+CREATE SINK my_iceberg_sink FROM my_mv
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    primary_key = 'id',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'my_db',
+    table.name = 'my_table',
+    catalog.type = 'rest',
+    catalog.uri = 'http://rest-catalog:8181',
+    s3.access.key = 'your-key',
+    s3.secret.key = 'your-secret',
+    enable_manifest_rewrite = true,
+    manifest_rewrite_target_size_bytes = 8388608,
+    manifest_rewrite_min_count_to_merge = 100
+);
+```
+
+<Note>
+Manifest rewrite is not supported for Iceberg format version 3 tables because the current rewrite path cannot preserve row lineage.
+</Note>
 
 #### Small files compaction
 
@@ -154,14 +186,16 @@ WITH (
 
 ## Manual maintenance
 
-In addition to automatic background maintenance, you can trigger compaction and snapshot expiration manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
+In addition to automatic background maintenance, you can trigger maintenance manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
 
-This gives you on-demand control over table optimization and storage cleanup.
+`VACUUM` rewrites eligible data manifests, then expires eligible snapshots. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
+
+`VACUUM FULL` first compacts data files, then performs the same manifest rewrite and snapshot expiration steps, subject to their enable flags and thresholds. The manifest rewrite and snapshot expiration steps do not override their corresponding maintenance settings.
 
 ```sql
--- Compact small files for a table
+-- Rewrite eligible manifests, then expire eligible snapshots
 VACUUM my_iceberg_table;
 
--- Compact files and expire snapshots older than 2 days
-VACUUM my_iceberg_table RETAIN 2 DAYS;
+-- Compact files, then rewrite eligible manifests and expire eligible snapshots
+VACUUM FULL my_iceberg_table;
 ```
