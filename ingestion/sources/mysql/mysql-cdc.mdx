@@ -95,6 +95,14 @@ FROM mysql_db TABLE 'public.large_table';
 
 [Debezium v2.6 connector configuration properties](https://debezium.io/documentation/reference/2.6/connectors/mysql.html#mysql-advanced-connector-configuration-properties) can also be specified under the `WITH` clause when creating a table or shared source. Add the prefix `debezium.` to the connector property you want to include.
 
+If `debezium.time.precision.mode` is not specified, RisingWave uses
+`microseconds`. Set it to `connect` only when the upstream temporal values use
+millisecond precision.
+
+RisingWave sets `driver.allowPublicKeyRetrieval=true` by default for embedded Debezium MySQL CDC connections, enabling public key retrieval when required by authentication plugins such as `caching_sha2_password`. The corresponding pass-through option is `debezium.driver.allowPublicKeyRetrieval`; you do not need to set it to enable public key retrieval.
+
+Public key retrieval does not enable TLS. Set `ssl.mode = 'required'` to require encrypted MySQL connections; this mode does not verify the server certificate. To turn off retrieval for the embedded Debezium streaming connection, set `debezium.driver.allowPublicKeyRetrieval = 'false'`. This override does not affect the separate connection used for source validation, which still enables retrieval.
+
 For instance, to skip unknown DDL statements, specify the `schema.history.internal.skip.unparseable.ddl` parameter as `debezium.schema.history.internal.skip.unparseable.ddl`.
 
 ```sql
