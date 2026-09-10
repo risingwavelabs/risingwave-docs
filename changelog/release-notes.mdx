@@ -5,6 +5,10 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 <Update label="v3.1.0" description="Upcoming">
 
+## Bug fixes
+
+- Fixes a possible meta-node crash during subscription cursor reads. If the requested start epoch is ahead of the table's committed epoch, the cursor waits for a newer committed epoch. Other requests with inverted epoch ranges are rejected instead of crashing. [#26478](https://github.com/risingwavelabs/risingwave/pull/26478)
+
 ## Cluster configuration changes
 
 - Updates SST filter layout behavior for Hummock compaction output. `sstable_filter_layout` now accepts `blocked` in addition to `auto` and `plain`, and its default changes to `["auto", "blocked", "blocked", "blocked", "blocked", "blocked", "blocked"]`, so non-L0 levels use block-based filters by default. When `sstable_filter_layout[level]` is `auto`, `blocked_xor_filter_kv_count_threshold` is now evaluated per output SST instead of per compaction task. [#25782](https://github.com/risingwavelabs/risingwave/pull/25782)
