@@ -186,7 +186,7 @@ WITH (
 
 ## Manual maintenance
 
-In addition to automatic background maintenance, you can trigger maintenance manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
+In addition to automatic background maintenance, you can trigger maintenance manually using the [`VACUUM`](/sql/commands/sql-vacuum) command.
 
 `VACUUM` rewrites eligible data manifests, then expires eligible snapshots. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
 
@@ -199,3 +199,7 @@ VACUUM my_iceberg_table;
 -- Compact files, then rewrite eligible manifests and expire eligible snapshots
 VACUUM FULL my_iceberg_table;
 ```
+
+<Note>
+`VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has an automatic or manual compaction task queued or running, the new `VACUUM FULL` request returns an error instead of scheduling another task.
+</Note>

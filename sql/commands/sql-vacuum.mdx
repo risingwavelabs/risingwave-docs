@@ -16,6 +16,8 @@ VACUUM [FULL] schema_name.object_name;
 
 <Note>
 The manifest rewrite and snapshot expiration steps do not override their maintenance settings. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
+
+`VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has an automatic or manual compaction task queued or running, the new `VACUUM FULL` request returns an error instead of scheduling another task.
 </Note>
 
 ## Parameters
