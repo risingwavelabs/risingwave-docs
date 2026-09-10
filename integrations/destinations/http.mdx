@@ -35,12 +35,14 @@ For multi-column HTTP sinks, only `payload` and `url` are allowed. When using a 
 
 ## Examples
 
+The following examples use append-only upstream data.
+
 ### Static URL
 
 ```sql
 CREATE TABLE http_events (
   payload jsonb
-);
+) APPEND ONLY;
 
 CREATE SINK http_sink
 FROM http_events
@@ -57,14 +59,13 @@ WITH (
 CREATE TABLE http_events_dynamic (
   payload jsonb,
   url varchar
-);
+) APPEND ONLY;
 
 CREATE SINK dynamic_http_sink
 FROM http_events_dynamic
 WITH (
   connector = 'http',
-  type = 'append-only',
-  force_append_only = 'true'
+  type = 'append-only'
 );
 ```
 
@@ -75,10 +76,9 @@ CREATE SINK dynamic_http_sink AS
 SELECT
   event_body AS payload,
   format('https://example.com/workspaces/%s/events', workspace_id) AS url
-FROM source_events
+FROM source_events_append_only
 WITH (
   connector = 'http',
-  type = 'append-only',
-  force_append_only = 'true'
+  type = 'append-only'
 );
 ```
