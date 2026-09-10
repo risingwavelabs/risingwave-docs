@@ -1,6 +1,6 @@
 ---
 title: "Serverless backfilling"
-description: "Use serverless backfilling to run the backfill phase of materialized view creation on dedicated backfiller resource groups, reducing resource contention on your main streaming cluster."
+description: "Use serverless backfilling to run the backfill phase of materialized view, sink, and index creation on dedicated backfiller resource groups, reducing resource contention on your main streaming cluster."
 ---
 
 <Note>
@@ -9,9 +9,9 @@ Serverless backfilling is available starting from v2.8.0 and is disabled by defa
 
 ## Overview
 
-When you create a materialized view (MV) on existing data, RisingWave must first process all historical records, a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
+When you create a materialized view (MV), sink, or index on existing data, RisingWave must first process all historical records, a phase called **backfill**. By default, this runs on the same compute nodes as your regular streaming workloads, which can cause resource contention and increased latency for existing pipelines.
 
-**Serverless backfilling** runs the backfill phase on dedicated backfiller resources — a temporary resource group that RisingWave Cloud provisions separately from your main streaming compute nodes. It is *serverless* because you don't manually allocate or manage resources for each new materialized view: after the `CREATE MATERIALIZED VIEW` request passes validation and the streaming job is ready to be created, RisingWave Cloud provisions the backfiller resource group and destroys it automatically once the job completes. Failed validation paths therefore do not provision backfiller resources. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
+**Serverless backfilling** runs the backfill phase on dedicated backfiller resources — a temporary resource group that RisingWave Cloud provisions separately from your main streaming compute nodes. It is *serverless* because you don't manually allocate or manage resources for each new job: after the `CREATE MATERIALIZED VIEW`, `CREATE SINK`, or `CREATE INDEX` request passes validation and the streaming job is ready to be created, RisingWave Cloud provisions the backfiller resource group and destroys it automatically once the job completes. Failed validation paths therefore do not provision backfiller resources. This decoupling helps large backfills complete while reducing their impact on the performance of existing streaming jobs.
 
 Serverless backfilling is supported only in RisingWave Cloud. Enable it in the **Backfilling** section of the **Resources** page in the Cloud console first. See [Configure serverless backfilling](/cloud/serverless-backfilling) for portal setup, SKU, and replicas.
 
@@ -23,20 +23,20 @@ We strongly recommend enabling **Serverless Compaction** so compactors scale aut
 
 ## How it works
 
-When serverless backfilling is enabled for a `CREATE MATERIALIZED VIEW` statement:
+When serverless backfilling is enabled for a `CREATE MATERIALIZED VIEW`, `CREATE SINK`, or `CREATE INDEX` statement:
 
 1. After RisingWave finishes validation and is about to issue the create streaming job command, the serverless backfilling controller provisions a temporary resource group with dedicated backfiller nodes, sized by the Backfiller SKU and replica count you configure in the Cloud console.
 2. The backfill job runs on those dedicated backfiller nodes, separately from your main streaming compute nodes, so it doesn't compete with existing streaming jobs for resources.
-3. Once all backfill fragments report completion, the MV transitions to the standard incremental streaming phase and is migrated to its **steady-state resource group** (the resource group of its parent database) for normal streaming execution.
+3. Once all backfill fragments report completion, the job transitions to its standard steady-state resource group (the resource group of its parent database) for normal streaming execution.
 4. If the cluster restarts during backfill, the job resumes from the last completed checkpoint rather than starting over.
 
 ## Configuration
 
-You must enable serverless backfilling in the RisingWave Cloud console (in the **Backfilling** section of the **Resources** page) before using it. If it isn't enabled, `CREATE MATERIALIZED VIEW` statements that request serverless backfilling return an error.
+You must enable serverless backfilling in the RisingWave Cloud console (in the **Backfilling** section of the **Resources** page) before using it. If it isn't enabled, `CREATE MATERIALIZED VIEW`, `CREATE SINK`, and `CREATE INDEX` statements that request serverless backfilling return an error.
 
 ### Session variable
 
-Enable serverless backfilling for subsequent `CREATE MATERIALIZED VIEW` statements in the current session:
+Enable serverless backfilling for subsequent `CREATE MATERIALIZED VIEW`, `CREATE SINK`, and `CREATE INDEX` statements in the current session:
 
 ```sql
 SET enable_serverless_backfill = true;
@@ -50,12 +50,29 @@ If you set `enable_serverless_backfill` through dbt, use dbt-risingwave 1.11.4 o
 
 ### Per-statement WITH clause
 
-You can also enable serverless backfilling for a single `CREATE MATERIALIZED VIEW` statement using the `cloud.serverless_backfill_enabled` option in the `WITH` clause:
+You can also enable serverless backfilling for a single `CREATE MATERIALIZED VIEW`, `CREATE SINK`, or `CREATE INDEX` statement using the `cloud.serverless_backfill_enabled` option in the `WITH` clause:
 
 ```sql
 CREATE MATERIALIZED VIEW my_mv
 WITH (cloud.serverless_backfill_enabled = true)
 AS SELECT ...;
+```
+
+For sinks and indexes, use the same option in the statement-level `WITH` clause:
+
+```sql
+CREATE SINK my_sink AS
+SELECT * FROM my_mv
+WITH (
+  connector = 'blackhole',
+  cloud.serverless_backfill_enabled = true
+);
+
+CREATE INDEX my_index
+ON my_table(id)
+WITH (
+  cloud.serverless_backfill_enabled = true
+);
 ```
 
 ## Example
@@ -118,4 +135,6 @@ For example, the **CPU Utilization** panel below (on the Cloud portal **Metrics*
 - [Backfill](/processing/backfill) — Overview of all backfill strategies in RisingWave.
 - [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl) — Run DDL operations in the background without blocking the client.
 - [CREATE MATERIALIZED VIEW](/sql/commands/sql-create-mv) — Full syntax and options for creating materialized views.
+- [CREATE SINK](/sql/commands/sql-create-sink) — Full syntax and options for creating sinks.
+- [CREATE INDEX](/sql/commands/sql-create-index) — Full syntax and options for creating indexes.
 - [View and configure runtime parameters](/operate/view-configure-runtime-parameters) — All session variables, including `enable_serverless_backfill`.
