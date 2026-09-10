@@ -7,7 +7,7 @@ description: "Configure compaction, manifest rewrite, and snapshot expiration fo
 When RisingWave streams data into Iceberg, it generates many small data files, fragmented manifests, and frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction, manifest rewrite, and snapshot expiration.
 
 - **Compaction**: Merges small data files and delete files into larger, optimized files to improve read performance.
-- **Manifest rewrite**: Merges fragmented data manifests into fewer, better-sized manifests to reduce metadata overhead during planning.
+- **Manifest Rewrite**: Merges fragmented data manifests into fewer, better-sized manifests to reduce metadata overhead during planning.
 - **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
 
 ## Automatic maintenance
@@ -20,7 +20,7 @@ When RisingWave streams data into Iceberg, it generates many small data files, f
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
 
-You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Periodic manifest rewrite runs in the meta-node maintenance loop, controlled by `iceberg_gc_interval_sec` (default: `3600` seconds), rather than by the per-sink `compaction_interval_sec` parameter.
+You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Periodic manifest rewrite runs in the meta-node maintenance loop, rather than using the per-sink `compaction_interval_sec` parameter. Configure the interval with `iceberg_gc_interval_sec` in the `[meta]` section of `risingwave.toml` (default: `3600` seconds).
 
 <Warning>
 **Dedicated compactor required for data file compaction**
