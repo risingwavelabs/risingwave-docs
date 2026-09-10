@@ -14,6 +14,7 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 - The SSTable filter layout for compaction output now defaults to `blocked` for L1-L6, while L0 keeps `auto`. The filter kind defaults to `xor8` for L5 and L6; L0-L4 keep `xor16`. [#25853](https://github.com/risingwavelabs/risingwave/pull/25853)
 - When `sstable_filter_layout[level]` is `auto`, `blocked_xor_filter_kv_count_threshold` is evaluated per output SSTable instead of per compaction task. [#25782](https://github.com/risingwavelabs/risingwave/pull/25782)
+- Compaction-group SST filter configuration now uses explicit `sstable_filter_type` (`none`, `xor16`, `xor8`) and canonical `sstable_filter_layout` values (`auto`, `plain`, `blocked`). Setting `sstable_filter_type` to `none` disables SST filters for that target level, and `rw_catalog.rw_hummock_sstables` now exposes `filter_type` and `filter_layout`. [#25832](https://github.com/risingwavelabs/risingwave/pull/25832)
 
 </Update>
 
