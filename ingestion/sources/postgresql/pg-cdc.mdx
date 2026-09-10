@@ -280,6 +280,8 @@ To ingest user-defined composite types, create a shared PostgreSQL CDC source wi
 Composite array columns map to `varchar[]`, with each element preserved in PostgreSQL text format.
 </Note>
 
+The connector uses a nullable text representation for composite columns. With PostgreSQL `REPLICA IDENTITY DEFAULT`, DELETE events can carry `NULL` for non-key composite columns even when the upstream column is declared `NOT NULL`.
+
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | :--------------------------------------------------- | :------------------------- |
 | BOOLEAN                                              | BOOLEAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
