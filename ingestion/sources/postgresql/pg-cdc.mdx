@@ -149,7 +149,7 @@ The PostgreSQL CDC connector uses the Debezium JSON format for data.
 The following table shows the data type mapping from PostgreSQL to RisingWave.
 
 <Note>
-RisingWave does not support directly creating tables from PostgreSQL composite types. If you want to read scalar composite type data, you will need to use a source and create a materialized view based off that source. Arrays of user-defined composite types are supported and are ingested as `varchar[]`, with each element preserved in PostgreSQL text format.
+To ingest user-defined composite types, create a shared PostgreSQL CDC source and then create a table with `CREATE TABLE ... FROM source`. Scalar composite columns map to `varchar`, and composite array columns map to `varchar[]` with elements preserved in PostgreSQL text format. Set `debezium.include.unknown.datatypes = 'true'` in the source configuration. You can then create materialized views from that table if needed.
 </Note>
 
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
