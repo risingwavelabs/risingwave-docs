@@ -3,6 +3,20 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v3.1.0" description="Upcoming">
+
+## Bug fixes
+
+- Prevents a no-op `ALTER SINK ... CONNECTOR WITH` update from crashing a compute node when the sink uses a commit-decoupled KV log store. [#26412](https://github.com/risingwavelabs/risingwave/pull/26412)
+- Fixes a possible meta-node crash during subscription cursor reads. If the requested start epoch is ahead of the table's committed epoch, the cursor waits for a newer committed epoch. Other requests with inverted epoch ranges are rejected instead of crashing. [#26478](https://github.com/risingwavelabs/risingwave/pull/26478)
+
+## Cluster configuration changes
+
+- The SSTable filter layout for compaction output now defaults to `blocked` for L1-L6, while L0 keeps `auto`. The filter kind defaults to `xor8` for L5 and L6; L0-L4 keep `xor16`. [#25853](https://github.com/risingwavelabs/risingwave/pull/25853)
+- When `sstable_filter_layout[level]` is `auto`, `blocked_xor_filter_kv_count_threshold` is evaluated per output SSTable instead of per compaction task. [#25782](https://github.com/risingwavelabs/risingwave/pull/25782)
+
+</Update>
+
 <Update label="v3.0.3" description="2026-08-17">
 
 ## SQL features
@@ -181,6 +195,7 @@ Support for certain earlier versions will end following the release of v3.0. Ple
 
 ## Connectors
 
+- After a meta-node restart, exactly-once sink writers no longer replay epochs whose pre-commit metadata was already persisted, preventing duplicate key errors during recovery. [#25690](https://github.com/risingwavelabs/risingwave/pull/25690)
 - **PostgreSQL CDC**:
     - Supports PostgreSQL 18. [#24765](https://github.com/risingwavelabs/risingwave/pull/24765)
     - Monitors upstream max LSN for more accurate replication lag tracking. [#24919](https://github.com/risingwavelabs/risingwave/pull/24919)
@@ -211,6 +226,7 @@ Support for certain earlier versions will end following the release of v3.0. Ple
 
 ## Cluster configuration changes
 
+- Adds `disable_sync_log_store_dispatcher` to the `[streaming.developer]` configuration section. Set it to `true` to disable the optimized dispatcher path for sync log store. The default is `false`. [#25663](https://github.com/risingwavelabs/risingwave/pull/25663)
 - Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
 - Supports setting session parameters via the PostgreSQL `StartupMessage` `options` field. [#24754](https://github.com/risingwavelabs/risingwave/pull/24754)
 - Adds `RW_TRACING_EXTRA_ATTRIBUTES` environment variable for injecting custom attributes into distributed traces. [#24946](https://github.com/risingwavelabs/risingwave/pull/24946)
