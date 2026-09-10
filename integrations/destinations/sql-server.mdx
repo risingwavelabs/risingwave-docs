@@ -22,6 +22,8 @@ Before sinking data from RisingWave to SQL Server, please ensure the following:
 
 - The SQL Server table you want to sink to is accessible from RisingWave.
 - You have an upstream materialized view or table in RisingWave that you can sink data from.
+- For the SQL Server native connector, the SQL Server user must be able to inspect the target table metadata. During sink creation, RisingWave validates the target columns, data types, and primary key definition against the downstream table.
+- For the SQL Server native connector, append-only sinks require `INSERT` permission on the target table. Upsert sinks require `INSERT`, `UPDATE`, and `DELETE` permissions.
 - If you are running RisingWave locally from binaries and intend to use the JDBC sink connector, make sure you have [JDK 11](https://openjdk.org/projects/jdk/11/) or later versions installed in your environment.
 
 ## Create a sink
@@ -70,7 +72,17 @@ WITH (
 | sqlserver.user      | **Required**. The user for SQL Server access.                                                                                          |
 | sqlserver.password  | **Required**. The password for SQL Server access.                                                                                      |
 | sqlserver.database  | **Required**. The SQL Server database you want to sink to.                                                                             |
+| sqlserver.schema    | **Optional**. The SQL Server schema name. If not specified, the default schema `dbo` is used.                                         |
 | sqlserver.table     | **Required**. The SQL Server table you want to sink to.                                                                                |
+
+For native SQL Server sinks, RisingWave validates the downstream table when you create the sink:
+
+- Sink columns must exist in the target SQL Server table and use compatible data types.
+- For upsert sinks, the `primary_key` setting must match the target table primary key columns.
+- `timestamptz` columns are written according to the target SQL Server column type:
+  - `datetimeoffset` stores an offset-aware timestamp.
+  - `datetime`, `datetime2`, and `smalldatetime` store a UTC timestamp without offset.
+  - `bigint`, `int`, `smallint`, and `tinyint` store microsecond epoch values.
 
 ## Examples
 
@@ -116,8 +128,9 @@ The following table shows the corresponding data types between RisingWave and SQ
 | date            | date                        |
 | nvarchar        | varchar                     |
 | time            | time                        |
-| datetime2       | time without time zone      |
-| bigint          | timestamp without time zone |
+| datetime / datetime2 / smalldatetime | timestamp without time zone |
+| datetimeoffset  | timestamp with time zone |
+| bigint / int / smallint / tinyint | timestamp with time zone |
 | No support      | interval                    |
 | No support      | struct                      |
 | No support      | array                       |
