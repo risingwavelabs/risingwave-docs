@@ -154,7 +154,7 @@ WITH (
 
 ## Manual maintenance
 
-In addition to automatic background maintenance, you can trigger compaction and snapshot expiration manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
+In addition to automatic background maintenance, you can trigger compaction and snapshot expiration manually using the [`VACUUM`](/sql/commands/sql-vacuum) command.
 
 This gives you on-demand control over table optimization and storage cleanup.
 
@@ -167,5 +167,5 @@ VACUUM FULL my_iceberg_table;
 ```
 
 <Note>
-`VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has an automatic or manual compaction task waiting to be dispatched or running, the new `VACUUM FULL` request fails instead of scheduling another task.
+`VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has an automatic or manual compaction task queued or running, the new `VACUUM FULL` request returns an error instead of scheduling another task.
 </Note>
