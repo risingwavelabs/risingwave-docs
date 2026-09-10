@@ -10,14 +10,15 @@ Indexes can be standard for accelerating lookups and sorts or vector indexes for
 ```sql Standard index syntax
 CREATE INDEX [ IF NOT EXISTS ] index_name ON object_name ( index_column [ ASC | DESC ], [, ...] )
 [ INCLUDE ( include_column [, ...] ) ]
-[ DISTRIBUTED BY ( distributed_column [, ...] ) ];
+[ DISTRIBUTED BY ( distributed_column [, ...] ) ]
+[ WITH ( parameter = value [, ... ] ) ];
 ```
 
 ```sql Vector index syntax
 CREATE INDEX [ IF NOT EXISTS ] index_name ON object_name
 USING index_method ( index_column )
 [INCLUDE ( include_column [, ...] ) ]
-WITH (distance_type = '<type>', ...);
+WITH (distance_type = '<type>' [, parameter = value ] ...);
 ```
 
 <Note>
@@ -37,10 +38,13 @@ Vector index is added in v2.6.0 and is in **[technical preview](/changelog/produ
 | **DISTRIBUTED BY** clause | Specify the index distribution key. As a distributed database, RisingWave distributes the data across multiple nodes. When an index is created, the distribution key is used to determine how the data should be distributed across these nodes. If you omit the `DISTRIBUTED BY` clause, the first index column will be be used as the default distribution `key.distributed_column` has to be the prefix of `index_column`. See [How to decide the index distribution key](/processing/indexes#how-to-decide-the-index-distribution-key%3F) for more information.                                   |
 | USING index_method | Specify the index method. Supported methods are `default`(for standard index), `flat`(for vector index) and `HNSW`(for vector index).|
 | distance_type | Specify the similarity metric for vector indexes. Supported types are `l1`, `l2`, `inner_product`, and `cosine`.|
+| `cloud.serverless_backfill_enabled` | **Optional**. Runs the initial backfill on dedicated serverless backfiller nodes for this statement. Supported only in RisingWave Cloud. Enable serverless backfilling in the Cloud console first. Serverless backfilling is not supported for databases in non-default resource groups. |
 
 ## Backfill and isolation
 
 When creating an index, RisingWave will backfill historical data from the indexed table or materialized view. Snapshot backfill is enabled by default to improve isolation between the backfill phase and streaming phase. This helps prevent resource contention between backfilling historical data and processing new streaming data. To disable it if needed, set `SET streaming_use_snapshot_backfill=false;` before creating the index. For more details, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+
+In RisingWave Cloud, you can offload index backfill to dedicated serverless backfiller nodes. Enable it for the current session with `SET enable_serverless_backfill = true;` or for one statement with `WITH (cloud.serverless_backfill_enabled = true)`. For setup and limitations, see [Serverless backfilling](/processing/serverless-backfill).
 
 ## Examples
 

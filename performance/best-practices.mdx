@@ -139,18 +139,30 @@ Added in v2.7.0.
 
 While index selection improves data reading order at the table scan level, locality backfill extends this optimization to the entire backfill pipeline. It enables joins, aggregations, and other operators that benefit from data locality—such as Group TopN and window functions—to process data more efficiently, reducing data shuffling and improving overall performance.
 
-Locality backfill is controlled by the session variable `enable_locality_backfill` (disabled by default).
+Locality backfill is controlled by the session variables `enable_locality_backfill`, `locality_backfill_mode`, and `auto_locality_backfill_min_size`.
 
 ```sql
 SET enable_locality_backfill = true;
+SET locality_backfill_mode = 'auto';
 ```
 
-Once enabled, the optimizer automatically inserts `LocalityProvider` operators into the newly created query plan to optimize backfilling by providing data locality.
+`enable_locality_backfill` is the master switch. It defaults to `true` on new clusters, while upgraded clusters keep their persisted value. When locality backfill is enabled, `locality_backfill_mode` controls how RisingWave applies it:
+
+- `auto` is the default on new clusters. It enables locality backfill only for snapshot backfills when the locality backfill premium feature is available and the estimated scan size reaches `auto_locality_backfill_min_size`, which defaults to `10737418240` bytes (10 GiB).
+- `always` skips the size check and preserves the earlier explicitly enabled behavior.
+
+When upgrading a cluster that has a persisted `enable_locality_backfill` value but no persisted `locality_backfill_mode`, RisingWave sets the mode to `always` to preserve the previous behavior.
+
+Set `enable_locality_backfill = false` to disable locality backfill entirely.
+
+When locality backfill is selected, the optimizer inserts `LocalityProvider` operators into the newly created query plan to optimize backfilling by providing data locality.
+
+If you are doing a rolling upgrade from a version that does not have `locality_backfill_mode`, wait until all frontend nodes are upgraded before changing `locality_backfill_mode` or `auto_locality_backfill_min_size` with `ALTER SYSTEM`.
 
 <Tip>
 **PREMIUM FEATURE**
 
-Locality backfill is a premium feature for complex queries. A query plan that uses more than five `LocalityProvider` operators is considered a complex query. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+The `auto` mode requires the locality backfill premium feature. Without this feature, RisingWave uses regular backfill. In `always` mode, plans with at most five `LocalityProvider` operators do not require the premium feature and continue to use locality backfill. Plans with more than five `LocalityProvider` operators require the premium feature; without it, RisingWave falls back to regular backfill. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
 ## Using materialized views
