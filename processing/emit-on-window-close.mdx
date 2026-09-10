@@ -2,12 +2,22 @@
 title: "Emit on window close"
 ---
 
-In streaming systems, there are typically two types of triggering policies for window calculations:
+RisingWave supports two triggering policies for windowed queries: **emit on update** (the default) and **emit on window close** (an explicit opt-in). This page explains the difference between them, when to use each one, and how to enable `EMIT ON WINDOW CLOSE`.
 
-* **Emit on update**: This policy calculates and emits partial window results even before the window is closed.
-* **Emit on window close**: This policy generates a final result when the window closes and will remain unchanged thereafter.
+## Triggering policies compared
 
-Taking the following query as an example,
+| | Emit on update (default) | Emit on window close |
+|---|---|---|
+| **How to enable** | No additional SQL needed — this is the default | Add `EMIT ON WINDOW CLOSE` to the query |
+| **When results are emitted** | Incrementally, as new data arrives within the current barrier interval (default 1s) | Once, when the watermark advances past the window end time |
+| **Result type** | Partial (updated repeatedly until the window closes) | Final and immutable |
+| **Result latency** | Low — results appear quickly as data arrives | Higher — results appear only after the window closes |
+| **Downstream update volume** | Higher — downstream systems receive many intermediate updates per window | Lower — downstream systems receive one final result per window |
+| **Requires watermark** | No | Yes |
+
+## How each policy works
+
+Taking the following query as an example:
 
 ```sql
 CREATE MATERIALIZED VIEW window_count AS
@@ -16,19 +26,24 @@ FROM TUMBLE(events, event_time, INTERVAL '1' MINUTE)
 GROUP BY window_start, window_end;
 ```
 
-* **Emit on update:** With this policy, the aggregation operator emits a new `count(*)` result downstream whenever each barrier passes (default interval is 1 second). This updated count is then reflected in the materialized view or outputted to external systems.
-* **Emit on window close:** When the watermark defined on `event_time` surpasses the end time of a time window, the aggregation operator emits the final immutable aggregation result downstream. This result represents the complete aggregation for the window and is not subject to further changes.
+* **Emit on update (default):** The aggregation operator emits an updated `count(*)` result downstream every time a barrier passes (default interval is 1 second). Each update overwrites the previous partial result in the materialized view or is written to the downstream system. No extra SQL is required to get this behavior.
+* **Emit on window close:** When the watermark defined on `event_time` advances past the end time of a window, the aggregation operator emits a single final result for that window. The result is immutable and not updated further.
 
-RisingWave defaults to the emit-on-update behavior to ensure consistency between materialized views and base tables. This choice aligns with the SQL definition of view and helps maintain coherence across the system.
+RisingWave defaults to emit-on-update to maintain consistency between materialized views and base tables, in line with the SQL definition of a view.
 
-However, in certain scenarios, selecting the emit-on-window-close triggering policy for queries may be more suitable. These situations include:
+## When to use `EMIT ON WINDOW CLOSE`
 
-* When the downstream system of the sink is append-only, such as Kafka or S3, and we prefer to write the result only once it is finalized, rather than performing multiple writes and updates.
-* When certain calculations in the query cannot efficiently handle incremental updates, such as percentile calculations, and we want to trigger the calculation only when the window closes for better performance.
+Choose `EMIT ON WINDOW CLOSE` when you want **final, immutable results per window** and can tolerate waiting until the window closes. Good scenarios include:
 
-To fulfill these requirements, RisingWave offers support for transforming queries into emit-on-window-close semantics using the `EMIT ON WINDOW CLOSE` clause. Additionally, a watermark must be defined on the data source, as it determines when the window can be closed. For a more detailed explanation of watermarks, please refer to [Watermarks](/processing/watermarks).
+* **Append-only downstream systems** (for example, Kafka topics or S3) — these systems do not support updates or retractions. Writing only the final result avoids sending many intermediate partial results that need to be corrected later.
+* **Aggregations that are expensive to compute incrementally** — some functions (for example, percentile calculations) cannot be updated efficiently with each new row. Computing them once per window at close time is more efficient than recomputing on every intermediate update.
+* **Reducing downstream churn** — if your downstream consumers process every update, emit-on-update can generate a large number of messages per window. Emit-on-window-close reduces this to a single message per window.
 
-We can modify the query above to use emit-on-window-close semantics:
+Choose the **default emit-on-update** when you need **low-latency, continuously refreshed results** and your downstream system handles updates (for example, a dashboard querying a materialized view, or a sink to a database that supports upserts).
+
+## How to enable `EMIT ON WINDOW CLOSE`
+
+Add the `EMIT ON WINDOW CLOSE` clause at the end of your `CREATE MATERIALIZED VIEW` or `CREATE SINK` statement. You must also define a watermark on the source's time column, because the watermark determines when a window can be considered closed.
 
 ```sql
 CREATE MATERIALIZED VIEW window_count AS
@@ -38,34 +53,41 @@ GROUP BY window_start, window_end
 EMIT ON WINDOW CLOSE;
 ```
 
-Note that a watermark needs to be defined for the data source events.
+Define a watermark on the source:
 
 ```sql
-CREATE SOURCE t (
+CREATE SOURCE events (
     event_time TIMESTAMP,
     <... other fields ...>
     WATERMARK FOR event_time AS event_time - INTERVAL '5 minutes'
 ) WITH ( ... );
 ```
 
-After making this modification, the `window_count` results will no longer include any partial aggregation results from the most recent window. Instead, a final result will only be delivered when the `event_time` watermark surpasses the end time of the window.
+After this change, `window_count` no longer emits partial results for in-progress windows. A final, immutable result is emitted for each window only after the `event_time` watermark advances past the window's end time.
+
+For more detail on watermarks, see [Watermarks](/processing/watermarks).
 
 <Note>
 Changed in v2.3: Support grouping by `window_start` and `window_end` at the same time in emit-on-window-close queries.
 </Note>
 
-## What queries can achieve better performance with the emit-on-window-close triggering policy?
+## Queries that benefit most from `EMIT ON WINDOW CLOSE`
 
-RisingWave supports the emit-on-window-close triggering policy for any query. However, for the following specific types of queries, RisingWave can utilize specialized operators to enhance performance further.
+`EMIT ON WINDOW CLOSE` can be applied to any query. However, RisingWave uses specialized operators for the following query patterns, which means these queries benefit the most — both from reduced output churn and from internal operator optimizations.
 
-**Emit the order of rows by the watermark column**
+**Emit rows ordered by the watermark column**
+
+Without `EMIT ON WINDOW CLOSE`, ordering by a watermark column requires buffering and reordering rows as updates arrive. With `EMIT ON WINDOW CLOSE`, RisingWave can emit rows in watermark order once the window closes, avoiding repeated reordering.
 
 ```sql
 CREATE SINK s AS
-select time, foo from t emit on window close;
+SELECT time, foo FROM t
+EMIT ON WINDOW CLOSE;
 ```
 
 **Windowed aggregation**
+
+Window aggregations under emit-on-update must maintain and re-emit state for every new row. With `EMIT ON WINDOW CLOSE`, the aggregation state for each window is finalized once and emitted once, reducing both state management overhead and the number of downstream updates.
 
 ```sql
 CREATE MATERIALIZED VIEW mv AS
@@ -77,6 +99,8 @@ EMIT ON WINDOW CLOSE;
 ```
 
 **SQL window functions**
+
+Window functions such as `LEAD` and `LAG` that reference rows across event time require buffering future rows under emit-on-update. With `EMIT ON WINDOW CLOSE`, RisingWave can compute these functions once per window and emit a single final result, rather than continuously updating intermediate results.
 
 ```sql
 CREATE MATERIALIZED VIEW mv2 AS
