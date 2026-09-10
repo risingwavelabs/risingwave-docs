@@ -50,6 +50,8 @@ WITH (
 FROM <shared_source_name> TABLE <upstream_table_name>;
 ```
 
+If an upstream PostgreSQL schema or table name is a quoted identifier, preserve the PostgreSQL double quotes inside the string literal. For example, use `TABLE 'public."QuotedTable"'`.
+
 ### Basic connection example
 
 ```sql
@@ -71,6 +73,14 @@ CREATE TABLE my_table (
 )
 FROM shared_source TABLE 'public.my_upstream_table';
 ```
+
+For example, the following statement derives its schema from an upstream mixed-case table named `public."QuotedNote"`:
+
+```sql
+CREATE TABLE quoted_note (*)
+FROM shared_source TABLE 'public."QuotedNote"';
+```
+
 ## Parameters
 
 These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
@@ -96,6 +106,15 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 <Note>
 For PostgreSQL CDC sources, RisingWave manages the publication and replication slot automatically. By default, RisingWave will create the publication and slot if they don't exist (`publication.create.enable = 'true'`). If you want to use an existing publication, set `publication.create.enable = 'false'`. This is useful when the RisingWave database user doesn't have `CREATE PUBLICATION` permissions.
 </Note> 
+
+<Warning>
+A PostgreSQL replication slot can retain WAL while it remains on the upstream
+database. Monitor the
+[`pg_replication_slots`](https://www.postgresql.org/docs/current/view-pg-replication-slots.html)
+view. When a slot is no longer used by a RisingWave source, remove it with
+[`pg_drop_replication_slot()`](https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-REPLICATION)
+to prevent WAL accumulation.
+</Warning>
 
 
 These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
@@ -458,10 +477,13 @@ CREATE TABLE {{ this }} (
 The `INCLUDE` clause allows you to ingest fields *not* included in the main Debezium payload (such as metadata). See [Extracting metadata from sources](/ingestion/extract-metadata-from-sources) for details. The available fields are:
 
 *   `timestamp`
-*   `partition`
-*   `offset`
 *   `database_name`
-*   `collection_name`
+*   `schema_name`
+*   `table_name`
+
+For `INCLUDE timestamp`, historical rows read during the initial snapshot use
+`1970-01-01 00:00:00+00:00`. Incremental changes use the upstream transaction's
+commit timestamp.
 
 ### Automatically map upstream table schema
 
@@ -471,6 +493,9 @@ Instead of defining columns individually, you can use `*` when creating a table 
 ```sql
 CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_name>';
 ```
+
+Keep double quotes around quoted upstream identifiers in the `TABLE` value. For example: `TABLE 'public."QuotedTable"'`.
+
 ### Auto schema change
 
 <Tip>
