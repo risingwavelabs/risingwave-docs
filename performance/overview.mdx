@@ -32,8 +32,8 @@ Several key concepts are fundamental to understanding performance in RisingWave:
 
 -   **Latency:** As mentioned above, the time it takes to process data. We'll distinguish between *end-to-end latency* (total time) and *processing time* (time within RisingWave).
 -   **Throughput:** The volume of data processed per unit of time.
--   **Backpressure:** A critical mechanism that prevents RisingWave from being overwhelmed by data. When a downstream component cannot keep up with the upstream data flow, backpressure signals the upstream to slow down, ensuring system stability. This is a natural and essential part of stream processing.
--   **Resource utilization:** The consumption of resources like CPU, memory, and disk I/O. Monitoring resource utilization is key to identifying bottlenecks.
+-   **Backpressure:** A mechanism that prevents RisingWave from being overwhelmed by data. When a downstream component cannot keep up with the upstream data flow, backpressure signals the upstream to slow down, ensuring system stability. Backpressure is most useful as a *secondary diagnostic signal*: start with direct job/fragment resource metrics to identify the hot fragment, then use backpressure to confirm downstream-propagation effects. This is a natural and essential part of stream processing.
+-   **Resource utilization:** The consumption of resources like CPU, memory, and disk I/O. Monitoring resource utilization is key to identifying bottlenecks. RisingWave exposes these metrics at the streaming job and fragment level, enabling direct identification of resource-saturated fragments without requiring backpressure tracing.
 -   **State:** Stateful operators in RisingWave (like joins and aggregations) maintain internal state. The size and access patterns of this state significantly impact performance.
 -   **Barrier:** A special type of message injected into the data stream. Barriers play a critical role in synchronization, consistency, and triggering operations within RisingWave.
 -   **Fragment**: A streaming job can be divided into multiple fragments.
