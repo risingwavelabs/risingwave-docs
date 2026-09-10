@@ -69,28 +69,29 @@ FROM bhv_mv WITH (
 ## Data type mapping
 The following table shows the corresponding data type in RisingWave that should be specified when creating a sink. For details on native RisingWave data types, see [Overview of data types](/sql/data-types/overview).
 
-| StarRocks type | RisingWave type                                                                                   |
-| :------------- | :---------------------------------- |
-| BOOLEAN        | BOOLEAN                                                                                           |
-| SMALLINT       | SMALLINT                                                                                          |
-| INT            | INTEGER                                                                                           |
-| BIGINT         | BIGINT                                                                                            |
-| FLOAT          | REAL                                                                                              |
-| DOUBLE         | DOUBLE                                                                                            |
-| DECIMAL        | DECIMAL                                                                                           |
-| DATE           | DATE                                                                                              |
-| VARCHAR | VARCHAR, TIMESTAMP WITH TIME ZONE |
-| No support     | TIME                                                                                              |
-| DATETIME | TIMESTAMP WITHOUT TIME ZONE, TIMESTAMP WITH TIME ZONE |
-| CHAR, STRING | TIMESTAMP WITH TIME ZONE |
-| No support     | INTERVAL                                                                                          |
-| No support     | STRUCT                                                                                            |
-| ARRAY          | ARRAY                                                                                             |
-| No support     | BYTEA                                                                                             |
-| JSON           | JSONB                                                                                             |
-| BIGINT         | SERIAL                                                                                            |
+| StarRocks type | RisingWave type                                       |
+| :------------- | :---------------------------------------------------- |
+| BOOLEAN        | BOOLEAN                                               |
+| SMALLINT       | SMALLINT                                              |
+| INT            | INTEGER                                               |
+| BIGINT         | BIGINT                                                |
+| FLOAT          | REAL                                                  |
+| DOUBLE         | DOUBLE                                                |
+| DECIMAL        | DECIMAL                                               |
+| DATE           | DATE                                                  |
+| VARCHAR        | VARCHAR, TIMESTAMP WITH TIME ZONE                     |
+| No support     | TIME                                                  |
+| DATETIME       | TIMESTAMP WITHOUT TIME ZONE, TIMESTAMP WITH TIME ZONE |
+| CHAR           | TIMESTAMP WITH TIME ZONE                              |
+| STRING         | TIMESTAMP WITH TIME ZONE                              |
+| No support     | INTERVAL                                              |
+| No support     | STRUCT                                                |
+| ARRAY          | ARRAY                                                 |
+| No support     | BYTEA                                                 |
+| JSON           | JSONB                                                 |
+| BIGINT         | SERIAL                                                |
 
 
-When sinking `TIMESTAMP WITH TIME ZONE` to StarRocks, RisingWave formats the value in the sink's configured time zone as `YYYY-MM-DD HH:MM:SS.ffffff`, with six fractional-second digits and no timezone suffix. For example, with `Asia/Shanghai`, `2018-01-26T18:30:09.453Z` is written as `2018-01-27 02:30:09.453000`.
+When sinking `TIMESTAMP WITH TIME ZONE` to StarRocks, RisingWave uses the session [timezone](/operate/view-configure-runtime-parameters) captured when the sink is created. Set it before `CREATE SINK`, for example with `SET TIME ZONE 'Asia/Shanghai';`. The output format is `%Y-%m-%d %H:%M:%S%.6f` (year-month-day, hour:minute:second with six fractional-second digits), without a timezone suffix. For example, with `Asia/Shanghai`, `2018-01-26T18:30:09.453Z` is written as `2018-01-27 02:30:09.453000`.
 
 If a decimal value is out of bounds or represents `inf`, `-inf`, or `nan`, RisingWave will insert null values.
