@@ -79,10 +79,10 @@ The following table shows the corresponding data type in RisingWave that should 
 | DOUBLE         | DOUBLE                                                                                            |
 | DECIMAL        | DECIMAL                                                                                           |
 | DATE           | DATE                                                                                              |
-| VARCHAR        | VARCHAR                                                                                           |
+| VARCHAR | VARCHAR, TIMESTAMP WITH TIME ZONE |
 | No support     | TIME                                                                                              |
 | DATETIME | TIMESTAMP WITHOUT TIME ZONE, TIMESTAMP WITH TIME ZONE |
-| VARCHAR, CHAR, STRING | TIMESTAMP WITH TIME ZONE |
+| CHAR, STRING | TIMESTAMP WITH TIME ZONE |
 | No support     | INTERVAL                                                                                          |
 | No support     | STRUCT                                                                                            |
 | ARRAY          | ARRAY                                                                                             |
@@ -91,6 +91,6 @@ The following table shows the corresponding data type in RisingWave that should 
 | BIGINT         | SERIAL                                                                                            |
 
 
-When sinking `TIMESTAMP WITH TIME ZONE` to StarRocks, RisingWave writes the value as a UTC timestamp string in `YYYY-MM-DD HH:MM:SS.ffffff` format, with six fractional-second digits and no timezone suffix.
+When sinking `TIMESTAMP WITH TIME ZONE` to StarRocks, RisingWave formats the value in the sink's configured time zone as `YYYY-MM-DD HH:MM:SS.ffffff`, with six fractional-second digits and no timezone suffix. For example, with `Asia/Shanghai`, `2018-01-26T18:30:09.453Z` is written as `2018-01-27 02:30:09.453000`.
 
 If a decimal value is out of bounds or represents `inf`, `-inf`, or `nan`, RisingWave will insert null values.
