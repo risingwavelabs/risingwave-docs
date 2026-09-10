@@ -1,0 +1,155 @@
+---
+title: "Connect BYOC telemetry to Grafana"
+sidebarTitle: "BYOC telemetry in Grafana"
+description: "Connect Grafana to the VictoriaMetrics and Loki endpoints in a RisingWave Cloud BYOC environment."
+---
+
+In a BYOC environment, RisingWave Cloud can store metrics in VictoriaMetrics and logs in Loki inside your cloud account. This guide shows how to expose private endpoints for these data sources and connect them to your own Grafana instance.
+
+<Note>
+This setup is available for BYOC environments on AWS and GCP. The telemetry endpoints are internal network endpoints in your cloud account.
+</Note>
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- A BYOC environment on AWS or GCP.
+- The [RisingWave Cloud CLI](/cloud/install-cli) installed and authenticated.
+- A Grafana instance that can reach private endpoints in the BYOC network.
+- Network rules that allow Grafana to connect to port `8428` for VictoriaMetrics and port `3100` for Loki.
+
+<Warning>
+Do not expose the telemetry endpoints to the public internet. The endpoints use internal HTTP access and rely on your private network controls for access protection.
+</Warning>
+
+## Enable telemetry endpoints
+
+Create a custom settings file that enables hosted telemetry load balancers for your cloud provider.
+
+<Tabs>
+<Tab title="AWS">
+
+```yaml
+aws_settings:
+  enable_hosted_telemetry_lb: true
+```
+
+</Tab>
+<Tab title="GCP">
+
+```yaml
+gcp_settings:
+  enable_hosted_telemetry_lb: true
+```
+
+</Tab>
+</Tabs>
+
+Save the file path as `$BYOC_CONFIG`. You can enable the setting when creating a new BYOC environment or when updating an existing one. The following example updates an existing BYOC environment:
+
+```bash
+rwc byoc update \
+  --name $BYOC_NAME \
+  --custom-settings-path $BYOC_CONFIG
+```
+
+Wait until the BYOC environment returns to the `Ready` status:
+
+```bash
+rwc byoc describe --name $BYOC_NAME
+```
+
+## Get the telemetry endpoints
+
+After the update completes, run `rwc byoc describe` to view the telemetry endpoints:
+
+```bash
+rwc byoc describe --name $BYOC_NAME
+```
+
+If the endpoints are available, the output includes a `telemetry` section:
+
+```json
+{
+  "name": "my-byoc-env",
+  "uuid": "...",
+  "status": "Ready",
+  "version": "...",
+  "telemetry": {
+    "endpoints": {
+      "victoria_metrics": "internal-endpoint.example:8428",
+      "loki": "internal-endpoint.example:3100"
+    }
+  }
+}
+```
+
+If only metrics or logs are enabled, only the corresponding endpoint appears. If the `telemetry` section is not present, confirm that `enable_hosted_telemetry_lb` is enabled in your custom settings and that the BYOC environment has finished updating.
+
+## Configure network access
+
+The telemetry endpoints are reachable only from private networks that can route to the BYOC environment. RisingWave Cloud does not configure connectivity from your Grafana network to the BYOC network for you.
+
+<Tabs>
+<Tab title="AWS">
+
+On AWS, RisingWave Cloud creates an internal Network Load Balancer for the telemetry endpoints. Configure your network so that the Grafana instance can resolve and reach the internal load balancer DNS name. Depending on where Grafana runs, this may require VPC peering, Transit Gateway, VPN, Direct Connect, route table updates, or firewall rules.
+
+Allow outbound traffic from Grafana to:
+
+| Destination | Port | Purpose |
+|:------------|:-----|:--------|
+| VictoriaMetrics endpoint | `8428` | Metrics queries |
+| Loki endpoint | `3100` | Log queries |
+
+</Tab>
+<Tab title="GCP">
+
+On GCP, RisingWave Cloud creates internal load balancer IP addresses for the telemetry endpoints. Configure your network so that the Grafana instance can reach those internal IP addresses. Depending on where Grafana runs, this may require VPC connectivity, VPN, Cloud Interconnect, route updates, or firewall rules.
+
+Allow outbound traffic from Grafana to:
+
+| Destination | Port | Purpose |
+|:------------|:-----|:--------|
+| VictoriaMetrics endpoint | `8428` | Metrics queries |
+| Loki endpoint | `3100` | Log queries |
+
+</Tab>
+</Tabs>
+
+## Add data sources in Grafana
+
+Add the telemetry endpoints as Grafana data sources.
+
+### Add VictoriaMetrics
+
+1. In Grafana, open **Data sources**.
+2. Add a **Prometheus** data source.
+3. Set the URL to the VictoriaMetrics endpoint with the `http://` scheme:
+
+   ```text
+   http://<victoria_metrics_endpoint>
+   ```
+
+4. Click **Save & test**.
+
+### Add Loki
+
+1. In Grafana, open **Data sources**.
+2. Add a **Loki** data source.
+3. Set the URL to the Loki endpoint with the `http://` scheme:
+
+   ```text
+   http://<loki_endpoint>
+   ```
+
+4. Click **Save & test**.
+
+If Grafana cannot connect to a data source, check private connectivity, routes, firewall rules, and DNS resolution for the endpoint.
+
+## Related topics
+
+- [Bring your own cloud](/cloud/project-byoc) - Create and manage BYOC environments.
+- [Export metrics](/cloud/export-metrics) - Use the Cloud metrics API as an alternative metrics export path.
+- [Check status and metrics](/cloud/check-status-and-metrics) - View project status and metrics in the Cloud Console.

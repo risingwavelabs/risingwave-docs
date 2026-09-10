@@ -28,12 +28,6 @@ On the other hand, phase two is expected to be relatively short, typically lasti
 
 Based on our experience, we expect the total downtime to generally be around 20 seconds. However, with the right configuration and optimizations, it is possible to further reduce phase one, resulting in single-digit seconds of total downtime.
 
-## Meta Nodes
-
-If a Meta Node fails, the cluster stops all operations until the Meta Node is restored. The new Meta Node retrieves important metadata from the high-availability storage backend and reactivates the cluster.
-
-Given the time taken for Kubernetes to create a new pod, the recommended practice for production is to have multiple replicas of the Meta Node. In the event of the current active leader's failure, one of the followers assumes leadership and restores the cluster. We expect this approach to keep the downtime at a relatively low-to-medium single-digit seconds.
-
 ## Serving Nodes
 
 When a serving node fails, it does not affect stream processing jobs. However, if the failed serving node is the only one in the cluster, it becomes impossible to issue SQL statements.
