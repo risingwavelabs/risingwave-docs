@@ -88,7 +88,8 @@ FROM intermediate.people;
 You can use a scalar subquery inside an `ORDER BY` expression, including when the same expression already appears in the `SELECT` list.
 
 ```sql
-WITH q AS (SELECT 1 AS v)
+WITH q AS (SELECT 1 AS v),
+     t(a) AS (VALUES (1), (2), (3))
 SELECT a, a + (SELECT v FROM q) AS distance
 FROM t
 ORDER BY a + (SELECT v FROM q)
