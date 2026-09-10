@@ -10,6 +10,10 @@ description: This page summarizes changes in each version of RisingWave, includi
 - Prevents a no-op `ALTER SINK ... CONNECTOR WITH` update from crashing a compute node when the sink uses a commit-decoupled KV log store. [#26412](https://github.com/risingwavelabs/risingwave/pull/26412)
 - Fixes a possible meta-node crash during subscription cursor reads. If the requested start epoch is ahead of the table's committed epoch, the cursor waits for a newer committed epoch. Other requests with inverted epoch ranges are rejected instead of crashing. [#26478](https://github.com/risingwavelabs/risingwave/pull/26478)
 
+## Cluster configuration changes
+
+- The SSTable filter layout for compaction output now defaults to `blocked` for L1-L6, while L0 keeps `auto`. The filter kind defaults to `xor8` for L5 and L6; L0-L4 keep `xor16`. [#25853](https://github.com/risingwavelabs/risingwave/pull/25853)
+
 </Update>
 
 <Update label="v3.0.3" description="2026-08-17">
