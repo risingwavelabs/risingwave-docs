@@ -41,7 +41,7 @@ ALTER FRAGMENT 10, 11, 12 SET PARALLELISM = ADAPTIVE;
 ALTER FRAGMENT 7 SET PARALLELISM = DEFAULT;
 ```
 
-### `SET { SOURCE_RATE_LIMIT | BACKFILL_RATE_LIMIT | DML_RATE_LIMIT | SINK_RATE_LIMIT }`
+### `SET { SOURCE_RATE_LIMIT | BACKFILL_RATE_LIMIT | DML_RATE_LIMIT | SINK_RATE_LIMIT }` {#set-backfill-rate-limit}
 
 ```sql
 ALTER FRAGMENT fragment_id
@@ -57,6 +57,8 @@ SET { SOURCE_RATE_LIMIT | BACKFILL_RATE_LIMIT | DML_RATE_LIMIT | SINK_RATE_LIMIT
 | _fragment\_id_ | The ID of the fragment to modify. Only a single fragment ID is supported for this operation. |
 | **DEFAULT** | Resets the selected rate limit to the default value. |
 | _rate\_limit\_number_ | The rate limit value in records per second. Set to 0 to pause the selected fragment activity. |
+
+`SINK_RATE_LIMIT` requires a sink with a KV log store. Set `sink_decouple = true` before creating the sink to enable sink decoupling. Each rate limit applies only to fragments containing the corresponding rate-limit operator.
 
 `ALTER FRAGMENT ... SET RATE_LIMIT ...` remains supported as a backward-compatible alias for `SET BACKFILL_RATE_LIMIT`.
 
