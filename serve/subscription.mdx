@@ -288,6 +288,26 @@ Row fetched: (4, 'Diana', 28, 1, 1716434920889)
 
 The persistent nature of subscriptions allows the subscriber to resume from a specific point in time (`rw_timestamp`) without data loss after a failure recovery. We also guarantee no duplicates in subscriptions, thus ensuring exactly-once delivery.
 
+### Using `risingwave-py`
+
+If you are consuming subscriptions from Python, [`risingwave-py`](/python-sdk/intro) provides a simpler exactly-once flow. Set `persist_progress=True` in `on_change()` and the SDK will automatically persist the last consumed `rw_timestamp` and resume from it after a restart.
+
+```py
+import threading
+from risingwave import OutputFormat
+
+threading.Thread(
+    target=lambda: mv.on_change(
+        handler=simple_event_handler,
+        output_format=OutputFormat.DATAFRAME,
+        persist_progress=True,
+        max_batch_size=10,
+    )
+).start()
+```
+
+Use the manual approach below if you are consuming subscriptions through a Postgres driver directly or need to manage progress storage yourself.
+
 ### Persisting the consumption progress
 
 To achieve exactly-once delivery, it’s required to periodically persist the timestamp in storage. We recommend using RisingWave as the store, as no extra component is needed.
