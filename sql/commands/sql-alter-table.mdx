@@ -55,13 +55,30 @@ ALTER TABLE table_name CONNECTOR WITH (
 | Parameter         | Description |
 | :---------------- | :---------- |
 | **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing table without recreating it. Be aware that the properties defined in CONNECTION should be altered by `ALTER CONNECTION`.|
-| property_name | We currently support altering Kafka connectors only. Support for more connectors and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
+| property_name | We currently support altering Kafka connectors only. Support for more connectors and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.auto.commit.interval.ms`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.reconnect.backoff.ms`, `properties.reconnect.backoff.max.ms`, `properties.retry.backoff.ms`, `properties.retry.backoff.max.ms`, `properties.socket.connection.setup.timeout.ms`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.ssl.ca.location`, `properties.ssl.ca.pem`, `properties.ssl.certificate.location`, `properties.ssl.certificate.pem`, `properties.ssl.key.location`, `properties.ssl.key.pem`, `properties.ssl.key.password`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
 
 ```sql Example
 ALTER TABLE plain_students
 CONNECTOR WITH (
   'properties.security.protocol' = 'SASL_SSL'
 );
+```
+
+### `DROP CONNECTOR`
+
+```sql
+ALTER TABLE table_name DROP CONNECTOR;
+```
+
+Removes the connector definition from a table that was created with a connector. The table keeps the same schema and existing data, but ingestion from the upstream source stops.
+
+This clause applies to tables created with connector settings, including CDC tables and tables that use a schema registry. It does not apply to plain tables created without a connector, and it does not apply to standalone `SOURCE` objects.
+
+After you drop the connector, the table becomes a plain `CREATE TABLE ...` and there is no supported way to add a connector back with `ALTER TABLE`. If you need to resume ingestion, recreate the table with the connector configuration you need.
+
+```sql Example
+-- Stop ingesting from Kafka but keep the table and its data.
+ALTER TABLE orders DROP CONNECTOR;
 ```
 
 ### `DROP COLUMN`
@@ -280,7 +297,7 @@ ALTER TABLE t_user REFRESH SCHEMA;
 If a downstream fragment references a column that is either missing or has undergone a type change in the updated schema, the command will be declined.
 </Note>
 
-### `SET SOURCE_RATE_LIMIT`
+### `SET SOURCE_RATE_LIMIT` {#set-source-rate-limit}
 
 ```sql
 ALTER TABLE table_name
@@ -341,7 +358,7 @@ ALTER TABLE t1 SET BACKFILL_PARALLELISM = ADAPTIVE;
 ALTER TABLE t1 SET BACKFILL_PARALLELISM = 4 DEFERRED;
 ```
 
-### `SET BACKFILL_RATE_LIMIT`
+### `SET BACKFILL_RATE_LIMIT` {#set-backfill-rate-limit}
 ```sql
 ALTER TABLE table_name
     SET BACKFILL_RATE_LIMIT { TO | = } { default | rate_limit_number };
