@@ -87,7 +87,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 ## Administration
 
 - Adds `risectl meta create-meta-store-schema` for initializing or upgrading a meta store schema without a running meta node. [#26154](https://github.com/risingwavelabs/risingwave/pull/26154)
-- Streams meta snapshot backup and restore payloads to reduce memory usage. [#26267](https://github.com/risingwavelabs/risingwave/pull/26267)
+- Streams meta snapshot backup and restore payloads to reduce memory usage. When restoring an older snapshot, decodes only the required Hummock sequence data from the latest snapshot instead of its full metadata. [#26267](https://github.com/risingwavelabs/risingwave/pull/26267), [#26193](https://github.com/risingwavelabs/risingwave/pull/26193)
 - Prevents time travel vacuum from deleting retained versions needed by queries and snapshot backfill. [#26326](https://github.com/risingwavelabs/risingwave/pull/26326), [#26390](https://github.com/risingwavelabs/risingwave/pull/26390)
 - Fixes meta-node panics and recovery stalls involving finishing snapshot backfill jobs, overlapping partial-graph resets, and recovered jobs without actor metadata. [#26060](https://github.com/risingwavelabs/risingwave/pull/26060), [#26271](https://github.com/risingwavelabs/risingwave/pull/26271), [#26175](https://github.com/risingwavelabs/risingwave/pull/26175)
 - Prevents an unreachable CDC upstream from holding a source split lock and stalling barriers and DDL cluster-wide. [#26276](https://github.com/risingwavelabs/risingwave/pull/26276)
