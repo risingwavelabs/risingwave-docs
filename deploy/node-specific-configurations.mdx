@@ -85,6 +85,8 @@ RisingWave now supports the following configurations:
 
 | Configuration                       | Default | Description                                                                                                                                                                |
 | :---------------------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| in\_flight\_barrier\_nums | 10000 | The maximum number of pending barriers in each partial graph. Pending barriers include in-flight, collected but not committed, and currently completing barriers. |
+| snapshot\_backfill\_barrier\_amplification\_factor | 1 | The multiplier applied to `in_flight_barrier_nums` when limiting pending barriers in a snapshot backfill partial graph. A value of 0 is treated as 1. |
 | snapshot\_backfill\_finish\_max\_lagged\_barriers | 100 | The maximum number of lagged barriers allowed before a snapshot backfill job can merge into the database graph. Lower values reduce the allowed backlog before merge; higher values let backfill jobs merge sooner. |
 | unsafe\_enable\_strict\_consistency | true    | Control the strictness of stream consistency. When set to false, data inconsistency like double-insertion or double-deletion with the same primary keys will be tolerated. |
 
