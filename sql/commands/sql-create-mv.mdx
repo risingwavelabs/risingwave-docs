@@ -100,10 +100,10 @@ SELECT * FROM mv_up;
 
 Batch refresh materialized views currently have these constraints:
 
-- They require snapshot backfill to be enabled.
+- Creation fails if `streaming_use_snapshot_backfill` is `false` or the query plan cannot use snapshot backfill.
 - They must not depend directly on sources.
-- They do not support replacing their query definition with `ALTER MATERIALIZED VIEW ... AS ...`. This does not prohibit metadata changes such as `ALTER MATERIALIZED VIEW ... RENAME TO ...`.
-- They cannot be used as upstreams for downstream streaming jobs, including other materialized views.
+- Their query definition cannot be changed in place. Metadata operations such as `ALTER MATERIALIZED VIEW ... RENAME TO ...` are supported.
+- They cannot be used as upstreams for downstream streaming jobs, including streaming materialized views created without `refresh.interval.sec`.
 
 ## See also
 
