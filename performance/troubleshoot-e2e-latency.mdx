@@ -49,7 +49,7 @@ There is an [inherent trade-off](https://blog.danslimmon.com/2019/02/26/the-late
 
 ### Aggregation operator configuration
 
-One notable configuration parameter in the aggregation operator is [stream_hash_agg_max_dirty_groups_heap_size](https://github.com/risingwavelabs/risingwave/blob/0bedf6503e7ceb50d40637083fc34bb735f0a0aa/src/config/example.toml#L153). It controls how many changes the aggregation operator buffers before consolidating them and sending the results to the next operator in the query plan. The trade-off here is between latency and computation efficiency.
+One notable configuration parameter in the aggregation operator is [`hash_agg_max_dirty_groups_heap_size`](https://github.com/risingwavelabs/risingwave/blob/main/src/config/example.toml). Set it under `[streaming.developer]` in `risingwave.toml` to control how many changes the aggregation operator buffers before consolidating them and sending the results to the next operator in the query plan. The trade-off here is between latency and computation efficiency.
 
 #### Example
 
@@ -63,9 +63,9 @@ However, if we immediately propagate each individual change as it arrives, the s
 
 #### Tuning tip
 
-- Lower values of `stream_hash_agg_max_dirty_groups_heap_size` prioritize low latency, ensuring changes are sent downstream as soon as they arrive. However, the second-order effect is that it can increase the load on downstream operators, potentially slowing them down due to a higher volume of intermediate results.
+- Lower values of `hash_agg_max_dirty_groups_heap_size` prioritize low latency, ensuring changes are sent downstream as soon as they arrive. However, the second-order effect is that it can increase the load on downstream operators, potentially slowing them down due to a higher volume of intermediate results.
 
-- Higher values of `stream_hash_agg_max_dirty_groups_heap_size` buffer more updates before consolidating them, which reduces redundant computations and minimizes intermediate results—at the cost of slightly increased latency.
+- Higher values of `hash_agg_max_dirty_groups_heap_size` buffer more updates before consolidating them, which reduces redundant computations and minimizes intermediate results—at the cost of slightly increased latency.
 
 When tuning this parameter, you should consider the overall query structure and whether downstream operations, such as joins, may amplify unnecessary updates if changes are emitted too frequently.
 
@@ -86,4 +86,3 @@ It is often more efficient to use a single large physical machine for computatio
 ## What's next
 
 Finally, if you experience higher-than-expected latency, refer to this [guide](/performance/troubleshoot-high-latency#high-latency) for initial debugging steps. If the issue persists, feel free to join our [Slack community](https://www.risingwave.com/slack), and we will help diagnose it in more detail.
-
