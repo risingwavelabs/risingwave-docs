@@ -8,12 +8,14 @@ A sink is an external target that you can send data to. To stream data out of Ri
 
 ## Delivery semantics
 
-The Kafka sink provides **at-least-once delivery** guarantees. RisingWave will retry failed sends, which may result in duplicate messages being written to Kafka topics during failures or retries.
+The Kafka sink provides **at-least-once delivery** guarantees. RisingWave may retry failed sends, which can cause the same Kafka message to be written more than once during failures or retries.
 
-- For upsert sinks, duplicates are naturally handled by Kafka consumers through primary key deduplication.
-- For append-only sinks, downstream consumers should handle potential duplicates.
+- For append-only sinks, this means the same row may be emitted to Kafka more than once, so downstream consumers should handle duplicate messages.
+- For upsert sinks, Kafka stores a changelog keyed by the sink primary key. Multiple messages with the same key are expected. If those messages have different values, they usually represent normal updates to that key rather than retry duplicates. A retry duplicate is when the same key and value are written again.
 
-To enable idempotent producer behavior at the Kafka level (preventing duplicates due to broker acknowledgment issues), you can set `properties.enable.idempotence = true`. Note that this provides idempotence for individual sends but does not guarantee end-to-end exactly-once when combined with RisingWave's checkpoint mechanism.
+To reduce duplicates caused by producer retries after broker or acknowledgment failures, you can set `properties.enable.idempotence = true`. This enables Kafka producer idempotence for a single producer session, so Kafka can deduplicate retried sends from that producer and preserve message order.
+
+This does **not** provide end-to-end exactly-once delivery for the Kafka sink. RisingWave checkpoints and Kafka writes are not committed as one atomic transaction, and RisingWave writes to Kafka in non-transactional mode. If Kafka accepts some records but RisingWave fails before the corresponding checkpoint is fully committed, RisingWave recovers from the previous checkpoint and sends those records again. After recovery, Kafka sees those as new sends from a new producer session, so `enable.idempotence` cannot deduplicate them.
 
 ## Syntax
 
