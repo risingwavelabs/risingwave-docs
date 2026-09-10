@@ -188,14 +188,14 @@ WITH (
 
 In addition to automatic background maintenance, you can trigger maintenance manually at any time using the [`VACUUM`](/sql/commands/sql-vacuum) command.
 
-`VACUUM` immediately checks whether manifests are eligible for rewrite, and then checks for snapshots to expire. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
+`VACUUM` rewrites eligible data manifests, then expires eligible snapshots. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
 
-`VACUUM FULL` first compacts data files, then performs the same gated manifest rewrite and snapshot expiration checks. The manifest rewrite and snapshot expiration steps do not override their corresponding maintenance settings.
+`VACUUM FULL` first compacts data files, then performs the same manifest rewrite and snapshot expiration steps, subject to their enable flags and thresholds. The manifest rewrite and snapshot expiration steps do not override their corresponding maintenance settings.
 
 ```sql
--- Check for eligible manifests to rewrite, then check for snapshots to expire
+-- Rewrite eligible manifests, then expire eligible snapshots
 VACUUM my_iceberg_table;
 
--- Compact files, then run the same manifest rewrite and snapshot expiration checks
+-- Compact files, then rewrite eligible manifests and expire eligible snapshots
 VACUUM FULL my_iceberg_table;
 ```

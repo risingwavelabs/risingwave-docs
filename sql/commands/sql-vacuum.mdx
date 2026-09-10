@@ -1,6 +1,6 @@
 ---
 title: "VACUUM"
-description: "Introduce VACUUM syntax for Iceberg tables and sinks to enable manual compaction, manifest rewrite, and snapshot expiration in RisingWave."
+description: "Introduces VACUUM syntax for Iceberg tables and sinks to enable manual compaction, manifest rewrite, and snapshot expiration in RisingWave."
 ---
 
 RisingWave supports `VACUUM` syntax for Iceberg engine tables and Iceberg sinks. This allows you to manage storage, reclaim disk space, and optimize performance for Iceberg data within RisingWave.
@@ -11,8 +11,8 @@ RisingWave supports `VACUUM` syntax for Iceberg engine tables and Iceberg sinks.
 VACUUM [FULL] schema_name.object_name;
 ```
 
-- `VACUUM`: Checks for eligible manifests to rewrite, then checks for old snapshots to expire.
-- `VACUUM FULL`: **Compacts** the specified Iceberg table or sink first, then performs the same manifest rewrite and snapshot expiration checks. This operation takes longer and requires extra disk space, as a new copy is written before the old copy is released.
+- `VACUUM`: Rewrites eligible data manifests, then expires eligible old snapshots.
+- `VACUUM FULL`: **Compacts** the specified Iceberg table or sink first, then performs the same manifest rewrite and snapshot expiration steps. This operation takes longer and requires extra disk space, as a new copy is written before the old copy is released.
 
 <Note>
 The manifest rewrite and snapshot expiration steps do not override their maintenance settings. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
@@ -22,7 +22,7 @@ The manifest rewrite and snapshot expiration steps do not override their mainten
 
 | Parameter             | Description     |
 | :-------------------- | :-------------- |
-| FULL | Optional. If specified, compacts the table first, then checks for eligible manifests to rewrite and snapshots to expire. |
+| FULL | Optional. If specified, compacts the table first, then rewrites eligible manifests and expires eligible snapshots. |
 | object_name | Can be an Iceberg engine table or an Iceberg sink. |
 
 
