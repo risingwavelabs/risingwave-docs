@@ -47,7 +47,7 @@ The RisingWave configuration depends on how ADC is provided:
 | VM service account, GKE Workload Identity, or another metadata service | None |
 | `GOOGLE_APPLICATION_CREDENTIALS` or a local ADC file in a self-hosted deployment | `enable_config_load = 'true'` |
 
-`catalog.security = 'google'` uses ADC to authenticate catalog requests. `gcs.credential` only configures GCS file I/O and does not replace catalog ADC.
+`catalog.security = 'google'` uses ADC to authenticate catalog requests independently of `enable_config_load`. The `enable_config_load` setting controls environment/local credential loading for GCS file I/O. `gcs.credential` also configures only GCS file I/O and does not replace catalog ADC.
 
 ## Read from an existing table
 
@@ -71,17 +71,13 @@ WITH (
 );
 ```
 
-If ADC comes from `GOOGLE_APPLICATION_CREDENTIALS` or a local ADC file, also add:
-
-```sql
-enable_config_load = 'true'
-```
+If ADC comes from `GOOGLE_APPLICATION_CREDENTIALS` or a local ADC file, add `enable_config_load = 'true'` to the statement's `WITH` clause.
 
 For Iceberg source behavior and limitations, see [Ingest data from Iceberg tables](/iceberg/ingest-from-iceberg).
 
 ## Write to a table
 
-The following append-only sink writes to an existing table or creates it if it does not exist:
+Use an append-only upstream table or materialized view for the following sink. It writes to an existing Iceberg table or creates it if it does not exist:
 
 ```sql
 CREATE SINK gcp_lakehouse_sink FROM my_mv
@@ -103,11 +99,7 @@ WITH (
 );
 ```
 
-If ADC comes from `GOOGLE_APPLICATION_CREDENTIALS` or a local ADC file, also add:
-
-```sql
-enable_config_load = 'true'
-```
+If ADC comes from `GOOGLE_APPLICATION_CREDENTIALS` or a local ADC file, add `enable_config_load = 'true'` to the statement's `WITH` clause.
 
 For other sink modes and options, see [Deliver data to Iceberg tables](/iceberg/deliver-to-iceberg).
 
