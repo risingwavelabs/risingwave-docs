@@ -3,20 +3,245 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
-<Update label="v2.9.0" description="Upcoming">
+<Update label="v3.1.0" description="Upcoming">
 
-## SQL features
+## Bug fixes
 
-- System catalog:
-    - Adds column `schema_name` to `rw_catalog.rw_materialized_views` and `rw_catalog.rw_subscriptions` so you can filter by schema without extra joins. [#25248](https://github.com/risingwavelabs/risingwave/pull/25248)
+- Prevents a no-op `ALTER SINK ... CONNECTOR WITH` update from crashing a compute node when the sink uses a commit-decoupled KV log store. [#26412](https://github.com/risingwavelabs/risingwave/pull/26412)
+- Fixes a possible meta-node crash during subscription cursor reads. If the requested start epoch is ahead of the table's committed epoch, the cursor waits for a newer committed epoch. Other requests with inverted epoch ranges are rejected instead of crashing. [#26478](https://github.com/risingwavelabs/risingwave/pull/26478)
 
 ## Cluster configuration changes
 
-- Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
+- The SSTable filter layout for compaction output now defaults to `blocked` for L1-L6, while L0 keeps `auto`. The filter kind defaults to `xor8` for L5 and L6; L0-L4 keep `xor16`. [#25853](https://github.com/risingwavelabs/risingwave/pull/25853)
+- When `sstable_filter_layout[level]` is `auto`, `blocked_xor_filter_kv_count_threshold` is evaluated per output SSTable instead of per compaction task. [#25782](https://github.com/risingwavelabs/risingwave/pull/25782)
+
+</Update>
+
+<Update label="v3.0.3" description="2026-08-17">
+
+## SQL features
+
+- Fixes Iceberg Engine table creation with `enable_compaction = false` when the license does not include `SinkAutoSchemaChange`. For Iceberg Engine tables, `ALTER TABLE ADD COLUMN` still requires this feature. [#26545](https://github.com/risingwavelabs/risingwave/pull/26545)
+- Improves over-window query memory management by evicting cold partition-cache entries at chunk boundaries instead of waiting for the next barrier. [#26424](https://github.com/risingwavelabs/risingwave/pull/26424)
 
 ## Connectors
 
-- Iceberg sink and Iceberg engine tables: Adds `commit_checkpoint_size_threshold_mb` to trigger size-based early commits. When uncommitted write data exceeds this threshold (in MB), RisingWave commits at the next checkpoint barrier regardless of `commit_checkpoint_interval`. Default: `128` MB. [#25058](https://github.com/risingwavelabs/risingwave/pull/25058)
+- Adds Microsoft Entra service-principal authentication for Iceberg sinks and Iceberg Engine REST catalogs on Azure Data Lake Storage Gen2. Configure `adlsgen2.tenant_id`, `adlsgen2.client_id`, and `adlsgen2.client_secret`; optionally set `adlsgen2.authority_host` for sovereign clouds. [#26124](https://github.com/risingwavelabs/risingwave/pull/26124)
+- Fixes exactly-once coordinated sinks getting stuck after recovery when an empty pre-commit epoch had no durable coordinator record. [#26498](https://github.com/risingwavelabs/risingwave/pull/26498)
+- Prevents a no-op `ALTER SINK ... CONNECTOR WITH` update from stopping the sink consumer and forcing database recovery. [#26484](https://github.com/risingwavelabs/risingwave/pull/26484)
+- Improves cluster recovery stability when many sinks reconnect simultaneously by throttling coordinator initialization and adding retry backoff. [#26639](https://github.com/risingwavelabs/risingwave/pull/26639)
+- Fixes writer panics when an Iceberg table contains malformed snapshot summary totals. [#26628](https://github.com/risingwavelabs/risingwave/pull/26628)
+- Reuses Iceberg S3 and GCS storage operators per bucket, reducing repeated credential and token loading, including repeated STS calls for IRSA-backed S3 deployments. [#26634](https://github.com/risingwavelabs/risingwave/pull/26634)
+
+## Administration
+
+- Reconciles serving vnode mappings during startup, recovery, and dirty-job cleanup so stale fragment mappings are removed. [#26352](https://github.com/risingwavelabs/risingwave/pull/26352)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.3-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.3/risingwave-v3.0.3-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.3.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.3.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.3/risectl-v3.0.3-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.2...v3.0.3).
+
+</Update>
+
+<Update label="v3.0.2" description="2026-07-24">
+
+## SQL features
+
+- Supports `ALTER DATABASE ... SET/RESET RESOURCE_GROUP ... DEFERRED`, and extends `ALTER ... SET/RESET RESOURCE_GROUP` with optional `DEFERRED` to sinks and indexes. [#25954](https://github.com/risingwavelabs/risingwave/pull/25954)
+- Supports enabling serverless backfill for sinks and indexes with `WITH (cloud.serverless_backfill_enabled = true)`. [#25953](https://github.com/risingwavelabs/risingwave/pull/25953)
+- Allows CDC source hostnames and ports to be updated with `ALTER SOURCE ... CONNECTOR WITH`. [#26019](https://github.com/risingwavelabs/risingwave/pull/26019)
+- Adds retry and observability for OpenAI embedding calls. [#26001](https://github.com/risingwavelabs/risingwave/pull/26001)
+- Fixes snapshot backfill progress, rate limiting, barrier handling, cross-database creation stalls, and unsafe snapshot merges. [#25952](https://github.com/risingwavelabs/risingwave/pull/25952), [#26022](https://github.com/risingwavelabs/risingwave/pull/26022), [#26119](https://github.com/risingwavelabs/risingwave/pull/26119), [#26288](https://github.com/risingwavelabs/risingwave/pull/26288), [#26346](https://github.com/risingwavelabs/risingwave/pull/26346)
+- Supports background DDL recovery for materialized views that contain temporal joins. [#26359](https://github.com/risingwavelabs/risingwave/pull/26359)
+
+## Optimizer
+
+- Improves streaming project performance by evaluating chunks concurrently. [#26000](https://github.com/risingwavelabs/risingwave/pull/26000)
+- Fixes ASOF left join predicate semantics, mirrored Iceberg comparison boundaries, large parameterized `IN` lists, invalid index lookup selection, and planning of impure project expressions. [#26198](https://github.com/risingwavelabs/risingwave/pull/26198), [#26195](https://github.com/risingwavelabs/risingwave/pull/26195), [#26310](https://github.com/risingwavelabs/risingwave/pull/26310), [#26287](https://github.com/risingwavelabs/risingwave/pull/26287), [#26024](https://github.com/risingwavelabs/risingwave/pull/26024)
+- Corrects stream table scan and materialized view primary-key derivation. [#25783](https://github.com/risingwavelabs/risingwave/pull/25783), [#25804](https://github.com/risingwavelabs/risingwave/pull/25804)
+
+## Connectors
+
+- Adds a native Turbopuffer sink with static or dynamic namespace routing, schema generation, and configurable `write_batch_size` and `max_linger_second`. [#25984](https://github.com/risingwavelabs/risingwave/pull/25984), [#26036](https://github.com/risingwavelabs/risingwave/pull/26036)
+- Exposes librdkafka retry, reconnect, connection-setup, and auto-commit interval settings for Kafka sources and sinks. [#26123](https://github.com/risingwavelabs/risingwave/pull/26123)
+- Adds warnings, metrics, and a dashboard panel for Kafka consumer group cleanup failures. [#26049](https://github.com/risingwavelabs/risingwave/pull/26049)
+- Supports configuring and altering Pulsar sink producer routing with `properties.routing.mode`. [#26304](https://github.com/risingwavelabs/risingwave/pull/26304)
+- Adds `starrocks.max_batch_size_bytes` to optionally cap StarRocks stream load requests; by default, there is no cap. [#25750](https://github.com/risingwavelabs/risingwave/pull/25750)
+- Allows OpenSearch and Elasticsearch sinks to update batching and concurrency settings online with `ALTER SINK ... SET`. [#26334](https://github.com/risingwavelabs/risingwave/pull/26334)
+- Changes the default Debezium `time.precision.mode` to `microseconds`. [#26035](https://github.com/risingwavelabs/risingwave/pull/26035)
+- Fixes PostgreSQL CDC handling for quoted table names and enum arrays during automatic schema changes. [#25742](https://github.com/risingwavelabs/risingwave/pull/25742), [#25959](https://github.com/risingwavelabs/risingwave/pull/25959)
+- Prevents PostgreSQL CDC offsets from moving backward after reconnects and keeps LSN metrics active. [#25624](https://github.com/risingwavelabs/risingwave/pull/25624), [#26301](https://github.com/risingwavelabs/risingwave/pull/26301)
+- Fixes CDC snapshot restarts, MariaDB privilege validation, and unsigned MySQL primary-key comparisons during backfill. [#26129](https://github.com/risingwavelabs/risingwave/pull/26129), [#26234](https://github.com/risingwavelabs/risingwave/pull/26234), [#25947](https://github.com/risingwavelabs/risingwave/pull/25947)
+- Corrects SQL Server CDC snapshot decoding for `DATETIMEOFFSET` values. [#26263](https://github.com/risingwavelabs/risingwave/pull/26263)
+- Fixes DynamoDB sink retries for unprocessed batch items and deduplication for composite primary keys. [#25985](https://github.com/risingwavelabs/risingwave/pull/25985)
+- Fixes ClickHouse sink encoding for `DateTime64` values. [#20909](https://github.com/risingwavelabs/risingwave/pull/20909)
+- Clears Iceberg maintenance state when user-created sinks are cascade-dropped and promptly retries maintenance jobs after pre-dispatch failures. [#26258](https://github.com/risingwavelabs/risingwave/pull/26258), [#26230](https://github.com/risingwavelabs/risingwave/pull/26230)
+
+## Administration
+
+- Adds `risectl meta create-meta-store-schema` for initializing or upgrading a meta store schema without a running meta node. [#26154](https://github.com/risingwavelabs/risingwave/pull/26154)
+- Streams meta snapshot backup and restore payloads to reduce memory usage. [#26267](https://github.com/risingwavelabs/risingwave/pull/26267)
+- Prevents time travel vacuum from deleting retained versions needed by queries and snapshot backfill. [#26326](https://github.com/risingwavelabs/risingwave/pull/26326), [#26390](https://github.com/risingwavelabs/risingwave/pull/26390)
+- Fixes meta-node panics and recovery stalls involving finishing snapshot backfill jobs, overlapping partial-graph resets, and recovered jobs without actor metadata. [#26060](https://github.com/risingwavelabs/risingwave/pull/26060), [#26271](https://github.com/risingwavelabs/risingwave/pull/26271), [#26175](https://github.com/risingwavelabs/risingwave/pull/26175)
+- Prevents an unreachable CDC upstream from holding a source split lock and stalling barriers and DDL cluster-wide. [#26276](https://github.com/risingwavelabs/risingwave/pull/26276)
+- Fixes a connection-pool livelock that could hang SQLite-backed meta stores. [#26131](https://github.com/risingwavelabs/risingwave/pull/26131)
+- Cleans up Hummock change-log and watermark metadata when subscriptions and watermark-bearing materialized views are dropped. [#26413](https://github.com/risingwavelabs/risingwave/pull/26413)
+
+## Observability
+
+- Adds table change log request latency and cache hit/miss metrics. [#26292](https://github.com/risingwavelabs/risingwave/pull/26292)
+- Removes stale error metric queries and stale `last_committed_barrier_time` series from monitoring. [#26245](https://github.com/risingwavelabs/risingwave/pull/26245), [#26231](https://github.com/risingwavelabs/risingwave/pull/26231)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.2-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.2/risingwave-v3.0.2-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.2.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.2.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.2/risectl-v3.0.2-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.1...v3.0.2).
+
+</Update>
+
+<Update label="v3.0.1" description="2026-06-30">
+
+## SQL features
+
+- Prevents compute-node panics when an upsert watermark filter is used with an implicit row-ID primary key. [#25979](https://github.com/risingwavelabs/risingwave/pull/25979)
+- Fixes recovery and buffered event handling for CDC and parallel CDC backfill. [#25906](https://github.com/risingwavelabs/risingwave/pull/25906), [#25907](https://github.com/risingwavelabs/risingwave/pull/25907)
+- Preserves row-level conflict semantics for sink-into-table pipelines that use `ON CONFLICT DO UPDATE IF NOT NULL` or version columns. [#26015](https://github.com/risingwavelabs/risingwave/pull/26015)
+
+## Connectors
+
+- Adds a write-stop snapshot gate for Iceberg sinks through `compaction.max_snapshots_num`. When compaction is enabled, the default threshold is `1000`. [#25687](https://github.com/risingwavelabs/risingwave/pull/25687)
+- Adds Pulsar source acknowledgement metrics, including categorized failure reasons. [#25995](https://github.com/risingwavelabs/risingwave/pull/25995)
+- Keeps PostgreSQL unchanged-TOAST value replacement active for CDC tables without downstream subscribers. [#25865](https://github.com/risingwavelabs/risingwave/pull/25865)
+- Fails PostgreSQL CDC replication slot initialization promptly when the required WAL is no longer available. [#25993](https://github.com/risingwavelabs/risingwave/pull/25993)
+- Fixes Iceberg automatic schema change equivalence checks, branch-scoped snapshot backlog counting, and sink schema propagation. [#25970](https://github.com/risingwavelabs/risingwave/pull/25970)
+
+## Administration
+
+- Rejects compaction group merges that would exceed write-stop or emergency L0 thresholds. [#26002](https://github.com/risingwavelabs/risingwave/pull/26002)
+- Refreshes compaction write limits after compaction group rewrites, preventing stale write-stop states. [#25813](https://github.com/risingwavelabs/risingwave/pull/25813)
+- Prevents shared compactors from crashing when a task references a missing table catalog. [#25987](https://github.com/risingwavelabs/risingwave/pull/25987)
+- Cleans up orphaned pending sink state when sinks are dropped, reducing meta snapshot growth and out-of-memory risk. [#26045](https://github.com/risingwavelabs/risingwave/pull/26045)
+- Fixes table change log migration when upgrading an existing cluster. [#26048](https://github.com/risingwavelabs/risingwave/pull/26048)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.1-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.1/risingwave-v3.0.1-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.1.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.1.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.1/risectl-v3.0.1-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.0...v3.0.1).
+
+</Update>
+
+<Update label="v3.0.0" description="2026-06-11">
+
+Support for certain earlier versions will end following the release of v3.0. Please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
+
+## SQL features
+
+- SQL commands:
+    - Supports `SHOW CURSORS` and subscription cursors across all frontend nodes. [#24107](https://github.com/risingwavelabs/risingwave/pull/24107)
+    - Supports `DROP SECRET CASCADE` to automatically drop dependent objects when dropping a secret. [#24581](https://github.com/risingwavelabs/risingwave/pull/24581)
+    - Supports altering the retention period of a subscription with `ALTER SUBSCRIPTION ... SET (retention = ...)`. [#24842](https://github.com/risingwavelabs/risingwave/pull/24842)
+    - Supports altering the backfill parallelism for streaming jobs. [#24323](https://github.com/risingwavelabs/risingwave/pull/24323)
+    - Supports `BACKUP` and meta snapshot management commands. [#25042](https://github.com/risingwavelabs/risingwave/pull/25042)
+    - Supports `ALTER WATERMARK` for live tables without recreating them. [#25651](https://github.com/risingwavelabs/risingwave/pull/25651)
+    - Supports `ALTER SOURCE CONNECTOR` to update CDC source connection passwords. [#25435](https://github.com/risingwavelabs/risingwave/pull/25435)
+    - Supports TLS for webhook source endpoints and multi-column webhook source tables. [#25443](https://github.com/risingwavelabs/risingwave/pull/25443)
+    - Supports atomically adding columns to Iceberg tables. [#24756](https://github.com/risingwavelabs/risingwave/pull/24756)
+    - Supports using secrets as arguments in UDF call expressions. [#25212](https://github.com/risingwavelabs/risingwave/pull/25212)
+    - Adds the sink's target table to the system catalog and `DESCRIBE` statement output. [#24893](https://github.com/risingwavelabs/risingwave/pull/24893)
+    - Schema owners now automatically have the `USAGE` privilege on their own schema. [#24692](https://github.com/risingwavelabs/risingwave/pull/24692)
+    - `statement_timeout` values without a unit are now interpreted as milliseconds, matching PostgreSQL behavior. [#25557](https://github.com/risingwavelabs/risingwave/pull/25557)
+    - Duplicate CTE names within the same `WITH` clause are now rejected at parse time. [#24676](https://github.com/risingwavelabs/risingwave/pull/24676)
+
+- SQL functions & operators:
+    - Adds `crc32()` and `crc32c()` functions for computing CRC checksums on `bytea` values. [#24964](https://github.com/risingwavelabs/risingwave/pull/24964)
+    - `jsonb_agg` now supports a wildcard (`*`) parameter. [#25282](https://github.com/risingwavelabs/risingwave/pull/25282)
+    - Adds array overlap predicates for checking element membership across arrays. [#25597](https://github.com/risingwavelabs/risingwave/pull/25597)
+
+- System catalog:
+    - Adds column `schema_name` to `rw_catalog.rw_materialized_views` and `rw_catalog.rw_subscriptions`, enabling schema-based filtering without extra joins. [#25248](https://github.com/risingwavelabs/risingwave/pull/25248)
+    - `rw_fragment_backfill_progress` now includes locality backfill progress. [#24955](https://github.com/risingwavelabs/risingwave/pull/24955)
+    - Adds system catalog `rw_iceberg_compaction_schedules` to view scheduled Iceberg compaction jobs. [#25013](https://github.com/risingwavelabs/risingwave/pull/25013)
+
+## DataFusion engine
+
+- DataFusion is now enabled by default for batch queries. [#25198](https://github.com/risingwavelabs/risingwave/pull/25198)
+- Adds support for table functions in DataFusion. [#24715](https://github.com/risingwavelabs/risingwave/pull/24715)
+- Adds support for `LogicalExpand` operator in DataFusion. [#24767](https://github.com/risingwavelabs/risingwave/pull/24767)
+- Maps additional array functions to DataFusion equivalents. [#24859](https://github.com/risingwavelabs/risingwave/pull/24859)
+- Improves OOM handling and adds memory reserve headroom for DataFusion operators. [#24736](https://github.com/risingwavelabs/risingwave/pull/24736), [#24883](https://github.com/risingwavelabs/risingwave/pull/24883)
+
+## Optimizer
+
+- Supports materialized view selection for batch queries: when an equivalent pre-computed MV exists, batch queries automatically use it for improved performance. [#24611](https://github.com/risingwavelabs/risingwave/pull/24611), [#24751](https://github.com/risingwavelabs/risingwave/pull/24751), [#24782](https://github.com/risingwavelabs/risingwave/pull/24782), [#25046](https://github.com/risingwavelabs/risingwave/pull/25046)
+
+## Connectors
+
+- After a meta-node restart, exactly-once sink writers no longer replay epochs whose pre-commit metadata was already persisted, preventing duplicate key errors during recovery. [#25690](https://github.com/risingwavelabs/risingwave/pull/25690)
+- **PostgreSQL CDC**:
+    - Supports PostgreSQL 18. [#24765](https://github.com/risingwavelabs/risingwave/pull/24765)
+    - Monitors upstream max LSN for more accurate replication lag tracking. [#24919](https://github.com/risingwavelabs/risingwave/pull/24919)
+    - Maps upstream PostgreSQL composite types to `text`. [#25153](https://github.com/risingwavelabs/risingwave/pull/25153)
+    - Ingests upstream PostgreSQL `pgvector` type. [#25184](https://github.com/risingwavelabs/risingwave/pull/25184)
+    - Supports TOAST unchanged-value placeholders for vector columns. [#25863](https://github.com/risingwavelabs/risingwave/pull/25863)
+- **MySQL CDC**: Adds `RW_JAVA_LOG` environment variable to control Java connector logging granularity. [#24404](https://github.com/risingwavelabs/risingwave/pull/24404)
+- **SQL Server CDC**:
+    - Adds consume-offset and replication lag monitors. [#25124](https://github.com/risingwavelabs/risingwave/pull/25124)
+    - Supports tables with multiple CDC capture instances. [#25317](https://github.com/risingwavelabs/risingwave/pull/25317)
+- **Kafka**:
+    - Adds Kafka consumer lag catalog for monitoring consumer group lag. [#24708](https://github.com/risingwavelabs/risingwave/pull/24708)
+    - Supports altering Kafka SSL configurations at runtime. [#25717](https://github.com/risingwavelabs/risingwave/pull/25717)
+- **Iceberg**:
+    - Supports configurable write-Parquet properties for Iceberg sink and compaction. [#24612](https://github.com/risingwavelabs/risingwave/pull/24612)
+    - Supports sort order keys for Iceberg sink. [#25202](https://github.com/risingwavelabs/risingwave/pull/25202)
+    - Supports Iceberg V3 table format with primary-key index. [#25346](https://github.com/risingwavelabs/risingwave/pull/25346)
+    - Adds Iceberg source ingestion metrics. [#25122](https://github.com/risingwavelabs/risingwave/pull/25122)
+- **JDBC sink**: Supports altering the JDBC sink URL, username, and password at runtime. [#24846](https://github.com/risingwavelabs/risingwave/pull/24846)
+- **Delta Lake sink**: Supports exactly-once delivery. [#25159](https://github.com/risingwavelabs/risingwave/pull/25159)
+- **HTTP sink** (new): Supports writing data to HTTP endpoints, including dynamic URL targets. [#25396](https://github.com/risingwavelabs/risingwave/pull/25396), [#25896](https://github.com/risingwavelabs/risingwave/pull/25896)
+- **WebSocket source** (new): Supports ingesting data from WebSocket endpoints with async acknowledgments. [#25444](https://github.com/risingwavelabs/risingwave/pull/25444)
+- **PubSub source**: Supports adaptive splits and streaming pull for improved throughput. [#25074](https://github.com/risingwavelabs/risingwave/pull/25074)
+- **Pulsar source**: Exposes configurable operation retry controls. [#25467](https://github.com/risingwavelabs/risingwave/pull/25467)
+- **MQTT source**: Supports Protobuf encoding. [#25403](https://github.com/risingwavelabs/risingwave/pull/25403)
+- **File source**: Supports case-insensitive column name matching for Parquet files. [#24734](https://github.com/risingwavelabs/risingwave/pull/24734)
+- **Deprecated**: Maxwell, Canal, and Citus CDC sources are disabled. [#25534](https://github.com/risingwavelabs/risingwave/pull/25534)
+
+## Cluster configuration changes
+
+- Adds `disable_sync_log_store_dispatcher` to the `[streaming.developer]` configuration section. Set it to `true` to disable the optimized dispatcher path for sync log store. The default is `false`. [#25663](https://github.com/risingwavelabs/risingwave/pull/25663)
+- Adds `join_hash_map_evict_interval_rows` to the `[streaming.developer]` configuration section. This controls how often the join hash map cache is evicted in hash join and as-of join executors. Eviction runs after every `join_hash_map_evict_interval_rows` rows processed. The default is `16`, matching the previous hard-coded value. Values smaller than `1` are clamped to `1` by the executor. [#25210](https://github.com/risingwavelabs/risingwave/pull/25210)
+- Supports setting session parameters via the PostgreSQL `StartupMessage` `options` field. [#24754](https://github.com/risingwavelabs/risingwave/pull/24754)
+- Adds `RW_TRACING_EXTRA_ATTRIBUTES` environment variable for injecting custom attributes into distributed traces. [#24946](https://github.com/risingwavelabs/risingwave/pull/24946)
+- Default adaptive parallelism is now capped at 64 workers to prevent over-allocation on large clusters. [#24678](https://github.com/risingwavelabs/risingwave/pull/24678)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.0-standalone single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.0/risingwave-v3.0.0-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.0.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.0.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.0/risectl-v3.0.0-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v2.8.0...v3.0.0).
 
 </Update>
 
