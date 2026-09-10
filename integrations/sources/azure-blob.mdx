@@ -41,6 +41,7 @@ FORMAT data_format ENCODE data_encode (
 | azblob.endpoint\_url             | **Required**. The URL of the Azure Blob Storage service endpoint.                                                                                                                                                                                                |
 | match\_pattern                   | **Conditional**. Set to find object keys in `azblob.container_name` that match the given pattern. Standard Unix-style [glob](https://en.wikipedia.org/wiki/Glob%5F%28programming%29) syntax is supported. A typical usage follows the `prefix/*.suffix` pattern. For example, `your_directory/*.parquet` matches all Parquet files under `your_directory/`. If `match_pattern` does not contain `/`, the scan runs from the container root. |
 | compression\_format              | **Optional**. Specifies the compression format of the file being read. When set to gzip or gz, the file reader reads all files with the `.gz` suffix; when set to `None` or not defined, the file reader will automatically read and decompress `.gz` and `.gzip` files. |
+| parquet.case\_insensitive              | **Optional**. For Parquet files only. When set to `true`, enables case-insensitive column name matching. This is useful when the Parquet file has column names with different casing than your table schema (e.g., `ID` in the file, `id` in the table). If multiple columns match case-insensitively, the match is ambiguous and ignored. Default is `false`. |
 
 ### Other parameters
 
@@ -144,6 +145,25 @@ WITH (
     azblob.credentials.account_key = 'xxx',
     azblob.endpoint_url = 'xxx',
     match_pattern = '*.parquet',
+) FORMAT PLAIN ENCODE PARQUET;
+```
+
+To handle Parquet files with mixed-case column names (e.g., `ID`, `Name`, `Age`), use the `parquet.case_insensitive` option:
+
+```sql Example with case-insensitive matching
+CREATE SOURCE s2(
+    id int,
+    name varchar,
+    age int
+)
+WITH (
+    connector = 'azblob',
+    azblob.container_name = 'xxx',
+    azblob.credentials.account_name = 'xxx',
+    azblob.credentials.account_key = 'xxx',
+    azblob.endpoint_url = 'xxx',
+    match_pattern = '*.parquet',
+    parquet.case_insensitive = 'true'
 ) FORMAT PLAIN ENCODE PARQUET;
 ```
     </Tab>
