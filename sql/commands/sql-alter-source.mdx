@@ -62,10 +62,13 @@ The following connectors and properties are currently supported:
 | Connector | Alterable properties |
 | :-------- | :------------------- |
 | Kafka (`kafka`) | `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.auto.commit.interval.ms`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.reconnect.backoff.ms`, `properties.reconnect.backoff.max.ms`, `properties.retry.backoff.ms`, `properties.retry.backoff.max.ms`, `properties.socket.connection.setup.timeout.ms`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password` |
-| PostgreSQL CDC (`postgres-cdc`), MySQL CDC (`mysql-cdc`), SQL Server CDC (`sqlserver-cdc`), MongoDB CDC (`mongodb-cdc`) | `cdc.source.wait.streaming.start.timeout`, `debezium.max.queue.size`, `debezium.queue.memory.ratio` |
+| MySQL CDC (`mysql-cdc`) | `cdc.source.wait.streaming.start.timeout`, `debezium.max.queue.size`, `debezium.queue.memory.ratio`, `hostname`, `port`, `password` |
+| PostgreSQL CDC (`postgres-cdc`) | `cdc.source.wait.streaming.start.timeout`, `debezium.max.queue.size`, `debezium.queue.memory.ratio`, `debezium.heartbeat.interval.ms`, `hostname`, `port`, `password` |
+| SQL Server CDC (`sqlserver-cdc`) | `cdc.source.wait.streaming.start.timeout`, `debezium.max.queue.size`, `debezium.queue.memory.ratio`, `hostname`, `port`, `password` |
+| MongoDB CDC (`mongodb-cdc`) | `cdc.source.wait.streaming.start.timeout`, `debezium.max.queue.size`, `debezium.queue.memory.ratio` |
 
 <Note>
-For CDC connectors, only the Debezium runtime tunables above can be altered in place. Connection-level fields such as `hostname`, `port`, `database.name`, `username`, and `password` still require recreating the source. To rotate credentials without changing the SQL definition, store them in a [secret](/sql/commands/sql-create-secret) and update the secret with [`ALTER SECRET`](/sql/commands/sql-alter-secret) — note that running CDC jobs only pick up the new value after a restart.
+Starting in v3.0.2, MySQL, PostgreSQL, and SQL Server CDC sources can update `hostname`, `port`, and `password` in place. Other connection-level fields, such as `database.name` and `username`, still require recreating the source. To rotate credentials without changing the SQL definition, store them in a [secret](/sql/commands/sql-create-secret) and update the secret with [`ALTER SECRET`](/sql/commands/sql-alter-secret) — note that running CDC jobs only pick up the new value after a restart.
 </Note>
 
 ```sql Example: Kafka
@@ -80,6 +83,14 @@ CONNECTOR WITH (
 ALTER SOURCE pg_cdc_source
 CONNECTOR WITH (
   'debezium.max.queue.size' = '16384'
+);
+```
+
+```sql Example: Update a PostgreSQL CDC endpoint
+ALTER SOURCE pg_cdc_source
+CONNECTOR WITH (
+  'hostname' = 'new-private-host',
+  'port' = '5432'
 );
 ```
 
