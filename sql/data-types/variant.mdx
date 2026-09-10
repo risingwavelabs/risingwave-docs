@@ -31,15 +31,18 @@ You can populate a `VARIANT` column in two main ways:
 INSERT INTO events VALUES
     (1, '{"user":{"id":42,"active":true}}'::VARIANT),
     (2, to_variant(ROW(1, 'blue')::STRUCT<id INT, label VARCHAR>)),
-    (3, to_variant(MAP {'region': 'us-east-1', 'retries': 3}));
+    (3, to_variant(MAP {'retry_primary': 3, 'retry_secondary': 5})),
+    (4, to_variant(ROW('us-east-1', 3)::STRUCT<region VARCHAR, retries INT>));
 ```
+
+`MAP` values must share a common value type. Use a typed `STRUCT` when you need mixed leaf types in one object.
 
 When casting from `VARCHAR`, RisingWave parses the string as a serialized Variant value. `to_variant` instead boxes the SQL value itself.
 
 ```sql
 SELECT
     '{"a":1}'::VARIANT AS parsed_object,
-    to_variant('{"a":1}') AS boxed_string;
+    to_variant('{"a":1}'::VARCHAR) AS boxed_string;
 ```
 
 ## Access nested values
@@ -70,5 +73,5 @@ RisingWave supports these casts for `VARIANT`:
 
 ## Limitations
 
-* `VARIANT` cannot be used as a key type. This includes primary keys, index keys, `GROUP BY`, `DISTINCT`, `ORDER BY`, join keys, and set operations such as `UNION`, `INTERSECT`, and `EXCEPT`.
+* `VARIANT` cannot be used as a key type. This includes primary keys, index keys, `GROUP BY`, `DISTINCT`, `ORDER BY`, join keys, and deduplicating set operations such as `UNION`, `INTERSECT`, and `EXCEPT`. `UNION ALL` is supported.
 * `VARIANT` is not supported in non-SQL UDF signatures yet.
