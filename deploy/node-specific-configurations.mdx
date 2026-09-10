@@ -72,6 +72,22 @@ backup_storage_directory = "hummock_001/backup"
 
 For more information on system parameters, please refer to [View and configure system parameters](/operate/view-configure-system-parameters).
 
+### Session initialization configurations
+
+You can use the `[session_init]` section in `risingwave.toml` to bootstrap selected [runtime parameters](/operate/view-configure-runtime-parameters) when a cluster starts for the first time.
+
+```toml
+[session_init]
+streaming_parallelism = "bounded(8)"
+streaming_parallelism_for_table = "default"
+```
+
+The values in `[session_init]` are seeded into the Meta store during cluster bootstrap only. On existing clusters, persisted session parameter values, such as those set with `ALTER SYSTEM SET`, take precedence. Updating `risingwave.toml` later does not retroactively change already persisted session parameters.
+
+Currently, `[session_init]` supports the streaming parallelism family of runtime parameters: `streaming_parallelism`, `streaming_parallelism_for_backfill`, `streaming_parallelism_for_table`, `streaming_parallelism_for_source`, `streaming_parallelism_for_sink`, `streaming_parallelism_for_index`, and `streaming_parallelism_for_materialized_view`.
+
+For details about these parameters and valid values, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
+
 ### Streaming configurations
 
 Streaming configurations can be set in `[streaming]` section in the configuration file. For example:
@@ -85,6 +101,9 @@ RisingWave now supports the following configurations:
 
 | Configuration                       | Default | Description                                                                                                                                                                |
 | :---------------------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| in\_flight\_barrier\_nums | 10000 | The maximum number of pending barriers in each partial graph. Pending barriers include in-flight, collected but not committed, and currently completing barriers. |
+| snapshot\_backfill\_barrier\_amplification\_factor | 1 | The multiplier applied to `in_flight_barrier_nums` when limiting pending barriers in a snapshot backfill partial graph. A value of 0 is treated as 1. |
+| snapshot\_backfill\_finish\_max\_lagged\_barriers | 100 | The maximum number of lagged barriers allowed before a snapshot backfill job can merge into the database graph. Lower values reduce the allowed backlog before merge; higher values let backfill jobs merge sooner. |
 | unsafe\_enable\_strict\_consistency | true    | Control the strictness of stream consistency. When set to false, data inconsistency like double-insertion or double-deletion with the same primary keys will be tolerated. |
 
 ### State table memory preload
@@ -182,6 +201,25 @@ Below is an example of the cache refill configuration for your reference.
 | threshold                            | 0.5     | Only units whose recently used block ratio exceeds the threshold will be refilled.    |
 | recent\_filter\_layers               | 6       | Number of layers in the recent filter.                                                |
 | recent\_filter\_rotate\_interval\_ms | 10000   | Time interval for rotating recent filter layers.                                      |
+
+You can also override cache refill behavior per materialized view by setting `streaming.developer.cache_refill_policy`:
+
+```sql
+ALTER MATERIALIZED VIEW mv_name
+SET config(streaming.developer.cache_refill_policy = 'both');
+```
+
+Supported values are:
+
+| Value | Description |
+| :---- | :---------- |
+| `enabled` | Enable the default cache refill behavior for the materialized view. |
+| `disabled` | Disable cache refill for the materialized view. |
+| `streaming` | Refill cache only for streaming vnode ownership. |
+| `serving` | Refill cache only for serving vnode ownership. |
+| `both` | Refill cache for both streaming and serving vnode ownership. |
+
+The override is persisted with the materialized view. After recovery, RisingWave rebuilds the cache refill runtime state from the persisted config automatically. For `serving`, `streaming`, and `both`, the runtime state also refreshes when worker ownership changes, so a full cluster recovery is not required to pick up serving worker changes.
 
 #### Other storage configurations
 
