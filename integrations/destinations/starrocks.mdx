@@ -92,6 +92,6 @@ The following table shows the corresponding data type in RisingWave that should 
 | BIGINT         | SERIAL                                                |
 
 
-When sinking `TIMESTAMP WITH TIME ZONE` to StarRocks, RisingWave uses the session [timezone](/operate/view-configure-runtime-parameters) captured when the sink is created. Set it before `CREATE SINK`, for example with `SET TIME ZONE 'Asia/Shanghai';`. The output format is `%Y-%m-%d %H:%M:%S%.6f` (year-month-day, hour:minute:second with six fractional-second digits), without a timezone suffix. For example, with `Asia/Shanghai`, `2018-01-26T18:30:09.453Z` is written as `2018-01-27 02:30:09.453000`.
+When sinking `TIMESTAMP WITH TIME ZONE` to StarRocks, RisingWave uses the session [timezone](/operate/view-configure-runtime-parameters) captured when the sink is created. Set it before `CREATE SINK` with [`SET TIME ZONE`](/sql/commands/sql-set-time-zone), for example `SET TIME ZONE "Asia/Shanghai";`. The output format is `%Y-%m-%d %H:%M:%S%.6f` (year-month-day, hour:minute:second with six fractional-second digits), without a timezone suffix. For example, with `Asia/Shanghai`, `2018-01-26T18:30:09.453Z` is written as `2018-01-27 02:30:09.453000`.
 
 If a decimal value is out of bounds or represents `inf`, `-inf`, or `nan`, RisingWave will insert null values.
