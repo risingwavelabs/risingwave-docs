@@ -37,6 +37,8 @@ SeaweedFS authenticates catalog requests with AWS SigV4 signing, using the same 
 
 ## Read from an Iceberg table
 
+The deployment step above creates only the `analytics` table bucket. The `default.orders` table must already exist in the catalog before you create a source — seed it with a tool such as [PyIceberg](https://py.iceberg.apache.org/) or another Iceberg client writing to the same SeaweedFS S3 gateway.
+
 ```sql
 CREATE SOURCE seaweedfs_orders WITH (
     connector = 'iceberg',
@@ -85,4 +87,4 @@ WITH (
 );
 ```
 
-Rows are committed to the Iceberg table on RisingWave checkpoints, and other engines can read them through the same catalog.
+Rows are committed to the Iceberg table at intervals controlled by `commit_checkpoint_interval` (default: about every 60 seconds), and other engines can read them through the same catalog.
