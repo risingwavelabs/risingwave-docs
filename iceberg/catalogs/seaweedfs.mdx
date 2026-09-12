@@ -12,32 +12,14 @@ SeaweedFS uses the same SigV4 REST catalog parameters as Amazon S3 Tables (`cata
 
 ## Deploy SeaweedFS
 
-For local testing, create a file `s3config.json` with the S3 credentials:
-
-```json
-{
-  "identities": [
-    {
-      "name": "analyst",
-      "credentials": [
-        {
-          "accessKey": "your_access_key",
-          "secretKey": "your_secret_key"
-        }
-      ],
-      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
-    }
-  ]
-}
-```
-
-Then start the whole SeaweedFS stack in one container. The `-tableBucket` flag pre-creates a table bucket named `analytics` that serves as the Iceberg warehouse:
+For local testing, start the whole SeaweedFS stack in one container. The S3 credentials are provided through the standard `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables, which SeaweedFS picks up as a fallback when no `-s3.config` file is supplied. The `-tableBucket` flag pre-creates a table bucket named `analytics` that serves as the Iceberg warehouse:
 
 ```bash
 docker run -d --name seaweedfs -p 8333:8333 -p 8181:8181 \
-    -v "$(pwd)/s3config.json:/etc/seaweedfs/s3config.json" \
+    -e AWS_ACCESS_KEY_ID=your_access_key \
+    -e AWS_SECRET_ACCESS_KEY=your_secret_key \
     chrislusf/seaweedfs:latest \
-    mini -dir=/data -s3.config=/etc/seaweedfs/s3config.json -tableBucket=analytics
+    mini -dir=/data -tableBucket=analytics
 ```
 
 The S3 endpoint listens on port 8333 and the Iceberg REST catalog on port 8181.
