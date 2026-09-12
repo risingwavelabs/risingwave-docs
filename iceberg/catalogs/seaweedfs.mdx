@@ -7,7 +7,7 @@ description: "Connect RisingWave to SeaweedFS table buckets, which serve an Iceb
 [SeaweedFS](https://github.com/seaweedfs/seaweedfs) is an open-source distributed object store whose S3 Table Buckets provide both halves of an Iceberg deployment: the embedded Iceberg REST catalog serves the table metadata, and the table bucket stores the table data as Parquet files behind the same S3 gateway. You can use it with RisingWave when creating an Iceberg `SOURCE` or `SINK`.
 
 <Note>
-For a complete list of all catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
+SeaweedFS uses the same SigV4 REST catalog parameters as Amazon S3 Tables (`catalog.rest.sigv4_enabled`, `catalog.rest.signing_region`, and `catalog.rest.signing_name`). For the complete list of catalog-related parameters, see the main [Catalog configuration](/iceberg/catalogs#catalog-parameters) page.
 </Note>
 
 ## Deploy SeaweedFS
@@ -69,7 +69,7 @@ CREATE SOURCE seaweedfs_orders WITH (
     s3.access.key = '<your_access_key>',
     s3.secret.key = '<your_secret_key>',
     s3.path.style.access = 'true',
-    catalog.rest.sigv4_enabled = 'true',
+    catalog.rest.sigv4_enabled = true,
     catalog.rest.signing_region = 'us-east-1',
     catalog.rest.signing_name = 's3'
 );
@@ -94,7 +94,7 @@ WITH (
     s3.access.key = '<your_access_key>',
     s3.secret.key = '<your_secret_key>',
     s3.path.style.access = 'true',
-    catalog.rest.sigv4_enabled = 'true',
+    catalog.rest.sigv4_enabled = true,
     catalog.rest.signing_region = 'us-east-1',
     catalog.rest.signing_name = 's3',
     type = 'append-only',
