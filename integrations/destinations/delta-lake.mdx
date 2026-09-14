@@ -37,6 +37,7 @@ WITH (
 | s3.secret.key                | **Required**. Secret key of the S3 compatible object store.                                                                                                                                                                                                                                                                                                                                                                                                 |
 | gcs.service.account          | Required for GCS. Specifies the service account JSON file as a string.                                                                                                                                                                                                                                                                                                                                                                                  |
 | commit\_checkpoint\_interval | **Optional**. Commit every N checkpoints (N > 0). Default value is 10. <br/>The behavior of this field also depends on the `sink_decouple` setting:<ul><li>If `sink_decouple` is true (the default), the default value of `commit_checkpoint_interval` is 10.</li> <li>If `sink_decouple` is set to false, the default value of `commit_checkpoint_interval` is 1.</li> <li>If `sink_decouple` is set to false and `commit_checkpoint_interval` is set to larger than 1, an error will occur.</li></ul> |
+| is\_exactly\_once            | **Optional**. Set to `true` to enable exactly-once coordination for Delta Lake sinks. RisingWave uses the Delta transaction log to deduplicate replayed epoch commits so recovery does not append duplicate files. Default: `false`.                                                                                                                                                                                                                   |
 
 <Note>
 In RisingWave Cloud, AWS credentials (`s3.access.key`, `s3.secret.key`) are required and cannot be omitted. In self-hosted deployments, you may omit them to rely on the AWS SDK default credential chain (for example, EC2 instance profile or environment variables).
@@ -108,6 +109,21 @@ CREATE SINK s1_sink FROM t1_table
 WITH (
     connector = 'deltalake',
     type = 'append-only',
+    location = 's3a://my-delta-lake-bucket/path/to/table',
+    s3.endpoint = 'https://s3.ap-southeast-1.amazonaws.com',
+    s3.access.key = '${ACCESS_KEY}',
+    s3.secret.key = '${SECRET_KEY}'
+);
+```
+
+To enable exactly-once coordination for the sink, add `is_exactly_once = 'true'`.
+
+```sql
+CREATE SINK s1_sink FROM t1_table
+WITH (
+    connector = 'deltalake',
+    type = 'append-only',
+    is_exactly_once = 'true',
     location = 's3a://my-delta-lake-bucket/path/to/table',
     s3.endpoint = 'https://s3.ap-southeast-1.amazonaws.com',
     s3.access.key = '${ACCESS_KEY}',
