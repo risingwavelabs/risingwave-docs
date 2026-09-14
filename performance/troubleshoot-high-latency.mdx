@@ -13,6 +13,7 @@ Several symptoms can indicate high latency and slow stream processing:
 
 ![High Barrier Latency](/images/example_bad_barrier_latency.png)
 
+*   **Hot jobs or fragments in bottleneck tables:** Check the **bottleneck percentage tables** in the **Grafana dashboard (dev)** > **Streaming** section. A job or fragment ranked at the top with a disproportionately high percentage indicates a resource hotspot. Use the companion CPU, memory, and actor busy-rate panels to confirm the nature of the constraint. See [Monitoring and metrics - Streaming job and fragment metrics](/performance/metrics#streaming-job-and-fragment-metrics).
 *   **Backpressure:** Observe the **Actor Output Blocking Time Ratio (Backpressure)** panel in **Grafana dashboard (dev)** > **Streaming Actors**. High backpressure between fragments indicates that a downstream component is unable to keep up with the upstream data flow. See [Workload analysis](/performance/workload-analysis) for more details.
 *   **Low source throughput:** Check [Source throughput](/performance/metrics#source-throughput) to see if the input is the cause.  Low throughput from the source, *without* significant backpressure, often indicates a problem with the upstream system itself.
 *   **Data lag:** If RisingWave is falling behind in processing data, this indicates a slowdown. This might be observed as a growing delay between when data is generated in the upstream source and when it's reflected in RisingWave's materialized views.
@@ -22,13 +23,13 @@ Several symptoms can indicate high latency and slow stream processing:
 
 High latency and slow stream processing can be caused by a variety of factors.  These factors often interact, so you may need to investigate multiple potential causes:
 
-### Backpressure
-
-When a downstream actor or fragment processes data slower than its upstream counterpart, it creates backpressure. This pressure propagates upstream, eventually causing the source to slow down its data ingestion.  Backpressure is often a *symptom* of an underlying issue (like resource constraints or an inefficient query), but it can also be a cause of further slowdowns.
-
 ### Resource constraints (CPU, memory, disk I/O)
 
-Insufficient CPU, memory, or disk I/O resources can significantly limit the processing capacity of your streaming jobs.  If RisingWave doesn't have enough resources, it will take longer to process data. See [Monitoring and metrics - Resource utilization](/performance/metrics#resource-utilization), [Best practices - Resource allocation](/performance/best-practices#resource-allocation), and [Specific bottlenecks](/performance/specific-bottlenecks) for more information.
+Insufficient CPU, memory, or disk I/O resources can significantly limit the processing capacity of your streaming jobs.  If RisingWave doesn't have enough resources, it will take longer to process data. The job/fragment-level CPU, memory, and busy-rate panels in the Grafana dashboard provide the most direct view of resource saturation. See [Monitoring and metrics - Streaming job and fragment metrics](/performance/metrics#streaming-job-and-fragment-metrics), [Monitoring and metrics - Resource utilization](/performance/metrics#resource-utilization), [Best practices - Resource allocation](/performance/best-practices#resource-allocation), and [Specific bottlenecks](/performance/specific-bottlenecks) for more information.
+
+### Backpressure
+
+When a downstream actor or fragment processes data slower than its upstream counterpart, it creates backpressure. This pressure propagates upstream, eventually causing the source to slow down its data ingestion.  Backpressure is often a *symptom* of an underlying issue (like resource constraints or an inefficient query), but it can also be a cause of further slowdowns. Use backpressure metrics as secondary corroboration once a bottleneck has been identified via job/fragment-level resource metrics, or when you suspect a graph-propagation effect.
 
 ### Slow upstream sources
 
@@ -53,19 +54,43 @@ The term "Cardinality" describes how many distinct values exist in a column. For
 
 ## Diagnosis
 
+### When to use which diagnostic path
+
+Before diving into individual panels, use this table to decide which diagnostic path to take first:
+
+| Situation | Recommended first step |
+|---|---|
+| Overall latency is high and you are not sure where to start | Check the **bottleneck percentage tables** and per-job/fragment **CPU / memory / busy-rate** panels in the **Streaming** section of Grafana |
+| A specific job or fragment is suspected of consuming too many resources | Check per-job/fragment CPU, memory, and actor busy-rate panels; compare against cluster totals |
+| A downstream component appears to be blocking upstream progress | Check the **Actor Output Blocking Time Ratio (Backpressure)** panel and trace upstream to the frontmost back-pressured fragment |
+| Barrier latency is climbing steadily with increasing uncollected barriers | Check both resource panels and backpressure to confirm whether it is resource saturation or a graph-propagation effect |
+
 ### General approach
 
-1.  **Check barrier latency and number:** Start by examining the "Barrier Latency" and "Barrier Number" panels in Grafana, as described in the "Symptoms" section.
-2.  **Analyze backpressure:** Go to **Grafana dashboard (dev)** > **Streaming Actors** > **Actor Output Blocking Time Ratio (Backpressure)** panel and analyze backpressure between fragments.  High backpressure points to a bottleneck in the downstream fragment.
-3.  **Examine await tree dump:** Check the Await Tree Dump of all Compute Nodes in **RisingWave Dashboard** hosted on `http://meta-node:5691`. If the barrier is stuck, the Await Tree Dump will reveal which operation it's waiting for, helping you pinpoint the problematic part of your streaming pipeline.
+1.  **Check barrier latency and number:** Start by examining the **Barrier Latency** and **Barrier Number** panels in Grafana, as described in the [Symptoms](#symptoms) section.
+2.  **Locate the bottleneck using job/fragment-level metrics:** Navigate to **Grafana dashboard (dev)** > **Streaming** and open the **bottleneck percentage tables** to see which streaming job or fragment accounts for the largest share of resource consumption. Next, examine the per-job/fragment **CPU usage**, **memory usage**, and **actor busy-rate** panels to determine the nature of the constraint (CPU-bound, memory-bound, etc.). See [Monitoring and metrics - Streaming job and fragment metrics](/performance/metrics#streaming-job-and-fragment-metrics). This step is typically the fastest way to identify the root cause.
+3.  **Corroborate with backpressure (if graph-propagation is suspected):** Go to **Grafana dashboard (dev)** > **Streaming Actors** > **Actor Output Blocking Time Ratio (Backpressure)** panel. High backpressure points to a bottleneck in the downstream fragment. Use this step to confirm a bottleneck found in step 2 or to investigate suspected downstream-blockage propagation that is not explained by direct resource saturation.
+4.  **Examine await tree dump:** Check the Await Tree Dump of all Compute Nodes in **RisingWave Dashboard** hosted on `http://meta-node:5691`. If the barrier is stuck, the Await Tree Dump will reveal which operation it's waiting for, helping you pinpoint the problematic part of your streaming pipeline.
 
     To help identify bottlenecks in the await tree, you can use the [Await-Tree Analyzer](https://risingwavelabs.github.io/rw-diagnose-tools/) for analysis. This tool is also available for self-hosting, please consult the [repository](https://github.com/risingwavelabs/rw-diagnose-tools) for setup instructions.
 
-4.  **Examine resource utilization:** Check CPU usage, memory usage, and cache miss ratios as described in [Monitoring and metrics](/performance/metrics). This will help you identify potential resource constraints.
-5.  **Simplify the query:** If you suspect an inefficient query, try removing parts of the SQL query (e.g., individual `JOIN` clauses, `WHERE` conditions, or complex functions) to isolate the specific part causing the slowdown.
-6.  **Check for errors:** Examine RisingWave's logs for any error messages.
+5.  **Examine resource utilization:** Check CPU usage, memory usage, and cache miss ratios as described in [Monitoring and metrics](/performance/metrics). This will help you identify potential resource constraints.
+6.  **Simplify the query:** If you suspect an inefficient query, try removing parts of the SQL query (e.g., individual `JOIN` clauses, `WHERE` conditions, or complex functions) to isolate the specific part causing the slowdown.
+7.  **Check for errors:** Examine RisingWave's logs for any error messages.
 
 ### Identifying specific causes
+
+#### Identify bottleneck jobs and fragments using the bottleneck table
+
+Open **Grafana dashboard (dev)** > **Streaming** and locate the **bottleneck percentage table**. This table ranks streaming jobs and fragments by their contribution to overall system bottlenecks, expressed as a percentage.
+
+For the top-ranked job or fragment, examine the companion **CPU usage (by job/fragment)**, **memory usage (by job/fragment)**, and **actor busy-rate** panels to understand the nature of the constraint:
+
+- **High CPU + high busy rate:** the fragment is CPU-saturated. Consider optimizing the query (e.g., reduce join amplification, simplify aggregations) or increasing parallelism/CPU resources.
+- **High memory usage:** the fragment has large state. Consider increasing memory allocation or reducing state size.
+- **High busy rate with normal CPU/memory:** the fragment may be experiencing frequent cache misses due to memory pressure. Check the [Executor cache miss ratio](/performance/specific-bottlenecks#executor-cache).
+
+Use the fragment ID from the table to correlate with your SQL query. Run `EXPLAIN CREATE MATERIALIZED VIEW …` or navigate to the **Fragment** panel in the RisingWave Dashboard at `http://meta-node:5691` to map the fragment to a specific operator in your pipeline.
 
 #### Identify back-pressured fragments
 
