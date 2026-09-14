@@ -57,10 +57,12 @@ GCP examples will be added when GCP GKE support lands.
 <Tab title="AWS">
 - **Provider**: Amazon EKS
 - **Version**: Kubernetes 1.32 or higher
-- **Region**: Must be in the same AWS region as the RisingWave Cloud control plane
+- **Region**: The AWS region where your EKS cluster and supporting resources run. It can differ from the RisingWave Cloud control-plane region when you configure the cross-region PrivateLink requirements in [Network connectivity](#7-network-connectivity).
 - **Cluster mode**: Standard EKS or EKS Auto Mode
 
 Choose the cluster mode before you register the BYOK8s environment. The `aws.eks_auto_mode` setting is stored when you run `rwc byok create` and cannot be changed with `rwc byok update`. RisingWave does not support an in-place migration between standard EKS and EKS Auto Mode; create a new BYOK8s environment to change modes.
+
+The required top-level `region` field in the BYOK8s configuration identifies the region of your Kubernetes cluster and supporting cloud resources. The region cannot be changed after you register the environment; create a new environment to move to another region.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
@@ -259,6 +261,11 @@ Provision **two** internal Network Load Balancers with VPC Endpoint Services for
 
 For each NLB, create a [VPC Endpoint Service](https://docs.aws.amazon.com/vpc/latest/privatelink/create-endpoint-service.html) and allow the RisingWave control plane AWS account (`600598779918`) as an allowed principal.
 
+If the EKS cluster is in a different region from the RisingWave Cloud control plane:
+
+- Configure both VPC Endpoint Services to support the control-plane region. The [reference `base_env` module](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/base_env) does this when you set `control_plane_region` to the region selected by your `rwc` context.
+- Allow the AWS principal that applies the endpoint-service configuration to use the [`vpce:AllowMultiRegion`](https://docs.aws.amazon.com/vpc/latest/privatelink/security_iam_service-with-iam.html#security_iam_service-with-iam-id-based-policies-actions) permission-only action. Ensure that your AWS Organizations service control policies do not deny this action.
+
 #### EKS Auto Mode load-balancing requirements
 
 EKS Auto Mode reconciles the pre-created target groups through its native `TargetGroupBinding` API. In addition to the shared NLB requirements above:
@@ -323,6 +330,7 @@ resource "aws_vpc_endpoint_service" "cloudagent" {
   acceptance_required        = false
   network_load_balancer_arns = [aws_lb.cloudagent.arn]
   allowed_principals         = ["arn:aws:iam::600598779918:root"]
+  supported_regions          = var.control_plane_region == "" || var.control_plane_region == var.region ? null : toset([var.region, var.control_plane_region])
 }
 
 # RWProxy NLB
@@ -392,6 +400,7 @@ resource "aws_vpc_endpoint_service" "rwproxy" {
   acceptance_required        = false
   network_load_balancer_arns = [aws_lb.rwproxy.arn]
   allowed_principals         = ["arn:aws:iam::600598779918:root"]
+  supported_regions          = var.control_plane_region == "" || var.control_plane_region == var.region ? null : toset([var.region, var.control_plane_region])
 }
 ```
 </Accordion>
