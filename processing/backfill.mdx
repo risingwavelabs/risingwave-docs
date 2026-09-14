@@ -84,6 +84,8 @@ The value is applied when a job is created and is then fixed for that job:
 | `0` | Pauses the backfill, which stays at `0.00%` progress until the value is changed. |
 | positive integer | Rows per second, per parallelism. |
 
+For [locality backfill](/performance/best-practices#locality-backfill), the limit also applies while the `LocalityProvider` drains snapshot rows. While a limit is configured, `rw_catalog.rw_rate_limit` lists this part of the backfill with the node name `LOCALITY_PROVIDER`.
+
 ```sql
 -- Throttle new backfills to 1000 rows/s per parallelism
 SET BACKFILL_RATE_LIMIT = 1000;
