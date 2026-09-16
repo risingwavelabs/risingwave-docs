@@ -245,7 +245,8 @@ ON s1.id = s2.id and s1.ts between s2.ts and s2.ts + INTERVAL '1' MINUTE;
 ```
 
 <Note>
-Interval join‘s state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
+- Interval join's state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
+- **Watermark behavior**: When interval joins include inequality conditions, only the watermark from the side with larger values is propagated downstream. For instance, in `left.ts >= right.ts`, the left side is larger, so only the left-side watermark is emitted. This ensures correct state cleanup and proper behavior for downstream operators relying on watermarks (such as `EMIT ON WINDOW CLOSE`).
 
 </Note>
 
