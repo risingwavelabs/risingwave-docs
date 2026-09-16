@@ -55,6 +55,7 @@ Below are all supported custom settings:
 
 | Setting | Type | Description |
 | --- | --- | --- |
+| `region` | String | Cloud region where the BYOC environment is deployed. If omitted, the environment uses the region selected for the RisingWave Cloud control plane. It cannot be changed after creation; include the unchanged value in later custom-settings updates. |
 | `container_security_context` | Object | Kubernetes [SecurityContext](https://pkg.go.dev/k8s.io/api/core/v1#SecurityContext) applied to all containers in RisingWave-managed namespaces: `cloudagent`, `rwproxy`, `risingwave-operator-system`, and `rwc-*`. |
 | `pod_security_context` | Object | Kubernetes [PodSecurityContext](https://pkg.go.dev/k8s.io/api/core/v1#PodSecurityContext) applied to all RisingWave-managed pods in `cloudagent`, `rwproxy`, `risingwave-operator-system`, and `rwc-*`. |
 | `pod_security_admission_labels` | Map | [Pod Security Admission labels](https://kubernetes.io/docs/concepts/security/pod-security-admission/#pod-security-admission-labels-for-namespaces) applied to all RisingWave-managed namespaces. |
@@ -62,12 +63,57 @@ Below are all supported custom settings:
 | `disable_external_cluster_access` | Boolean | When set to `true`, disables external (Internet-facing) access to RisingWave clusters. |
 | `enable_heap_storage` | Boolean | Enables object storage FUSE mount for heap dump persistence in BYOC clusters. If omitted, this is enabled by default on AWS and GCP. |
 | `disable_public_kubernetes_endpoint` | Boolean | When set to `true`, restricts the Kubernetes control-plane API to in-VPC access only. It must be `false` when creating or terminating a BYOC environment, and can be enabled later through an update. |
+
+### Deploy in a different region
+
+<Warning>
+Cross-region BYOC environments are currently in preview.
+</Warning>
+
+By default, RisingWave deploys your BYOC environment in the same region as its RisingWave Cloud control plane. To deploy the environment in a different region, set the top-level `region` field when you create it.
+
+The control plane and BYOC environment must use the same cloud provider. Cross-region BYOC is currently supported on AWS and GCP. Azure environments and private environments without internet access must use the control-plane region.
+
+For a cross-region environment, you must also select exactly three unique zones in the target region:
+
+- On AWS, set `aws_settings.zone_ids` to AWS Availability Zone IDs, such as `usw2-az1`.
+- On GCP, set `gcp_settings.zones` to zone names, such as `us-west1-a`.
+
+<Tabs>
+<Tab title="AWS">
+```yaml
+region: us-west-2
+aws_settings:
+  zone_ids:
+    - usw2-az1
+    - usw2-az2
+    - usw2-az3
+```
+</Tab>
+<Tab title="GCP">
+```yaml
+region: us-west1
+gcp_settings:
+  zones:
+    - us-west1-a
+    - us-west1-b
+    - us-west1-c
+```
+</Tab>
+</Tabs>
+
+RisingWave validates that the zones belong to the selected environment region. The environment region and zones cannot be changed after creation. Include their existing values in any later custom-settings update; use `rwc byoc custom-settings describe --name <environment-name>` to retrieve the current settings. To use another region or set of zones, create a new BYOC environment.
+
+<Note>
+Cross-region GCP environments can be created only in regions enabled by RisingWave. If validation reports that the selected region is unavailable, contact our [support team](mailto:cloud-support@risingwave-labs.com).
+</Note>
+
 ### AWS settings (`aws_settings`)
 
 | Setting | Type | Description |
 | --- | --- | --- |
 | `eks_node_ami_release_version` | String | Custom AMI release version for EKS nodes. If omitted, the default AMI is used. |
-| `zone_ids` | List | AWS AZ IDs, such as `use1-az2`, that the BYOC environment will be provisioned into. Provide exactly 3 unique AZ IDs matching `^[a-z0-9-]+-az[0-9]+$`. This can only be set when creating the environment. If omitted, RisingWave uses the control-plane default. |
+| `zone_ids` | List | AWS Availability Zone IDs, such as `use1-az2`, where the BYOC environment is provisioned. Provide exactly 3 unique IDs from the environment region. It is required for a cross-region environment; if omitted for a same-region environment, RisingWave uses the control-plane default. It cannot be changed after creation; include the unchanged value in later custom-settings updates. |
 | `additional_node_security_group_ids` | List | Extra security group IDs to include in the Karpenter `EC2NodeClass`. Use this when external systems such as AWS Firewall Manager attach additional security groups to instances, to avoid `SecurityGroupDrift` on repeated Terraform applies. |
 | `enable_hosted_telemetry_lb` | Boolean | Exposes hosted telemetry through internal load balancer endpoints. To connect these endpoints to Grafana, see [Connect BYOC telemetry to Grafana](/cloud/connect-byoc-telemetry-to-grafana). |
 | `iam_role_permissions_boundary` | String | ARN of an IAM permissions boundary policy to attach to all IAM roles created by BYOC Terraform. Use this when your AWS account attaches a permissions boundary out of band, so Terraform does not report `iam:DeleteRolePermissionsBoundary` drift on every apply. |
@@ -76,6 +122,7 @@ Below are all supported custom settings:
 
 | Setting | Type | Description |
 | --- | --- | --- |
+| `zones` | List | GCP zones, such as `us-west1-a`, where the BYOC environment is provisioned. Provide exactly 3 unique zones from the environment region. It is required for a cross-region environment; if omitted for a same-region environment, RisingWave uses the control-plane default. It cannot be changed after creation; include the unchanged value in later custom-settings updates. |
 | `enable_hosted_telemetry_lb` | Boolean | Exposes hosted telemetry through internal load balancer endpoints. To connect these endpoints to Grafana, see [Connect BYOC telemetry to Grafana](/cloud/connect-byoc-telemetry-to-grafana). |
 
 ### Metrics settings (`metrics_settings`)
@@ -116,10 +163,6 @@ Below are all supported custom settings:
 
    # AWS-specific settings
    aws_settings:
-     zone_ids:
-       - use1-az2
-       - use1-az4
-       - use1-az6
      eks_node_ami_release_version: 1.32.0-20241225
      additional_node_security_group_ids:
        - sg-0123456789abcdef0
@@ -241,6 +284,8 @@ When you customize your cloud platform, refer to the following notes to see what
       ]
    }
    ```
+
+   For a cross-region environment, the IAM role/user must also allow the [`vpce:AllowMultiRegion`](https://docs.aws.amazon.com/vpc/latest/privatelink/security_iam_service-with-iam.html#security_iam_service-with-iam-id-based-policies-actions) permission-only action. Ensure that your AWS Organizations service control policies do not deny this action.
 
 * **Resources provisioned in BYOC environment**
 
