@@ -234,21 +234,26 @@ FROM my_iceberg_source i
 JOIN user_profiles u ON i.user_id = u.user_id;
 ```
 
-### Inspect Iceberg metadata through system tables
+### Inspect Iceberg metadata through per-table relations
 
-Use system tables to inspect Iceberg metadata:
+Append a metadata suffix to the Iceberg source name to inspect metadata for that table:
 
 ```sql
--- View table snapshots
-SELECT * FROM my_iceberg_source$snapshots;
+-- View all snapshots
+SELECT * FROM "my_iceberg_source$snapshots";
 
--- View table files
-SELECT * FROM my_iceberg_source$files;
+-- View manifests for the current snapshot
+SELECT * FROM "my_iceberg_source$manifests";
 
--- View table history
-SELECT * FROM my_iceberg_source$history;
-
--- View table manifests
-SELECT * FROM my_iceberg_source$manifests;
+-- View live data and delete files for the current snapshot
+SELECT * FROM "my_iceberg_source$files";
 ```
 
+The `$manifests` and `$files` relations support time travel by timestamp or snapshot ID. The `$snapshots` relation does not support time travel.
+
+```sql
+SELECT * FROM "my_iceberg_source$files"
+FOR SYSTEM_VERSION AS OF 1234567890;
+```
+
+These metadata relations are also available for Iceberg engine tables and standalone Iceberg sinks. For details, see [Iceberg feature support](/iceberg/iceberg-feature-support#per-table-metadata-relations).
