@@ -6,13 +6,13 @@ description: "Configure when RisingWave Cloud can perform automated maintenance 
 
 ## Overview
 
-A maintenance window defines a recurring time slot during which RisingWave Cloud may perform automated operations on your project. Currently, the primary automated operation is **version upgrades** for projects running deprecated RisingWave versions.
+A maintenance window defines a recurring time slot during which RisingWave Cloud may perform automated operations on your cluster. Currently, the primary automated operation is **version upgrades** for clusters running deprecated RisingWave versions.
 
 When a version you are running reaches end-of-support (see [release support policy](/changelog/release-support-policy)), RisingWave Cloud will automatically schedule an upgrade to a supported version. The upgrade is executed only during your configured maintenance window.
 
 ## Default maintenance window
 
-All projects are assigned a default maintenance window:
+All clusters are assigned a default maintenance window:
 
 | Setting                | Default      |
 | :--------------------- | :----------- |
@@ -23,19 +23,19 @@ All projects are assigned a default maintenance window:
 
 ## Configure your maintenance window
 
-### During project creation
+### During cluster creation
 
-The maintenance window is shown on the project confirmation screen before you create your project. Click the gear icon to open the **Maintenance rules** dialog and adjust the settings.
+The maintenance window is shown on the cluster confirmation screen before you create your cluster. Click the gear icon to open the **Maintenance rules** dialog and adjust the settings.
 
 <Frame>
-  <img src="/images/maintenance-window-project-creation.png" alt="Maintenance window shown on the project creation confirmation screen" />
+  <img src="/images/maintenance-window-project-creation.png" alt="Maintenance window shown on the cluster creation confirmation screen" />
 </Frame>
 
-### From an existing project
+### From an existing cluster
 
-To update the maintenance window for an existing project:
+To update the maintenance window for an existing cluster:
 
-1. Open your project and go to the **Maintenance** tab in the left sidebar.
+1. Go to the [RisingWave Cloud dashboard](https://cloud.risingwave.com/dashboard), open your cluster, and select **Maintenance** in the cluster navigation.
 2. Click **Modify rules** to open the **Maintenance rules** dialog.
 3. Adjust the settings and click **Confirm**.
 
@@ -44,7 +44,7 @@ To update the maintenance window for an existing project:
 </Frame>
 
 <Frame>
-  <img src="/images/maintenance-window-modify-rules-modal.png" alt="Maintenance rules dialog for an existing project" />
+  <img src="/images/maintenance-window-modify-rules-modal.png" alt="Maintenance rules dialog for an existing cluster" />
 </Frame>
 
 ### Settings
@@ -58,15 +58,15 @@ To update the maintenance window for an existing project:
 
 ## How automated upgrades work
 
-When your project is running a deprecated version, RisingWave Cloud schedules an upgrade as follows:
+When your cluster is running a deprecated version, RisingWave Cloud schedules an upgrade as follows:
 
-1. **Detection** — The system identifies projects running versions below the minimum supported threshold.
+1. **Detection** — The system identifies clusters running versions below the minimum supported threshold.
 2. **Scheduling** — An upgrade plan is created and scheduled for the start of your next maintenance window.
-3. **Execution** — During the maintenance window, the upgrade runs. If your project is stopped, it is temporarily started for the upgrade and then returned to the stopped state afterward.
+3. **Execution** — During the maintenance window, the upgrade runs. If your cluster is stopped, it is temporarily started for the upgrade and then returned to the stopped state afterward.
 4. **Retry** — If an upgrade attempt fails, it is rescheduled for the next maintenance window. Up to 3 attempts are made before the plan is marked as failed and the team is alerted.
 
 **Additional behaviors:**
-- A project will not have more than one automated upgrade attempt per calendar week.
+- A cluster will not have more than one automated upgrade attempt per calendar week.
 - A pre-upgrade backup is taken automatically before the upgrade runs.
 - Projects running pre-release or tagged versions (e.g., release candidates) are not eligible for automated upgrades.
 
@@ -84,4 +84,4 @@ Click **Show details** to expand the banner and see the target version and sched
 
 ## Opting out or freezing upgrades
 
-To freeze upgrades or switch to manual-only mode, reach out via [Slack](https://www.risingwave.com/slack). When automated upgrades are disabled, you are responsible for upgrading your project before its version reaches end-of-support. See [Update RisingWave version](/cloud/update-database-version) and the [release support policy](/changelog/release-support-policy) for details.
+To freeze upgrades or switch to manual-only mode, reach out via [Slack](https://www.risingwave.com/slack). When automated upgrades are disabled, you are responsible for upgrading your cluster before its version reaches end-of-support. See [Update RisingWave version](/cloud/update-database-version) and the [release support policy](/changelog/release-support-policy) for details.
