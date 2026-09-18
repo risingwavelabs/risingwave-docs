@@ -220,6 +220,10 @@ JOIN TUMBLE(s2, ts, interval '1' MINUTE)
 ON s1.id = s2.id and s1.window_start = s2.window_start;
 ```
 
+<Note>
+When both input sources define watermarks on the columns used in the equality join condition, RisingWave propagates an **aligned watermark** — the minimum of the two input watermarks — through the window join. Both sides' internal join-state tables are cleaned up as the aligned watermark advances, keeping the join state bounded. The output watermark advances only when watermarks from both input sides have progressed past the same timestamp.
+</Note>
+
 ## Interval joins
 
 Window joins require that the two sources have the same window type and window size. This requirement can be too strict in some scenarios. If you want to join two sources that have some time offset, you can create an interval join by specifying an accepted interval range based on watermarks.
@@ -245,8 +249,9 @@ ON s1.id = s2.id and s1.ts between s2.ts and s2.ts + INTERVAL '1' MINUTE;
 ```
 
 <Note>
-Interval join‘s state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
+Interval join’s state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
 
+State cleaning is asymmetric: only the side whose watermark column appears in a lower-bound inequality condition has its join-state table cleaned. For example, given the condition `l.ts >= r.ts - INTERVAL '5' SECOND`, the left-side state is cleaned as the watermark advances, while the right-side state is not.
 </Note>
 
 ## Process-time temporal joins
