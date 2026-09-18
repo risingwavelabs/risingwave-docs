@@ -5,18 +5,18 @@ description: RisingWave Cloud offers a flexible pricing model based on your usag
 
 ## Pricing model
 
-RisingWave Cloud charges the cost of each project individually based on the plan selected.
+RisingWave Cloud charges the cost of each cluster individually based on the plan selected.
 
 | Plan          | Hosting                       | Pricing model                          |
 |:--------------|:------------------------------|:----------------------------------------|
 | [Basic](#basic-plan)       | Fully hosted (AWS, GCP, Azure) | Pay-as-you-go (after 7-day free trial) |
-| [Pro](#pro-plan)           | Fully hosted or BYOC          | Pay-as-you-go or Annual contract       |
+| [Pro](#pro-plan)           | Fully hosted, BYOC, or BYOK   | Pay-as-you-go or Annual contract       |
 | [Self-managed](#self-managed-plan)  | On-prem / Kubernetes            | Annual contract                        |
 
 
 ### Basic plan
 
-The Basic plan is designed to help you launch streaming projects fast with zero setup. It is fully hosted on the Cloud provider of your choice (AWS, GCP, or Azure).
+The Basic plan is designed to help you launch streaming workloads fast with zero setup. It is fully hosted on the Cloud provider of your choice (AWS, GCP, or Azure).
 
 - **Trial period**: Get started with a 7-day free trial.
 - **Pricing**: After the trial, the plan operates on a pay-as-you-go model starting from **$0.227 / RWU / hour**.
@@ -25,9 +25,9 @@ The Basic plan is designed to help you launch streaming projects fast with zero 
 
 ### Pro plan
 
-The Pro plan offers elastic scale, flexibility, and advanced capabilities. This plan is suitable for projects requiring high scalability or specific deployment requirements.
+The Pro plan offers elastic scale, flexibility, and advanced capabilities. This plan is suitable for clusters requiring high scalability or specific deployment requirements.
 
-- **Deployment**: Available as Fully hosted or Bring Your Own Cloud (BYOC).
+- **Deployment**: Available as Fully hosted, Bring Your Own Cloud (BYOC), or Bring Your Own Kubernetes (BYOK).
 - **Pricing**: Options for Pay-as-you-go or an Annual contract.
 - **Features**: Includes premium features, premium support, and SLA.
 - **Capacity**: No core limits.
@@ -51,13 +51,13 @@ The number of RWUs for a component is calculated based on its vCPU and memory al
 
 This means 1 RWU is equivalent to 1 vCPU or 4 GB of memory, whichever value is higher.
 
-Your total charge is based on the RWU-hours consumed by all components in your project. For instance, using 1 RWU for 1 hour equals 1 RWU-hour.
+Your total charge is based on the RWU-hours consumed by all components in your cluster. For instance, using 1 RWU for 1 hour equals 1 RWU-hour.
 
 ## Pricing information
 
 For plans utilizing the pay-as-you-go model (Basic and Pro), you are billed for your actual usage, which includes compute resources, storage capacity, and network usage.
 
-- **Compute resources**: Compute resources are measured in RisingWave Unit (RWU) hours used across all projects in the organization. See the [explanation of RWU](#risingwave-unit-rwu) above. In each RisingWave project, the usages are tracked for all four components:
+- **Compute resources**: Compute resources are measured in RisingWave Unit (RWU) hours used across all clusters in the organization. See the [explanation of RWU](#risingwave-unit-rwu) above. In each RisingWave cluster, the usages are tracked for all four components:
    - Serving Node
    - Streaming Node
    - Meta Node
@@ -65,26 +65,26 @@ For plans utilizing the pay-as-you-go model (Basic and Pro), you are billed for 
 
   For detailed information on each node, see [Understanding nodes in RisingWave](/cloud/choose-a-project-plan/#understanding-nodes-in-risingwave).
 
-- **Storage capacity**: RisingWave Cloud bills the storage in per GB-month increments at a second rate. You pay for the storage capacity of the data your RisingWave project persisted during stream processing, such as tables, materialized views, and internal states.
-- **Disk cache**: Every project includes a default disk cache — a local disk layer that sits between memory and object storage to reduce latency and object storage access. Pro plan projects can customize the cache size and performance tier. See [Manage disk cache](/cloud/manage-disk-cache) for the sizing defaults and tier options.
+- **Storage capacity**: RisingWave Cloud bills the storage in per GB-month increments at a second rate. You pay for the storage capacity of the data your RisingWave cluster persisted during stream processing, such as tables, materialized views, and internal states.
+- **Disk cache**: Every cluster includes a default disk cache — a local disk layer that sits between memory and object storage to reduce latency and object storage access. Pro clusters can customize the cache size and performance tier. See [Manage disk cache](/cloud/manage-disk-cache) for the sizing defaults and tier options.
 - **Network**: Network usage is billed based on data transfer. For detailed information about network billing, see [Network billing](/cloud/network-billing).
 
 ## Pricing example
 
 To better understand how pricing works in RisingWave Cloud, let's consider a hypothetical scenario.
 
-Suppose you've provisioned a RisingWave project with the following configuration:
+Suppose you've provisioned a RisingWave cluster with the following configuration:
 
 - 3 Serving nodes, each with 2 RWUs
 - 3 Streaming nodes, each with 8 RWUs
 - 1 Meta Node with 4 RWUs
 - 1 Compactor Node with 4 RWUs
 
-In total, the project utilizes 38 RWUs and stores 20GB of data. The project operated for 700 hours in the past month. The project also transferred 1TB (1024GB) of public ingress data and 20GB of public egress data.
+In total, the cluster utilizes 38 RWUs and stores 20GB of data. The cluster operated for 700 hours in the past month. The cluster also transferred 1TB (1024GB) of public ingress data and 20GB of public egress data.
 
 Suppose the base price for your region is \$0.227 per RWU-hour for compute resources and \$0.0299 per GB-month for storage capacities. The network transfer rates are \$0.07 per GB for public ingress and \$0.17 per GB for public egress.
 
-Given these details, your bill for this project for the past month will be calculated as follows:
+Given these details, your bill for this cluster for the past month will be calculated as follows:
 
 - Compute resources cost: \$0.227 * 38 RWUs * 700 hours = \$6,038.2
 - Storage capacity cost: \$0.0299 * 20GB = \$0.598

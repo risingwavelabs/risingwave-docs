@@ -12,13 +12,13 @@ can no longer resume if required WAL has already been removed.
 ## Common triggers
 
 - The source cannot connect to, or authenticate with, the upstream PostgreSQL database.
-- Streaming backpressure or insufficient project resources prevents the source from catching up.
+- Streaming backpressure or insufficient cluster resources prevents the source from catching up.
 - A sustained increase in upstream writes exceeds the source's consumption rate.
 - The replication slot is inactive, unhealthy, or cannot retain the required WAL.
 
 ## Diagnosis
 
-1. Note the `source_id` and replication slot name in the alert. To identify the source name, connect to the project and run:
+1. Note the `source_id` and replication slot name in the alert. To identify the source name, connect to the cluster and run:
 
    ```sql
    SELECT id, name
@@ -30,7 +30,7 @@ can no longer resume if required WAL has already been removed.
 2. Check the source's running status, throughput, and recent errors in RisingWave Cloud.
 3. Check the upstream PostgreSQL database for connectivity and authentication errors, and confirm that logical replication remains available.
 4. Inspect the replication slot named in the alert. Confirm that it is active and that the upstream database has enough disk capacity and WAL retention for the source to catch up.
-5. Check the project for other streaming or resource alerts that could indicate backpressure.
+5. Check the cluster for other streaming or resource alerts that could indicate backpressure.
 
 ## Resolution
 

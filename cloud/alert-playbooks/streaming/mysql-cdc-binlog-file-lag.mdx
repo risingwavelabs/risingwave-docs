@@ -11,13 +11,13 @@ If the lag continues to grow, data freshness can be affected. The source can sto
 ## Common triggers
 
 - A connectivity or availability problem between RisingWave and the upstream MySQL database.
-- Streaming backpressure or insufficient project resources.
+- Streaming backpressure or insufficient cluster resources.
 - A sustained increase in changes written to the upstream database.
 - An upstream binlog retention period that is too short for the current workload.
 
 ## Diagnosis
 
-1. Note the `source_id` in the alert. To identify the source name, connect to the project and run:
+1. Note the `source_id` in the alert. To identify the source name, connect to the cluster and run:
 
    ```sql
    SELECT id, name
@@ -29,7 +29,7 @@ If the lag continues to grow, data freshness can be affected. The source can sto
 2. In RisingWave Cloud, open the source details and check its running status, throughput, and recent errors.
 3. Check the upstream MySQL database for connectivity problems and confirm that binary logging is enabled.
 4. Review the upstream binlog retention settings and confirm that files needed by the lagging source have not been removed.
-5. Check the project for other streaming or resource alerts that could indicate backpressure.
+5. Check the cluster for other streaming or resource alerts that could indicate backpressure.
 
 ## Resolution
 
