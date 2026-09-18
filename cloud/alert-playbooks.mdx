@@ -66,6 +66,22 @@ A PostgreSQL CDC source is more than 20 GiB behind the upstream WAL for at least
 
 See the dedicated [PostgreSQL CDC WAL lag playbook](/cloud/alert-playbooks/streaming/postgresql-cdc-wal-lag).
 
+### Cross-database subscription changelog expiry headroom low
+
+At least one cross-database materialized view or sink in the project has less than three hours before required upstream changelog data expires.
+
+See the dedicated [Cross-database subscription changelog expiry headroom low playbook](/cloud/alert-playbooks/streaming/cross-database-subscription-changelog-expiry-headroom-low).
+
+**Triggers**
+
+- A downstream streaming job is stalled by an error or sustained backpressure.
+- Streaming resources are insufficient for the downstream job to keep up with upstream changes.
+- The retention periods configured for subscriptions on the upstream relation are too short for the current interruption or processing lag.
+
+**Resolution**
+
+Restore the downstream job's progress or ensure that at least one subscription on the upstream relation has a sufficiently long retention period before the required changelog data expires.
+
 ## Compaction
 
 ### Compaction back pressure
