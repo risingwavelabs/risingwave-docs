@@ -128,30 +128,27 @@ CREATE TABLE iot_data (
 
 ### Example: Batch load from a database
 
-The `postgres-cdc` connector can be used to perform a one-time snapshot of a PostgreSQL table. For other databases, such as MySQL, you can use the corresponding CDC connector and set `snapshot.mode` to `initial_only`. 
+For PostgreSQL and MySQL, use the [`postgres_query`](/integrations/sources/postgresql-table) or [`mysql_query`](/integrations/sources/mysql-table) table-valued function to query the upstream database on demand. Unlike a CDC connector, each invocation executes the upstream query once and does not continue reading database changes.
 
 ```sql
--- Create a table that takes a snapshot of a PostgreSQL table.
-CREATE TABLE historical_sales (
-  sale_id INT,
-  product_id INT,
-  quantity INT,
-  sale_date DATE,
-  amount DECIMAL
-) WITH (
-  connector = 'postgres-cdc',
-  hostname = 'localhost',
-  port = '5432',
-  username = 'postgres',
-  password = 'password',
-  database.name = 'analytics',
-  schema.name = 'public',
-  table.name = 'sales_history',
-  snapshot.mode = 'initial_only' -- Perform a snapshot and then stop.
+-- Run the PostgreSQL query once and store its result in RisingWave.
+CREATE TABLE historical_sales AS
+SELECT *
+FROM postgres_query(
+  'localhost',
+  '5432',
+  'postgres',
+  '<password>',
+  'analytics',
+  'SELECT sale_id, product_id, quantity, sale_date, amount FROM public.sales_history;'
 );
 ```
 
+CDC connectors are intended for continuous replication. Do not use a Debezium snapshot mode as a substitute for a finite batch load.
+
 ### Example: Load from cloud storage (S3, GCS, Azure)
+
+When a batch query such as `CREATE TABLE AS` or `INSERT ... SELECT` reads an object-storage source, RisingWave lists matching objects once for that query. In streaming queries, the same source continues discovering new files instead.
 
 ```sql
 -- Create a source from S3 files
@@ -163,13 +160,14 @@ CREATE SOURCE s3_logs (
   connector = 's3',
   s3.region_name = 'us-west-2',
   s3.bucket_name = 'my-logs-bucket',
-  s3.path = 'logs/2024/'
+  s3.credentials.access = '<your-access-key>',
+  s3.credentials.secret = '<your-secret-key>',
+  match_pattern = 'logs/2024/*.csv'
 ) FORMAT PLAIN ENCODE CSV;
 
 -- Create a table and load data once
 CREATE TABLE processed_logs AS
 SELECT * FROM s3_logs;
-
 ```
 
 ### Example: Load from a data lake (Iceberg)
@@ -189,13 +187,19 @@ CREATE TABLE customers AS
 SELECT * FROM iceberg_data;
 ```
 
-## Periodic ingestion with external orchestration
+The batch query loads the current Iceberg snapshot once. To continuously ingest new snapshots from an append-only Iceberg table, use the source in a streaming query instead.
 
-**What it is**: RisingWave doesn't have a built-in scheduler, but you can achieve periodic ingestion using external orchestration tools like Cron or Airflow.
+## Periodic ingestion
 
-**When to use**: For scheduled data updates, daily/hourly batch processing, or when you need precise control over ingestion timing.
+**What it is**: Reloading or incrementally importing external data on a schedule.
 
-### Example: Incremental loading pattern
+**When to use**: For scheduled data updates, daily or hourly batch processing, or when you need precise control over ingestion timing.
+
+S3, GCS, Iceberg, and Snowflake tables can use `refresh_mode = 'FULL_RELOAD'`. Set `refresh_interval_sec` for native periodic refresh, or omit it and run [`REFRESH TABLE`](/sql/commands/sql-refresh-table) when needed. Full-reload refresh is currently in [technical preview](/changelog/product-lifecycle#product-release-lifecycle).
+
+Use an external orchestrator such as Cron or Airflow for connectors without native refresh support or for custom incremental-loading logic.
+
+### Example: Externally orchestrated incremental load
 
 A common pattern is to use a control table to track the last load time and only ingest new data.
 
@@ -276,14 +280,14 @@ CREATE TABLE test_users (
 | **Google Pub/Sub** | ✅ | ❌ | ⚠️ | Streaming only; periodic via external tools |
 | **NATS JetStream** | ✅ | ❌ | ⚠️ | Streaming only; periodic via external tools |
 | **MQTT** | ✅ | ❌ | ⚠️ | Streaming only; periodic via external tools |
-| **PostgreSQL CDC** | ✅ | ✅ | ⚠️ | CDC for streaming; direct connection for batch |
-| **MySQL CDC** | ✅ | ✅ | ⚠️ | CDC for streaming; direct connection for batch |
-| **SQL Server CDC** | ✅ | ✅ | ⚠️ | CDC for streaming; direct connection for batch |
-| **MongoDB CDC** | ✅ | ✅ | ⚠️ | CDC for streaming; direct connection for batch |
-| **AWS S3** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
-| **Google Cloud Storage** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
-| **Azure Blob** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
-| **Apache Iceberg** | ❌ | ✅ | ⚠️ | Batch only; periodic via external tools |
+| **PostgreSQL** | ✅ | ✅ | ⚠️ | CDC for streaming; `postgres_query` for one-time batch loads |
+| **MySQL** | ✅ | ✅ | ⚠️ | CDC for streaming; `mysql_query` for one-time batch loads |
+| **SQL Server CDC** | ✅ | ❌ | ⚠️ | CDC for streaming; no native one-time batch query |
+| **MongoDB CDC** | ✅ | ❌ | ⚠️ | CDC for streaming; no native one-time batch query |
+| **AWS S3** | ✅ | ✅ | ✅ | Append-only file discovery; batch queries; optional full reload |
+| **Google Cloud Storage** | ✅ | ✅ | ✅ | Append-only file discovery; batch queries; optional full reload |
+| **Azure Blob** | ✅ | ✅ | ⚠️ | Append-only file discovery and batch queries; external orchestration for scheduled reloads |
+| **Apache Iceberg** | ✅ | ✅ | ✅ | Append-only continuous ingestion; batch queries; optional full reload |
 | **Snowflake** | ❌ | ✅ | ✅ | Manual one-time load via `REFRESH TABLE`; periodic refresh when `refresh_interval_sec` is set |
 | **Datagen** | ✅ | ❌ | ❌ | Test data generation only |
 | **Direct INSERT** | ❌ | ✅ | ⚠️ | Manual insertion; periodic via external tools |
@@ -301,7 +305,7 @@ CREATE TABLE test_users (
 
 - **Streaming**: Use for real-time requirements and continuous data flows.
 - **Batch**: Use for historical data, large one-time loads, or static datasets.
-- **Periodic**: Use for scheduled updates with external orchestration tools.
+- **Periodic**: Use native full-reload scheduling where supported, or external orchestration for custom incremental loads and other connectors.
 
 ### Performance considerations
 
