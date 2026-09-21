@@ -9,6 +9,7 @@ This release adds the `VARIANT` data type, periodically refreshed materialized v
 
 ## Breaking changes and deprecations
 
+- WebSocket ingestion now requires a license that includes `WebSocketIngest`. Before upgrading self-managed deployments using this feature, configure a license covering it; otherwise new or re-established WebSocket connections are rejected with HTTP 403. HTTP webhook ingestion is unaffected. [#26519](https://github.com/risingwavelabs/risingwave/pull/26519)
 - Removes direct CDC table creation with the `mysql-cdc`, `postgres-cdc`, and `sqlserver-cdc` connectors. Create a shared CDC source first, then create tables with `CREATE TABLE ... FROM source TABLE '...'`. MongoDB CDC is unaffected. [#25682](https://github.com/risingwavelabs/risingwave/pull/25682)
 - Changes Parquet `VARIANT` columns from their raw `struct<metadata bytea, value bytea>` representation to the native `variant` type. Update explicitly declared Parquet schemas to `variant`; declarations using the old raw struct now produce NULL for that column. `file_scan()` also infers `variant`, so queries accessing `.metadata` or `.value` must use variant functions or casts instead. [#25165](https://github.com/risingwavelabs/risingwave/pull/25165)
 - Deprecates creating new jobs with no-shuffle backfill. Use snapshot backfill or locality backfill instead. [#25963](https://github.com/risingwavelabs/risingwave/pull/25963)
@@ -32,7 +33,6 @@ This release adds the `VARIANT` data type, periodically refreshed materialized v
 - Supports Google Application Default Credentials for Pub/Sub sources and sinks in self-hosted and BYOC deployments when explicit credentials and emulator configuration are absent. RisingWave Cloud Hosted still requires explicit connector credentials. [#26808](https://github.com/risingwavelabs/risingwave/pull/26808)
 - Supports PostgreSQL CDC arrays of user-defined composite types as `varchar[]`, and improves NULL handling for scalar composite values. [#25818](https://github.com/risingwavelabs/risingwave/pull/25818), [#25815](https://github.com/risingwavelabs/risingwave/pull/25815)
 - Supports Pulsar message properties through `INCLUDE header` columns. [#25794](https://github.com/risingwavelabs/risingwave/pull/25794)
-- Allows Kafka SSL certificate, key, and CA settings to be altered without recreating the source, sink, or connection. [#25717](https://github.com/risingwavelabs/risingwave/pull/25717)
 - Supports writing RisingWave `jsonb` values to Doris `VARIANT` columns and `timestamptz` values to supported StarRocks datetime or string columns using the sink's captured session time zone. [#25451](https://github.com/risingwavelabs/risingwave/pull/25451), [#25837](https://github.com/risingwavelabs/risingwave/pull/25837)
 - Supports serverless tasks for Snowflake upsert sinks and a `num_shards` option for new Turbopuffer namespaces. [#25090](https://github.com/risingwavelabs/risingwave/pull/25090), [#26197](https://github.com/risingwavelabs/risingwave/pull/26197)
 
