@@ -109,11 +109,13 @@ Added in v3.2.0.
 
 By default, RisingWave treats calls to external and embedded UDFs as impure for streaming planning. Result materialization depends on the input stream kind:
 
-| Stream kind | Result materialization |
+| Project input stream kind | Result materialization |
 | --- | --- |
 | Append-only | Always skipped. |
 | UPSERT | Always skipped, regardless of the UDF option or session setting. |
 | RETRACT | Controlled by expression purity and the per-UDF option. The session-level override skips planner-inserted materialization for all impure expressions. |
+
+Skipping result materialization does not skip UDF evaluation or storage of a query's output. It means that RisingWave does not create an additional internal state table to preserve previously evaluated expression results.
 
 On a RETRACT input, RisingWave stores the complete projected expression when result materialization is required so that delete and update-delete records can reuse the previously evaluated result.
 
@@ -149,7 +151,9 @@ Enable this option only when repeated evaluations with the same input always ret
 On a RETRACT input with the session-level override disabled, RisingWave still materializes the complete top-level projected expression if an argument contains an unmarked UDF or another impure expression. The per-UDF option does not selectively materialize nested subexpressions.
 
 <Note>
-UPSERT projects always skip result materialization because computed expressions cannot be part of the internal stream key. By default, sink planning rejects a computed downstream primary key that does not match the key derived from the stream. If [`streaming_unsafe_allow_upsert_sink_pk_mismatch`](/operate/view-configure-runtime-parameters) permits this mismatch, a downstream primary-key change whose old value is not emitted can leave stale rows in the downstream system.
+UPSERT projects always skip result materialization because computed expressions cannot be part of the internal stream key. For example, a keyed projection can evaluate a UDF for each insert or keyed overwrite without storing the previous UDF result. This does not make raw UPSERT input acceptable to operators such as aggregations that require old row values; the UDF option changes expression-result materialization, not the stream kind or an operator's UPSERT support.
+
+By default, sink planning rejects a computed downstream primary key that does not match the key derived from the stream. If [`streaming_unsafe_allow_upsert_sink_pk_mismatch`](/operate/view-configure-runtime-parameters) permits this mismatch, a downstream primary-key change whose old value is not emitted can leave stale rows in the downstream system.
 </Note>
 
 ### Interaction with the session-level override
