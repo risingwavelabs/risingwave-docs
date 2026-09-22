@@ -30,9 +30,11 @@ Used for complex queries requiring joins or aggregations during backfill. This s
 - Handles updates to upstream tables during backfill
 - Ensures consistency through barrier alignment
 
-### No-shuffle backfill
+### Legacy no-shuffle backfill
 
-Optimized strategy that avoids data redistribution when upstream and downstream parallelism match and data distribution is compatible.
+New streaming jobs no longer use no-shuffle backfill. RisingWave now uses snapshot backfill when available and otherwise falls back to arrangement backfill.
+
+Legacy persisted jobs that already completed no-shuffle backfill remain compatible, but if RisingWave recovers an unfinished legacy no-shuffle backfill, you must cancel and recreate the streaming job.
 
 ## Monitoring backfill progress
 

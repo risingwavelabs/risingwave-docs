@@ -56,10 +56,11 @@ ALTER MATERIALIZED VIEW cust_sales_new RENAME TO cust_sales;
 
 To alter a sink, you will need to create a new sink and drop the old sink. Please check the example from the last section.
 
-If your sink is created based on a materialized view using the `CREATE SINK ... FROM ...` statement, you have the option to specify `snapshot = false` to exclude existing data.
+If your sink is created from a table or materialized view, you can specify `snapshot = false` to exclude existing data. This applies to both `CREATE SINK ... FROM ...` and sink queries created with `CREATE SINK ... AS SELECT ...`, as long as the sink query only uses operators that can consume upstream-only changes, such as projection and filtering.
 
 ```
 CREATE SINK ... FROM ... WITH (snapshot = false);
+CREATE SINK ... AS SELECT ... WITH (snapshot = false);
 ```
 
 ## Alter streaming jobs with dependencies

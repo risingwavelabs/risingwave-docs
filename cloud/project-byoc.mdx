@@ -18,6 +18,8 @@ BYOC uses the `rwc` (RisingWave Cloud CLI) to provision and manage environments.
 
 Once `rwc cluster list` runs successfully in your chosen region, you are ready to create a BYOC environment.
 
+Choose an IPv4 CIDR block of `/19` or larger for a new BYOC environment, with a prefix length from `/15` through `/19`. For example, `10.0.0.0/19` meets the minimum size. Private AWS environments with Internet access disabled can use `/21` or larger, with a prefix length from `/15` through `/21`. Smaller address ranges do not provide enough IP capacity for the supported infrastructure.
+
 ## Create a BYOC environment
 
 Follow the steps below to create your own cloud environment.
@@ -55,6 +57,7 @@ Below are all supported custom settings:
 
 | Setting | Type | Description |
 | --- | --- | --- |
+| `region` | String | Cloud region where the BYOC environment is deployed. If omitted, the environment uses the region selected for the RisingWave Cloud control plane. It cannot be changed after creation; include the unchanged value in later custom-settings updates. |
 | `container_security_context` | Object | Kubernetes [SecurityContext](https://pkg.go.dev/k8s.io/api/core/v1#SecurityContext) applied to all containers in RisingWave-managed namespaces: `cloudagent`, `rwproxy`, `risingwave-operator-system`, and `rwc-*`. |
 | `pod_security_context` | Object | Kubernetes [PodSecurityContext](https://pkg.go.dev/k8s.io/api/core/v1#PodSecurityContext) applied to all RisingWave-managed pods in `cloudagent`, `rwproxy`, `risingwave-operator-system`, and `rwc-*`. |
 | `pod_security_admission_labels` | Map | [Pod Security Admission labels](https://kubernetes.io/docs/concepts/security/pod-security-admission/#pod-security-admission-labels-for-namespaces) applied to all RisingWave-managed namespaces. |
@@ -62,12 +65,53 @@ Below are all supported custom settings:
 | `disable_external_cluster_access` | Boolean | When set to `true`, disables external (Internet-facing) access to RisingWave clusters. |
 | `enable_heap_storage` | Boolean | Enables object storage FUSE mount for heap dump persistence in BYOC clusters. If omitted, this is enabled by default on AWS and GCP. |
 | `disable_public_kubernetes_endpoint` | Boolean | When set to `true`, restricts the Kubernetes control-plane API to in-VPC access only. It must be `false` when creating or terminating a BYOC environment, and can be enabled later through an update. |
+
+### Deploy in a different region
+
+By default, RisingWave deploys your BYOC environment in the same region as its RisingWave Cloud control plane. To deploy the environment in a different region, set the top-level `region` field when you create it.
+
+The control plane and BYOC environment must use the same cloud provider. Cross-region BYOC is currently supported on AWS and GCP. Azure environments and private environments without internet access must use the control-plane region.
+
+For a cross-region environment, you must also select exactly three unique zones in the target region:
+
+- On AWS, set `aws_settings.zone_ids` to AWS Availability Zone IDs, such as `usw2-az1`.
+- On GCP, set `gcp_settings.zones` to zone names, such as `us-west1-a`.
+
+<Tabs>
+<Tab title="AWS">
+```yaml
+region: us-west-2
+aws_settings:
+  zone_ids:
+    - usw2-az1
+    - usw2-az2
+    - usw2-az3
+```
+</Tab>
+<Tab title="GCP">
+```yaml
+region: us-west1
+gcp_settings:
+  zones:
+    - us-west1-a
+    - us-west1-b
+    - us-west1-c
+```
+</Tab>
+</Tabs>
+
+RisingWave validates that the zones belong to the selected environment region. The environment region and zones cannot be changed after creation. Include their existing values in any later custom-settings update; use `rwc byoc custom-settings describe --name <environment-name>` to retrieve the current settings. To use another region or set of zones, create a new BYOC environment.
+
+<Note>
+Cross-region GCP environments can be created only in regions enabled by RisingWave. If validation reports that the selected region is unavailable, contact our [support team](mailto:cloud-support@risingwave-labs.com).
+</Note>
+
 ### AWS settings (`aws_settings`)
 
 | Setting | Type | Description |
 | --- | --- | --- |
 | `eks_node_ami_release_version` | String | Custom AMI release version for EKS nodes. If omitted, the default AMI is used. |
-| `zone_ids` | List | AWS AZ IDs, such as `use1-az2`, that the BYOC environment will be provisioned into. Provide exactly 3 unique AZ IDs matching `^[a-z0-9-]+-az[0-9]+$`. This can only be set when creating the environment. If omitted, RisingWave uses the control-plane default. |
+| `zone_ids` | List | AWS Availability Zone IDs, such as `use1-az2`, where the BYOC environment is provisioned. Provide exactly 3 unique IDs from the environment region. It is required for a cross-region environment; if omitted for a same-region environment, RisingWave uses the control-plane default. It cannot be changed after creation; include the unchanged value in later custom-settings updates. |
 | `additional_node_security_group_ids` | List | Extra security group IDs to include in the Karpenter `EC2NodeClass`. Use this when external systems such as AWS Firewall Manager attach additional security groups to instances, to avoid `SecurityGroupDrift` on repeated Terraform applies. |
 | `enable_hosted_telemetry_lb` | Boolean | Exposes hosted telemetry through internal load balancer endpoints. To connect these endpoints to Grafana, see [Connect BYOC telemetry to Grafana](/cloud/connect-byoc-telemetry-to-grafana). |
 | `iam_role_permissions_boundary` | String | ARN of an IAM permissions boundary policy to attach to all IAM roles created by BYOC Terraform. Use this when your AWS account attaches a permissions boundary out of band, so Terraform does not report `iam:DeleteRolePermissionsBoundary` drift on every apply. |
@@ -76,6 +120,7 @@ Below are all supported custom settings:
 
 | Setting | Type | Description |
 | --- | --- | --- |
+| `zones` | List | GCP zones, such as `us-west1-a`, where the BYOC environment is provisioned. Provide exactly 3 unique zones from the environment region. It is required for a cross-region environment; if omitted for a same-region environment, RisingWave uses the control-plane default. It cannot be changed after creation; include the unchanged value in later custom-settings updates. |
 | `enable_hosted_telemetry_lb` | Boolean | Exposes hosted telemetry through internal load balancer endpoints. To connect these endpoints to Grafana, see [Connect BYOC telemetry to Grafana](/cloud/connect-byoc-telemetry-to-grafana). |
 
 ### Metrics settings (`metrics_settings`)
@@ -116,10 +161,6 @@ Below are all supported custom settings:
 
    # AWS-specific settings
    aws_settings:
-     zone_ids:
-       - use1-az2
-       - use1-az4
-       - use1-az6
      eks_node_ami_release_version: 1.32.0-20241225
      additional_node_security_group_ids:
        - sg-0123456789abcdef0
@@ -148,7 +189,7 @@ You may either create a new BYOC environment or update your existing one to appl
 
 <Tabs>
   <Tab title="Create a new BYOC environment">
-    1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFIG` is the file path of the config file created in the previous step.
+    1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFIG` is the file path of the config file created in the previous step. Set `$BYOC_CIDR` to an IPv4 CIDR block that meets the [CIDR size requirements](#prerequisites), such as `10.0.0.0/19`.
 
 ```bash
 $ rwc byoc create \
@@ -189,7 +230,18 @@ $ rwc byoc describe --name $BYOC_NAME
 
 ## Resource and permission
 
-When you customize your cloud platform, refer to the following notes to see what we've set up for you and the permissions you need to enable.
+BYOC uses two types of cloud identities with different permission lifecycles:
+
+| Identity | Where it lives | Permission lifecycle | Can permissions be removed after setup? |
+| --- | --- | --- | --- |
+| Operator identity (runs `rwc byoc apply` and `rwc byoc delete`) | A customer-managed user, role, or service principal | Needed while the CLI creates or deletes the BYOC environment | Yes. Re-grant the permissions before a future `apply` or `delete` operation. |
+| Cloud Agent service account | Inside the BYOC environment | Needed for the entire lifetime of the environment to create and update RisingWave clusters and manage environment components | No. Narrowing its permissions breaks environment updates and cluster creation. |
+
+The predefined roles and policies below are required by the current BYOC implementation. Some of them, such as AWS `*FullAccess` policies, GCP `*Admin` roles, and Azure `Contributor` roles, are broader than the minimum set of API actions that the services invoke. RisingWave may narrow these permissions in a future release.
+
+<Warning>
+There is currently no automatic permission downgrade for the Cloud Agent service account after setup. Do not manually remove or narrow its roles, or the roles of its supporting service identities. Deleting an individual RisingWave cluster does not remove these permissions while the BYOC environment is retained. They are cleaned up only when you delete the BYOC environment with `rwc byoc delete`.
+</Warning>
 
 <Tabs>
 <Tab title="AWS">
@@ -199,9 +251,9 @@ When you customize your cloud platform, refer to the following notes to see what
 * **Required quota increase**
 
    For optimal performance, the quota for managed node groups per cluster should be increased to 36 or more. See [Service quotas](https://docs.aws.amazon.com/eks/latest/userguide/service-quotas.html#sq-text) for more details.
-* **Required permissions for BYOC environment creation/deletion**
+* **Operator identity — permissions to run `rwc byoc apply` and `rwc byoc delete`**
 
-   The IAM role/user requires the following roles to create or delete a BYOC environment:
+   The customer-managed IAM role or user that runs the CLI requires the following managed policies while creating or deleting a BYOC environment:
 
    - AmazonDynamoDBFullAccess
    - AmazonEC2FullAccess
@@ -241,6 +293,10 @@ When you customize your cloud platform, refer to the following notes to see what
       ]
    }
    ```
+
+   For a cross-region environment, the IAM role/user must also allow the [`vpce:AllowMultiRegion`](https://docs.aws.amazon.com/vpc/latest/privatelink/security_iam_service-with-iam.html#security_iam_service-with-iam-id-based-policies-actions) permission-only action. Ensure that your AWS Organizations service control policies do not deny this action.
+
+   You can remove these permissions from the operator identity after the command completes. Re-grant them before using that identity for a future `rwc byoc apply` or `rwc byoc delete` operation.
 
 * **Resources provisioned in BYOC environment**
 
@@ -250,54 +306,26 @@ When you customize your cloud platform, refer to the following notes to see what
    * 2 S3 buckets: for RisingWave cluster data and infra state data respectively.
    * 2 Internal network load balancer: to expose Agent Service and RWProxy.
    * (Optional) 1 External network load balancer: to expose RWProxy to the Internet.
-   * A few IAM roles for EKS and K8s workloads, and each role is granted the least privilege it requires.
+   * IAM roles for the Cloud Agent, EKS, and Kubernetes workloads.
 
-* **Required permission for deployed services**
-   
-   The deployed service will need the permissions to perform the following actions:
+* **Cloud Agent service account — permissions used inside the BYOC environment**
 
-   - AmazonDynamoDBFullAccess
-   - AmazonEC2FullAccess
-   - AmazonElasticContainerRegistryPublicReadOnly
-   - AmazonPrometheusFullAccess
-   - AmazonS3FullAccess
-   - AmazonVPCFullAccess
-   - AWSKeyManagementServicePowerUser
-   - CloudWatchLogsFullAccess
-   - IAMFullAccess
+   `rwc byoc apply` creates an IAM role for the Cloud Agent's Kubernetes service account. The Cloud Agent uses this role for ongoing environment updates and cluster management. Terraform attaches:
 
-   Additionally, attach a policy that includes the following permissions:
+   - The AWS managed policy `AmazonElasticContainerRegistryPublicReadOnly`.
+   - The AWS managed policy `AmazonEC2ContainerRegistryPullOnly` when private Helm or container registries are enabled.
+   - A custom IAM policy with the following actions:
 
-   ```json
-   {
-      "Version": "2012-10-17",
-      "Statement": [
-         {
-               "Sid": "BYOCAdditionalAccess",
-               "Effect": "Allow",
-               "Action": [
-                  "eks:*",
-                  "kms:*",
-                  "rds:DescribeDBInstances",
-                  "rds:StopDBInstance",
-                  "rds:StartDBInstance",
-                  "rds:CreateDBSubnetGroup",
-                  "rds:DeleteDBSubnetGroup",
-                  "rds:ModifyDBSubnetGroup",
-                  "rds:DescribeDBSubnetGroups",
-                  "rds:AddTagsToResource",
-                  "rds:RemoveTagsFromResource",
-                  "rds:ListTagsForResource"
-               ],
-               "Resource": "*"
-         }
-      ]
-   }
-   ```
+     - `dynamodb:*`, `ec2:*`, `elasticloadbalancing:*`, `autoscaling:*`, `s3:*`, `logs:*`, `iam:*`, `sqs:*`, `events:*`, `eks:*`, and `kms:*`
+     - `rds:DescribeDBInstances`, `rds:StopDBInstance`, `rds:StartDBInstance`, `rds:CreateDBSubnetGroup`, `rds:DeleteDBSubnetGroup`, `rds:ModifyDBSubnetGroup`, `rds:DescribeDBSubnetGroups`, `rds:AddTagsToResource`, `rds:RemoveTagsFromResource`, and `rds:ListTagsForResource`
+     - `route53:AssociateVPCWithHostedZone` when the private Terraform registry is enabled
+     - `cloudformation:*` and `route53resolver:*` when private AWS API access is enabled
+
+   Terraform also creates supporting service identities. The ACK EC2 and RDS controllers use `AmazonEC2FullAccess` and `AmazonRDSFullAccess`, respectively. The ACK IAM controller uses a custom policy for managing the IAM resources required by RisingWave clusters.
 
 </Tab>
 <Tab title="GCP">
-* **Required APIs for BYOC environment creation/deletion**
+* **Required APIs for the operator identity**
 
    You need to enable the following APIs to create or delete a BYOC environment:
    * **Compute Engine API** for VPC resources provision.
@@ -306,9 +334,9 @@ When you customize your cloud platform, refer to the following notes to see what
    * **Cloud Resource Manager API** for IAM provisioning.
    * **Service Networking API** for Cloud SQL (as meta store) connection.
    * **Cloud SQL Admin API** for Cloud SQL (as meta store) provisioning.
-* **Required permission for BYOC environment creation/deletion**
+* **Operator identity — permissions to run `rwc byoc apply` and `rwc byoc delete`**
 
-   Before running the command-line interface to create or delete a BYOC environment, you need to have a Google IAM (IAM user/Service account) with the following roles.
+   The customer-managed Google IAM user or service account that runs the CLI requires the following roles while creating or deleting a BYOC environment:
    * [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#container.admin)
    * [Compute Network Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.networkAdmin)
    * [Compute Security Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.securityAdmin)
@@ -316,9 +344,7 @@ When you customize your cloud platform, refer to the following notes to see what
    * [Security Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.securityAdmin)
    * [Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin)
 
-   <Note>
-   These permissions are only required for creating or deleting a BYOC environment. Once the environment is up and running, limited permissions are needed to operate the services.
-   </Note>
+   You can remove these roles from the operator identity after the command completes. Re-grant them before using that identity for a future `rwc byoc apply` or `rwc byoc delete` operation.
 
 * **Resources provisioned in BYOC environment**
 
@@ -328,16 +354,25 @@ When you customize your cloud platform, refer to the following notes to see what
    * 2 GCS buckets: for RisingWave cluster data and infra state data respectively.
    * 2 Internal network load balancer: to expose Agent Service and RWProxy.
    *  (Optional) 1 External network load balancer: to expose RWProxy to the Internet.
-   * A few service accounts for GKE and K8s workloads, and each role is granted the least privilege it requires.
-* **Required permission for deployed services**
+   * Service accounts for the Cloud Agent, GKE, and Kubernetes workloads.
 
-   We will provision a Google Service Account for the deployed services. The services require the following permissions:
-   - [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#container.admin) for infra management.
-   - [Compute Network Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.networkAdmin) for managing private links for the source and sink of RisingWave clusters and infra management.
-   - [Compute Security Admin](https://cloud.google.com/iam/docs/understanding-roles#compute.securityAdmin) for infra management.
-   - [Storage Admin](https://cloud.google.com/iam/docs/understanding-roles#storage.admin) for managing GCS objects and bucket access for RisingWave clusters and infra management.
-   - [Security Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.securityAdmin) for infra management.
-   - [Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin) for managing the IAM service account RisingWave clusters runs as and infra management.
+* **Cloud Agent service account — permissions used inside the BYOC environment**
+
+   `rwc byoc apply` creates a Google service account bound to the Cloud Agent's Kubernetes service account. The Cloud Agent uses it for ongoing environment updates and cluster management. Terraform grants the following roles:
+
+   - `roles/storage.objectAdmin`, scoped by a condition to the RisingWave data bucket
+   - `roles/cloudsql.admin`
+   - `roles/compute.loadBalancerAdmin`
+   - `roles/compute.networkAdmin`
+   - `roles/compute.securityAdmin`
+   - `roles/dns.admin`
+   - `roles/container.admin`
+   - `roles/iam.securityAdmin`
+   - `roles/iam.serviceAccountAdmin`
+   - `roles/iam.serviceAccountUser`
+   - `roles/storage.admin`
+
+   The supporting Config Connector service account also receives `roles/iam.serviceAccountAdmin`, `roles/storage.admin`, `roles/compute.networkAdmin`, and `roles/cloudsql.admin`.
 </Tab>
 <Tab title="Azure">
 * **Required feature flags**
@@ -350,9 +385,9 @@ When you customize your cloud platform, refer to the following notes to see what
    - Microsoft.AlertsManagement
    - Microsoft.Monitor
 
-* **Required permission for BYOC environment creation/deletion**
+* **Operator identity — permissions to run `rwc byoc apply` and `rwc byoc delete`**
 
-   We recommend utilizing a service principal or user with owner permissions of the Azure subscription to provision the infrastructure.
+   The customer-managed service principal or user that runs the CLI requires the Owner role on the Azure subscription while creating or deleting a BYOC environment.
 
    Additionally, the service principal or user should be granted the following Azure AD API permissions.
 
@@ -365,6 +400,8 @@ When you customize your cloud platform, refer to the following notes to see what
    For user principal authentication:
    * `Global Administrator`
 
+   You can remove these permissions from the operator identity after the command completes. Re-grant them before using that identity for a future `rwc byoc apply` or `rwc byoc delete` operation.
+
 * **Resources provisioned in BYOC environment**
    
    We will set up the following resources in a BYOC environment:
@@ -373,15 +410,22 @@ When you customize your cloud platform, refer to the following notes to see what
    * 2 Azure storage accounts each with one blob container in it: for RisingWave cluster data and infra state data respectively.
    * 2 Internal network load balancer: to expose Agent Service and RWProxy.
    * (Optional) 1 External network load balancer: to expose RWProxy to the Internet.
-   * A few user-assigned identities for AKS workloads, and each identity is granted the least privilege it requires.
-* **Required permission for deployed services**
-   * Role [Storage Blob Data Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/storage#storage-blob-data-contributor)
-   * Role [Network Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/networking#network-contributor)
-   * Role [Managed Identity Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/identity#managed-identity-contributor)
-   * Role [Role Based Access Control Administrator](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/general#role-based-access-control-administrator)
-   * Role [Monitoring Reader](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor#monitoring-reader)
-   * A custom role with the following permissions:
-   <Accordion title="Click to see all permissions.">
+   * User-assigned identities for the Cloud Agent, AKS, and Kubernetes workloads.
+
+* **Cloud Agent service account — permissions used inside the BYOC environment**
+
+   `rwc byoc apply` creates a user-assigned managed identity for the Cloud Agent's Kubernetes service account. The Cloud Agent uses it for ongoing environment updates and cluster management. Terraform grants the following Azure roles:
+
+   * [Storage Blob Data Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/storage#storage-blob-data-contributor), scoped to the RisingWave data container
+   * [Storage Account Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/storage#storage-account-contributor)
+   * [Monitoring Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor#monitoring-contributor)
+   * [Azure Kubernetes Service Contributor Role](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/containers#azure-kubernetes-service-contributor-role)
+   * [Network Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/networking#network-contributor)
+   * [User Access Administrator](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/general#user-access-administrator)
+   * [Managed Identity Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/identity#managed-identity-contributor)
+   * A custom resource-group role with the following permissions:
+
+   <Accordion title="Resource-group role permissions">
    - Microsoft.Resources/subscriptions/resourceGroups/read
    - Microsoft.Resources/subscriptions/resourceGroups/write
    - Microsoft.Resources/subscriptions/resourceGroups/delete
@@ -390,6 +434,11 @@ When you customize your cloud platform, refer to the following notes to see what
    - Microsoft.Resources/subscriptions/resourcegroups/resources/read
    - Microsoft.Resources/subscriptions/resourcegroups/deployments/operationstatuses/read
    - Microsoft.Resources/subscriptions/resourcegroups/deployments/operations/read
+   </Accordion>
+
+   * A custom BYOC administration role with the following permissions:
+
+   <Accordion title="BYOC administration role permissions">
    - Microsoft.ManagedServices/*
    - microsoft.monitor/accounts/read
    - microsoft.monitor/accounts/write
@@ -409,6 +458,13 @@ When you customize your cloud platform, refer to the following notes to see what
    - Microsoft.DBforPostgreSQL/flexibleServers/stop/action
    - Microsoft.DBforPostgreSQL/flexibleServers/read
    </Accordion>
+
+   The Cloud Agent identity also receives the Microsoft Graph application roles `Application.ReadWrite.OwnedBy`, `AppRoleAssignment.ReadWrite.All`, and `Application.Read.All`.
+
+   Terraform creates two additional supporting identities:
+
+   * The Azure Service Operator identity receives [Network Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/networking#network-contributor), [Managed Identity Contributor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/identity#managed-identity-contributor), [Role Based Access Control Administrator](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/general#role-based-access-control-administrator), and a custom role with `Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials/*` and `Microsoft.DBForPostgreSQL/*`.
+   * The monitoring service principal receives [Monitoring Reader](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor#monitoring-reader) on the environment's network and tenant resource groups.
 
 </Tab>
 </Tabs>

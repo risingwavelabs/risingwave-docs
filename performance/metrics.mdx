@@ -129,6 +129,8 @@ RisingWave by default generates a barrier every second and ingests it into the s
 
 Not familiar with barriers/checkpoints? See [Data persistence](/reference/data-persistence#what-are-barriers-and-checkpoints).
 
+In the `risingwave_dev_dashboard`, the **Streaming Barrier** section breaks down compute-node barrier metrics by partial graph. This lets you distinguish the database-wide graph from independent job graphs when investigating high barrier latency or stalled progress. In Prometheus, these series use a human-readable `partial_graph` label such as `database <id>` or `database <id> job <job_id>`.
+
 In a perfect world, the barrier latency should stay at 1 second. But in reality, we may observe two phenomena in general:
 
 1. The barrier latency keeps climbing and never enters a stabilized phase. At the same time, the number of barriers also keeps increasing. This implies that the system is in serious congestion, i.e., the current resource falls short of handling the workload. We likely need to increase CPU or memory resources by checking the other metrics mentioned above. See [Troubleshooting - High Latency](/performance/troubleshoot-high-latency). Also, see [Workload Analysis](/performance/workload-analysis) for a deeper understanding of how backpressure impacts barrier latency.
