@@ -5,17 +5,77 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 <Update label="v3.1.0" description="Upcoming">
 
+This release adds the `VARIANT` data type, periodically refreshed materialized views, partitioned gap filling, and more control over backfill and sink operations. It also includes the improvements and fixes documented in the v3.0.x patch releases below.
+
+## Breaking changes and deprecations
+
+- WebSocket ingestion now requires a license that includes `WebSocketIngest`. Before upgrading self-managed deployments using this feature, configure a license covering it; otherwise new or re-established WebSocket connections are rejected with HTTP 403. HTTP webhook ingestion is unaffected. [#26519](https://github.com/risingwavelabs/risingwave/pull/26519)
+- Removes direct CDC table creation with the `mysql-cdc`, `postgres-cdc`, and `sqlserver-cdc` connectors. Create a shared CDC source first, then create tables with `CREATE TABLE ... FROM source TABLE '...'`. MongoDB CDC is unaffected. [#25682](https://github.com/risingwavelabs/risingwave/pull/25682)
+- Changes Parquet `VARIANT` columns from their raw `struct<metadata bytea, value bytea>` representation to the native `variant` type. Update explicitly declared Parquet schemas to `variant`; declarations using the old raw struct now produce NULL for that column. `file_scan()` also infers `variant`, so queries accessing `.metadata` or `.value` must use variant functions or casts instead. [#25165](https://github.com/risingwavelabs/risingwave/pull/25165)
+- Deprecates creating new jobs with no-shuffle backfill. Use snapshot backfill or locality backfill instead. [#25963](https://github.com/risingwavelabs/risingwave/pull/25963)
+- Disables local filesystem connectors such as `posix_fs` and `fs` by default in release builds. Deployments that intentionally use these connectors must enable `frontend.unsafe_enable_local_fs_connector`. [#25971](https://github.com/risingwavelabs/risingwave/pull/25971)
+
+## SQL features
+
+- Adds the `VARIANT` data type for semi-structured values, with `to_variant`, `variant_get`, `try_variant_get`, `variant_typeof`, and casts to and from `varchar` and `jsonb`. `VARIANT` cannot be used as a key or in grouping, ordering, or join conditions. [#26080](https://github.com/risingwavelabs/risingwave/pull/26080)
+- Supports materialized views that consume an upstream snapshot and refresh periodically with `refresh.interval.sec`. These views require snapshot backfill and cannot have downstream streaming jobs. [#25093](https://github.com/risingwavelabs/risingwave/pull/25093), [#25271](https://github.com/risingwavelabs/risingwave/pull/25271)
+- Supports independent gap filling for each partition with `GAP_FILL(..., PARTITION_BY(...))`, including `EMIT ON WINDOW CLOSE`. The window-close implementation now preserves partition columns and keeps previous-row state separate for each partition. [#25287](https://github.com/risingwavelabs/risingwave/pull/25287), [#25350](https://github.com/risingwavelabs/risingwave/pull/25350)
+- Adds `clock_timestamp()` and `gen_random_uuid()` for the current wall-clock timestamp and a random UUID v4 string, respectively. [#26362](https://github.com/risingwavelabs/risingwave/pull/26362)
+- Allows runtime configuration, parallelism, resource-group, and rate-limit changes while a streaming job is still being created. Metadata changes, such as renaming an object, still require creation to finish. [#26104](https://github.com/risingwavelabs/risingwave/pull/26104)
+- Supports standard HTTP and HTTPS endpoints in UDF `USING LINK` clauses. [#26792](https://github.com/risingwavelabs/risingwave/pull/26792)
+- Fixes qualified wildcard resolution for schema-qualified relations and repeated scalar subqueries in `ORDER BY`. [#26419](https://github.com/risingwavelabs/risingwave/pull/26419), [#25686](https://github.com/risingwavelabs/risingwave/pull/25686)
+
+## Connectors
+
+- Adds `REPLACE SINK ... FROM ...` to switch an existing sink at a cut-over barrier without backfilling historical rows. Exactly-once sinks, sink-into-table, and `AS query` replacements are not supported; privileges on the old sink are not transferred. [#26039](https://github.com/risingwavelabs/risingwave/pull/26039)
+- Supports projection and filter queries in sinks created with `snapshot = false`. The `since_timestamp` option can replay retained change logs from a specified timestamp when snapshot backfill is disabled; this option requires a premium license. [#26023](https://github.com/risingwavelabs/risingwave/pull/26023), [#26043](https://github.com/risingwavelabs/risingwave/pull/26043)
+- Supports dynamic HTTP sink URLs derived from an upstream column. [#25699](https://github.com/risingwavelabs/risingwave/pull/25699)
+- Supports Google Application Default Credentials for Pub/Sub sources and sinks in self-hosted and BYOC deployments when explicit credentials and emulator configuration are absent. RisingWave Cloud Hosted still requires explicit connector credentials. [#26808](https://github.com/risingwavelabs/risingwave/pull/26808)
+- Supports PostgreSQL CDC arrays of user-defined composite types as `varchar[]`, and improves NULL handling for scalar composite values. [#25818](https://github.com/risingwavelabs/risingwave/pull/25818), [#25815](https://github.com/risingwavelabs/risingwave/pull/25815)
+- Supports Pulsar message properties through `INCLUDE header` columns. [#25794](https://github.com/risingwavelabs/risingwave/pull/25794)
+- Supports writing RisingWave `jsonb` values to Doris `VARIANT` columns and `timestamptz` values to supported StarRocks datetime or string columns using the sink's captured session time zone. [#25451](https://github.com/risingwavelabs/risingwave/pull/25451), [#25837](https://github.com/risingwavelabs/risingwave/pull/25837)
+- Supports serverless tasks for Snowflake upsert sinks and a `num_shards` option for new Turbopuffer namespaces. [#25090](https://github.com/risingwavelabs/risingwave/pull/25090), [#26197](https://github.com/risingwavelabs/risingwave/pull/26197)
+
+## Iceberg
+
+- Adds primary-key-index upsert sinks for Iceberg V2 and V3 merge-on-read tables through `enable_pk_index`. V2 uses position-delete files; V3 uses deletion vectors. [#25416](https://github.com/risingwavelabs/risingwave/pull/25416), [#26116](https://github.com/risingwavelabs/risingwave/pull/26116)
+- Supports reading Iceberg v3 `VARIANT` columns, including nested variants, through Iceberg sources and refreshable tables. Shredded variant columns currently read as NULL with a log warning. Writing native `VARIANT` values through Iceberg sinks is not supported. [#25165](https://github.com/risingwavelabs/risingwave/pull/25165)
+- Adds per-object metadata relations named `<name>$snapshots`, `<name>$manifests`, and `<name>$files` for Iceberg Engine tables, sources, and sinks. [#26466](https://github.com/risingwavelabs/risingwave/pull/26466)
+- Adds manifest rewrite maintenance and enables it by default for newly created Iceberg Engine V2 tables. [#26285](https://github.com/risingwavelabs/risingwave/pull/26285), [#26471](https://github.com/risingwavelabs/risingwave/pull/26471)
+- Adds `compaction.type = 'auto'` for merge-on-read sinks to select small and delete-heavy files for compaction. Copy-on-write sinks continue to require full compaction. [#26643](https://github.com/risingwavelabs/risingwave/pull/26643), [#26898](https://github.com/risingwavelabs/risingwave/pull/26898)
+
+## Administration and observability
+
+- Enables automatic locality backfill selection for new clusters, with a default estimated input-size threshold of 10 GiB. Existing clusters retain their persisted settings. [#25990](https://github.com/risingwavelabs/risingwave/pull/25990)
+- Adds typed fragment rate limits for source ingestion, backfill, DML, and sink throughput through `ALTER FRAGMENT`. [#26183](https://github.com/risingwavelabs/risingwave/pull/26183)
+- Allows an initial cache-refill policy to be set with `streaming_cache_refill_policy` before creating a streaming job. [#26603](https://github.com/risingwavelabs/risingwave/pull/26603)
+- Supports bootstrapping streaming parallelism defaults from the `[session_init]` section of `risingwave.toml`. Persisted session defaults take precedence. [#25864](https://github.com/risingwavelabs/risingwave/pull/25864)
+- Reports barrier metrics by partial graph, groups diagnostic actor traces by fragment, and includes indexes in `rw_fragment_id_to_ddl`. [#26495](https://github.com/risingwavelabs/risingwave/pull/26495), [#25833](https://github.com/risingwavelabs/risingwave/pull/25833), [#25903](https://github.com/risingwavelabs/risingwave/pull/25903)
+- Redacts passwords in parsed `CREATE USER` and `ALTER USER` statements in server-side query logs. This does not redact arbitrary SQL values or statements that cannot be parsed. [#25740](https://github.com/risingwavelabs/risingwave/pull/25740)
+
 ## Bug fixes
 
+- Enforces the PostgreSQL wire-protocol authentication sequence before accepting regular client messages. [#26825](https://github.com/risingwavelabs/risingwave/pull/26825)
+- Preserves CDC changes to already-scanned rows during backfill recovery startup, including while reconnecting to the upstream database. [#27031](https://github.com/risingwavelabs/risingwave/pull/27031)
+- Preserves composite primary-key order during MySQL and SQL Server CDC schema discovery and snapshot reads. [#26847](https://github.com/risingwavelabs/risingwave/pull/26847), [#27160](https://github.com/risingwavelabs/risingwave/pull/27160)
+- Prevents a database recovery loop when a batch-refresh materialized view is created just before a compute-node failure. [#26786](https://github.com/risingwavelabs/risingwave/pull/26786)
+- Fixes missing or incorrectly updated rows when a `FULL_RELOAD` refresh deletes a row and a later refresh adds the same key again. [#27040](https://github.com/risingwavelabs/risingwave/pull/27040)
+- Uses the effective database barrier interval when advancing streaming `now()`. [#27118](https://github.com/risingwavelabs/risingwave/pull/27118)
+- Avoids repeated timestamp-offset lookups for Kafka partitions, reducing broker work when startup timestamps require tiered-storage reads. [#27030](https://github.com/risingwavelabs/risingwave/pull/27030)
+- Fixes Pulsar acknowledgments across multiple splits and actors, and Pub/Sub streaming-pull flow-control stalls. [#26892](https://github.com/risingwavelabs/risingwave/pull/26892), [#26826](https://github.com/risingwavelabs/risingwave/pull/26826), [#26817](https://github.com/risingwavelabs/risingwave/pull/26817)
+- Avoids reading unrelated table blocks during SST scans and point lookups. [#27048](https://github.com/risingwavelabs/risingwave/pull/27048)
 - Fixes a temporal join crash that could occur when replicated state table writes received a projected chunk with invisible rows. [#26345](https://github.com/risingwavelabs/risingwave/pull/26345)
 - Prevents a no-op `ALTER SINK ... CONNECTOR WITH` update from crashing a compute node when the sink uses a commit-decoupled KV log store. [#26412](https://github.com/risingwavelabs/risingwave/pull/26412)
 - Fixes a possible meta-node crash during subscription cursor reads. If the requested start epoch is ahead of the table's committed epoch, the cursor waits for a newer committed epoch. Other requests with inverted epoch ranges are rejected instead of crashing. [#26478](https://github.com/risingwavelabs/risingwave/pull/26478)
 
 ## Cluster configuration changes
 
+- Bounds pending barriers in snapshot-backfill partial graphs using `in_flight_barrier_nums` and `snapshot_backfill_barrier_amplification_factor`. Their defaults are 10,000 and 1, respectively. [#26467](https://github.com/risingwavelabs/risingwave/pull/26467)
 - The SSTable filter layout for compaction output now defaults to `blocked` for L1-L6, while L0 keeps `auto`. The filter kind defaults to `xor8` for L5 and L6; L0-L4 keep `xor16`. [#25853](https://github.com/risingwavelabs/risingwave/pull/25853)
 - When `sstable_filter_layout[level]` is `auto`, `blocked_xor_filter_kv_count_threshold` is evaluated per output SSTable instead of per compaction task. [#25782](https://github.com/risingwavelabs/risingwave/pull/25782)
 - Compaction-group SST filter configuration now uses explicit `sstable_filter_type` (`none`, `xor16`, `xor8`) and canonical `sstable_filter_layout` values (`auto`, `plain`, `blocked`). Setting `sstable_filter_type` to `none` disables SST filters for that target level, and `rw_catalog.rw_hummock_sstables` now exposes `filter_type` and `filter_layout`. [#25832](https://github.com/risingwavelabs/risingwave/pull/25832)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.0...v3.1.0).
 
 </Update>
 
