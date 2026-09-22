@@ -1,0 +1,67 @@
+---
+title: "Cross-database subscription changelog expiry headroom low"
+sidebarTitle: "Cross-database changelog expiry headroom low"
+description: "Diagnose and resolve low changelog expiry headroom for a cross-database streaming job in RisingWave Cloud."
+---
+
+This critical alert indicates that at least one cross-database materialized view or sink in your project has less than three hours before required upstream changelog data expires. Restore the affected job's progress before the retention window elapses to avoid interrupting updates.
+
+<Note>
+This alert is disabled by default. To enable it for a project, select the project in the RisingWave Cloud console, then select **Alert Rules** under **Management** and enable **Cross-database subscription changelog expiry headroom low**.
+</Note>
+
+## Common triggers
+
+- A downstream streaming job is stalled by an error or sustained backpressure.
+- Streaming resources are insufficient for the downstream job to keep up with upstream changes.
+- The retention periods configured for subscriptions on the upstream relation are too short for the current interruption or processing lag.
+
+## Diagnosis
+
+1. Note the upstream relation ID (`table_id`) in the alert. Connect to the upstream RisingWave database that contains the affected relation and its subscriptions, and identify the relation:
+
+   ```sql
+   SELECT r.id, s.name AS schema_name, r.name, r.relation_type
+   FROM rw_catalog.rw_relations AS r
+   JOIN rw_catalog.rw_schemas AS s ON r.schema_id = s.id
+   WHERE r.id = <table_id>;
+   ```
+
+2. Check cross-database materialized views or sinks that read from this relation for errors, sustained backpressure, or stale output.
+3. Check Streaming Node CPU and memory utilization in the affected project.
+4. In the upstream RisingWave database, identify all subscriptions defined on the affected relation and review their retention periods:
+
+   ```sql
+   SELECT schema_name, name, retention_seconds, definition
+   FROM rw_catalog.rw_subscriptions
+   ORDER BY schema_name, name;
+   ```
+
+   Use the relation name and each subscription definition to identify the relevant subscriptions. The longest retention period configured among subscriptions on the relation determines the available changelog window.
+
+## Resolution
+
+If the required changelog data has not expired:
+
+1. Resolve errors or backpressure that prevent the downstream materialized view or sink from making progress.
+2. If Streaming Nodes are fully utilized, scale the project. For more information, see [Scale a project manually](/cloud/scale-a-project-manually).
+3. If the available changelog window is too short, increase the retention of any subscription on the affected relation to a duration that exceeds the current consumer lag by at least three hours. Run the statement in the upstream RisingWave database. When multiple subscriptions are defined on the relation, the longest configured duration determines the available window:
+
+   ```sql
+   ALTER SUBSCRIPTION <subscription_name>
+   SET RETENTION TO '<duration>';
+   ```
+
+Increasing the retention period does not restore changelog data that has already expired.
+
+If the required changelog data has expired, pause downstream actions that depend on current results and contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com) before dropping or recreating the affected materialized view or sink. Recreating a sink can backfill and resend records, so review the downstream system's duplicate-handling and delivery semantics first.
+
+## Confirm recovery
+
+Confirm that the affected cross-database materialized view or sink is processing new upstream changes and that its output is advancing. The alert resolves after every cross-database consumer in the project has at least three hours of changelog expiry headroom.
+
+## Related topics
+
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
+- [Workload isolation and interaction](/operate/workload-isolation-interaction#handling-stale-cross-database-consumers)
+- [Subscribe to real-time updates](/serve/subscription)
