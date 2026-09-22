@@ -79,6 +79,54 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 </Update>
 
+<Update label="v3.0.4" description="2026-09-16">
+
+## SQL features
+
+- Streams query results incrementally over the PostgreSQL wire protocol to reduce frontend memory usage and deliver initial rows sooner. The `frontend.stream_flush_threshold_bytes` configuration controls flushing and defaults to 64 KiB. [#26782](https://github.com/risingwavelabs/risingwave/pull/26782)
+- Preserves partial-update columns in `CREATE SINK ... INTO` targets when a downstream key moves between stream keys within the same barrier interval. [#26759](https://github.com/risingwavelabs/risingwave/pull/26759)
+- Invalidates cached rows deleted during refresh, preventing stale materialized results when rows are later reinserted. [#27057](https://github.com/risingwavelabs/risingwave/pull/27057)
+
+## Connectors
+
+- Allows CDC table `snapshot.batch_size` and `snapshot.interval` options to be altered. The updated options take effect after `RECOVER`. [#26757](https://github.com/risingwavelabs/risingwave/pull/26757)
+- Preserves upstream MySQL composite-primary-key order during schema discovery and handles column-name casing consistently during automatic schema changes. [#26757](https://github.com/risingwavelabs/risingwave/pull/26757)
+- Skips creating an external snapshot reader when CDC backfill is disabled with `snapshot = false`, including when recovering completed backfill state. [#26983](https://github.com/risingwavelabs/risingwave/pull/26983)
+- Fixes Pulsar source acknowledgments by isolating acknowledgment channels for each actor and acknowledging every split at checkpoints. [#26910](https://github.com/risingwavelabs/risingwave/pull/26910), [#26956](https://github.com/risingwavelabs/risingwave/pull/26956)
+- Resolves Kafka timestamp-based startup offsets once per partition during an enumerator's lifetime, avoiding repeated broker lookups. [#27052](https://github.com/risingwavelabs/risingwave/pull/27052)
+- Handles exactly-once metadata cleanup when a sink is dropped during an in-flight commit, avoiding errors caused by the removed sink state. [#27096](https://github.com/risingwavelabs/risingwave/pull/27096)
+
+## Iceberg
+
+- Publishes copy-on-write compaction results across partitions atomically and avoids rewriting data files unaffected by deletes. [#26736](https://github.com/risingwavelabs/risingwave/pull/26736), [#26757](https://github.com/risingwavelabs/risingwave/pull/26757)
+- Adds memory-aware scheduling for dedicated Iceberg compactors. `storage.iceberg_compaction_memory_limit_mb` sets the estimated memory budget for admitting tasks; when unset, the budget is derived from available compactor memory. This is not a hard allocation limit. `storage.iceberg_compaction_max_pull_task_count` limits tasks requested per pull and defaults to `1`. [#26757](https://github.com/risingwavelabs/risingwave/pull/26757)
+- Adds the `auto` compaction strategy, which selects small files and files with heavy deletes. It becomes the default when Iceberg compaction is licensed; otherwise, the default remains `full`. Copy-on-write selects its policy automatically: omit `compaction.type` when creating a copy-on-write sink; existing persisted values are ignored. [#26757](https://github.com/risingwavelabs/risingwave/pull/26757)
+- Prunes old deletion-only manifests and merges manifests during copy-on-write publication, reducing metadata growth without an additional data-file rewrite. [#26990](https://github.com/risingwavelabs/risingwave/pull/26990)
+
+## Administration
+
+- Enforces the PostgreSQL password authentication flow before accepting regular protocol messages. [#26890](https://github.com/risingwavelabs/risingwave/pull/26890)
+- Moves Hummock version checkpoint creation to a dedicated runtime to avoid blocking the main meta runtime, and reduces meta-store queries during commit-epoch validation. [#26783](https://github.com/risingwavelabs/risingwave/pull/26783), [#26784](https://github.com/risingwavelabs/risingwave/pull/26784)
+- Keeps newly added workers tracked for background reconnection when initial control-stream connection attempts fail. [#27014](https://github.com/risingwavelabs/risingwave/pull/27014)
+
+## Observability
+
+- Adds MySQL CDC binlog file lag and retention-risk dashboard panels and an alert indicator. Fixes binlog sequence metrics for non-default file prefixes, including those used by RDS and Aurora. [#26964](https://github.com/risingwavelabs/risingwave/pull/26964), [#26728](https://github.com/risingwavelabs/risingwave/pull/26728)
+- Adds metrics and dashboard panels for the Iceberg compactor's scheduling memory budget and estimated memory reserved by running tasks. [#26757](https://github.com/risingwavelabs/risingwave/pull/26757)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.4 single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.4/risingwave-v3.0.4-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.4.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.4.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.4/risectl-v3.0.4-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.3...v3.0.4).
+
+</Update>
+
 <Update label="v3.0.3" description="2026-08-17">
 
 ## SQL features
@@ -102,7 +150,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 ## Assets
 
 - Run this version from Docker:
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.3-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.3 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.3/risingwave-v3.0.3-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.3.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.3.tar.gz)
@@ -164,7 +212,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 ## Assets
 
 - Run this version from Docker:
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.2-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.2 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.2/risingwave-v3.0.2-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.2.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.2.tar.gz)
@@ -201,7 +249,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 ## Assets
 
 - Run this version from Docker:
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.1-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.1 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.1/risingwave-v3.0.1-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.1.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.1.tar.gz)
@@ -297,7 +345,7 @@ Support for certain earlier versions will end following the release of v3.0. Ple
 ## Assets
 
 - Run this version from Docker:
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.0-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.0 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.0/risingwave-v3.0.0-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.0.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.0.tar.gz)
@@ -339,7 +387,7 @@ Versions `v2.8.0-rc.1`, `v2.8.0`, and `v2.8.1` are deprecated. We recommend upgr
 ## Assets
 
 - Run this version from Docker:
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.8.0-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.8.0 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.8.0/risingwave-v2.8.0-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.8.0.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.8.0.tar.gz)
@@ -433,7 +481,7 @@ In v2.7.0, following the refactoring of `sink-into-table`, the system will autom
 ## Assets
 
 - Run this version from Docker:
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.7.0-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.7.0 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.7.0/risingwave-v2.7.0-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.7.0.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.7.0.tar.gz)
@@ -727,7 +775,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 ## Assets
 
 - Run this version from Docker:<br/>
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.2.0-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.2.0 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.2.0/risingwave-v2.2.0-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.2.0.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.2.0.tar.gz)
@@ -790,7 +838,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 ## Assets
 
 - Run this version from Docker:<br/>
-`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.1.0-standalone single_node`
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 ghcr.io/risingwavelabs/risingwave:v2.1.0 single_node`
 - [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.1.0/risingwave-v2.1.0-x86_64-unknown-linux-all-in-one.tar.gz)
 - [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.1.0.zip)
 - [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.1.0.tar.gz)
@@ -882,8 +930,6 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 ## Assets
 
-*   Run this version from Docker:
-    `docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v2.0.0-standalone single_node`
 *   [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v2.0.0/risingwave-v2.0.0-x86_64-unknown-linux-all-in-one.tar.gz).
 *   [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.0.0.zip).
 *   [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v2.0.0.tar.gz).
@@ -1026,7 +1072,7 @@ v1.9.0 was skipped due to some critical bugs.
 ## Assets
 
 *   Run this version from Docker:
-    `docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v1.9.1-standalone single_node`
+    `docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v1.9.1 single_node`
 *   [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v1.9.1/risingwave-v1.9.1-x86_64-unknown-linux-all-in-one.tar.gz)
 *   [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v1.9.1.zip)
 *   [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v1.9.1.tar.gz)
@@ -1089,7 +1135,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 ## Assets
 
 *   Run this version from Docker:
-    `docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v1.8.0-standalone single_node`
+    `docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v1.8.0 single_node`
 *   [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v1.8.0/risingwave-v1.8.0-x86_64-unknown-linux-all-in-one.tar.gz)
 *   [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v1.8.0.zip)
 *   [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v1.8.0.tar.gz)
