@@ -165,6 +165,122 @@ GROUP BY auction, to_char(date_time, 'YYYY-MM-DD')
 select 1 as c1, 1 c2 union select 2 as c1, 2 as c2
 ```
 
+## Zero-downtime rebuilds for materialized views and views
+
+dbt-risingwave supports swap-based rebuilds for `materialized_view` and `view` models. For materialized views, the adapter uses [`ALTER MATERIALIZED VIEW ... SWAP WITH ...`](/sql/commands/sql-alter-materialized-view#swap-with); for views, it uses [`ALTER VIEW ... SWAP WITH ...`](/sql/commands/sql-alter-view#swap-with). This keeps the original object name resolvable throughout the rebuild. Materialized view swap requires RisingWave v2.2 or later. For the upstream reference, see the [`dbt-risingwave` zero-downtime rebuilds guide](https://github.com/risingwavelabs/dbt-risingwave/blob/main/docs/zero-downtime-rebuilds.md).
+
+### How swap-based rebuilds work
+
+When a model already exists and zero-downtime rebuilds are enabled, the adapter:
+
+1. Creates a temporary object with the new definition. The temporary name follows the pattern `{original_name}_dbt_zero_down_tmp_{timestamp}`.
+2. Swaps the temporary object with the original object by using `SWAP WITH`.
+3. Tries to clean up the old object, which now has the temporary name.
+
+The swap is a rename swap, not a dependency rewrite. After the swap, the original name points to the new object ID, while downstream dependencies still point to the pre-swap object ID until those downstream models are rebuilt.
+
+```text
+Before swap
+
+name `orders_mv` ---------------------------------> object id=A (old definition)
+name `orders_mv_dbt_zero_down_tmp_<timestamp>` ---> object id=B (new definition)
+downstream `daily_orders_mv` ---------------------> depends on object id=A
+
+ALTER MATERIALIZED VIEW orders_mv
+SWAP WITH orders_mv_dbt_zero_down_tmp_<timestamp>;
+
+After swap
+
+name `orders_mv` ---------------------------------> object id=B (new definition)
+name `orders_mv_dbt_zero_down_tmp_<timestamp>` ---> object id=A (old definition)
+downstream `daily_orders_mv` ---------------------> still depends on object id=A
+```
+
+If you set `immediate_cleanup` to `true`, the adapter attempts to drop the temporary object immediately after the swap. This cleanup is best-effort and dependency-safe: the adapter checks for remaining dependents and preserves the temporary object if anything still references it. It does not use `CASCADE` for zero-downtime cleanup.
+
+For a chain such as `mv1 -> mv2 -> mv3`, rebuilding only `mv1` can leave `mv2` and `mv3` attached to the preserved temporary `mv1` object. Rebuild dependent models before cleanup:
+
+```bash
+dbt run --select "mv1+" --vars 'zero_downtime: true'
+dbt run-operation cleanup_temp_objects
+```
+
+### When swap-based rebuilds apply
+
+dbt-risingwave uses the zero-downtime swap path only when all of the following are true:
+
+1. The relation already exists.
+2. The run is not using `--full-refresh`.
+3. The model config sets `zero_downtime={'enabled': true}`.
+4. The command includes `--vars 'zero_downtime: true'`.
+
+Otherwise, dbt-risingwave falls back to the standard rebuild path.
+
+### Configuration
+
+You must enable zero downtime in both the model config and the CLI invocation.
+
+```sql Materialized view
+{{ config(
+    materialized='materialized_view',
+    zero_downtime={'enabled': true}
+) }}
+
+select *
+from {{ ref('source_table') }}
+```
+
+```sql View
+{{ config(
+    materialized='view',
+    zero_downtime={'enabled': true}
+) }}
+
+select *
+from {{ ref('source_table') }}
+```
+
+```bash
+dbt run --vars 'zero_downtime: true'
+```
+
+To attempt cleanup immediately after the swap, set `immediate_cleanup` in the model config:
+
+```sql
+{{ config(
+    materialized='materialized_view',
+    zero_downtime={'enabled': true, 'immediate_cleanup': true}
+) }}
+```
+
+### Cleanup helpers
+
+dbt-risingwave includes helper macros for finding and cleaning up preserved temporary objects:
+
+```bash
+dbt run-operation list_temp_objects
+dbt run-operation cleanup_temp_objects --args '{"dry": true}'
+dbt run-operation cleanup_temp_objects
+```
+
+You can scope these helpers to a schema:
+
+```bash
+dbt run-operation list_temp_objects --args '{"schema_name": "public"}'
+dbt run-operation cleanup_temp_objects --args '{"schema_name": "public"}'
+```
+
+### Source and test references
+
+The behavior above is documented and exercised in the upstream `dbt-risingwave` project:
+
+- Canonical explainer: [`docs/zero-downtime-rebuilds.md`](https://github.com/risingwavelabs/dbt-risingwave/blob/main/docs/zero-downtime-rebuilds.md)
+- Materialized view swap logic: [`dbt/include/risingwave/macros/materializations/materialized_view.sql`](https://github.com/risingwavelabs/dbt-risingwave/blob/main/dbt/include/risingwave/macros/materializations/materialized_view.sql)
+- View swap logic: [`dbt/include/risingwave/macros/materializations/view.sql`](https://github.com/risingwavelabs/dbt-risingwave/blob/main/dbt/include/risingwave/macros/materializations/view.sql)
+- Cleanup and helper macros: [`dbt/include/risingwave/macros/adapters.sql`](https://github.com/risingwavelabs/dbt-risingwave/blob/main/dbt/include/risingwave/macros/adapters.sql)
+- End-to-end zero-downtime models and assertions: [`tests/e2e/zero_downtime`](https://github.com/risingwavelabs/dbt-risingwave/tree/main/tests/e2e/zero_downtime) and [`tests/e2e/zero_downtime/tests/assert_zero_downtime_materializations.sql`](https://github.com/risingwavelabs/dbt-risingwave/blob/main/tests/e2e/zero_downtime/tests/assert_zero_downtime_materializations.sql)
+- CI workflow that runs the swap path and cleanup helper: [`.github/workflows/ci.yml`](https://github.com/risingwavelabs/dbt-risingwave/blob/main/.github/workflows/ci.yml)
+
 ## Additional resources
 
 For details about building and deploying dbt models in general, please refer to the [dbt documentation](https://docs.getdbt.com/docs/introduction).
