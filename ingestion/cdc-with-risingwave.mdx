@@ -70,7 +70,30 @@ WITH (snapshot = 'false')
 FROM pg_src TABLE 'public.orders';
 ```
 
-Typical uses are forwarding changes to an upsert-capable sink, or using `AS CHANGELOG` to process each change as an append-only event. For example:
+Typical uses are forwarding changes to an upsert-capable sink, or using `AS CHANGELOG` to process each change as an append-only event.
+
+For a passthrough sink with stateless transformations, assume `orders_cdc` has columns `id INT PRIMARY KEY`, `customer_id INT`, and `amount INT`. Create the downstream PostgreSQL table as shown in the [sink example](/sql/commands/sql-create-source#use-case-forward-changes-to-an-upsert-sink), then run this in RisingWave:
+
+```sql
+CREATE SINK orders_to_postgres AS
+SELECT id, customer_id, amount::BIGINT AS amount
+FROM orders_cdc
+WHERE id > 0
+WITH (
+    connector = 'jdbc',
+    jdbc.url = 'jdbc:postgresql://postgres:5432/replica',
+    user = 'sink_user',
+    password = 'your_password',
+    schema.name = 'public',
+    table.name = 'orders_replica',
+    type = 'upsert',
+    primary_key = 'id'
+);
+```
+
+This example projects columns, casts `amount` to `BIGINT`, and filters on the primary key, so the predicate can also be evaluated for deletes that contain only key values. Replace the connection settings with your downstream PostgreSQL configuration.
+
+To process changes as append-only events instead, use `AS CHANGELOG`:
 
 ```sql
 CREATE MATERIALIZED VIEW order_change_events AS

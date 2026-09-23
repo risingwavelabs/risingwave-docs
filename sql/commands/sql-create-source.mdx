@@ -181,20 +181,38 @@ The `*` infers columns and the primary key from the upstream table. You can inst
 
 ### Use case: forward changes to an upsert sink
 
-A passthrough sink can forward inserts, updates, and deletes without first storing the source table's current state in RisingWave. For example, forward changes to [Kafka](/integrations/destinations/apache-kafka) in upsert format:
+A passthrough sink can forward inserts, updates, and deletes without first storing the source table's current state in RisingWave. It can also apply stateless operations such as projections, casts, and filters on primary-key columns. For example, forward changes to a [PostgreSQL sink](/integrations/destinations/postgresql).
+
+First create the destination table in the **downstream PostgreSQL database**, not in RisingWave:
 
 ```sql
-CREATE SINK orders_to_kafka FROM orders_cdc
-WITH (
-    connector = 'kafka',
-    properties.bootstrap.server = 'kafka:9092',
-    topic = 'orders_updates',
-    primary_key = 'id'
-)
-FORMAT UPSERT ENCODE JSON;
+CREATE TABLE public.orders_replica (
+    id INT PRIMARY KEY,
+    customer_id INT,
+    amount BIGINT
+);
 ```
 
-Replace the broker address and topic with your Kafka configuration. Keep the source primary key as the sink key so that updates and deletes apply to the same downstream record. The destination must be able to apply upserts and deletes by key; a sink requiring retractable input cannot consume this source directly.
+Then run the following in **RisingWave**. This example keeps rows with a positive `id`, projects the required columns, and casts `amount` from `INT` to `BIGINT`:
+
+```sql
+CREATE SINK orders_to_postgres AS
+SELECT id, customer_id, amount::BIGINT AS amount
+FROM orders_cdc
+WHERE id > 0
+WITH (
+    connector = 'jdbc',
+    jdbc.url = 'jdbc:postgresql://postgres:5432/replica',
+    user = 'sink_user',
+    password = 'your_password',
+    schema.name = 'public',
+    table.name = 'orders_replica',
+    type = 'upsert',
+    primary_key = 'id'
+);
+```
+
+Replace the JDBC URL and credentials with your downstream PostgreSQL configuration. Keep the source primary key as the sink and destination table key so that updates and deletes apply to the same downstream record. The filter uses only the primary key, which remains available even in sparse delete events. A sink requiring retractable input cannot consume this source directly.
 
 ### Use case: process change events with AS CHANGELOG
 
