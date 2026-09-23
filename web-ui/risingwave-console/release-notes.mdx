@@ -1,0 +1,219 @@
+---
+title: "RisingWave Console release notes"
+sidebarTitle: "Console release notes"
+description: "Review RisingWave Console changes and find Docker images for each release."
+---
+
+This page summarizes changes in each RisingWave Console release. For deployment requirements and configuration, see [Install RisingWave Console](/web-ui/risingwave-console/installation-setup). For details about the `airgap-*` images, see [Air-gapped deployment](/web-ui/risingwave-console/air-gapped-deployment).
+
+<Update label="v0.7.9" description="2026-08-31">
+
+## SQL TLS support
+
+- Adds shared PostgreSQL connection configuration across Console SQL paths.
+- Adds per-cluster SQL TLS modes with system trust or inline CA bundles.
+- Supports TLS for imported and Console-managed clusters, including a managed-cluster hotfix.
+- Applies the selected cluster's TLS settings to both SQL Editor and background queries.
+
+## Docker images
+
+- [Standard image (`v0.7.9`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.9)
+- [Bundled PostgreSQL (`v0.7.9-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.9-pgbundle)
+- [Air-gapped image (`airgap-v0.7.9`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.9)
+- [Air-gapped image with bundled PostgreSQL (`airgap-v0.7.9-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.9-pgbundle)
+
+</Update>
+
+<Update label="v0.7.8" description="2026-08-31">
+
+## SQL TLS support
+
+- Adds shared PostgreSQL connection configuration across Console SQL paths.
+- Adds per-cluster SQL TLS modes, including certificate and hostname verification.
+- Supports system trust and inline CA bundles for on-premises deployments.
+- Applies the selected cluster's TLS settings to both SQL Editor and background queries.
+
+## Docker images
+
+- [Standard image (`v0.7.8`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.8)
+- [Bundled PostgreSQL (`v0.7.8-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.8-pgbundle)
+- [Air-gapped image (`airgap-v0.7.8`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.8)
+- [Air-gapped image with bundled PostgreSQL (`airgap-v0.7.8-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.8-pgbundle)
+
+</Update>
+
+<Update label="v0.7.7" description="2026-08-14">
+
+## Security headers
+
+- Adds application-managed HTTP security response headers to Console HTML, API, authentication, static, and error responses.
+- Adds `baseline-v1` and `strict-v1` security profiles, optional HSTS, and validated organization-specific headers.
+- Supports strict cross-origin isolation headers for enterprise deployments.
+
+Validate Dex and other cross-origin resources before selecting `strict-v1`. Enable HSTS only when every browser-facing route uses HTTPS.
+
+## Docker images
+
+- [Standard image (`v0.7.7`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.7)
+- [Bundled PostgreSQL (`v0.7.7-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.7-pgbundle)
+- [Air-gapped image (`airgap-v0.7.7`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.7)
+- [Air-gapped image with bundled PostgreSQL (`airgap-v0.7.7-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.7-pgbundle)
+
+</Update>
+
+<Update label="v0.7.6" description="2026-08-03">
+
+## Role-based access control and deployment fixes
+
+- Adds server-side enforcement and UI controls for admin, operator, and viewer roles.
+- Adds user-role storage and restores a soft-deleted user when the same user name is created again.
+- Fixes discovery of externally managed cert-manager installations, including installations in `cert-manager-system`. Console receives read-only discovery permissions and does not manage the external installation.
+- Limits React Query garbage-collection time to five minutes.
+
+## Docker images
+
+- [Standard image (`v0.7.6`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.6)
+- [Bundled PostgreSQL (`v0.7.6-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.6-pgbundle)
+- [Air-gapped image (`airgap-v0.7.6`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.6)
+- [Air-gapped image with bundled PostgreSQL (`airgap-v0.7.6-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.6-pgbundle)
+
+</Update>
+
+<Update label="v0.7.5" description="2026-07-10">
+
+## Cluster management and reliability
+
+- Supports custom RisingWave version tags when creating a cluster.
+- Improves license-expiration handling with degraded startup, pre-expiry warnings, an ungated status endpoint, and a recovery flow.
+- Improves the object-store WARP benchmark with Hummock metrics, baselines, and UI updates.
+- Tolerates transient Grafana dashboard and GitHub release lookup failures.
+- Fixes large-cookie handling and embeds the release version correctly in built binaries.
+
+## Docker images
+
+- [Standard image (`v0.7.5`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.5)
+- [Bundled PostgreSQL (`v0.7.5-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.5-pgbundle)
+- [Air-gapped image (`airgap-v0.7.5`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=airgap-v0.7.5)
+
+</Update>
+
+<Update label="v0.7.4" description="2026-06-03">
+
+## SSO deployment and user administration
+
+- Adds complete SSO error handling and a server-side session revocation flow.
+- Adds local-user administration for listing users, creating users, resetting passwords, and deleting users.
+- Adds one-command SSO development and Kubernetes deployment overlays for external PostgreSQL and bundled PostgreSQL installations.
+- Adds a Dex sidecar, automatic OIDC client registration, and reverse proxying of Dex endpoints.
+
+## Docker images
+
+- [Standard image (`v0.7.4`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.4)
+- [Bundled PostgreSQL (`v0.7.4-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.4-pgbundle)
+
+</Update>
+
+<Update label="v0.7.3" description="2026-05-20">
+
+## SSO administration and SQL Editor
+
+- Adds local-user API endpoints and UI scaffolding.
+- Adds Dex connector administration, browser-based SSO login, connector-secret redaction, and the SSO administration UI.
+- Adds schema search path support to SQL Editor.
+
+## Docker images
+
+- [Standard image (`v0.7.3`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.3)
+- [Bundled PostgreSQL (`v0.7.3-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.3-pgbundle)
+
+</Update>
+
+<Update label="v0.7.2" description="2026-05-12">
+
+Updates how the bundled-PostgreSQL image creates its startup script. This release contains no Console feature changes.
+
+## Docker images
+
+- [Standard image (`v0.7.2`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.2)
+- [Bundled PostgreSQL (`v0.7.2-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.2-pgbundle)
+
+</Update>
+
+<Update label="v0.7.1" description="2026-05-12">
+
+## SSO and license management
+
+- Adds the SSO login flow and Dex sidecar foundation.
+- Adds RisingWave license-key management and SQL Editor UX improvements.
+- Release images require a signed RisingWave license key with the `premium` feature at startup.
+
+## Docker images
+
+- [Standard image (`v0.7.1`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.1)
+- [Bundled PostgreSQL (`v0.7.1-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.7.1-pgbundle)
+
+</Update>
+
+<Update label="v0.6.3" description="2026-05-12">
+
+## Kubernetes connectivity and UI redesign
+
+- Supports a full Kubernetes service address for cross-namespace Meta access.
+- Supports `insecureSkipVerify` for Prometheus metric stores.
+- Allows reconnecting a cluster whose previous record was soft-deleted.
+- Redesigns the Console and login page, and restructures deployment assets and user guides.
+
+## Docker images
+
+The `0.6.3-p1` images include a Docker build fix only; Console functionality is unchanged.
+
+- [Standard image (`0.6.3-p1`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=0.6.3-p1)
+- [Bundled PostgreSQL (`0.6.3-p1-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=0.6.3-p1-pgbundle)
+
+</Update>
+
+<Update label="v0.6.1" description="2026-04-01">
+
+## Registry and session fixes
+
+- Adds private Docker registry configuration to the Settings page.
+- Restores a stored session when refresh-token renewal fails.
+- Adds the Settings entry to the sidebar.
+
+No matching versioned image is currently published in the [RisingWave Console Docker Hub repository](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags).
+
+</Update>
+
+<Update label="v0.6.0" description="2026-03-31">
+
+## Kubernetes and air-gapped deployment
+
+- Adds Kubernetes cluster connections and refreshes web authentication state management.
+- Runs Console containers as a non-root user and removes local build paths from binaries.
+- Improves air-gapped deployment readiness, including pre-fetching `risectl` and private-registry support.
+- Adds automated Docker image builds and bundled-PostgreSQL images.
+- Adds correctness and hardening fixes for organization scoping, backups, endpoint validation, SQL requests, and Grafana status.
+
+No matching versioned image is currently published in the [RisingWave Console Docker Hub repository](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags).
+
+</Update>
+
+<Update label="v0.5.1" description="2025-12-10">
+
+## Console-Lite basics
+
+The upstream release does not include a change summary. The v0.5.1 documentation describes Console-Lite as the Apache 2.0 edition, which runs without a license key. Its basic capabilities include:
+
+- Importing and viewing existing RisingWave clusters.
+- Running `risectl` commands, viewing snapshots, and collecting diagnostics for connected clusters.
+- Connecting to databases and running queries in SQL Console.
+
+Creating a managed cluster requires Console-Pro and a license. This older version does not include all capabilities described in the current Console documentation.
+
+## Docker images
+
+- [Standard image (`v0.5.1`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.5.1)
+- [Bundled PostgreSQL for amd64 (`v0.5.1-pgbundle`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=v0.5.1-pgbundle)
+- [Bundled PostgreSQL for ARM64 (`0.5.1-pgbundle-arm64`)](https://hub.docker.com/r/risingwavelabs/risingwave-console/tags?name=0.5.1-pgbundle-arm64)
+
+</Update>
