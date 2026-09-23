@@ -16,12 +16,23 @@ In other words, Console does not use a separate product license key. It uses the
 
 ## Try without a license key
 
-If you only want to try RisingWave Console without configuring a license key, use `v0.5.1`:
+If you only want to try RisingWave Console without configuring a license key, use `v0.5.1`. On an x86-64 (amd64) computer, run:
 
 ```shell
-docker run --rm -p 8020:8020 --name risingwave-console \
+docker run --rm -p 127.0.0.1:8020:8020 --name risingwave-console \
+  -e RCONSOLE_ROOT_PASSWORD=choose_a_password \
   risingwavelabs/risingwave-console:v0.5.1-pgbundle
 ```
+
+On an ARM64 computer, including Apple Silicon, use the ARM64 image instead:
+
+```shell
+docker run --rm -p 127.0.0.1:8020:8020 --name risingwave-console \
+  -e RCONSOLE_ROOT_PASSWORD=choose_a_password \
+  risingwavelabs/risingwave-console:0.5.1-pgbundle-arm64
+```
+
+Replace `choose_a_password` with your own password. Keep the container running, open `http://localhost:8020`, and sign in as `root` with that password. To explore data, you need a running RisingWave cluster; use **Clusters** → **Import** to connect it. See [Connect to your RisingWave clusters](/web-ui/risingwave-console/connect-risingwave-clusters) for the required endpoints.
 
 `v0.5.1` is an older evaluation version. It does not include all current Console capabilities, and some features described in this documentation may not exist or may behave differently in that version. For current supported versions, configure the signed RisingWave license key as described below.
 
@@ -49,7 +60,7 @@ docker run -d -p 8020:8020 --name risingwave-console \
   -e RW_LICENSE_KEY_PATH=/etc/rconsole/license.jwt \
   -v "$PWD/license.jwt:/etc/rconsole/license.jwt:ro" \
   -v risingwave-console-data:/var/lib/postgresql \
-  risingwavelabs/risingwave-console:latest-pgbundle
+  risingwavelabs/risingwave-console:v0.7.9-pgbundle
 ```
 
 For Kubernetes, store the key in a Secret and reference it from the Console `StatefulSet`:
