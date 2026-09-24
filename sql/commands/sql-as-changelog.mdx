@@ -13,10 +13,29 @@ The AS CHANGELOG clause adds two metadata columns:
 ## Syntax
 
 ```sql
-WITH table_name AS CHANGELOG FROM source_table;
+WITH table_name AS CHANGELOG FROM source_table [KEY (key_column [, ...])];
 ```
 
 This is done using the CTE syntax. It converts the `source_table` change record to a column of `table_name`.
+
+Use the optional `KEY` clause to identify the columns that represent the same
+logical record. The keyed changelog buffers changes until the next barrier and
+compacts intermediate changes within that interval. For each key, it emits a
+deletion before the corresponding replacement insertion, so ordering by
+`_changelog_row_id` produces the latest state for that key.
+
+For example, the following changelog treats rows with the same `class_id` as
+the same logical record:
+
+```sql
+WITH changes AS CHANGELOG FROM grouped_classes KEY (class_id)
+SELECT
+    class_id,
+    description,
+    changelog_op,
+    _changelog_row_id
+FROM changes;
+```
 
 ## Example
 
