@@ -106,10 +106,15 @@ In the Telegraf configuration, you need to fill in the Prometheus input section,
 
 ## Step 4: Set up dashboards
 
-To set up dashboards with **Grafana** and **Prometheus**, please follow the [Grafana dashboard build instructions](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md) to build a set of dashboards with multiple namespace support.
+To set up dashboards with **Grafana** and **Prometheus**, import one of the pre-generated RisingWave dashboards into Grafana:
+
+1. [Dev dashboard (`risingwave-dev-dashboard.json`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.json) - recommended for most monitoring needs.
+2. [User dashboard (`risingwave-user-dashboard.json`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.json)
 
 <Note>
 We recommend using `risingwave_dev_dashboard` for comprehensive monitoring. `risingwave_dashboard` is also available but the dev dashboard is better organized and provides more detailed metrics.
 </Note>
 
-For other systems, or to generate them programmatically, please refer to [the script for generating the Grafana dev dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.dashboard.py) and build your own.
+The Python scripts under [`grafana/`](https://github.com/risingwavelabs/risingwave/tree/main/grafana) are the source of truth used by RisingWave developers with `grafanalib` to generate these JSON dashboards. Most users can import the JSON above and ignore the Python.
+
+If you need to customize the dashboards, such as enabling multiple namespace support or regenerating them programmatically, follow the [Grafana dashboard build instructions](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md).
