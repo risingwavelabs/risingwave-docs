@@ -92,6 +92,19 @@ Configure automatic maintenance by specifying the following parameters in the `W
 **Deprecated storage config**: The node-level storage config `iceberg_compaction_write_parquet_max_row_group_rows` is deprecated. Use the sink-level parameter `compaction.write_parquet_max_row_group_rows` instead.
 </Warning>
 
+### Update maintenance settings
+
+For an existing internal Iceberg table created with `ENGINE = iceberg`, use `ALTER TABLE ... CONNECTOR WITH` to change maintenance settings without recreating the table:
+
+```sql
+ALTER TABLE my_iceberg_table CONNECTOR WITH (
+    compaction_interval_sec = '600',
+    snapshot_expiration_retain_last = '10'
+);
+```
+
+Only specific properties can be changed after creation. See [Iceberg engine table properties](/sql/commands/sql-alter-table#iceberg-engine-table-properties) for the complete list. For an external Iceberg sink, use [`ALTER SINK ... CONNECTOR WITH`](/sql/commands/sql-alter-sink#connector-with).
+
 ### Examples
 
 #### Full compaction (default)
