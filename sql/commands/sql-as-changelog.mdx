@@ -7,8 +7,8 @@ This can be used to create materialized views and sinks. See the practice in [Si
 
 The AS CHANGELOG clause adds two metadata columns:
 
-- `changelog_op`: the change type (`1` = Insert, `2` = Delete, `3` = UpdateInsert, `4` = UpdateDelete)  
-- `_changelog_row_id`: a monotonically increasing identifier that captures the order of the change.
+- `changelog_op`: the change type (`1` = Insert, `2` = Delete, `3` = UpdateInsert, `4` = UpdateDelete)
+- `_changelog_row_id`: an identifier that orders changes to the same logical record, it does not define a global order across different records.
 
 ## Syntax
 
@@ -19,10 +19,7 @@ WITH table_name AS CHANGELOG FROM source_table [KEY (key_column [, ...])];
 This is done using the CTE syntax. It converts the `source_table` change record to a column of `table_name`.
 
 Use the optional `KEY` clause to identify the columns that represent the same
-logical record. The keyed changelog buffers changes until the next barrier and
-compacts intermediate changes within that interval. For each key, it emits a
-deletion before the corresponding replacement insertion, so ordering by
-`_changelog_row_id` produces the latest state for that key.
+logical record. For each key, the event with the greatest `_changelog_row_id` represents its latest state.
 
 For example, the following changelog treats rows with the same `class_id` as
 the same logical record:
