@@ -8,15 +8,34 @@ This can be used to create materialized views and sinks. See the practice in [Si
 The AS CHANGELOG clause adds two metadata columns:
 
 - `changelog_op`: the change type (`1` = Insert, `2` = Delete, `3` = UpdateInsert, `4` = UpdateDelete)  
-- `_changelog_row_id`: a monotonically increasing identifier that captures the order of the change.
+- `_changelog_row_id`: a monotonically increasing identifier within an internal vnode. It does not define a global order across unrelated rows.
 
 ## Syntax
 
 ```sql
-WITH table_name AS CHANGELOG FROM source_table;
+WITH table_name AS CHANGELOG FROM source_table [KEY (key_column [, ...])];
 ```
 
 This is done using the CTE syntax. It converts the `source_table` change record to a column of `table_name`.
+
+### Keyed changelogs
+
+Use the optional `KEY` clause to declare the business key that a downstream system uses to identify rows. The key can contain one or more visible columns from the source. List each column only once, and choose columns that uniquely identify a logical row; RisingWave does not enforce uniqueness of the key values.
+
+A keyed changelog buffers and compacts changes until each barrier, so it reports the net changes for that interval instead of every intermediate change. It emits surviving removals before additions. For events with the same declared key, this ensures that a replacement row has a greater `_changelog_row_id` than the row it replaces.
+
+Do not compare `_changelog_row_id` values across different key values or use a global maximum ID as a processing watermark.
+
+For example, the following materialized view produces a changelog keyed by `class_id`, even when the source materialized view uses a different internal stream key:
+
+```sql Create a keyed changelog
+CREATE MATERIALIZED VIEW mv AS
+WITH changes AS CHANGELOG FROM grouped_classes KEY (class_id)
+SELECT class_id, description, free_usage,
+       changelog_op AS __op,
+       CAST(_changelog_row_id AS BIGINT) AS __row_id
+FROM changes;
+```
 
 ## Example
 
