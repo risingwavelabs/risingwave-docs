@@ -1,11 +1,11 @@
 ---
 title: "Using RisingWave FAQ"
 sidebarTitle: "Using RisingWave"
-description: "Answers to frequently asked questions about using the RisingWave streaming database, including memory management, reserved memory configuration, CREATE MATERIALIZED VIEW performance, and resource usage breakdown."
+description: "Answers to frequently asked questions about using the RisingWave streaming database, including memory management, reserved memory configuration, long-running DDL operations, CREATE MATERIALIZED VIEW performance, and resource usage breakdown."
 mode: wide
 ---
 
-This page answers common operational questions about running RisingWave in production, including memory management, materialized view creation performance, and resource usage.
+This page answers common operational questions about running RisingWave in production, including memory management, long-running DDL operations, materialized view creation performance, and resource usage.
 
 ## Why is the memory usage so high?
 
@@ -80,6 +80,22 @@ When `BACKGROUND_DDL=true`, the new materialized view remains invisible in the c
 
 If the `Progress` column in `SHOW JOBS` stays at `0.0%`, the cluster may be experiencing high latency that slows down streaming graph changes. See [Troubleshoot high latency](/performance/troubleshoot-high-latency) for diagnostic steps.
 
+## Why does `DROP` or `CANCEL JOBS` take a long time?
+
+Long-running `DROP` and `CANCEL JOBS` statements are usually caused by high barrier latency. These operations currently need to be synchronized with barriers before they can take effect.
+
+**How to remedy it**:
+- Check whether the cluster is experiencing high barrier latency. See [Troubleshoot high latency](/performance/troubleshoot-high-latency).
+- If you need the `DROP` or `CANCEL JOBS` operation to take effect immediately, run `RECOVER` in a separate session:
+
+```sql
+RECOVER;
+```
+
+<Note>
+`RECOVER` requires superuser permissions. See [RECOVER](/sql/commands/sql-recover) for details.
+</Note>
+
 ## What does the memory and disk usage consist of?
 
 RisingWave memory usage on a Serving or Streaming Node is divided into three components:
@@ -133,6 +149,14 @@ For guidance on tuning memory allocation, see [Tune reserved memory](/operate/tu
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "CREATE MATERIALIZED VIEW backfills all historical data from referenced tables to ensure a consistent snapshot. Use SHOW JOBS to check progress. To run non-blocking, set BACKGROUND_DDL=true before the CREATE statement. If progress stays at 0%, the cluster may be experiencing high latency."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does DROP or CANCEL JOBS take a long time in RisingWave?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Long-running DROP and CANCEL JOBS statements are usually caused by high barrier latency because these operations need to synchronize with barriers before taking effect. Check cluster barrier latency, and if you need the operation to take effect immediately, run RECOVER in a separate session. RECOVER requires superuser permissions."
           }
         },
         {
