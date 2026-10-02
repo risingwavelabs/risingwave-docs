@@ -32,6 +32,7 @@ When connecting to a data source, you specify how the data is formatted and enco
 | `UPSERT`        | `JSON`      | JSON for updates/deletes (key-value pairs).                       |
 | `PLAIN`         | `AVRO`      | Standard Avro data (requires schema registry).                   |
 | `UPSERT`        | `AVRO`      | Avro for updates/deletes (requires schema registry).              |
+| `UPSERT`        | `PROTOBUF`  | Protobuf for updates/deletes (requires schema location/registry). |
 | `DEBEZIUM`      | `AVRO`      | Debezium-formatted Avro (requires schema registry).              |
 | `PLAIN`         | `PROTOBUF`  | Standard Protobuf data (requires schema location/registry).      |
 | `DEBEZIUM`      | `JSON`      | Debezium-formatted JSON data.                                   |
@@ -182,7 +183,19 @@ ENCODE PROTOBUF (
    message = 'com.example.MyMessage',
    schema.location = 'location' | schema.registry = 'schema_registry_url [, ...]',
 )
-``` 
+```
+
+### `UPSERT PROTOBUF`
+
+For Kafka topics with updates and deletes encoded as Protobuf values, use `FORMAT UPSERT ENCODE PROTOBUF`. As with other upsert formats, you must include the Kafka key and use it as the primary key.
+
+```sql
+FORMAT UPSERT
+ENCODE PROTOBUF (
+   message = 'com.example.MyMessage',
+   schema.location = 'location' | schema.registry = 'schema_registry_url [, ...]',
+)
+```
 
 ### CSV handling
 
@@ -208,6 +221,8 @@ RisingWave allows you to read data streams without decoding the data by using th
 FORMAT PLAIN
 ENCODE BYTES
 ```
+
+If you need key-based upsert semantics with bytes payloads, RisingWave does not provide a separate `FORMAT UPSERT ENCODE BYTES` syntax. Instead, use `FORMAT PLAIN ENCODE BYTES`, add `INCLUDE KEY`, and declare the key column as the primary key.
 
 ## Parquet handling
 
@@ -276,6 +291,10 @@ Parquet sources require case-sensitive column names. However, PostgreSQL convert
 | PLAIN | PROTOBUF | `schema.location` | URL of the schema file (alternative to `schema.registry`). | Yes (one of) |
 | PLAIN | PROTOBUF | `schema.registry` | URL(s) of the schema registry (alternative to `schema.location`). | Yes (one of) |
 | PLAIN | PROTOBUF | `schema.registry.ca_pem_path` | Path to a custom root CA certificate file (PEM) for the schema registry TLS connection, or `'ignore'` to skip certificate verification (not recommended for production). Supports `SECRET ... AS FILE`. | No |
+| UPSERT | PROTOBUF | `message` | Fully qualified name of the Protobuf message. | Yes |
+| UPSERT | PROTOBUF | `schema.location` | URL of the schema file (alternative to `schema.registry`). | Yes (one of) |
+| UPSERT | PROTOBUF | `schema.registry` | URL(s) of the schema registry (alternative to `schema.location`). | Yes (one of) |
+| UPSERT | PROTOBUF | `schema.registry.ca_pem_path` | Path to a custom root CA certificate file (PEM) for the schema registry TLS connection, or `'ignore'` to skip certificate verification (not recommended for production). Supports `SECRET ... AS FILE`. | No |
 | DEBEZIUM | JSON | `ignore_key` | Whether to ignore the key (default: false). | No |
 | PLAIN | CSV | `delimiter` | Delimiter character. | Yes |
 | PLAIN | CSV | `without_header` | Whether the CSV data has a header row (default: false). | No |
