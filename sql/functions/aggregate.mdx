@@ -267,7 +267,7 @@ SELECT mode() WITHIN GROUP (ORDER BY column1) FROM table1;
 ### `percentile_cont`
 
 <Note>
-At present, `percentile_cont` is not supported for [streaming queries](/reference/key-concepts#streaming-queries) yet.
+Note that `approx_percentile` can be more performant than `percentile_cont` for streaming jobs where groups in the `GROUP BY` clause have high row counts.
 </Note>
 
 Computes the continuous percentile, which is a value corresponding to the specified fraction within the ordered set of aggregated argument values. It can interpolate between adjacent input items if needed.
@@ -291,7 +291,7 @@ If NULL is provided, the function will not calculate a specific percentile and r
 ### `percentile_disc`
 
 <Note>
-At present, `percentile_disc` is not supported for streaming queries yet.
+Note that `approx_percentile` can be more performant than `percentile_disc` for streaming jobs where groups in the `GROUP BY` clause have high row counts.
 </Note>
 
 Computes the discrete percentile, which is the first value within the ordered set of aggregated argument values whose position in the ordering equals or exceeds the specified fraction.
@@ -315,7 +315,7 @@ If NULL is provided, the function will not calculate a specific percentile and r
 
 ### `approx_percentile`
 
-Returns an approximate value of the specified percentile from a numeric column.
+Returns an approximate value of the specified percentile from a numeric column. For performance-sensitive streaming percentile workloads with high-volume groups, `approx_percentile` is generally preferred over `percentile_cont` or `percentile_disc` when approximate results are acceptable.
 
 ```sql
 approx_percentile(DOUBLE percentile [, DOUBLE relative_error]) WITHIN GROUP (ORDER BY percentile_column) -> output_value
