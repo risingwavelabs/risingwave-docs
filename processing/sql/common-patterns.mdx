@@ -1,0 +1,76 @@
+---
+title: "Common SQL patterns"
+description: "Use common RisingWave SQL patterns for table sinks, changelog output, deduplication, append-only inputs, and durable writes."
+---
+
+This guide collects a few SQL patterns that are often used when building streaming pipelines in RisingWave.
+
+## Write query results into a table
+
+Use [`CREATE SINK INTO`](/sql/commands/sql-create-sink-into) when the target of a streaming query is another RisingWave table instead of an external system.
+
+This pattern is useful when you want to:
+
+- Merge data from multiple upstream streams into one table.
+- Maintain a wide table incrementally.
+- Reuse the sink output in downstream materialized views or queries.
+
+For a full guide, see [Maintain wide table with table sinks](/processing/maintain-wide-table-with-table-sinks).
+
+## Expose row-level changes with `AS CHANGELOG`
+
+Use [`AS CHANGELOG`](/sql/commands/sql-as-changelog) when a downstream query or sink needs the change type of each row as data.
+
+```sql
+CREATE MATERIALIZED VIEW user_behavior_changelog AS
+WITH sub AS CHANGELOG FROM user_behaviors
+SELECT
+  user_id,
+  target_id,
+  changelog_op,
+  _changelog_row_id::bigint AS changelog_row_id
+FROM sub;
+```
+
+This pattern adds metadata columns such as `changelog_op` so downstream consumers can distinguish inserts, deletes, and updates.
+
+## Deduplicate rows
+
+Use `SELECT DISTINCT` when you want to remove duplicate rows from a result set.
+
+Use [`SELECT DISTINCT ON`](/sql/commands/sql-select#distinct-clause) when you want to keep one row for each key and use `ORDER BY` to decide which row wins.
+
+```sql
+SELECT DISTINCT ON (customer_id)
+  order_id,
+  customer_id,
+  order_date
+FROM orders
+ORDER BY customer_id, order_date DESC;
+```
+
+For streaming ranking patterns, including keeping the top row or top N rows for each group, see [Top-N by group](/processing/sql/top-n-by-group).
+
+## Use append-only inputs when updates are not needed
+
+If your upstream data only produces inserts, consider declaring the table as [`APPEND ONLY`](/sql/commands/sql-create-table#append-only).
+
+Append-only inputs are useful when you want to:
+
+- Avoid update and delete handling.
+- Reduce state for downstream streaming jobs.
+- Model immutable event streams without a primary key.
+
+For ingestion tradeoffs, see [CREATE SOURCE vs. CREATE TABLE](/ingestion/create-source-vs-create-table).
+
+## Make DML durable with `FLUSH`
+
+Use [`FLUSH`](/sql/commands/sql-flush) after `INSERT`, `UPDATE`, or `DELETE` when you need the changes to be durably persisted and visible to subsequent reads immediately.
+
+```sql
+INSERT INTO users VALUES (1, 'Alice');
+FLUSH;
+SELECT * FROM users;
+```
+
+If you want this behavior automatically for batch operations, see [`RW_IMPLICIT_FLUSH`](/sql/commands/sql-set-rw-implicit-flush).
