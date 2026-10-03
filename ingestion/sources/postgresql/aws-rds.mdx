@@ -37,6 +37,9 @@ You also need to grant standard access privileges to the schemas and tables you 
 -- Grant connection access to the database
 GRANT CONNECT ON DATABASE <database_name> TO <user_name>;
 
+-- If RisingWave needs to create the publication, grant CREATE privilege
+GRANT CREATE ON DATABASE <database_name> TO <user_name>;
+
 -- Grant usage on the schema
 GRANT USAGE ON SCHEMA <schema_name> TO <user_name>;
 
@@ -45,6 +48,8 @@ GRANT SELECT ON ALL TABLES IN SCHEMA <schema_name> TO <user_name>;
 -- To grant access to future tables in the schema automatically:
 ALTER DEFAULT PRIVILEGES IN SCHEMA <schema_name> GRANT SELECT ON TABLES TO <user_name>;
 ```
+
+If RisingWave creates the publication automatically (`publication.create.enable = 'true'`), the user must also own each captured table. If the tables are owned by another user, create the publication ahead of time with a table owner account and then set `publication.create.enable = 'false'` in RisingWave.
 
 ## Next step
 
