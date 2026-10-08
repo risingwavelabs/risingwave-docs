@@ -144,6 +144,7 @@ Locality backfill is controlled by the session variables `enable_locality_backfi
 ```sql
 SET enable_locality_backfill = true;
 SET locality_backfill_mode = 'auto';
+SET enable_locality_sort_buffer = true;
 ```
 
 `enable_locality_backfill` is the master switch. It defaults to `true` on new clusters, while upgraded clusters keep their persisted value. When locality backfill is enabled, `locality_backfill_mode` controls how RisingWave applies it:
@@ -155,7 +156,11 @@ When upgrading a cluster that has a persisted `enable_locality_backfill` value b
 
 Set `enable_locality_backfill = false` to disable locality backfill entirely.
 
+`enable_locality_sort_buffer` defaults to `true`. It applies when RisingWave plans new streaming jobs with locality providers; changing it does not modify existing jobs.
+
 When locality backfill is selected, the optimizer inserts `LocalityProvider` operators into the newly created query plan to optimize backfilling by providing data locality.
+
+After backfill finishes, each locality provider monitors the number of input rows in an epoch. If the count exceeds the default activation threshold of 65,536 rows, it switches from pass-through mode to a bounded-memory sort buffer for that epoch. Buffered changes use spillable state storage and are replayed in locality order at the next barrier, with consecutive changes for the same key compacted. This helps downstream stateful operators preserve cache locality when joins produce amplified intermediate results. Epochs below the threshold continue in pass-through mode without additional latency or storage traffic.
 
 If you are doing a rolling upgrade from a version that does not have `locality_backfill_mode`, wait until all frontend nodes are upgraded before changing `locality_backfill_mode` or `auto_locality_backfill_min_size` with `ALTER SYSTEM`.
 
