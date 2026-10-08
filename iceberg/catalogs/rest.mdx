@@ -87,6 +87,8 @@ Added in v2.7.0.
 
 Vended credentials allow the REST catalog server to provide temporary credentials for accessing object storage, rather than requiring you to manage credentials directly in RisingWave.
 
+RisingWave supports vended credentials for S3 and ADLS Gen2. If the catalog returns multiple credentials with different path prefixes, RisingWave uses the most specific matching credential for each object. RisingWave also refreshes expiring credentials for running sources and sinks, including storage readers and writers that are already open.
+
 To enable vended credentials, set `vended_credentials = true` along with `catalog.type = 'rest'`:
 
 **Example: Source**
