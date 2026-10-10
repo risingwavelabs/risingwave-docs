@@ -29,6 +29,8 @@ t1 join_type t2 [ join_condition ]
 
 Subqueries specifying a derived table must be enclosed in parentheses and must be assigned a table alias name.
 
+RisingWave resolves an unqualified correlated column reference one enclosing query level at a time. If the name matches multiple visible columns at the same level, including columns visible to a `LATERAL` subquery, RisingWave reports that the column reference is ambiguous instead of searching an outer level. Qualify the column with a table alias to resolve the ambiguity.
+
 Syntax:
 
 ```sql
