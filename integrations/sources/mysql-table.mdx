@@ -18,7 +18,7 @@ Added in v2.2.0.
 
 ## Syntax
 
-Define `mysql_query` as follows:
+Define `mysql_query` in either of the following forms:
 
 ```sql
 mysql_query(
@@ -30,6 +30,17 @@ mysql_query(
     query varchar          -- SQL query to execute
 )
 ```
+
+```sql
+mysql_query(
+    cdc_source_name varchar, -- Existing MySQL CDC source name
+    query varchar            -- SQL query to execute
+)
+```
+
+The source-based form requires an existing [MySQL CDC](/ingestion/sources/mysql/mysql-cdc) source. It reuses the connection properties already defined on that source, including credentials managed as secrets. Added in v2.3.0.
+
+The `cdc_source_name` argument accepts either a bare identifier (resolved against the session `search_path`) or a schema-qualified name (for example `'my_schema.my_cdc_source'` or `'"my_schema"."my_cdc_source"'`). Use the schema-qualified form when the CDC source lives outside the default `search_path`.
 
 ## Data type mapping
 
@@ -97,4 +108,25 @@ SELECT *
 FROM mysql_query('$MYSQL_HOST', '$MYSQL_TCP_PORT', '$RISEDEV_MYSQL_USER', '$MYSQL_PWD', 'tvf', 'select * from test;');
 ----RESULT
 1 t 1 2 3 4 5 6 7 1.08 1.09 1.10 1.11 char varchar \x000a \x16 \x17 \x18 \x19 2021-01-01 12:34:56 2021-01-01 12:34:56+00:00 {"key1": 1, "key2": "abc"}
+```
+
+If you already have a MySQL CDC source, you can reuse its connection properties instead of passing them inline again.
+
+```sql
+CREATE SOURCE mysql_source WITH (
+    connector = 'mysql-cdc',
+    hostname = 'mysql',
+    port = '3306',
+    username = 'myuser',
+    password = secret mysql_password,
+    database.name = 'tvf'
+);
+
+-- Bare name, resolved against the session search_path
+SELECT *
+FROM mysql_query('mysql_source', 'select * from test;');
+
+-- Schema-qualified reference (required when the CDC source lives outside the search_path)
+SELECT *
+FROM mysql_query('my_schema.mysql_source', 'select * from test;');
 ```
