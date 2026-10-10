@@ -4,8 +4,9 @@ description: "The built-in load generator can generate mock data, which can be u
 sidebarTitle: "Datagen"
 ---
 
+Use the built-in load generator to create synthetic streams for local development, demos, and connector-free testing.
 
-Use the SQL statement below to connect RisingWave to the built-in load generator.
+The datagen connector emits insert-only rows. It does not generate updates or deletes, so it is not suitable for testing CDC, upsert, or delete-driven workloads.
 
 ## Syntax
 
@@ -14,9 +15,19 @@ CREATE TABLE source_name ( column_name data_type, ... )
 WITH (
    connector = ' datagen ',
    fields.column_name.column_parameter = ' value ', ...  -- Configure the generator for each column. See detailed information below.
-   datagen.rows.per.second = ' rows_integer '  -- Specify how many rows of records to generate every second. For example, '20'.
+   datagen.rows.per.second = ' rows_integer ', -- Specify how many rows of records to generate every second. For example, '20'.
+   datagen.split.num = ' split_integer '       -- Optional. Specify how many generator splits to use.
 ) FORMAT PLAIN ENCODE JSON;
 ```
+
+## Connector options
+
+Specify these options in the `WITH` clause.
+
+| Option | Description |
+| :----- | :---------- |
+| `datagen.rows.per.second` | Total number of rows generated per second across all datagen splits. Default: `10`. |
+| `datagen.split.num` | Number of generator splits. Use this when you want the generated workload to be partitioned across multiple splits. If you set `datagen.split.num = '3'` and `datagen.rows.per.second = '10'`, RisingWave distributes the output across the three splits. |
 
 ### `WITH` options - _`columnparameter`_[]
 
@@ -241,4 +252,3 @@ SELECT * FROM s1 ORDER BY i1 LIMIT 20;
 (20 rows)
 ...
 ```
-
