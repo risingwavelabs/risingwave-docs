@@ -7,6 +7,7 @@ description: This page summarizes changes in each version of RisingWave, includi
 
 ## SQL features
 
+- Prevents streaming `generate_series(..., now(), ...)` from stalling when `now_progress_ratio` is configured. The series now catches up to the barrier timestamp while preserving every interval-spaced value. [#27191](https://github.com/risingwavelabs/risingwave/pull/27191)
 - Adds [keyed changelogs](/sql/commands/sql-as-changelog#keyed-changelogs) with `AS CHANGELOG FROM ... KEY (...)`. Changes are buffered until each barrier and compacted by stream key, with removals emitted before additions for replacement rows sharing the declared key. [#27253](https://github.com/risingwavelabs/risingwave/pull/27253)
 - Makes streaming `NOW()` catch-up with `now_progress_ratio` follow actual elapsed time between barrier batches instead of the configured barrier interval. [#27332](https://github.com/risingwavelabs/risingwave/pull/27332)
 - Preserves the deletion of the old target key when an update changes a sink's primary key, preventing stale rows when the sink key differs from the upstream stream key. Upgrading does not remove rows already left stale; affected downstream data requires separate reconciliation. [#27421](https://github.com/risingwavelabs/risingwave/pull/27421)
