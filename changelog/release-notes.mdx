@@ -3,6 +3,48 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v3.0.5" description="2026-10-12">
+
+## SQL features
+
+- Adds [keyed changelogs](/sql/commands/sql-as-changelog#keyed-changelogs) with `AS CHANGELOG FROM ... KEY (...)`. Changes are buffered until each barrier and compacted by stream key, with removals emitted before additions for replacement rows sharing the declared key. [#27253](https://github.com/risingwavelabs/risingwave/pull/27253)
+- Makes streaming `NOW()` catch-up with `now_progress_ratio` follow actual elapsed time between barrier batches instead of the configured barrier interval. [#27332](https://github.com/risingwavelabs/risingwave/pull/27332)
+- Preserves the deletion of the old target key when an update changes a sink's primary key, preventing stale rows when the sink key differs from the upstream stream key. Upgrading does not remove rows already left stale; affected downstream data requires separate reconciliation. [#27421](https://github.com/risingwavelabs/risingwave/pull/27421)
+
+## Connectors
+
+- Supports Google Application Default Credentials for Pub/Sub sources and sinks in self-hosted and BYOC deployments when explicit credentials and emulator configuration are absent. RisingWave Cloud Hosted still requires explicit connector credentials. The project ID can be omitted when credentials or ADC supply it. [#27150](https://github.com/risingwavelabs/risingwave/pull/27150)
+- Preserves connection and secret references when altering source or table connector properties. Properties supplied by a connection must be changed through `ALTER CONNECTION`. [#27202](https://github.com/risingwavelabs/risingwave/pull/27202)
+- Preserves SQL Server column order and composite-primary-key order during CDC schema discovery. [#27166](https://github.com/risingwavelabs/risingwave/pull/27166)
+- Prevents unfinished CDC backfills from losing changes to already-scanned rows during recovery startup, including legacy MySQL backfills that need unsigned primary-key comparison semantics. [#27152](https://github.com/risingwavelabs/risingwave/pull/27152)
+- Fixes MySQL CDC schema-history recovery without GTIDs by comparing binlog file positions correctly when server IDs are missing or zero. [#27404](https://github.com/risingwavelabs/risingwave/pull/27404)
+- Stops the previous CDC engine when its reader is dropped during startup, preventing PostgreSQL replication slots from remaining occupied while waiting for streaming readiness. [#27445](https://github.com/risingwavelabs/risingwave/pull/27445)
+- Applies PostgreSQL's vector converter before the generic composite-type converter and removes a redundant log message that printed the full Debezium configuration. [#27214](https://github.com/risingwavelabs/risingwave/pull/27214)
+- Makes sink log-store retry delays increase gradually instead of reaching the maximum delay after a single retry. [#27122](https://github.com/risingwavelabs/risingwave/pull/27122)
+
+## Iceberg
+
+- Adds batch-only metadata relations named `<name>$snapshots`, `<name>$manifests`, and `<name>$files` for Iceberg Engine tables, sources, and standalone sinks. The manifests and files relations support time travel by snapshot ID or timestamp. [#27132](https://github.com/risingwavelabs/risingwave/pull/27132)
+- Supports refreshing temporary storage credentials supplied by Iceberg REST catalogs when vended credentials are enabled. Also carries Azure Data Lake Storage Gen2 configuration through the native REST catalog path. [#27412](https://github.com/risingwavelabs/risingwave/pull/27412)
+
+## Administration
+
+- Fixes source-split restoration for independent snapshot-backfill jobs during recovery. [#27332](https://github.com/risingwavelabs/risingwave/pull/27332)
+- Reports object metadata lookup failures during object-store listing instead of silently treating an incomplete listing as complete. [#27339](https://github.com/risingwavelabs/risingwave/pull/27339)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.5 single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.5/risingwave-v3.0.5-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.5.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.5.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.5/risectl-v3.0.5-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.4...v3.0.5).
+
+</Update>
+
 <Update label="v3.1.0" description="2026-09-21">
 
 This release adds the `VARIANT` data type, periodically refreshed materialized views, partitioned gap filling, and more control over backfill and sink operations. It also includes the improvements and fixes documented in the v3.0.x patch releases below.
