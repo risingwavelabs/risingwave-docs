@@ -65,6 +65,7 @@ Below are all supported custom settings:
 | `disable_external_cluster_access` | Boolean | When set to `true`, disables external (Internet-facing) access to RisingWave clusters. |
 | `enable_heap_storage` | Boolean | Enables object storage FUSE mount for heap dump persistence in BYOC clusters. If omitted, this is enabled by default on AWS and GCP. |
 | `disable_public_kubernetes_endpoint` | Boolean | When set to `true`, restricts the Kubernetes control-plane API to in-VPC access only. It must be `false` when creating or terminating a BYOC environment, and can be enabled later through an update. |
+| `public_kubernetes_endpoint_allowed_cidrs` | List of IPv4 CIDRs | On AWS and GCP, limits the public EKS or GKE Kubernetes API to the listed source networks, such as a VPN exit CIDR; use `/32` for a single IPv4 address. When the public endpoint is enabled, omitting the list or setting `[]` allows all IPv4 addresses. A nonempty list cannot be combined with `disable_public_kubernetes_endpoint: true`. Run local `rwc byoc apply` and `rwc byoc delete` from an allowed source IP. |
 
 ### Deploy in a different region
 
@@ -130,9 +131,9 @@ Cross-region GCP environments can be created only in regions enabled by RisingWa
 | `discarded_risingwave_metrics_regex` | List | A list of regular expressions matching metric names to discard when scraping RisingWave. |
 | `risingwave_scraping_interval_secs` | Integer | Scraping interval in seconds for RisingWave metrics. |
 
-### Create a configuration file
+### Create a configuration file for a new environment
 
-1. Create a file at path `BYOC_CONFIG` with desired custom settings. You can include only the settings you need and omit others:
+1. Create a file at path `BYOC_CONFIG` with desired custom settings. For a new environment, you can include only the settings you need and omit others:
 
    ```yaml
    # General settings
@@ -158,6 +159,10 @@ Cross-region GCP environments can be created only in regions enabled by RisingWa
    disable_external_cluster_access: true
    enable_heap_storage: true
    disable_public_kubernetes_endpoint: false
+   # AWS and GCP only; replace these with your allowed source networks.
+   public_kubernetes_endpoint_allowed_cidrs:
+     - 203.0.113.0/24
+     - 198.51.100.8/32
 
    # AWS-specific settings
    aws_settings:
@@ -181,52 +186,55 @@ Cross-region GCP environments can be created only in regions enabled by RisingWa
 2. Save the file path `$BYOC_CONFIG`, as you will use it in the later steps.
 
 
-### Apply to a BYOC environment
+### Apply to a new BYOC environment
 
-You may either create a new BYOC environment or update your existing one to apply the custom settings.
+1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFIG` is the file path of the config file created in the previous step. Set `$BYOC_CIDR` to an IPv4 CIDR block that meets the [CIDR size requirements](#prerequisites), such as `10.0.0.0/19`.
 
-
-
-<Tabs>
-  <Tab title="Create a new BYOC environment">
-    1. Run the following command to create a new BYOC environment with custom settings. `$BYOC_CONFIG` is the file path of the config file created in the previous step. Set `$BYOC_CIDR` to an IPv4 CIDR block that meets the [CIDR size requirements](#prerequisites), such as `10.0.0.0/19`.
-
-```bash
-$ rwc byoc create \
-	--cidr $BYOC_CIDR \
-	--cloud-account-id $ACCOUNT_ID \
-	--name $BYOC_NAME \
-	--custom-settings-path $BYOC_CONFIG
-```
+   ```bash
+   $ rwc byoc create \
+     --cidr $BYOC_CIDR \
+     --cloud-account-id $ACCOUNT_ID \
+     --name $BYOC_NAME \
+     --custom-settings-path $BYOC_CONFIG
+   ```
 
 2. Apply custom settings to the new BYOC environment. This may take up to 30 minutes.
 
-```bash
-$ rwc byoc apply --name $BYOC_NAME
-```
-  </Tab>
-  <Tab title="Update an existing BYOC environment">
-    <Warning>
-When updating the existing BYOC environment, the existing cluster namespaces `rwc-*` will NOT adopt the security feature update.
+   ```bash
+   $ rwc byoc apply --name $BYOC_NAME
+   ```
+
+### Update custom settings for an existing BYOC environment
+
+See [Configure custom settings](#configure-custom-settings) for the settings schema and provider support. The file passed to `rwc byoc update` replaces the environment's existing custom settings. Include all settings you want to keep. Omitting a setting can restore its default or fail validation if the value cannot change after creation. For example, removing a nonempty `public_kubernetes_endpoint_allowed_cidrs` list restores unrestricted public access when the public Kubernetes endpoint is enabled.
+
+1. Inspect the current version and custom settings:
+
+   ```bash
+   $ rwc byoc describe --name $BYOC_NAME
+   $ rwc byoc custom-settings describe --name $BYOC_NAME
+   ```
+
+2. Create a YAML file at `$BYOC_CONFIG`. If the environment has existing custom settings, copy them into the file and change only the values you intend to update. If it has no custom settings, add the settings you need. To clear a Kubernetes API allow list while keeping the public endpoint enabled, set `public_kubernetes_endpoint_allowed_cidrs: []`.
+
+3. Run the update. Set `$VERSION` to the current version shown by `rwc byoc describe` if you want to change only custom settings.
+
+   ```bash
+   $ rwc byoc update \
+     --name $BYOC_NAME \
+     --version $VERSION \
+     --custom-settings-path $BYOC_CONFIG
+   ```
+
+4. Check the environment status until it becomes `Ready` again. This may take up to 30 minutes.
+
+   ```bash
+   $ rwc byoc describe --name $BYOC_NAME
+   ```
+
+<Warning>
+Updates to `pod_security_admission_labels` do not change existing `rwc-*` namespaces.
 </Warning>
-
-1. Run the following command to trigger a BYOC environment update. `$BYOC_NAME` should be the name of your existing BYOC environment.
-
-```bash
-$ rwc byoc update \
-  --name $BYOC_NAME \
-  --version $VERSION \
-  --custom-settings-path $BYOC_CONFIG
-```
-
-2. Run the following command to retrieve the cluster status, until the status becomes `Ready` again. This may take up to 30 minutes.
-
-```bash
-$ rwc byoc describe --name $BYOC_NAME
-```
-  </Tab>
-
-</Tabs>
 
 ## Resource and permission
 
