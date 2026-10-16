@@ -28,6 +28,17 @@ You can enable automatic maintenance to run periodically in the background for y
 Automatic data file compaction requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. Manifest rewrite and snapshot expiration run on the meta node and do not require a dedicated compactor. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
 </Warning>
 
+### Compaction triggers
+
+When automatic data file compaction is enabled, a new compaction becomes eligible when **either** condition is met:
+
+- The number of pending snapshot commits reaches `compaction.trigger_snapshot_count`, even if the time interval has not elapsed.
+- The `compaction_interval_sec` interval has elapsed and there is at least one pending snapshot commit, even if the snapshot-count threshold has not been reached.
+
+The snapshot-count threshold allows an early trigger; the interval limits how long the scheduler waits for that threshold when there are pending commits. It is not a minimum delay between compactions, and elapsed time alone does not trigger a new compaction without pending commits. Actual execution depends on scheduling and compactor availability.
+
+For example, with `compaction_interval_sec = 600` and `compaction.trigger_snapshot_count = 10`, ten pending commits can trigger compaction before 600 seconds elapse. If only one commit is pending when the interval elapses, compaction is still eligible. Setting the threshold to `1` makes each new commit sufficient to trigger compaction without waiting for the interval.
+
 ### Compaction types
 
 RisingWave supports three compaction types for Iceberg tables. You can specify the type using the `compaction.type` parameter.
@@ -51,7 +62,7 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | Parameter | Description |
 |:--|:--|
 | `enable_compaction` | Optional. Set to `true` to enable automatic data file compaction. Default: `false`. |
-| `compaction_interval_sec` | Optional. The interval in seconds between data file compaction runs. It does not control manifest rewrite or snapshot expiration. Default: `3600`. |
+| `compaction_interval_sec` | Optional. The time-based trigger interval in seconds for data file compaction. When it elapses, compaction becomes eligible if there is at least one pending snapshot commit. Reaching `compaction.trigger_snapshot_count` can trigger compaction earlier. It does not control manifest rewrite or snapshot expiration. Default: `3600`. |
 | `enable_snapshot_expiration` | Optional. Set to `true` to enable snapshot expiration. Default: `true`. |
 | `snapshot_expiration_max_age_millis` | Optional. The maximum age (in milliseconds) for a snapshot to be retained. If unspecified, RisingWave uses the default retention behavior. To keep only the latest snapshot, set this to `0`. |
 | `snapshot_expiration_retain_last` | Optional. The minimum number of snapshots to retain, regardless of their age. If unspecified, RisingWave uses the default retention behavior. |
@@ -70,7 +81,7 @@ Configure automatic maintenance by specifying the following parameters in the `W
 |:--|:--|
 | `compaction.type` | Optional. The compaction strategy: `full`, `small-files`, or `files-with-delete`. Default: `full`. |
 | `compaction.max_snapshots_num` | Optional. The maximum number of snapshots allowed since the last rewrite operation. If set, the sink will pause if this number is exceeded until compaction completes. If `enable_compaction = true` and this parameter is not set, RisingWave uses `1000` by default. If `enable_compaction = false`, the gate remains disabled unless you explicitly set a positive value. `0` is not allowed. |
-| `compaction.trigger_snapshot_count` | Optional. The minimum number of snapshots since the last compaction required to trigger a new compaction. Both this threshold and the time interval must be met. |
+| `compaction.trigger_snapshot_count` | Optional. The number of pending snapshot commits that triggers data file compaction early, without waiting for `compaction_interval_sec`. The conditions use OR logic: compaction can also be triggered when the interval elapses with at least one pending snapshot commit. See [Compaction triggers](#compaction-triggers). |
 | `compaction.target_file_size_mb` | Optional. The target output file size in MB. Applies to both sink writes and compaction. Default: `1024`. |
 | `compaction.write_parquet_compression` | Optional. The Parquet compression codec for output files. Accepted values: `uncompressed`, `snappy`, `gzip`, `lzo`, `brotli`, `lz4`, `zstd`. Default: `snappy`. Supports dynamic updates via `ALTER SINK`. |
 | `compaction.write_parquet_max_row_group_rows` | Optional. The maximum number of rows per Parquet row group. Must be greater than 0. Default: `122880`. Supports dynamic updates via `ALTER SINK`. |

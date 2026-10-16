@@ -13,10 +13,11 @@ The AS CHANGELOG clause adds two metadata columns:
 ## Syntax
 
 ```sql
-WITH table_name AS CHANGELOG FROM source_table;
+WITH table_name AS CHANGELOG FROM source_table [KEY (column_name [, ...])]
+SELECT ... FROM table_name;
 ```
 
-This is done using the CTE syntax. It converts the `source_table` change record to a column of `table_name`.
+This uses common table expression (CTE) syntax within `CREATE MATERIALIZED VIEW` or `CREATE SINK`. It exposes changes from the source relation as rows with metadata columns. The optional `KEY` clause enables keyed changelogs; omit it to retain the existing per-change behavior.
 
 ## Example
 
@@ -53,4 +54,61 @@ v1  v2  changelog_op
 2   2   2
 1   1   4
 1   100 3
+```
+
+## Keyed changelogs
+
+Use `KEY (column_name [, ...])` to group change events by a business key. Each key column must be a distinct, visible column in the source relation. This key controls how changes are distributed and ordered; it does not declare a primary key or enforce uniqueness.
+
+Keyed changelogs buffer changes until each barrier. They compact changes using the upstream stream key together with the declared key, removing intermediate changes that cancel out within that interval. For rows sharing the declared key, removal events are emitted before addition events. This ensures that replacing a row leaves its addition as the latest event, even if the upstream insert arrives before the delete. Multiple upstream rows with the same declared key can still produce separate events.
+
+The following example tracks a business key, `class_id`, while the upstream materialized view groups by `class_id`, `description`, and `free_usage`. Changing a description replaces an upstream group but keeps the same business key.
+
+```sql
+SET RW_IMPLICIT_FLUSH TO true;
+
+CREATE TABLE source (
+    class_id BIGINT,
+    description VARCHAR,
+    free_usage BOOLEAN
+);
+
+CREATE MATERIALIZED VIEW grouped_classes AS
+SELECT class_id, description, free_usage, COUNT(*) AS n
+FROM source
+GROUP BY class_id, description, free_usage;
+
+CREATE MATERIALIZED VIEW mv AS
+WITH changes AS CHANGELOG FROM grouped_classes KEY (class_id)
+SELECT class_id, description, free_usage,
+       changelog_op AS __op, CAST(_changelog_row_id AS BIGINT) AS __row_id
+FROM changes;
+
+INSERT INTO source VALUES (42, 'Beginner', false), (43, 'Basic', false);
+
+UPDATE source
+SET description = 'Advanced', free_usage = true WHERE class_id = 42;
+
+SELECT class_id, description, free_usage::INT, __op
+FROM (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY class_id ORDER BY __row_id DESC) AS rn
+    FROM mv
+)
+WHERE rn = 1
+ORDER BY class_id;
+```
+
+The latest event for class `42` is the addition of the replacement row:
+
+```text
+class_id | description | free_usage | __op
+---------+-------------+------------+-----
+42       | Advanced    | 1          | 1
+43       | Basic       | 0          | 1
+```
+
+`RW_IMPLICIT_FLUSH` makes each data modification visible before the next statement in this example. After deleting class `42`, the same query returns a latest event with `__op = 2` for that class.
+
+```sql
+DELETE FROM source WHERE class_id = 42;
 ```
