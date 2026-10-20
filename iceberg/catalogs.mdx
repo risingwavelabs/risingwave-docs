@@ -69,6 +69,8 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 | `catalog.token` | A bearer token for a REST catalog. |
 | `catalog.oauth2_server_uri` | The token endpoint URI for a REST catalog's OAuth2 flow. |
 | `catalog.scope` | The OAuth2 scope for a REST catalog. |
+| `catalog.security` | The authentication type for a REST catalog. Supported values are `none`, `oauth2`, and `google`. With `google`, a native REST catalog uses `gcs.credential` or Google Application Default Credentials (ADC). |
+| `gcp.auth.scopes` | A comma-separated list of OAuth2 scopes for Google catalog authentication. Only applies when `catalog.security = 'google'`. Defaults to `https://www.googleapis.com/auth/cloud-platform`. |
 | `catalog.rest.signing_region` | For SigV4 REST catalogs (e.g., Amazon S3 Tables, SeaweedFS): the region for signing requests. |
 | `catalog.rest.signing_name` | For SigV4 REST catalogs (e.g., Amazon S3 Tables, SeaweedFS): the service name for signing requests. |
 | `catalog.rest.sigv4_enabled` | For SigV4 REST catalogs (e.g., Amazon S3 Tables, SeaweedFS): enables SigV4 signing. Must be `true`. |
@@ -77,4 +79,4 @@ You specify the catalog configuration in the `WITH` clause of a `CREATE SOURCE`,
 | `glue.secret.key` | The AWS secret access key for Glue authentication. If not specified, defaults to `s3.secret.key`. |
 | `glue.iam_role_arn` | The IAM role ARN to assume for Glue catalog access via STS. When set, the connector assumes the specified role for Glue catalog operations. |
 | `enable_config_load` | If set to `true`, load AWS config/credentials from the environment (for example, to assume an IAM role via STS). |
-| `vended_credentials` | Enable vended credentials for a REST catalog. When set to `true` with `catalog.type = 'rest'`, requests credentials from the REST catalog server instead of managing them directly. Default: `false`. |
+| `vended_credentials` | Enable vended credentials for a REST catalog. When set to `true` with `catalog.type = 'rest'`, requests credentials, including GCS tokens, from the REST catalog server instead of managing them directly. Default: `false`. |
