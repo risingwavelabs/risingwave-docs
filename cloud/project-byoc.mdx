@@ -245,7 +245,7 @@ BYOC uses two types of cloud identities with different permission lifecycles:
 | Operator identity (runs `rwc byoc apply` and `rwc byoc delete`) | A customer-managed user, role, or service principal | Needed while the CLI creates or deletes the BYOC environment | Yes. Re-grant the permissions before a future `apply` or `delete` operation. |
 | Cloud Agent service account | Inside the BYOC environment | Needed for the entire lifetime of the environment to create and update RisingWave clusters and manage environment components | No. Narrowing its permissions breaks environment updates and cluster creation. |
 
-The predefined roles and policies below are required by the current BYOC implementation. Some of them, such as AWS `*FullAccess` policies, GCP `*Admin` roles, and Azure `Contributor` roles, are broader than the minimum set of API actions that the services invoke. RisingWave may narrow these permissions in a future release.
+The predefined roles and policies below are required by the current BYOC implementation. 
 
 <Warning>
 There is currently no automatic permission downgrade for the Cloud Agent service account after setup. Do not manually remove or narrow its roles, or the roles of its supporting service identities. Deleting an individual RisingWave cluster does not remove these permissions while the BYOC environment is retained. They are cleaned up only when you delete the BYOC environment with `rwc byoc delete`.
