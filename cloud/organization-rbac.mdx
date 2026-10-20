@@ -1,48 +1,91 @@
 ---
 title: "Role-based access control (RBAC)"
 sidebarTitle: Role-based access control
-description: In RisingWave Cloud, Role-based access control (RBAC) system empowers organizations to precisely manage access permissions based on their roles. Among RisingWave Cloud users in the organization, each user is associated with a pre-defined role. The organization administrator will have permission to edit the roles of all the members, whereas other members will have access to different subsystems depending on their roles.
+description: Use role bindings to grant users and service accounts organization-wide or project-scoped access in RisingWave Cloud.
 ---
 
-## Security principal
+RisingWave Cloud uses role-based access control (RBAC) to determine what a user or service account can do and where that access applies.
 
-A security principal refers to an entity that is authenticated and authorized to perform various operations and access resources in RisingWave Cloud. You can assign a role to any of these security principals:
+## RBAC concepts
 
-* Service account: Typically represents an application. It accesses RisingWave Cloud resources on the application's behalf, using API keys for authentication.
-* User: Typically represents an individual user who interacts with resources via the user interface.
+RBAC combines the following components:
+
+* **Security principal**: A user or service account. A user typically accesses RisingWave Cloud through the portal. A service account represents an application and authenticates with API keys.
+* **Role**: A predefined set of permissions, such as `OrganizationAdmin` or `ProjectAdmin`.
+* **Scope**: The resources to which a role applies. An organization scope includes every project in the organization. A project scope includes only the selected project and its resources.
+* **Role binding**: An assignment of one role to one security principal at one scope.
+
+A principal can have multiple role bindings. The resulting access is additive. For example, a service account can administer two selected projects by having one project-scoped `ProjectAdmin` binding for each project.
+
+Every user and service account in an organization also has a system-managed `OrganizationMember` role. This baseline role cannot be added or removed manually. Additional role bindings grant access beyond this baseline.
 
 ## Role permissions and limitations
 
-Below are permissions and limitations for roles to ensure that each service account or user has appropriate access tailored to their responsibilities.
-
-To grant a user a role, go to [**Organization**](https://cloud.risingwave.com/dashboard/organization) and select the **Members** tab. Move your pointer to the far right of the member’s row to reveal Roles, then click it and select the role to grant.
-
-To update a service account’s roles, select the **Service accounts** tab. Move your pointer to the far right of the account’s row to reveal the three-dot menu, then click it and select **Edit Roles**.
-
-| Role               | Permissions                                                                                                                                          | Limitations                                                                                                                                                                                          |
-| :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OrganizationAdmin  | Full control over tenants and related resources.Management of service accounts, users, invitations, and RoleBinding.Access to all billing resources. | Cannot modify their own admin RoleBinding.                                                                                                                                                           |
-| OrganizationMember | View access to all tenants.View service accounts, users, and invitations.                                                                            | No permissions for tenant-related operations (create, update, delete).No permissions for service accounts, users, or invitations operations (create, update, delete).No access to billing resources. |
-| BillingManager     | Full access to all billing resources.                                                                                                                | No access to any other operations outside of billing.                                                                                                                                                |
-| ProjectAdmin       | Full access to operations related to any tenants.                                                                                                    | No access to billing operations, service accounts, users, or invitations.                                                                                                                            |
-
-## RoleBinding
-
-RoleBindings ensure that only authorized entities have access to resources and operations based on their defined roles.
-
-### Prerequisite
-
-Only the OrganizationAdmin has the permission to manage user's RoleBinding.
-
-### Scenario
-
-| User scenarios                                    | Description                                                                                                                                                                                                                                                                                                                                                                  |
-| :------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Invite a user to the organization                 | Currently, you can only invite a new user as an OrganizationMember. If you want to grant more permissions to the target user, please go to **Organization** \> **Members** to modify after the user accepts the invitation.                                                                                                                             |
-| Create a service account in the organization      | The service account RoleBinding is used for authorization when accessing Cloud APIs using the service account's API keys. By default, the service account is assigned the read-only OrganizationMember role. If you need to assign more permissions to the service account, please go to **Organization** \> **Service Accounts** to add other roles. |
-| Delete or add RoleBinding for a user              | Go to **Organization** \> **Members**, click the corresponding Edit Roles of the specific role. A popup window will appear, allowing you to uncheck the role or select the new ones. Click **Confirm** to save the change.                                                                                                                              |
-| Delete or add RoleBinding for the service account | Go to **Organization** \> **Members**, click the corresponding Edit Roles of the specific service account. A popup window will appear, allowing you to uncheck the role or select the new ones. Click **Confirm** to save the change.                                                                                                                   |
+| Role | Supported scope | Access |
+| :--- | :--- | :--- |
+| `OrganizationAdmin` | Organization | Full control of the organization and all projects, including users, service accounts, invitations, role bindings, and billing. |
+| `OrganizationMember` | Organization | System-managed baseline access to view organization information, list projects, users, service accounts, role bindings, and invitations, and manage personal notifications. It does not grant access to operate project resources, manage organization access, or view billing. |
+| `BillingManager` | Organization | Full access to billing profiles, usage, payments, and invoices. It does not grant access to operate projects or manage organization access. |
+| `ProjectAdmin` | Organization or project | Full access to project resources. At organization scope, the role applies to all projects. At project scope, it applies only to the selected project. It does not grant access to manage users, service accounts, invitations, role bindings, or billing. |
 
 <Note>
-Every organization needs at least one OrganizationAdmin user. Any attempt to delete the last OrganizationAdmin RoleBinding will fail.
+Every organization must have at least one user with the organization-scoped `OrganizationAdmin` role. RisingWave Cloud rejects attempts to remove the last such role binding.
 </Note>
+
+## Choose a scope
+
+Use an **organization scope** when a principal needs the same role in every project. For example, an organization-scoped `ProjectAdmin` can operate all current and future projects without receiving organization administration or billing permissions.
+
+Use a **project scope** to restrict `ProjectAdmin` access to one project. The binding includes the selected project's resources, such as clusters, databases, sources, sinks, tables, views, private links, and backups. It does not grant access to any other project.
+
+| Requirement | Recommended role binding |
+| :--- | :--- |
+| Administer the organization, its access, billing, and all projects | `OrganizationAdmin` at organization scope |
+| Operate every project without managing organization access or billing | `ProjectAdmin` at organization scope |
+| Operate one selected project | `ProjectAdmin` at project scope |
+| Manage billing without operating projects | `BillingManager` at organization scope |
+| Give an application access to two selected projects | Two project-scoped `ProjectAdmin` bindings for its service account |
+
+## Manage role bindings
+
+Only an `OrganizationAdmin` can add or remove role bindings.
+
+The **Access** tab lists each role binding with its principal, principal type, role, and scope. You can search the list or filter it by principal, type, or role.
+
+### Add access
+
+1. Go to [**Organization**](https://cloud.risingwave.com/dashboard/organization) and select the **Access** tab.
+2. Click **Add access**.
+3. Under **Principal**, select a user or service account.
+4. Under **Role**, select a role.
+5. Under **Scope**, select **Organization** or **Project**. Project scope is available only for roles that support it.
+6. For project scope, select the target project under **Scope target**.
+7. Click **Add access**.
+
+An equivalent active role binding cannot be added twice. If the principal already has broader access, such as an organization-scoped `ProjectAdmin` role, an additional project-scoped binding does not grant more permissions.
+
+### Remove or change access
+
+In the **Access** tab, find the role binding and select **Remove access** from its action menu. In the confirmation dialog, click **Remove access**.
+
+Role bindings are immutable. To change a role or scope, remove the existing binding and add a new one. System-managed access, including the baseline `OrganizationMember` role, cannot be removed.
+
+When a project is deleted, RisingWave Cloud deactivates its project-scoped role bindings.
+
+## Invite users
+
+An invitation can include one or more organization-wide or project-scoped role bindings. After the user accepts the invitation, RisingWave Cloud creates those role bindings and also gives the user the system-managed `OrganizationMember` role.
+
+Invitation role bindings do not grant access before the invitation is accepted. After acceptance, an `OrganizationAdmin` can add or remove role bindings from the **Access** tab.
+
+For invitation instructions, see [Invite and manage users in your organization](/cloud/manage-users).
+
+## Grant access to a service account
+
+A new service account has the system-managed `OrganizationMember` role. Its API keys use the service account's combined role bindings.
+
+After creating the service account, use the **Access** tab to grant only the organization-wide or project-scoped roles that the application needs. For service account and API key instructions, see [Set up service accounts for applications](/cloud/service-account).
+
+<Warning>
+For API clients that rely on project-scoped role bindings, use the RisingWave Cloud API v2. Legacy API v1 project operations do not carry project scope and can return HTTP 403 even when the service account has access to that project.
+</Warning>
