@@ -39,7 +39,7 @@ Console is lightweight as a web service, but size the host based on the number o
 
 ## Metadata PostgreSQL
 
-Console requires PostgreSQL for its own metadata. This database stores Console configuration, users, saved cluster connections, database connections, tasks, and settings. It does not store the data in your RisingWave clusters.
+Console requires PostgreSQL for its own metadata. This database stores Console configuration, users, saved cluster connections, database connections, tasks, and settings. It is separate from the RisingWave metadata store and the object store that holds RisingWave state.
 
 You can use:
 
@@ -47,7 +47,7 @@ You can use:
 - a self-hosted PostgreSQL instance,
 - a cloud-managed PostgreSQL service.
 
-For persistent deployments, use external PostgreSQL. The PostgreSQL user in `RCONSOLE_SERVER_PG_DSN` must be able to create and migrate Console metadata tables.
+For durable deployments, use external PostgreSQL. The PostgreSQL user in `RCONSOLE_SERVER_PG_DSN` must be able to create and migrate Console metadata tables. Treat `pgbundle` as a quick-start option.
 
 Example DSN:
 
@@ -76,9 +76,11 @@ If Console runs inside Kubernetes and connects to a RisingWave Service in anothe
 
 ## Kubernetes permissions
 
-If you only import existing clusters, Console needs network access to those clusters and the ability to run as a normal web service.
+The v0.8.0 starter manifests create Console's Namespace, ServiceAccount, Secret, StatefulSet, Service, and storage resources. The identity applying a manifest must be allowed to create those resources. The Console pod receives no optional RisingWave management grant by default.
 
-If you use **Environments** and one-click install, Console also needs Kubernetes permissions to create and manage:
+Connecting existing SQL, Meta, or metrics endpoints requires network access and the corresponding credentials, but no RisingWave CR permission. Named-CR observation and delegated changes use small, opt-in Roles. See [Grant Kubernetes permissions incrementally](/web-ui/risingwave-console/installation-setup#grant-kubernetes-permissions-incrementally).
+
+If you use **Environments** and one-click installation, separately grant the broader permissions needed to create and manage:
 
 - namespaces,
 - RBAC objects,
@@ -89,16 +91,16 @@ If you use **Environments** and one-click install, Console also needs Kubernetes
 - RisingWave custom resources,
 - cert-manager and RisingWave Operator installs.
 
-The starter manifests include this RBAC by default. Remove the cluster-installer RBAC only if another platform team owns cert-manager, the RisingWave Operator, and the required infrastructure services.
+Do not grant these Environment or installer permissions merely to connect endpoints, use SQL Editor, or observe one named CR. If another platform team owns cert-manager, the RisingWave Operator, or infrastructure services, coordinate the Environment permissions with that team.
 
 ## Air-gapped environments
 
 For restricted networks, prepare these before starting Console:
 
 - a signed RisingWave license key available as a file or Kubernetes Secret,
-- Console image and, if needed, the `-airgap` image variant with pre-cached `risectl` binaries,
-- a private Docker registry containing Console-managed component images,
-- Helm chart archives for cert-manager and the RisingWave Operator,
+- Console v0.8.0 image and, if needed, an `airgap-v0.8.0` variant with pre-cached `risectl` binaries,
+- a private Docker registry containing the images required for your workflow,
+- Helm chart archives for cert-manager and the RisingWave Operator only when Console installs a full Environment,
 - `RCONSOLE_NOINTERNET=true`,
 - `RCONSOLE_HELM_CHART_DIR` pointing at the mounted chart directory.
 
