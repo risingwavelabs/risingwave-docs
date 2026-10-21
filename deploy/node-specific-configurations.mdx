@@ -88,6 +88,17 @@ Currently, `[session_init]` supports the streaming parallelism family of runtime
 
 For details about these parameters and valid values, see [View and configure runtime parameters](/operate/view-configure-runtime-parameters).
 
+### Batch configurations
+
+SQL option redaction in query logs and diagnostic reports is configured in the `[batch]` section. Option names that contain an entry from `redact_sql_option_keywords` are redacted with case-insensitive matching. Exact option names in `redact_sql_option_allowlist` are exempt from this redaction, also with case-insensitive matching.
+
+```toml
+[batch]
+redact_sql_option_allowlist = ["primary_key"]
+```
+
+The allowlist takes precedence over `redact_sql_option_keywords` and defaults to `["primary_key"]`. Set `redact_sql_option_allowlist` to `[]` to disable all exemptions.
+
 ### Streaming configurations
 
 Streaming configurations can be set in `[streaming]` section in the configuration file. For example:
