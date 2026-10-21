@@ -16,7 +16,7 @@ Released on October 20, 2026, the four v0.8.0 variants support linux/amd64 and l
 | `risingwavelabs/risingwave-console:airgap-v0.8.0` | External PostgreSQL | v2.8.5 and v3.0.1 |
 | `risingwavelabs/risingwave-console:airgap-v0.8.0-pgbundle` | Bundled PostgreSQL | v2.8.5 and v3.0.1 |
 
-The air-gap images do not contain every possible version. A cluster's **Registered RisingWave version** does not cause Console to infer or synthesize a missing binary.
+The air-gap images do not contain every possible version. **Registered RisingWave version** selects the requested CLI version. Console first looks for the exact cached binary and can fall back to the highest available cached patch version in the same major/minor series. For example, a cluster registered as `v2.8.2` can use cached `v2.8.5`. This selection behavior is not a compatibility guarantee for every CLI and database combination.
 
 ## Connect an existing cluster offline
 
@@ -26,7 +26,7 @@ Prepare:
 - a signed license mounted as a file or Kubernetes Secret,
 - Console metadata PostgreSQL, preferably external for durability,
 - network and DNS access from Console to the cluster's SQL, Meta RPC, Meta HTTP, and optional metrics endpoints,
-- a `risectl` binary matching each registered version used for operational commands.
+- the requested `risectl` binary, or a suitable cached patch version in the same major/minor series, for operational commands.
 
 Set the air-gap environment and the baked-in tool directory when using an `airgap-v0.8.0` image:
 
@@ -43,9 +43,9 @@ The baked-in layout is:
 /home/console/.risectl/v3.0.1/risectl
 ```
 
-If your existing deployment provisions tools on a PVC, keep its current `RCONSOLE_RISECTLDIR` and place binaries at `<RCONSOLE_RISECTLDIR>/<version>/risectl`. Do not mount an empty volume over `/home/console/.risectl` and hide the baked-in cache.
+If your existing deployment provisions tools on a PVC, keep its current `RCONSOLE_RISECTLDIR` and place binaries at `<RCONSOLE_RISECTLDIR>/<version>/risectl`. Console prefers an exact match, then considers other cached patch versions in the requested major/minor series. Do not mount an empty volume over `/home/console/.risectl` and hide the baked-in cache.
 
-After connecting the cluster, use **Risectl > Check CLI** to check that Console can execute the selected binary. This does not prove Meta connectivity, cluster health, or version compatibility. Run a permitted read-only Meta command as a separate end-to-end check.
+After connecting the cluster, use **Risectl > Check CLI** to inspect the executable's reported version. The check does not prove Meta connectivity, cluster health, or command compatibility. Run a permitted read-only Meta command as a separate end-to-end check.
 
 ## Optionally prepare full Environment installation
 
@@ -96,8 +96,8 @@ For an existing-cluster connection:
 
 1. Confirm Console starts with `RCONSOLE_NOINTERNET=true`.
 2. Test SQL, Meta RPC, and Meta HTTP from the Console runtime.
-3. Confirm the registered `risectl` version exists in the configured cache.
-4. Run **Check CLI**, then a permitted read-only Meta command.
+3. Confirm the requested `risectl` version or a same-series patch fallback exists in the configured cache.
+4. Run **Check CLI** to inspect the selected executable, then run a permitted read-only Meta command.
 5. Confirm configured metrics independently.
 
 For a full Environment installation, additionally verify registry credentials, image pulls, chart lookup, component readiness, and the Environment acceptance test.
@@ -106,7 +106,7 @@ For a full Environment installation, additionally verify registry credentials, i
 
 | Symptom | Check |
 | --- | --- |
-| `risectl` binary is missing | Confirm the registered version exists under `<RCONSOLE_RISECTLDIR>/<version>/risectl`. The air-gap image includes only v2.8.5 and v3.0.1. |
+| `risectl` binary is missing | Check for the exact requested version and other cached patch versions in the same major/minor series under `<RCONSOLE_RISECTLDIR>/<version>/risectl`. The air-gap image includes v2.8.5 and v3.0.1. |
 | **Check CLI** succeeds but Meta commands fail | **Check CLI** validates the executable, not the cluster. Test Meta RPC connectivity and authorization. |
 | Initial Meta Service is reachable but commands still fail | Inspect the advertised Meta leader and member addresses. Every address returned to Console must be resolvable and reachable across namespaces. |
 | Cross-namespace Meta addresses do not resolve | Prefer platform-supported, resolvable full Service addresses. Do not blindly change an existing cluster's `enableFullKubernetesAddr` setting, and do not use one namespace's DNS search path as a multi-target workaround. |

@@ -27,7 +27,7 @@ Production builds require a signed RisingWave license key. Provide it with `RW_L
 | --- | --- | --- |
 | `RW_LICENSE_KEY` | Unless `RW_LICENSE_KEY_PATH` is set | Signed license token. Avoid putting it in manifests or shell history. |
 | `RW_LICENSE_KEY_PATH` | Unless `RW_LICENSE_KEY` is set | Path to the mounted license file. |
-| `RCONSOLE_ROOT_PASSWORD` | Recommended | Initial password for `root`. The unsafe default is `root`. |
+| `RCONSOLE_ROOT_PASSWORD` | Recommended | Password synchronized to the explicit `root` configuration at startup. The unsafe default is `root`. If you later change the password in the UI, update this deployment value too; otherwise a restart can restore the configured value. |
 | `RCONSOLE_SERVER_PG_DSN` | For non-`pgbundle` deployments | Console metadata PostgreSQL DSN. Preserve its database, schema or `search_path`, and TLS options during upgrades. |
 | `RCONSOLE_SERVER_PORT` | Optional | Console HTTP port. The default is `8020`. |
 | `RCONSOLE_SERVER_METRICSPORT` | Optional | Console metrics port. The default is `9020`. |
@@ -81,6 +81,8 @@ Replace every placeholder in the Secret before applying a manifest. Do not commi
 
 The external-PostgreSQL manifest runs Console as a non-root process with the runtime-default seccomp profile, disables privilege escalation, and drops Linux capabilities. Use this path for OpenShift `restricted-v2`. The bundled PostgreSQL process has different runtime requirements; do not weaken a restricted cluster's security policy merely to use `pgbundle`.
 
+The `pgbundle` image runs as UID/GID `1001` and creates `/risingwave-console-data/.risectl` during startup. Its starter sets `fsGroup: 1001` so storage drivers that support Kubernetes volume ownership management make the mounted PVC writable. If your driver does not support this mechanism, have the platform provide equivalent write permission before startup. A root-owned `0755` volume can otherwise prevent `.risectl` creation. Do not run Console as root or add privileged access to work around volume permissions.
+
 ```shell
 kubectl apply -f console-external-pg.yaml
 kubectl -n risingwave-console get pods
@@ -124,7 +126,7 @@ kubernetes:
       allowedNamespaces: [risingwave-prod]
 ```
 
-Use the numeric ID for the intended organization from your Console organization administration record. If your administration interface does not display the numeric ID, ask the Console administrator to retrieve it from the organization record; do not assume organization `1`.
+While signed in to the target organization, use your normal authenticated Console session to request `GET /api/v1/me` and copy its `orgId` value. Do not put or share the session token in documentation or chat. Run the request in the target organization's login context; a platform administrator's current organization is not necessarily the target. Do not assume organization `1`.
 
 Release images run in `/app`, and Console loads `config.yaml` from its working directory. With the standard image, mount the complete configuration at `/app/config.yaml`:
 
@@ -146,7 +148,23 @@ spec:
             name: risingwave-console-config
 ```
 
-Merge the `kubernetes` section into your existing complete configuration and preserve any environment-based overrides. Do not replace a `pgbundle` image's bundled configuration with a targets-only file. Target changes require a normal Console rollout.
+Merge the `kubernetes` section into your existing complete configuration and preserve any environment-based overrides. Do not replace a `pgbundle` image's bundled configuration with a targets-only file.
+
+Save the resulting complete file locally as `config.yaml`, then create or update the ConfigMap:
+
+```shell
+kubectl -n risingwave-console create configmap risingwave-console-config \
+  --from-file=config.yaml=./config.yaml \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Add the `volumeMounts` and `volumes` entries above to the existing StatefulSet without replacing its Secrets, environment settings, or other mounts. Then apply the updated workload and perform a normal rollout:
+
+```shell
+kubectl -n risingwave-console apply -f <your-console-statefulset.yaml>
+kubectl -n risingwave-console rollout restart statefulset/risingwave-console
+kubectl -n risingwave-console rollout status statefulset/risingwave-console
+```
 
 The walkthrough in [Connect to your RisingWave clusters](/web-ui/risingwave-console/connect-risingwave-clusters) uses this same-cluster target. A separately registered remote target can provide observation, but an in-cluster ServiceAccount binding does not authorize a remote identity, and v0.8.0 does not support delegated remote writes.
 
@@ -211,7 +229,7 @@ This documentation does not define a new public standalone-binary download chann
 ## Verify the installation
 
 1. Open Console and sign in.
-2. Change the initial password if you did not set a strong one before startup.
+2. Configure a strong `RCONSOLE_ROOT_PASSWORD`. If you change it in the UI, update the deployment value so a later restart does not restore an older configured password.
 3. Confirm the Console metadata database is reachable and backed up.
 4. Connect an existing cluster with [Connect to your RisingWave clusters](/web-ui/risingwave-console/connect-risingwave-clusters).
 5. If applicable, verify SQL TLS, metrics, and a read-only Meta command independently.

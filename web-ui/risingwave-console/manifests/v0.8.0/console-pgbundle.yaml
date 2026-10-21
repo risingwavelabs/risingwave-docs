@@ -39,6 +39,12 @@ spec:
         app.kubernetes.io/name: risingwave-console
     spec:
       serviceAccountName: risingwave-console
+      # The image runs as UID/GID 1001 and creates
+      # /risingwave-console-data/.risectl during startup. This requires a
+      # storage driver that honors Kubernetes volume ownership management.
+      # Otherwise, have the platform provide equivalent write permission.
+      securityContext:
+        fsGroup: 1001
       containers:
         - name: console
           image: risingwavelabs/risingwave-console:v0.8.0-pgbundle
