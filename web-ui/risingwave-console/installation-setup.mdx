@@ -126,7 +126,9 @@ kubernetes:
       allowedNamespaces: [risingwave-prod]
 ```
 
-While signed in to the target organization, use your normal authenticated Console session to request `GET /api/v1/me` and copy its `orgId` value. Do not put or share the session token in documentation or chat. Run the request in the target organization's login context; a platform administrator's current organization is not necessarily the target. Do not assume organization `1`.
+Sign in to Console with an account in the intended organization. Open your browser's developer tools, select **Network**, and reload the page. Find the request to `GET /api/v1/me`, open its **Response**, and read the `orgId` value. Use that value as `organizationID` in the target configuration. Run these steps in the target organization's login context; a platform administrator's current organization is not necessarily the target. Do not assume organization `1`.
+
+You do not need to copy or share the session token. Do not copy the `Authorization` header, export a HAR file, or paste a token into a command line, issue, or chat. Do not open the API endpoint directly in the address bar because it might not use the same authentication as the Console frontend.
 
 Release images run in `/app`, and Console loads `config.yaml` from its working directory. With the standard image, mount the complete configuration at `/app/config.yaml`:
 
