@@ -1,908 +1,246 @@
 ---
 title: "Install RisingWave Console"
-description: "Deploy RisingWave Console with Docker, Kubernetes, or a standalone binary, and configure the required metadata store and RisingWave license key."
+description: "Deploy RisingWave Console v0.8.0, configure its metadata store, and grant optional Kubernetes permissions incrementally."
 ---
 
-RisingWave Console is a self-hosted service. It stores its own metadata, such as users, cluster connections, database connections, tasks, and settings, in PostgreSQL. It does not store RisingWave user data in this metadata database.
+RisingWave Console is a self-hosted service. It stores users, cluster connections, tasks, and settings in its own PostgreSQL database. This **Console metadata database** is separate from both the RisingWave metadata store and the object store used for RisingWave state.
 
-Production builds require the signed RisingWave license key at startup. This is the same license key used by the RisingWave database. Provide it with either `RW_LICENSE_KEY` or `RW_LICENSE_KEY_PATH`. If you want to try Console without configuring a license key, follow the [v0.5.1 trial steps](/web-ui/risingwave-console/license-management#try-without-a-license-key). It is an older evaluation version and does not include all current capabilities.
+Production builds require a signed RisingWave license key. Provide it with `RW_LICENSE_KEY` or, preferably, mount it as a file and set `RW_LICENSE_KEY_PATH`. For an older license-free evaluation, see the [v0.5.1 trial steps](/web-ui/risingwave-console/license-management#try-without-a-license-key). Features documented for v0.8.0 are not necessarily available in that trial version.
 
 ## Choose a deployment target
 
-| Target                                       | Metadata PostgreSQL                          | Best for                                       |
-| -------------------------------------------- | -------------------------------------------- | ---------------------------------------------- |
-| Docker with `-pgbundle` image                | PostgreSQL runs inside the Console container | Local evaluation, demos, or a single VM        |
-| Docker or binary with external PostgreSQL    | You provide PostgreSQL                       | Persistent single-host deployments             |
-| Kubernetes with `-pgbundle` manifest         | PostgreSQL runs inside the Console pod       | Small, self-contained Kubernetes tests         |
-| Kubernetes with external PostgreSQL manifest | You provide PostgreSQL                       | Production, OpenShift, and restricted clusters |
+| Target | Console metadata PostgreSQL | Best for |
+| --- | --- | --- |
+| Docker with `v0.8.0-pgbundle` | Runs inside the Console container | Quick starts and disposable tests |
+| Docker with `v0.8.0` | External PostgreSQL | Durable single-host deployments |
+| Kubernetes with `v0.8.0-pgbundle` | Runs inside the Console pod | Small, self-contained tests |
+| Kubernetes with `v0.8.0` | External PostgreSQL | Production and restricted clusters |
 
 <Warning>
-  For persistent deployments, use a strong `RCONSOLE_ROOT_PASSWORD`, protect the
-  Console endpoint with your network controls, and prefer external PostgreSQL
-  for durable Console metadata.
+  Prefer external PostgreSQL for durable Console metadata. Use a strong root
+  password, protect the Console endpoint, and back up the metadata database.
 </Warning>
 
 ## Key configuration
 
-| Setting                       | Required                                 | Description                                                                                                 |
-| ----------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `RW_LICENSE_KEY`              | Yes, unless `RW_LICENSE_KEY_PATH` is set | Signed RisingWave license key used for Console startup verification.                                        |
-| `RW_LICENSE_KEY_PATH`         | Yes, unless `RW_LICENSE_KEY` is set      | Path to a mounted file containing the signed license key. Recommended for Docker and Kubernetes.            |
-| `RCONSOLE_ROOT_PASSWORD`      | Recommended                              | Initial password for the `root` user. If unset, the default password is `root`.                             |
-| `RCONSOLE_SERVER_PG_DSN`      | Required for non-`pgbundle` deployments  | PostgreSQL DSN for Console metadata, for example `postgres://user:password@postgres.example:5432/rconsole`. |
-| `RCONSOLE_SERVER_PORT`        | Optional                                 | HTTP port for Console. The default is `8020`.                                                               |
-| `RCONSOLE_SERVER_METRICSPORT` | Optional                                 | Prometheus metrics port for Console itself. The default is `9020`.                                          |
-| `RCONSOLE_NOINTERNET`         | Optional                                 | Set to `true` when Console should not download `risectl` or Helm charts from the public internet.           |
-| `RCONSOLE_RISECTLDIR`         | Optional                                 | Directory where Console stores or reads `risectl` binaries.                                                 |
-| `RCONSOLE_HELM_CHART_DIR`     | Optional                                 | Directory where Console stores or reads Helm chart archives for air-gapped installs.                        |
+| Setting | Required | Description |
+| --- | --- | --- |
+| `RW_LICENSE_KEY` | Unless `RW_LICENSE_KEY_PATH` is set | Signed license token. Avoid putting it in manifests or shell history. |
+| `RW_LICENSE_KEY_PATH` | Unless `RW_LICENSE_KEY` is set | Path to the mounted license file. |
+| `RCONSOLE_ROOT_PASSWORD` | Recommended | Password synchronized to the explicit `root` configuration at startup. The unsafe default is `root`. If you later change the password in the UI, update this deployment value too; otherwise a restart can restore the configured value. |
+| `RCONSOLE_SERVER_PG_DSN` | For non-`pgbundle` deployments | Console metadata PostgreSQL DSN. Preserve its database, schema or `search_path`, and TLS options during upgrades. |
+| `RCONSOLE_SERVER_PORT` | Optional | Console HTTP port. The default is `8020`. |
+| `RCONSOLE_SERVER_METRICSPORT` | Optional | Console metrics port. The default is `9020`. |
+| `RCONSOLE_NOINTERNET` | Optional | Prevents downloads when set to `true`. |
+| `RCONSOLE_RISECTLDIR` | Optional | Directory containing versioned `risectl` binaries. |
+| `RCONSOLE_HELM_CHART_DIR` | Optional | Directory containing Helm archives for optional Environment installation. |
 
 ## Docker quick start
 
-Use the bundled PostgreSQL image for the fastest setup:
+The bundled-PostgreSQL image is convenient for a quick start:
 
 ```shell
 export RW_LICENSE_KEY="<your-signed-license-token>"
 
 docker run -d -p 8020:8020 --name risingwave-console \
-  -e RCONSOLE_ROOT_PASSWORD=your_secure_password \
+  -e RCONSOLE_ROOT_PASSWORD="<strong-password>" \
   -e RW_LICENSE_KEY="$RW_LICENSE_KEY" \
-  -v risingwave-console-data:/var/lib/postgresql \
-  risingwavelabs/risingwave-console:v0.7.9-pgbundle
+  risingwavelabs/risingwave-console:v0.8.0-pgbundle
 ```
 
-Open `http://localhost:8020` and sign in as `root` with the password you set in `RCONSOLE_ROOT_PASSWORD`.
+Open `http://localhost:8020` and sign in as `root`.
 
-If you prefer mounted files for secrets:
+For a durable deployment, use external PostgreSQL and mount the license:
 
-```shell
-docker run -d -p 8020:8020 --name risingwave-console \
-  -e RCONSOLE_ROOT_PASSWORD=your_secure_password \
-  -e RW_LICENSE_KEY_PATH=/etc/rconsole/license.jwt \
-  -v "$PWD/license.jwt:/etc/rconsole/license.jwt:ro" \
-  -v risingwave-console-data:/var/lib/postgresql \
-  risingwavelabs/risingwave-console:v0.7.9-pgbundle
-```
-
-For a throwaway local test, remove the volume and add `--rm`. Console metadata is deleted when the container is removed.
-
-## Docker with external PostgreSQL
-
-Use the standard image when PostgreSQL is managed outside the Console container:
-
-```yaml
+```yaml docker-compose.yaml
 services:
   risingwave-console:
-    image: risingwavelabs/risingwave-console:v0.7.9
+    image: risingwavelabs/risingwave-console:v0.8.0
     ports:
       - "8020:8020"
     environment:
-      RCONSOLE_ROOT_PASSWORD: your_secure_password
-      RCONSOLE_SERVER_PG_DSN: postgres://rconsole_user:rconsole_password@postgres:5432/rconsole
+      RCONSOLE_ROOT_PASSWORD: <strong-password>
+      RCONSOLE_SERVER_PG_DSN: postgres://<user>:<password>@<host>:5432/<database>?sslmode=require
       RW_LICENSE_KEY_PATH: /etc/rconsole/license.jwt
     volumes:
       - ./license.jwt:/etc/rconsole/license.jwt:ro
 ```
 
-Start it with:
-
-```shell
-docker compose up -d
-```
-
-The PostgreSQL user in `RCONSOLE_SERVER_PG_DSN` must be able to create and migrate Console metadata tables.
+Start it with `docker compose up -d`. The PostgreSQL user must be able to create and migrate Console metadata tables.
 
 ## Kubernetes deployment
 
-Console provides two starter manifests. Choose one based on where its PostgreSQL metadata lives, edit the placeholder secrets, then apply it. Each manifest is self-contained — copy it into a file and apply it with `kubectl`.
+The v0.8.0 starter manifests create only Console runtime resources: a Namespace, ServiceAccount, Secret, StatefulSet, Service, and, where applicable, storage. They do **not** grant optional RisingWave CR or Environment-management privileges.
 
-| Manifest                        | Image tag         | Metadata PostgreSQL          | Best for                                       |
-| ------------------------------- | ----------------- | ---------------------------- | ---------------------------------------------- |
-| Bundled PostgreSQL (`pgbundle`) | `v0.7.4-pgbundle` | Runs inside the Console pod  | Small, self-contained Kubernetes tests         |
-| External PostgreSQL             | `v0.7.4`          | You provide a PostgreSQL DSN | Production, OpenShift, and restricted clusters |
+The human or platform identity applying a starter manifest must already be allowed to create those runtime resources. Download and review the manifest that matches your metadata deployment:
 
-<Note>
-  The bundled PostgreSQL metadata is not durable across pod rescheduling. Use
-  the external PostgreSQL manifest for production.
-</Note>
+- [External PostgreSQL manifest (v0.8.0)](https://github.com/risingwavelabs/risingwave-docs/blob/main/web-ui/risingwave-console/manifests/v0.8.0/console-external-pg.yaml)
+- [Bundled PostgreSQL manifest (v0.8.0)](https://github.com/risingwavelabs/risingwave-docs/blob/main/web-ui/risingwave-console/manifests/v0.8.0/console-pgbundle.yaml)
 
-Both manifests create the `risingwave-console` namespace, a `ServiceAccount`, RBAC for Console operations and environment-managed resources, a `StatefulSet`, and a Service that exposes Console on NodePort `30020` (UI) and `30090` (metrics).
+Replace every placeholder in the Secret before applying a manifest. Do not commit rendered Secrets.
 
-### Option A — bundled PostgreSQL
+The external-PostgreSQL manifest runs Console as a non-root process with the runtime-default seccomp profile, disables privilege escalation, and drops Linux capabilities. Use this path for OpenShift `restricted-v2`. The bundled PostgreSQL process has different runtime requirements; do not weaken a restricted cluster's security policy merely to use `pgbundle`.
 
-Save the following as `risingwave-console-pgbundle.yaml`, replace `<your-signed-license-token>` in the `risingwave-console-license` Secret with your signed RisingWave license key, then apply it.
-
-<Accordion title="risingwave-console-pgbundle.yaml">
-
-```yaml risingwave-console-pgbundle.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: risingwave-console
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: risingwave-console
-  namespace: risingwave-console
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: risingwave-console-license
-  namespace: risingwave-console
-type: Opaque
-stringData:
-  # Replace with your signed enterprise license token.
-  license.jwt: <your-signed-license-token>
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-ops
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: ops
-    rconsole.risingwave.com/aggregate-to-seed: "true"
-rules:
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - rolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterroles
-    resourceNames:
-      - risingwave-console-env-scoped
-    verbs: ["bind"]
-  - apiGroups: ["storage.k8s.io"]
-    resources:
-      - storageclasses
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-env-scoped
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: env-scoped
-rules:
-  - apiGroups: [""]
-    resources:
-      - pods
-      - services
-      - endpoints
-      - events
-      - configmaps
-      - secrets
-      - serviceaccounts
-      - persistentvolumeclaims
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - services/proxy
-    verbs: ["get"]
-  - apiGroups: [""]
-    resources:
-      - pods/exec
-    verbs: ["create"]
-  - apiGroups: [""]
-    resources:
-      - pods/log
-    verbs: ["get"]
-  - apiGroups: ["apps"]
-    resources:
-      - deployments
-      - statefulsets
-      - replicasets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - roles
-      - rolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["risingwave.risingwavelabs.com"]
-    resources:
-      - risingwaves
-      - risingwaves/status
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-namespace-deleter-allowlist
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: namespace-deleter
-    rconsole.risingwave.com/aggregate-to-seed: "true"
-rules:
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["get", "delete"]
-    resourceNames:
-      - __rconsole_placeholder__
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-namespace-deleter-editor
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: namespace-deleter
-    rconsole.risingwave.com/aggregate-to-seed: "true"
-rules:
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterroles
-    verbs: ["get", "patch", "update", "escalate"]
-    resourceNames:
-      - risingwave-console-namespace-deleter-allowlist
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-seed
-  labels:
-    app.kubernetes.io/name: risingwave-console
-aggregationRule:
-  clusterRoleSelectors:
-    - matchLabels:
-        rconsole.risingwave.com/aggregate-to-seed: "true"
-rules: []
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: risingwave-console-seed
-  labels:
-    app.kubernetes.io/name: risingwave-console
-subjects:
-  - kind: ServiceAccount
-    name: risingwave-console
-    namespace: risingwave-console
-roleRef:
-  kind: ClusterRole
-  name: risingwave-console-seed
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: risingwave-console
-  namespace: risingwave-console
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: risingwave-console
-  serviceName: risingwave-console
-  template:
-    metadata:
-      labels:
-        app: risingwave-console
-    spec:
-      serviceAccountName: risingwave-console
-      containers:
-        - name: console
-          image: risingwavelabs/risingwave-console:v0.7.4-pgbundle
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 8020
-            - name: metrics
-              containerPort: 9020
-          env:
-            - name: RW_LICENSE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: risingwave-console-license
-                  key: license.jwt
-            - name: RCONSOLE_SERVER_PORT
-              value: "8020"
-            - name: RCONSOLE_SERVER_METRICSPORT
-              value: "9020"
-          volumeMounts:
-            - name: risingwave-console-data
-              mountPath: /risingwave-console-data
-  volumeClaimTemplates:
-    - metadata:
-        name: risingwave-console-data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        # storageClassName: standard  # Replace with your cluster's StorageClass
-        resources:
-          requests:
-            storage: 20Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: risingwave-console-nodeport
-  namespace: risingwave-console
-spec:
-  type: NodePort
-  ports:
-    - name: risingwave-console
-      port: 8020
-      targetPort: 8020
-      nodePort: 30020
-    - name: risingwave-console-metric
-      port: 9020
-      targetPort: 9020
-      nodePort: 30090
-  selector:
-    app: risingwave-console
----
-#############################################################
-##
-## The following part is needed to install Cert Manager and
-## RisingWave Operator. If you already have them installed,
-## you can skip applying the following RBAC resources.
-##
-#############################################################
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-cluster-installer
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: cluster-installer
-rules:
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources:
-      - customresourcedefinitions
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterroles
-    verbs:
-      [
-        "get",
-        "list",
-        "watch",
-        "create",
-        "update",
-        "patch",
-        "delete",
-        "bind",
-        "escalate",
-      ]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterrolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["admissionregistration.k8s.io"]
-    resources:
-      - mutatingwebhookconfigurations
-      - validatingwebhookconfigurations
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["apiregistration.k8s.io"]
-    resources:
-      - apiservices
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
-  - apiGroups: [""]
-    resources:
-      - pods
-      - services
-      - endpoints
-      - configmaps
-      - secrets
-      - serviceaccounts
-      - events
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - serviceaccounts/token
-    verbs: ["create"]
-  - apiGroups: ["coordination.k8s.io"]
-    resources:
-      - leases
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["apps"]
-    resources:
-      - deployments
-      - replicasets
-      - statefulsets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - roles
-      - rolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["batch"]
-    resources:
-      - jobs
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["cert-manager.io"]
-    resources:
-      - certificates
-      - certificaterequests
-      - issuers
-      - clusterissuers
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["networking.k8s.io"]
-    resources:
-      - networkpolicies
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["policy"]
-    resources:
-      - poddisruptionbudgets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["monitoring.coreos.com"]
-    resources:
-      - podmonitors
-      - servicemonitors
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: risingwave-console-cluster-installer
-  labels:
-    app.kubernetes.io/name: risingwave-console
-subjects:
-  - kind: ServiceAccount
-    name: risingwave-console
-    namespace: risingwave-console
-roleRef:
-  kind: ClusterRole
-  name: risingwave-console-cluster-installer
-  apiGroup: rbac.authorization.k8s.io
-```
-
-</Accordion>
+The `pgbundle` image runs as UID/GID `1001` and creates `/risingwave-console-data/.risectl` during startup. Its starter sets `fsGroup: 1001` so storage drivers that support Kubernetes volume ownership management make the mounted PVC writable. If your driver does not support this mechanism, have the platform provide equivalent write permission before startup. A root-owned `0755` volume can otherwise prevent `.risectl` creation. Do not run Console as root or add privileged access to work around volume permissions.
 
 ```shell
-kubectl apply -f risingwave-console-pgbundle.yaml
+kubectl apply -f console-external-pg.yaml
+kubectl -n risingwave-console get pods
 ```
 
-### Option B — external PostgreSQL
+The starter Service exposes Console on NodePort `30020` and its Prometheus metrics on `30090`. Adjust the Service or put an authenticated TLS proxy in front of it for production.
 
-Save the following as `risingwave-console-external-pg.yaml`. Before applying, edit the `risingwave-console-config` Secret: set `pg-dsn` to your PostgreSQL connection string, `root-password` to the initial password for the `root` user, and `license.jwt` to your signed license token. The PostgreSQL user in `pg-dsn` must be able to create and migrate Console metadata tables. This is the production path and also works with OpenShift restricted security settings.
+<Warning>
+  The Kubernetes `pgbundle` starter persists Console files under
+  `/risingwave-console-data`, but it does not persist the bundled PostgreSQL
+  metadata directory. Export that database before replacing or rescheduling
+  the pod. Custom Docker volume layouts can behave differently.
+</Warning>
 
-<Accordion title="risingwave-console-external-pg.yaml">
+## Grant Kubernetes permissions incrementally
 
-```yaml risingwave-console-external-pg.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: risingwave-console
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: risingwave-console
-  namespace: risingwave-console
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-ops
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: ops
-    rconsole.risingwave.com/aggregate-to-seed: "true"
-rules:
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - rolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterroles
-    resourceNames:
-      - risingwave-console-env-scoped
-    verbs: ["bind"]
-  - apiGroups: ["storage.k8s.io"]
-    resources:
-      - storageclasses
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-env-scoped
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: env-scoped
-rules:
-  - apiGroups: [""]
-    resources:
-      - pods
-      - services
-      - endpoints
-      - events
-      - configmaps
-      - secrets
-      - serviceaccounts
-      - persistentvolumeclaims
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - services/proxy
-    verbs: ["get"]
-  - apiGroups: [""]
-    resources:
-      - pods/exec
-    verbs: ["create"]
-  - apiGroups: [""]
-    resources:
-      - pods/log
-    verbs: ["get"]
-  - apiGroups: ["apps"]
-    resources:
-      - deployments
-      - statefulsets
-      - replicasets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - roles
-      - rolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["risingwave.risingwavelabs.com"]
-    resources:
-      - risingwaves
-      - risingwaves/status
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-namespace-deleter-allowlist
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: namespace-deleter
-    rconsole.risingwave.com/aggregate-to-seed: "true"
-rules:
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["get", "delete"]
-    resourceNames:
-      - __rconsole_placeholder__
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-namespace-deleter-editor
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: namespace-deleter
-    rconsole.risingwave.com/aggregate-to-seed: "true"
-rules:
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterroles
-    verbs: ["get", "patch", "update", "escalate"]
-    resourceNames:
-      - risingwave-console-namespace-deleter-allowlist
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-seed
-  labels:
-    app.kubernetes.io/name: risingwave-console
-aggregationRule:
-  clusterRoleSelectors:
-    - matchLabels:
-        rconsole.risingwave.com/aggregate-to-seed: "true"
-rules: []
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: risingwave-console-seed
-  labels:
-    app.kubernetes.io/name: risingwave-console
-subjects:
-  - kind: ServiceAccount
-    name: risingwave-console
-    namespace: risingwave-console
-roleRef:
-  kind: ClusterRole
-  name: risingwave-console-seed
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: risingwave-console-config
-  namespace: risingwave-console
-type: Opaque
-stringData:
-  # OpenShift restricted-v2 requires the non-pgbundle image, so point Console
-  # at an external PostgreSQL metastore.
-  pg-dsn: postgres://postgres:change-me@postgres.example.svc:5432/postgres
-  root-password: change-me
-  # Required for startup license verification.
-  license.jwt: <your-signed-license-token>
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: risingwave-console
-  namespace: risingwave-console
+Connecting SQL, Meta, and metrics endpoints does not require a RisingWave CR grant. Add Kubernetes access only for the workflows that an administrator approves.
+
+| Workflow | Additional Kubernetes grants |
+| --- | --- |
+| Connect existing SQL, Meta, and metrics endpoints | No CR grants. Each endpoint still needs connectivity, credentials, and any required tools or configuration. |
+| Observe one known CR | `get` on the single named `risingwaves` resource in its namespace. |
+| Find the connected CR | Observation plus `get` on the exact SQL and Meta Services. No CR or Service collection listing. |
+| Delegate replica, CPU/memory, or image changes | Retain observation; add `patch` on the same named CR and `get` on the exact Services. |
+| Install a full Environment | A separate, broader opt-in Environment-manager and cluster-installer profile. |
+
+These grants are additive. Applying a narrow profile does not revoke older bindings, so inventory dependent workflows before removing broad permissions.
+
+### Register the same-cluster target
+
+A platform administrator registers trusted targets in Console deployment configuration. Console organization administrators can use targets assigned to their organization; they cannot supply arbitrary credentials or namespaces.
+
+```yaml config.yaml
+kubernetes:
+  consoleNamespace: risingwave-console
+  targets:
+    - id: production
+      organizationID: 1 # Example only: replace with the intended Console organization ID.
+      displayName: Production cluster
+      connectionMode: inClusterServiceAccount
+      allowedNamespaces: [risingwave-prod]
+```
+
+While signed in to the target organization, use your normal authenticated Console session to request `GET /api/v1/me` and copy its `orgId` value. Do not put or share the session token in documentation or chat. Run the request in the target organization's login context; a platform administrator's current organization is not necessarily the target. Do not assume organization `1`.
+
+Release images run in `/app`, and Console loads `config.yaml` from its working directory. With the standard image, mount the complete configuration at `/app/config.yaml`:
+
+```yaml
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: risingwave-console
-  serviceName: risingwave-console
   template:
-    metadata:
-      labels:
-        app: risingwave-console
     spec:
-      serviceAccountName: risingwave-console
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
       containers:
         - name: console
-          image: risingwavelabs/risingwave-console:v0.7.4
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          ports:
-            - name: http
-              containerPort: 8020
-            - name: metrics
-              containerPort: 9020
-          env:
-            - name: RW_LICENSE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: risingwave-console-config
-                  key: license.jwt
-            - name: RCONSOLE_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: risingwave-console-config
-                  key: root-password
-            - name: RCONSOLE_SERVER_PG_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: risingwave-console-config
-                  key: pg-dsn
-            - name: RCONSOLE_SERVER_PORT
-              value: "8020"
-            - name: RCONSOLE_SERVER_METRICSPORT
-              value: "9020"
-            - name: RCONSOLE_RISECTLDIR
-              value: /risingwave-console-data/risectl
-            - name: RCONSOLE_HELM_CHART_DIR
-              value: /risingwave-console-data/helm-charts
+          image: risingwavelabs/risingwave-console:v0.8.0
+          workingDir: /app
           volumeMounts:
-            - name: risingwave-console-data
-              mountPath: /risingwave-console-data
-  volumeClaimTemplates:
-    - metadata:
-        name: risingwave-console-data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        # storageClassName: standard  # Replace with your cluster's StorageClass
-        resources:
-          requests:
-            storage: 20Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: risingwave-console-nodeport
-  namespace: risingwave-console
-spec:
-  type: NodePort
-  ports:
-    - name: risingwave-console
-      port: 8020
-      targetPort: 8020
-      nodePort: 30020
-    - name: risingwave-console-metric
-      port: 9020
-      targetPort: 9020
-      nodePort: 30090
-  selector:
-    app: risingwave-console
----
-#############################################################
-##
-## The following part is needed to install Cert Manager and
-## RisingWave Operator. If you already have them installed,
-## you can skip applying the following RBAC resources.
-##
-#############################################################
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: risingwave-console-cluster-installer
-  labels:
-    app.kubernetes.io/name: risingwave-console
-    rconsole.risingwave.com/rbac-profile: cluster-installer
-rules:
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources:
-      - customresourcedefinitions
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterroles
-    verbs:
-      [
-        "get",
-        "list",
-        "watch",
-        "create",
-        "update",
-        "patch",
-        "delete",
-        "bind",
-        "escalate",
-      ]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - clusterrolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["admissionregistration.k8s.io"]
-    resources:
-      - mutatingwebhookconfigurations
-      - validatingwebhookconfigurations
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["apiregistration.k8s.io"]
-    resources:
-      - apiservices
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - namespaces
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
-  - apiGroups: [""]
-    resources:
-      - pods
-      - services
-      - endpoints
-      - configmaps
-      - secrets
-      - serviceaccounts
-      - events
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources:
-      - serviceaccounts/token
-    verbs: ["create"]
-  - apiGroups: ["coordination.k8s.io"]
-    resources:
-      - leases
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["apps"]
-    resources:
-      - deployments
-      - replicasets
-      - statefulsets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources:
-      - roles
-      - rolebindings
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["batch"]
-    resources:
-      - jobs
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["cert-manager.io"]
-    resources:
-      - certificates
-      - certificaterequests
-      - issuers
-      - clusterissuers
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["networking.k8s.io"]
-    resources:
-      - networkpolicies
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["policy"]
-    resources:
-      - poddisruptionbudgets
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["monitoring.coreos.com"]
-    resources:
-      - podmonitors
-      - servicemonitors
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: risingwave-console-cluster-installer
-  labels:
-    app.kubernetes.io/name: risingwave-console
-subjects:
-  - kind: ServiceAccount
-    name: risingwave-console
-    namespace: risingwave-console
-roleRef:
-  kind: ClusterRole
-  name: risingwave-console-cluster-installer
-  apiGroup: rbac.authorization.k8s.io
+            - name: console-config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: console-config
+          configMap:
+            name: risingwave-console-config
 ```
 
-</Accordion>
+Merge the `kubernetes` section into your existing complete configuration and preserve any environment-based overrides. Do not replace a `pgbundle` image's bundled configuration with a targets-only file.
+
+Save the resulting complete file locally as `config.yaml`, then create or update the ConfigMap:
 
 ```shell
-kubectl apply -f risingwave-console-external-pg.yaml
+kubectl -n risingwave-console create configmap risingwave-console-config \
+  --from-file=config.yaml=./config.yaml \
+  --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-### Access Console
+Add the `volumeMounts` and `volumes` entries above to the existing StatefulSet without replacing its Secrets, environment settings, or other mounts. Then apply the updated workload and perform a normal rollout:
 
-Access the UI at `http://<any-node>:30020`, or replace the Service with your preferred `ClusterIP`, `LoadBalancer`, or Ingress setup.
+```shell
+kubectl -n risingwave-console apply -f path/to/console-statefulset.yaml
+kubectl -n risingwave-console rollout restart statefulset/risingwave-console
+kubectl -n risingwave-console rollout status statefulset/risingwave-console
+```
+
+The walkthrough in [Connect to your RisingWave clusters](/web-ui/risingwave-console/connect-risingwave-clusters) uses this same-cluster target. A separately registered remote target can provide observation, but an in-cluster ServiceAccount binding does not authorize a remote identity, and v0.8.0 does not support delegated remote writes.
+
+### Apply named-object RBAC
+
+The samples use:
+
+- Console Namespace and ServiceAccount: `risingwave-console` / `risingwave-console`
+- RisingWave namespace: `risingwave-prod`
+- RisingWave CR: `rw-prod`
+- SQL Service: `rw-prod-frontend`
+- Meta Service: `rw-prod-meta`
+
+Service names are examples, not a naming rule. Substitute the actual Services. Meta RPC and HTTP can use the same Service.
+
+All samples create a namespace-scoped Role and RoleBinding in the **RisingWave namespace**. The RoleBinding subject is the Console pod's actual ServiceAccount and can be in a different namespace.
+
+1. For exact-name observation, apply [observe-rbac.yaml](https://github.com/risingwavelabs/risingwave-docs/blob/main/web-ui/risingwave-console/manifests/v0.8.0/observe-rbac.yaml). It grants only `get` on `rw-prod`. Reading CR status does not require a separate `risingwaves/status` rule.
+2. To use **Find connected CR**, also apply [discovery-rbac.yaml](https://github.com/risingwavelabs/risingwave-docs/blob/main/web-ui/risingwave-console/manifests/v0.8.0/discovery-rbac.yaml). It grants only `get` on the exact SQL and Meta Services.
+3. For approved writes, keep the observer grant and apply [delegated-rbac.yaml](https://github.com/risingwavelabs/risingwave-docs/blob/main/web-ui/risingwave-console/manifests/v0.8.0/delegated-rbac.yaml). It grants only `patch` on the named CR and `get` on the exact Services. Because it includes the Service reads, applying the discovery profile first is optional.
+
+```shell
+kubectl apply -f observe-rbac.yaml
+kubectl apply -f discovery-rbac.yaml # Optional unless using Find connected CR.
+```
+
+RoleBinding additions normally take effect without restarting Console or redeploying RisingWave or its Operator.
 
 <Note>
-  The starter manifests include RBAC that lets Console install cert-manager, the
-  RisingWave Operator, and environment-scoped resources. If those components are
-  managed by another platform team, remove the cluster-installer RBAC and use
-  imported resources instead.
+  RBAC is only one authorization layer. The Console image must support the
+  workflow, the target and organization must match, the Console user must be
+  authorized, and execution-time identity and precondition checks must pass.
+  Kubernetes RBAC cannot restrict which CR fields a `patch` request changes;
+  Console's operation APIs restrict v0.8.0 operations to supported fields.
 </Note>
+
+## Upgrade from v0.7.9 to v0.8.0
+
+The following procedure uses external PostgreSQL. Do not apply a starter manifest over an existing deployment or replace existing Secrets and configuration wholesale.
+
+1. **Inventory the deployment.** Record the exact image or digest, Console PostgreSQL database, schema or `search_path`, DSN and TLS options, license, certificates, SSO settings, ServiceAccount, configuration, initialization files, and persistent files.
+2. **Prepare a tested recovery point.** Arrange a maintenance window, stop Console writers and scheduled work, and resolve in-flight or uncertain operations. Back up Console PostgreSQL, restore it to an independent database, and start the old image against that restored copy. A successful dump alone is not a recovery test. Browser-local SQL drafts and RisingWave data are not in this backup.
+3. **Review initialization.** `RCONSOLE_INIT` and initialization files can overwrite later UI edits on restart. Preserve the schema or `search_path` and PostgreSQL TLS files and options. Keep shared-workspace mode disabled for this ordinary upgrade; this procedure is not an organization migration.
+4. **Upgrade one compatible instance.** Replace only the Console image and configuration that must change. Preserve its metadata database, license, identity, network settings, and storage. Let one v0.8.0 instance run startup migrations; do not run old and new Console versions concurrently against a migrating database. This does not upgrade RisingWave or its Operator and does not grant or revoke Kubernetes RBAC.
+5. **Verify Console.** Test normal login or SSO, ownership and existing settings, a read-only SQL query, configured metrics, **Risectl > Check CLI**, and a permitted read-only Meta command where configured. **Check CLI** checks the selected executable; it is not a cluster health or compatibility test.
+6. **Opt into CR workflows separately.** Register a target and apply observe, discovery, or delegated RBAC only after the base upgrade is healthy. Applying RBAC does not add v0.8.0 APIs or UI to a v0.7.9 image.
+7. **Roll back by restoring, not downgrading in place.** Stop v0.8.0, preserve its current audit and metadata state, and run the old image with a separately restored pre-upgrade database and compatible configuration. Do not assume an in-place down migration. Restoring Console metadata does not undo CR changes or SQL writes.
 
 ## Binary deployment
 
-Use the binary when you want to run Console directly on a host and manage PostgreSQL separately:
+If your organization provides a Console binary, run it on a compatible Linux host with external PostgreSQL and the same environment settings described above:
 
 ```shell
-RW_LICENSE_KEY_PATH=/etc/rconsole/license.jwt \
-RCONSOLE_SERVER_PG_DSN="postgres://rconsole_user:rconsole_password@postgres.example:5432/rconsole" \
-RCONSOLE_ROOT_PASSWORD="your_secure_password" \
+export RCONSOLE_SERVER_PG_DSN="postgres://<user>:<password>@<host>:5432/<database>?sslmode=require"
+export RCONSOLE_ROOT_PASSWORD="<strong-password>"
+export RW_LICENSE_KEY_PATH="/etc/rconsole/license.jwt"
 ./risingwave-console
 ```
 
-Make sure the process can read the license file and reach the PostgreSQL host.
+This documentation does not define a new public standalone-binary download channel. Obtain the artifact through your existing authorized distribution process.
 
 ## Verify the installation
 
-1. Check the process or container logs.
-2. Open the UI:
-   - Docker or binary: `http://localhost:8020`, unless you changed the port.
-   - Kubernetes NodePort starter manifest: `http://<any-node>:30020`.
-3. Sign in as `root`.
-4. Confirm that the home page loads and the sidebar shows **Overview**, **Clusters**, **SQL Console**, **Environments**, **Metrics Store**, **SSO Connectors**, **Users**, and **Settings**.
-
-<Frame>
-  <img src="/images/risingwave-console/risingwave-console-login.png" />
-</Frame>
-
-<Frame>
-  <img src="/images/risingwave-console/risingwave-console-home.png" />
-</Frame>
+1. Open Console and sign in.
+2. Configure a strong `RCONSOLE_ROOT_PASSWORD`. If you change it in the UI, update the deployment value so a later restart does not restore an older configured password.
+3. Confirm the Console metadata database is reachable and backed up.
+4. Connect an existing cluster with [Connect to your RisingWave clusters](/web-ui/risingwave-console/connect-risingwave-clusters).
+5. If applicable, verify SQL TLS, metrics, and a read-only Meta command independently.
 
 ## Troubleshooting startup
 
-| Symptom                                                  | Check                                                                                                         |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Console exits with a missing license error               | Set `RW_LICENSE_KEY` or `RW_LICENSE_KEY_PATH`. If using a file, confirm the path inside the container or pod. |
-| Console reports that the license does not enable premium | Use a signed RisingWave license key with the `premium` feature enabled.                                       |
-| PostgreSQL connection fails                              | Verify `RCONSOLE_SERVER_PG_DSN`, network reachability, TLS requirements, and database user permissions.       |
-| Port `8020` is already in use                            | Change the host port mapping or set `RCONSOLE_SERVER_PORT`.                                                   |
-| Kubernetes pod starts but the UI is unreachable          | Check the Service type, NodePort or Ingress configuration, and network policies.                              |
-
-After installation, either [connect an existing RisingWave cluster](/web-ui/risingwave-console/connect-risingwave-clusters) or [create a Kubernetes environment](/web-ui/risingwave-console/manage-environments).
-
-To let users sign in through your SAML, LDAP / Active Directory, or OIDC identity provider, see [Single sign-on (SSO)](/web-ui/risingwave-console/single-sign-on).
+| Symptom | Check |
+| --- | --- |
+| Console exits with a license error | Verify the mounted file or `RW_LICENSE_KEY` and confirm the token is valid. |
+| PostgreSQL connection fails | Check DNS, port, credentials, database, schema or `search_path`, TLS files, and `sslmode`. |
+| Kubernetes pod is pending | Check the StorageClass, PVC, node resources, security context, and image pull access. |
+| Target is missing | Confirm the complete `/app/config.yaml` was mounted, the organization ID and namespace are correct, and Console was rolled out after the change. |
+| CR access is denied | Verify the Role is in the CR namespace and the RoleBinding subject matches the Console pod ServiceAccount and namespace. |
+| Console starts but a Meta command fails across namespaces | Check every advertised Meta leader and member address, not only the initial Service endpoint. See [Air-gapped deployment troubleshooting](/web-ui/risingwave-console/air-gapped-deployment#troubleshooting). |

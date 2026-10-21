@@ -1,0 +1,26 @@
+# Read only the SQL and Meta Services used to find the connected CR.
+# Apply observe-rbac.yaml separately to read the named CR.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: risingwave-console-discover-rw-prod
+  namespace: risingwave-prod
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    resourceNames: ["rw-prod-frontend", "rw-prod-meta"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: risingwave-console-discover-rw-prod
+  namespace: risingwave-prod
+subjects:
+  - kind: ServiceAccount
+    name: risingwave-console
+    namespace: risingwave-console
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: risingwave-console-discover-rw-prod
