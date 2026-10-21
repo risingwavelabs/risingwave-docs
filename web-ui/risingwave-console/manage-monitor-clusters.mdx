@@ -1,9 +1,9 @@
 ---
 title: "Manage and monitor clusters in RisingWave Console"
-description: "Learn how to view your connected RisingWave clusters in RisingWave Console, access detailed information, and use its operational tools."
+description: "Observe an attached RisingWave CR and perform approved replica, resource, and image operations in Console v0.8.0."
 ---
 
-After [connecting existing clusters](/web-ui/risingwave-console/connect-risingwave-clusters) or [creating managed clusters in an environment](/web-ui/risingwave-console/manage-environments), you can use Console to view cluster status and run operational tools from the **Cluster Details** page.
+After [connecting an existing cluster](/web-ui/risingwave-console/connect-risingwave-clusters), Console can use its endpoints for SQL, Meta, metrics, and operational tools. If an administrator also attaches its Operator-managed CR, Console v0.8.0 can show CR state and perform narrowly delegated changes.
 
 ## The clusters page
 
@@ -11,63 +11,108 @@ After [connecting existing clusters](/web-ui/risingwave-console/connect-risingwa
   <img src="/images/risingwave-console/risingwave-console-cluster-page.png" />
 </Frame>
 
-This page lists RisingWave clusters known to Console. For each cluster, you can see its name, status, endpoint details, and available actions.
+The page lists saved clusters, their configured RisingWave versions and metrics stores, and available actions. A saved connection is configuration; confirm live health and running version before operational changes.
 
-Clusters can be:
+## Observe an attached CR
 
-- **Imported clusters**: existing RisingWave clusters registered with Console. Deleting the record only removes it from Console.
-- **Managed clusters**: Kubernetes clusters created by Console inside an environment. Console can update their component specs, image tags, and database license key because it owns the RisingWave custom resource.
+Observation requires a trusted target and `get` on the single named RisingWave CR. It does not require Pod, Secret, Event, PVC, workload, or namespace-wide list access. See [incremental Kubernetes permissions](/web-ui/risingwave-console/installation-setup#grant-kubernetes-permissions-incrementally).
 
-Clicking **Manage** on a cluster panel navigates you to its dedicated **Cluster Details** page.
+For an attached CR, the cluster page can show Operator-reported information, including:
 
-## The cluster details page
+- **Running** and **Target** state,
+- configured image and reported version,
+- component groups and their replicas and CPU/memory settings,
+- the storage and TLS summaries exposed by v0.8.0.
 
-This page provides an in-depth view and operational tools for the selected RisingWave cluster.
+Configured target state can differ from running state while the Operator reconciles changes.
 
-<Frame>
-  <img src="/images/risingwave-console/risingwave-console-cluster-details.png" />
-</Frame>
+### View read-only YAML
 
-### Cluster information panel
+Select **View YAML** to open a read-only Monaco view with folding, search, line numbers, and copy support. It uses the same named-CR `get` grant and does not read Pods or Secrets.
 
-This section displays a summary of the cluster's connection information and its reported status, including: **Name**, **Status**, **Number of Nodes**, **Host**, and configured ports (SQL, Meta Node, HTTP).
+The view is an allowlisted projection of supported CR fields. It is not the complete raw CR, an export or restore backup, or a manifest to pass to `kubectl apply`. Sensitive and arbitrary content is omitted. Console v0.8.0 does not add arbitrary YAML editing, Secret inspection, namespace or Operator administration, or a Pod/PVC console.
 
-### Executing `risectl` commands
+## Delegate CR operations
 
-RisingWave Console provides an interface to run `risectl` (RisingWave's command-line control utility) commands directly on the selected cluster.
+Delegated changes require all of the following:
 
-- How to use: In the **Risectl Command** section, enter the arguments for your `risectl` command (for example, `meta-node list`) into the text area and click **Run Command**. The base `risectl` command is implied.
-- Output: The command's output is displayed within the UI.
-- Purpose: Useful for various administrative and diagnostic tasks supported by `risectl`.
-- Note on `RCONSOLE_RISECTLDIR`: Console stores or reads `risectl` binaries from this directory. In air-gapped deployments, mount the required `risectl` versions in advance or use an air-gap Console image that includes them.
+- the named-CR observer grant remains applied,
+- `patch` is approved for that same named CR,
+- `get` is approved for the exact SQL and Meta Services,
+- the CR is attached and matches its saved UID,
+- the Console user is an authorized administrator.
 
-### Updating managed cluster license keys
+In v0.8.0, writes use a same-cluster target and internal SQL and Meta Services whose controller owner references are verified against the attached CR UID. Configured SQL TLS is supported. Remote targets, external proxy or load-balancer endpoint mappings, and HTTPS Meta endpoints are not supported for delegated writes in this release.
 
-For managed clusters, Console can update or clear the RisingWave database license key. This is the same signed license key used for Console enterprise access. The key is stored in a Kubernetes Secret and referenced by the RisingWave custom resource. Use this when a managed database cluster needs access to RisingWave premium features or when a license is renewed.
+These profiles do not need Operator, CRD, cert-manager, Secret, or workload lifecycle privileges. The existing RisingWave Operator reconciles the edited CR.
 
-For the full configuration details for Console startup and managed RisingWave clusters, see [Manage license keys](/web-ui/risingwave-console/license-management).
+### Common operation sequence
 
-### Managing metadata snapshots
+For each supported change:
 
-RisingWave Console facilitates the management of RisingWave cluster metadata snapshots, which are important for backup and recovery.
+1. Select the operation and the actual component group.
+2. Edit only the requested value.
+3. Review the before-and-after preview.
+4. Confirm the operation.
+5. Inspect the operation result and Operator progress.
+6. Verify the actual service and application behavior independently.
 
-- Manual snapshots: The **Create Snapshot** button in the **Metadata Snapshot** section triggers snapshot creation on the RisingWave cluster.
-- Automated backups:
-  - You can enable **Auto Backup** and configure the **Backup Interval** (for example, "Every 30 minutes") and how long snapshots are **Keep For** (for example, "7 days").
-- Viewing snapshots: The UI indicates if snapshots are available.
-  _(Note: RisingWave Console helps create these snapshots. The restoration process typically follows standard RisingWave procedures.)_
+### Scale a component group
 
-### Collecting diagnostic information
+For example, select a frontend or compute group currently configured with `1` replica, set it to `2`, preview the change, and confirm it. Choose the real group name shown in your CR. Topology suitability, including Meta scaling decisions, remains the administrator's responsibility.
 
-For advanced troubleshooting, RisingWave Console can assist in collecting diagnostic data from your RisingWave cluster.
+### Change one CPU or memory field
 
-- Manual collection: Use the **Collect Diagnostic** button in the **Diagnostic Information** section.
-- Automated collection:
-  - Enable **Auto Diagnostic** and configure the **Collection Interval** and **Data Retention** period.
-- Accessing data: The UI shows diagnostic collection status and available diagnostic data.
+For example, change one compute group's CPU request from `500m` to `750m`. Console preserves unrelated group and template fields. A request is scheduler reservation, while a limit is an enforcement ceiling; neither is measured utilization. Changing a request or limit can cause an Operator-driven Pod rollout.
 
-<Frame>
-  <img src="/images/risingwave-console/risingwave-console-auto-diagnostic.png" />
-</Frame>
+### Change the RisingWave image
 
-These features on the **Cluster Details** page offer convenient access to important operational tasks for your RisingWave clusters.
+As a procedural example, change `risingwavelabs/risingwave:v2.8.2` to `risingwavelabs/risingwave:v2.8.3`, preview, and confirm. This example is not a blanket compatibility or production-upgrade recommendation. Select a supported upgrade path, prepare required backups, and check workload compatibility.
+
+After rollout, verify the actual running version. Then open **Clusters > Edit** and explicitly synchronize **Registered RisingWave version** before using version-selected tools. Updating the CR image does not silently update that saved setting.
+
+## Concurrency and operation results
+
+Console v0.8.0 uses conditional JSON Patch for delegated operations:
+
+- It checks the attached CR UID and captured `resourceVersion` atomically, modifies only the selected supported field, and preserves unrelated group and template fields.
+- At execution, it rechecks authorization, target scope, binding and Service identity, deletion state, and operation preconditions. A successful preview is not a permanent grant.
+- If any CR change occurs after preview, including a status-only `resourceVersion` change, refresh and review a new preview. Do not retry the stale request.
+
+These operations do not use the earlier server-side-apply handover design. Historical SSA field ownership is not an additional UI gate; do not use `--force-conflicts`, edit `managedFields`, or look for a Console force toggle.
+
+One active-operation lock prevents overlapping Console operations. An accepted Kubernetes patch is not rollout success. Console observes Operator progress and health, but SQL and Meta availability and business or streaming correctness need separate checks.
+
+A GitOps or platform controller can change the value again later; Console does not continuously counter-write it. Coordinate the authoritative configuration source instead of broadening RBAC.
+
+For an uncertain outcome, inspect the CR and workloads independently before any new operation. The audited manual-close action changes only the Console operation record; it does not retry, repair, or undo a Kubernetes write.
+
+## Operational tools
+
+### Run `risectl`
+
+Console runs the requested `risectl` version selected by **Registered RisingWave version**. The executable must already be cached or downloadable. Ordinary v0.8.0 images do not include it; air-gap images cache only v2.8.5 and v3.0.1. See [Air-gapped deployment](/web-ui/risingwave-console/air-gapped-deployment#connect-an-existing-cluster-offline) for the directory layout.
+
+Use **Risectl > Check CLI** to verify that Console can execute the selected binary. This does not verify cluster reachability, Meta health, or version compatibility. Run a permitted read-only Meta command for the end-to-end check.
+
+### Manage RisingWave metadata snapshots
+
+**Create Snapshot** and optional scheduled snapshot settings operate on RisingWave cluster metadata where supported. A RisingWave metadata snapshot is not a backup of Console's PostgreSQL metadata and is not, by itself, a complete application-data recovery plan. Back up each system according to its own recovery procedure.
+
+### Collect diagnostics
+
+Use **Collect Diagnostic** or the supported scheduled diagnostic settings to gather troubleshooting information. Treat the resulting data according to your organization's access and retention policy.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Target does not appear | Target configuration, organization assignment, namespace allowlist, and the Console rollout. |
+| Exact-name observation is denied | Named-CR `get`, target identity, namespace, and CR name. |
+| **Find connected CR** fails | Exact SQL and Meta Service `get`, controller owner references, and endpoint mapping. Exact-name observation can still work. |
+| Preview works but execution is denied | Current Console authorization, named-CR `patch`, target scope, attachment, and execution-time preconditions. |
+| Service mapping cannot be verified | Use the supported same-cluster internal Services and confirm their controller owner references match the attached CR UID. |
+| CR changed, is deleting, or was recreated | Refresh. Reattach a same-name replacement as a new identity and review a new preview. |
+| Rollout remains pending or fails | Inspect Operator status, Kubernetes scheduling and image pulls, then verify SQL and Meta separately. An accepted patch is not rollout success. |
+| Operation outcome is uncertain | Inspect the CR and workloads externally before acting. Manual close updates only Console's record. |
+| Meta command fails after initial connection | Check every advertised leader and member address, not only the first Service endpoint. |
