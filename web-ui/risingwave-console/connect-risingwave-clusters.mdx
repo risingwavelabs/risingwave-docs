@@ -1,6 +1,6 @@
 ---
 title: "Connect to your RisingWave clusters"
-description: "Connect existing RisingWave v0.8.0 endpoints to Console and optionally attach a trusted Operator-managed CR for observation."
+description: "Connect existing RisingWave endpoints to Console v0.8.0 and optionally attach a trusted Operator-managed CR for observation."
 ---
 
 Use this page when a RisingWave cluster is already running. Console v0.8.0 separates three workflows:
@@ -22,7 +22,9 @@ Console must reach the endpoints you configure:
 | Meta HTTP | `http://host:5691` | Used by Meta HTTP APIs. |
 | Metrics store | Deployment-specific | Optional Prometheus or VictoriaMetrics endpoint. |
 
-For Kubernetes Services in another namespace, use names that resolve from the Console pod, such as `rw-prod-frontend.risingwave-prod.svc.cluster.local:4566`. Meta commands can return leader or member addresses after the initial connection, so those advertised addresses must also resolve and be reachable.
+For endpoint-only connections, use names that resolve from the Console pod. Meta commands can return leader or member addresses after the initial connection, so those advertised addresses must also resolve and be reachable.
+
+**Find connected CR** and delegated operations have a stricter identity check: SQL and Meta Service addresses must include the namespace, even when Console and RisingWave share a namespace. Use `service.namespace.svc` or `service.namespace.svc.cluster.local`, for example `rw-prod-frontend.risingwave-prod.svc:4566` and `http://rw-prod-meta.risingwave-prod.svc:5690`.
 
 ## Add a cluster connection
 
@@ -31,7 +33,7 @@ For Kubernetes Services in another namespace, use names that resolve from the Co
 3. Configure the **SQL Endpoint**, **Meta RPC Endpoint**, and **Meta HTTP Endpoint**.
 4. Select the **Registered RisingWave version**. Console uses this requested version for version-selected `risectl` and metadata-backup tooling. It is not a live version check, an installation action, or a database upgrade. A custom value does not guarantee that its binary is installed or downloadable.
 5. Select a **Metrics Store**, or select **None**. **None** means that no metrics store is linked; it neither installs monitoring nor disables SQL or `risectl`.
-6. Select **Test Connection**, review the result, and then select **Connect Cluster**.
+6. Select **Test Endpoints**, review the result, and then select **Connect Cluster**.
 
 A connection test checks the endpoints covered by that action. Database credentials are tested when you add a database connection. A successful cluster test does not certify every SQL credential, every Meta command, advertised Meta addresses, or ongoing service health.
 
@@ -59,13 +61,13 @@ See [Grant Kubernetes permissions incrementally](/web-ui/risingwave-console/inst
 
 ### Find and attach the CR
 
-1. Open the connected cluster and select **Attach CR**.
-2. Select the registered Kubernetes **Target** and an allowed **Namespace**.
+1. Open the cluster details **Overview** and find **RisingWave configuration**.
+2. Select the registered **Platform target** and an allowed **Namespace**.
 3. Choose one method:
-   - Select **Find connected CR** when the SQL and Meta endpoints use internal Kubernetes Services. The target identity needs `get` on those exact Services in addition to `get` on the named CR. Console follows controller owner references and checks CR identity; it does not list CR or Service collections and is not a namespace browser.
-   - Enter the exact CR name when discovery is unavailable. A platform administrator can provide the namespace and name. This path also supports observation through an appropriately registered remote target.
-4. Review the target, namespace, CR identity, endpoints, and attestation preview.
-5. Explicitly confirm the attachment.
+   - Select **Find connected CR** when the SQL and Meta endpoints use namespace-qualified internal Kubernetes Service addresses. The target identity needs `get` on those exact Services in addition to `get` on the named CR. Console follows controller owner references and checks CR identity; it does not list CR or Service collections and is not a namespace browser.
+   - Enter the exact **CR name**, then select **Preview**, when discovery is unavailable. A platform administrator can provide the namespace and name. This path also supports observation through an appropriately registered remote target.
+4. Review the target, namespace, CR identity, endpoints, and attestation preview, then select the confirmation checkbox.
+5. Select **Bind for observation**.
 
 The same named-object rule applies whether Console and RisingWave share a namespace or not. The RoleBinding subject must name the Console pod's actual ServiceAccount and its namespace.
 
@@ -74,26 +76,27 @@ Administrator attestation records the observation decision. It does not by itsel
 ### Attachment lifecycle
 
 - Applying RBAC does not add v0.8.0 APIs or UI to an older image and does not register a target. RBAC additions normally need no Console restart; target or image changes require a normal Console rollout.
-- **Unbind** removes only Console's CR binding. It does not delete the CR or the database cluster.
-- If bound SQL or Meta endpoints change, unbind and attach again so the new identity can be reviewed. Do not rely on an old attachment for new endpoints.
-- Revoked access, a missing or deleting CR, a recreated same-name CR with a different UID, or an unavailable target makes current observation unavailable. Attach a recreated CR as a new identity; stale status must not be treated as current.
+- **Disconnect CR** removes only Console's CR binding. It does not delete the CR or the database cluster.
+- If bound SQL or Meta endpoints change, disconnect and bind again so the new identity can be reviewed. Do not rely on an old binding for new endpoints.
+- A CR being deleted can remain observable while it still exists and Console retains read access. Delegated changes are disabled during deletion. A missing, inaccessible, or UID-replaced CR cannot be treated as the previously observed object. Bind a recreated CR as a new identity.
 - An in-cluster ServiceAccount grant does not authorize a remote identity. Remote observation needs separately registered credentials.
 
 ## Endpoint examples
 
-| Deployment shape | SQL endpoint | Meta RPC endpoint | Meta HTTP endpoint |
+| Use | SQL endpoint | Meta RPC endpoint | Meta HTTP endpoint |
 | --- | --- | --- | --- |
-| Single host | `rw.example.com:4566` | `http://rw.example.com:5690` | `http://rw.example.com:5691` |
-| Same Kubernetes namespace | `rw-prod-frontend:4566` | `http://rw-prod-meta:5690` | `http://rw-prod-meta:5691` |
-| Different Kubernetes namespace | `rw-prod-frontend.risingwave-prod.svc.cluster.local:4566` | `http://rw-prod-meta.risingwave-prod.svc.cluster.local:5690` | `http://rw-prod-meta.risingwave-prod.svc.cluster.local:5691` |
+| Endpoint-only, single host | `rw.example.com:4566` | `http://rw.example.com:5690` | `http://rw.example.com:5691` |
+| Endpoint-only, short Kubernetes names | `rw-prod-frontend:4566` | `http://rw-prod-meta:5690` | `http://rw-prod-meta:5691` |
+| CR discovery or delegated operations | `rw-prod-frontend.risingwave-prod.svc:4566` | `http://rw-prod-meta.risingwave-prod.svc:5690` | `http://rw-prod-meta.risingwave-prod.svc:5691` |
+| CR discovery or delegated operations, full form | `rw-prod-frontend.risingwave-prod.svc.cluster.local:4566` | `http://rw-prod-meta.risingwave-prod.svc.cluster.local:5690` | `http://rw-prod-meta.risingwave-prod.svc.cluster.local:5691` |
 
-Meta RPC and HTTP can use different ports on the same Service. Service names are deployment-specific.
+Meta RPC and HTTP can use different ports on the same Service. Service names are deployment-specific. Short Kubernetes names can work for endpoint-only connections, but v0.8.0 does not accept them for **Find connected CR** or delegated identity verification.
 
 ## Edit or delete a connection
 
-To change endpoints, TLS settings, the registered version, or the metrics store, open **Clusters**, select **Edit**, update the fields, run the relevant connection test, and save. When attached endpoints change, unbind and reconfirm the CR identity.
+To change endpoints, TLS settings, the registered version, or the metrics store, open **Clusters**, select **Edit**, update the fields, select **Test Endpoints**, and save. When bound endpoints change, select **Disconnect CR** and bind again to reconfirm the CR identity.
 
-To remove a connection, select its delete icon and confirm. This deletes only Console's record; it does not stop or delete RisingWave. Unbind an attached CR first if the UI requires it.
+To remove a connection, select its delete icon and confirm. This deletes only Console's record; it does not stop or delete RisingWave. Select **Disconnect CR** first if the UI requires it.
 
 Continue with [Manage and monitor clusters](/web-ui/risingwave-console/manage-monitor-clusters) or [Use SQL Console](/web-ui/risingwave-console/use-sql-console).
 
@@ -106,4 +109,4 @@ Continue with [Manage and monitor clusters](/web-ui/risingwave-console/manage-mo
 | Metrics charts are empty | Confirm a store is selected and that its endpoint and labels match the cluster. **None** intentionally links no store. |
 | Target is missing | Confirm the platform administrator registered it for the correct organization and namespace, then rolled out Console. |
 | Exact-name observation fails | Check named-CR `get`, target scope, namespace, and CR name. Service `get` is not required for this fallback. |
-| **Find connected CR** is unavailable | Check exact-Service `get`, owner references, and endpoint mapping. Enter the exact CR name instead if observation access is otherwise valid. |
+| **Find connected CR** is unavailable | Confirm SQL and Meta use `service.namespace.svc` or `.svc.cluster.local`, then check exact-Service `get`, owner references, and endpoint mapping. An unqualified Service address is not an RBAC failure. Enter the exact CR name instead if observation access is otherwise valid. |

@@ -42,7 +42,7 @@ Delegated changes require all of the following:
 - the CR is attached and matches its saved UID,
 - the Console user is an authorized administrator.
 
-In v0.8.0, writes use a same-cluster target and internal SQL and Meta Services whose controller owner references are verified against the attached CR UID. Configured SQL TLS is supported. Remote targets, external proxy or load-balancer endpoint mappings, and HTTPS Meta endpoints are not supported for delegated writes in this release.
+In v0.8.0, writes use a same-cluster target and internal SQL and Meta Services whose namespace-qualified addresses and controller owner references are verified against the attached CR UID. Use `service.namespace.svc` or `service.namespace.svc.cluster.local`; a short Service name is not accepted for delegated identity verification, even when Console and RisingWave share a namespace. Configured SQL TLS is supported. Remote targets, external proxy or load-balancer endpoint mappings, and HTTPS Meta endpoints are not supported for delegated writes in this release.
 
 These profiles do not need Operator, CRD, cert-manager, Secret, or workload lifecycle privileges. The existing RisingWave Operator reconciles the edited CR.
 
@@ -81,7 +81,7 @@ Console v0.8.0 uses conditional JSON Patch for delegated operations:
 
 These operations do not use the earlier server-side-apply handover design. Historical SSA field ownership is not an additional UI gate; do not use `--force-conflicts`, edit `managedFields`, or look for a Console force toggle.
 
-One active-operation lock prevents overlapping Console operations. An accepted Kubernetes patch is not rollout success. Console observes Operator progress and health, but SQL and Meta availability and business or streaming correctness need separate checks.
+One active operation per attached RisingWave CR prevents overlapping Console operations on that CR. An accepted Kubernetes patch is not rollout success. Console observes Operator progress and health, but SQL and Meta availability and business or streaming correctness need separate checks.
 
 A GitOps or platform controller can change the value again later; Console does not continuously counter-write it. Coordinate the authoritative configuration source instead of broadening RBAC.
 
@@ -91,9 +91,11 @@ For an uncertain outcome, inspect the CR and workloads independently before any 
 
 ### Run `risectl`
 
-Console runs the requested `risectl` version selected by **Registered RisingWave version**. The executable must already be cached or downloadable. Ordinary v0.8.0 images do not include it; air-gap images cache only v2.8.5 and v3.0.1. See [Air-gapped deployment](/web-ui/risingwave-console/air-gapped-deployment#connect-an-existing-cluster-offline) for the directory layout.
+**Registered RisingWave version** selects the requested CLI version. Console first looks for an exact cached binary and can fall back to the highest cached patch version in the same major/minor series. When downloads are allowed, a failed exact-version download can also fall back to an available release in that series. For example, a cluster registered as `v2.8.2` can use `v2.8.5`. This selection is not a compatibility guarantee for every CLI and database combination.
 
-Use **Risectl > Check CLI** to verify that Console can execute the selected binary. This does not verify cluster reachability, Meta health, or version compatibility. Run a permitted read-only Meta command for the end-to-end check.
+Ordinary v0.8.0 images do not preinstall `risectl`; air-gap images cache v2.8.5 and v3.0.1. See [Air-gapped deployment](/web-ui/risingwave-console/air-gapped-deployment#connect-an-existing-cluster-offline) for the directory layout.
+
+Use **Risectl > Check CLI** to inspect the executable's reported version. This does not verify cluster reachability, Meta health, or command compatibility. Run a permitted read-only Meta command for the end-to-end check.
 
 ### Manage RisingWave metadata snapshots
 
@@ -111,8 +113,9 @@ Use **Collect Diagnostic** or the supported scheduled diagnostic settings to gat
 | Exact-name observation is denied | Named-CR `get`, target identity, namespace, and CR name. |
 | **Find connected CR** fails | Exact SQL and Meta Service `get`, controller owner references, and endpoint mapping. Exact-name observation can still work. |
 | Preview works but execution is denied | Current Console authorization, named-CR `patch`, target scope, attachment, and execution-time preconditions. |
-| Service mapping cannot be verified | Use the supported same-cluster internal Services and confirm their controller owner references match the attached CR UID. |
-| CR changed, is deleting, or was recreated | Refresh. Reattach a same-name replacement as a new identity and review a new preview. |
+| Service mapping cannot be verified | Use namespace-qualified same-cluster internal Service addresses and confirm their controller owner references match the attached CR UID. An unqualified address is not an RBAC failure. |
+| CR is being deleted | Observation can continue while the CR exists and remains readable, but delegated changes are disabled. |
+| CR is missing, inaccessible, or UID-replaced | Do not treat it as the previously observed object. Bind a same-name replacement as a new identity and review a new preview. |
 | Rollout remains pending or fails | Inspect Operator status, Kubernetes scheduling and image pulls, then verify SQL and Meta separately. An accepted patch is not rollout success. |
 | Operation outcome is uncertain | Inspect the CR and workloads externally before acting. Manual close updates only Console's record. |
 | Meta command fails after initial connection | Check every advertised leader and member address, not only the first Service endpoint. |
