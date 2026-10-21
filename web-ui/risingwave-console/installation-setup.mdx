@@ -79,6 +79,8 @@ The human or platform identity applying a starter manifest must already be allow
 
 Replace every placeholder in the Secret before applying a manifest. Do not commit rendered Secrets.
 
+The external-PostgreSQL manifest runs Console as a non-root process with the runtime-default seccomp profile, disables privilege escalation, and drops Linux capabilities. Use this path for OpenShift `restricted-v2`. The bundled PostgreSQL process has different runtime requirements; do not weaken a restricted cluster's security policy merely to use `pgbundle`.
+
 ```shell
 kubectl apply -f console-external-pg.yaml
 kubectl -n risingwave-console get pods
