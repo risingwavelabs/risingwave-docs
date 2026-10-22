@@ -1,0 +1,98 @@
+---
+title: "Source error"
+sidebarTitle: "Source error"
+description: "Diagnose source ingestion errors in RisingWave Cloud."
+---
+
+This warning indicates that a source has reported ingestion errors. It detects
+new errors during the last minute or a newly observed source-error counter that
+is already positive. On older supported versions, it also detects a positive
+legacy source-error metric. There is no additional waiting period before the
+alert fires. The alert identifies the source by its name and `source_id`.
+
+<Note>
+This alert is not currently evaluated in production, and production email
+notifications are disabled. See [Availability](#availability).
+</Note>
+
+Errors can delay ingestion or leave downstream results incomplete. This alert
+covers source errors reported to RisingWave, including CDC reader startup and
+runtime failures. It does not detect every upstream or Debezium-internal retry,
+and it does not measure replication lag.
+
+## Common triggers
+
+- Upstream connectivity, authentication, or permission failures.
+- An unavailable upstream database, broker, or replication endpoint.
+- CDC reader failures, including unavailable replication logs or unsupported changes.
+- Data parsing errors reported by the source.
+
+## Diagnosis
+
+1. Use the source name and ID in the alert to identify the affected source. If
+   needed, connect to the database containing the source and run:
+
+   ```sql
+   SELECT id, name
+   FROM rw_catalog.rw_sources
+   WHERE id = <source_id>;
+   ```
+
+   Replace `<source_id>` with the ID from the alert.
+2. Inspect the source's recent errors and throughput. Ask support for compute
+   logs if the error details are not available in your console.
+3. Check upstream availability, credentials, permissions, network access, and
+   connection limits. For CDC, also check the replication slot or binlog status
+   and retention settings.
+4. If metrics are available, check `user_source_error_cnt` for this source and
+   project. Look for new increments rather than a nonzero historical total.
+   On older supported versions, check `user_source_error` instead: this legacy
+   metric reports errors since its previous collection and resets when collected.
+   A positive value triggers the alert. Check CDC saved-offset progression and
+   lag separately.
+
+## Resolution
+
+- Correct the upstream connectivity, authentication, or permission issue
+  identified in the error message.
+- Preserve replication logs needed by a lagging CDC source while investigating.
+- For malformed records or unsupported schema changes, identify the affected
+  record or DDL before changing the ingestion configuration.
+- If the error points to a RisingWave failure, required replication logs are
+  gone, or ingestion does not resume, contact the
+  [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+  Include the project, source ID and name, time window, and representative error
+  messages, with credentials removed. Consult support before recreating a source
+  or skipping data.
+
+## Confirm recovery
+
+With continuous metric collection, the counter-based condition clears when no
+new errors are observed in the one-minute window and the newly observed counter
+condition no longer applies. The legacy metric must also no longer report a
+positive value. If both metric types are present, neither can still meet its
+firing condition for the alert to clear. A missing metric can also cause the alert
+expression to return no result; this is not evidence that ingestion recovered.
+
+Confirm that errors have stopped and the source is making progress. For CDC,
+check that its saved replication offset advances while the upstream produces
+changes. Zero throughput by itself can also indicate an idle upstream.
+
+## Availability
+
+This rule requires RisingWave v1.8.0 or later and is enabled by default in alert
+settings. It supports both the `user_source_error_cnt` counter and the legacy
+`user_source_error` metric.
+
+The rule is currently evaluated only in non-production environments. Its default
+setting does not activate production evaluation or production email delivery.
+Where alert delivery is available, notifications also depend on the rule remaining
+enabled and the configured email recipients. See
+[Monitor messages and alerts](/cloud/monitor-messages-and-alerts) for alert settings.
+
+## Related topics
+
+- [Manage sources](/cloud/manage-sources)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
+- [MySQL CDC binlog file lag](/cloud/alert-playbooks/streaming/mysql-cdc-binlog-file-lag)
+- [PostgreSQL CDC WAL lag](/cloud/alert-playbooks/streaming/postgresql-cdc-wal-lag)
