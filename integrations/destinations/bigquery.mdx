@@ -53,6 +53,16 @@ WITH (
 | aws.credentials.secret\_access\_key | **Optional**. The secret access key for accessing the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                               |
 | region                              | **Optional**. The AWS region of the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                                                 |
 
+### Change ordering for upsert sinks
+
+For an upsert sink, RisingWave automatically includes BigQuery's `_CHANGE_SEQUENCE_NUMBER` pseudocolumn with every `UPSERT` and `DELETE` record. BigQuery uses the larger sequence number when it receives multiple changes for the same primary key, ensuring that it applies the changes in the order RisingWave sends them. No additional sink configuration is required.
+
+<Warning>
+After an upsert sink writes sequence numbers, do not downgrade to a RisingWave version that does not send them. BigQuery can silently ignore later updates and deletes from the older version for keys already written with a sequence number. For the same reason, any other writer that updates the same table must also provide `_CHANGE_SEQUENCE_NUMBER`.
+
+Sequence numbers are generated per compute-node process. If a key moves to a process whose system clock is behind the previous process's clock, BigQuery can ignore changes for that key until the new clock catches up. Ignored changes are not applied later; the key is corrected only after it changes again once the clock has caught up.
+</Warning>
+
 ## Examples
 
 RisingWave supports three ways to provide the Google Cloud service account JSON key for authenticating with BigQuery.
