@@ -63,6 +63,12 @@ Supported `time_unit` values include: second, minute, hour, day, month, and year
 Currently, RisingWave only supports using one of the columns from the table as the watermark column. To use nested fields (e.g., fields in `STRUCT`), or perform expression evaluation on the input rows (e.g., casting data types), please refer to [generated columns](/sql/query-syntax/generated-columns).
 </Note>
 
+## Watermark propagation through timestamp arithmetic
+
+When a query adds an interval to or subtracts an interval from a watermarked `timestamp` column, RisingWave propagates the watermark to the computed column only if the interval is a constant with no month component. A month-based interval can make results decrease at month boundaries because timestamp arithmetic clamps invalid dates to the end of the month. Therefore, expressions such as `ts + INTERVAL '1' MONTH` and `ts - INTERVAL '1' MONTH` do not carry a watermark.
+
+An [`EMIT ON WINDOW CLOSE`](/processing/emit-on-window-close) query is rejected during planning if it relies on such a computed column as its only watermarked grouping column.
+
 ## Example
 
 The following query generates the watermark as the latest timestamp observed in `order_time` minus 5 seconds.
