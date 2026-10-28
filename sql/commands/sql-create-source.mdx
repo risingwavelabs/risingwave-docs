@@ -5,7 +5,7 @@ description: "A source is a resource that RisingWave can read data from. You can
 
 For the full list of the sources we support, see [Supported sources](/ingestion/overview#supported-sources).
 
-If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. For CDC data in Debezium format, you must use `CREATE TABLE` to properly handle updates and deletes. For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
+If you choose to persist the data from the source in RisingWave, use the [CREATE TABLE](/sql/commands/sql-create-table) command with connector settings. To ingest a Debezium-formatted feed directly, use `CREATE TABLE`. To forward changes from a shared CDC source without materializing the source table, see [CDC table sources](#cdc-table-sources). For more details about the differences between sources and tables, see [here](/ingestion/overview#table-with-connectors).
 
 Regardless of whether the data is persisted in RisingWave, you can create materialized views to perform analysis or data transformations.
 
@@ -26,6 +26,17 @@ CREATE SOURCE [ IF NOT EXISTS ] source_name (
     message='message',
     schema.location='location', ...) ]
 ];
+```
+
+To expose one table from an existing shared CDC source as an upsert source, use:
+
+```sql
+CREATE SOURCE [ IF NOT EXISTS ] source_name (
+    { * | column_name data_type [ PRIMARY KEY ], ...
+          [ PRIMARY KEY (column_name, ...) ] }
+)
+WITH (snapshot = 'false')
+FROM shared_cdc_source TABLE 'external_table_name';
 ```
 
 ## Notes
@@ -149,6 +160,127 @@ FORMAT UPSERT ENCODE JSON;
 <Note>
 Upsert sources emit **upsert streams**, which do not contain old values for `UPDATE` operations. Therefore, stateful operators like JOINs, aggregations, and window functions do not work on an upsert source. Attempting to do so will result in errors like `"upsert stream is not supported as input of ..."`.
 </Note>
+
+## CDC table sources
+
+You can expose one upstream table from a shared MySQL, PostgreSQL, or SQL Server CDC source as an **upsert source**. The source itself does not store the current table state. Each downstream streaming job reads changes from the shared source independently, starting when that job is created.
+
+Use a CDC table source to forward changes to an upsert-capable sink, or use `AS CHANGELOG` to process changes as events. Use a CDC **table** when you need complete row state for joins, aggregations, or other operators that require retractable input.
+
+### Create a CDC table source
+
+First create the [shared CDC source](/ingestion/cdc-with-risingwave#cdc-sources-and-tables). The examples below assume a shared PostgreSQL source named `pg_src` and an upstream table `public.orders` with columns `id INT PRIMARY KEY`, `customer_id INT`, and `amount INT`.
+
+```sql
+CREATE SOURCE orders_cdc (*)
+WITH (snapshot = 'false')
+FROM pg_src TABLE 'public.orders';
+```
+
+The `*` infers columns and the primary key from the upstream table. You can instead define the columns explicitly. The declared columns, data types, and primary key are validated against the upstream table, which must have a primary key.
+
+### Use case: forward changes to an upsert sink
+
+A passthrough sink can forward inserts, updates, and deletes without first storing the source table's current state in RisingWave. It can also apply stateless operations such as projections, casts, and filters on primary-key columns. For example, forward changes to a [PostgreSQL sink](/integrations/destinations/postgresql).
+
+First create the destination table in the **downstream PostgreSQL database**, not in RisingWave:
+
+```sql
+CREATE TABLE public.orders_replica (
+    id INT PRIMARY KEY,
+    customer_id INT,
+    amount BIGINT
+);
+```
+
+Then run the following in **RisingWave**. This example keeps rows with a positive `id`, projects the required columns, and casts `amount` from `INT` to `BIGINT`:
+
+```sql
+CREATE SINK orders_to_postgres AS
+SELECT id, customer_id, amount::BIGINT AS amount
+FROM orders_cdc
+WHERE id > 0
+WITH (
+    connector = 'jdbc',
+    jdbc.url = 'jdbc:postgresql://postgres:5432/replica',
+    user = 'sink_user',
+    password = 'your_password',
+    schema.name = 'public',
+    table.name = 'orders_replica',
+    type = 'upsert',
+    primary_key = 'id'
+);
+```
+
+Replace the JDBC URL and credentials with your downstream PostgreSQL configuration. Keep the source primary key as the sink and destination table key so that updates and deletes apply to the same downstream record. The filter uses only the primary key, which remains available even in sparse delete events. A sink requiring retractable input cannot consume this source directly.
+
+### Use case: process change events with AS CHANGELOG
+
+Use [`AS CHANGELOG`](/sql/commands/sql-as-changelog) to turn each received change into an append-only event row. For example, retain the changes observed after the materialized view is created:
+
+```sql
+CREATE MATERIALIZED VIEW order_change_events AS
+WITH changes AS CHANGELOG FROM orders_cdc
+SELECT id, customer_id, amount, changelog_op, _changelog_row_id
+FROM changes;
+```
+
+For this upsert input, inserts and the new values of updates have `changelog_op = 1`; deletes have `changelog_op = 2`. Updates do not produce an old-value row or a distinguishable update pair. Only primary-key columns are guaranteed to be populated in delete events; other columns may be absent depending on the upstream database's change records.
+
+You can aggregate the append-only events, for example to count observed operations:
+
+```sql
+CREATE MATERIALIZED VIEW order_change_counts AS
+SELECT changelog_op, COUNT(*) AS event_count
+FROM order_change_events
+GROUP BY changelog_op;
+```
+
+These counts describe received events, not the current number of orders. `AS CHANGELOG` does not reconstruct missing old values or PostgreSQL TOAST values.
+
+### Materialize state for retractable operators
+
+An upsert stream supplies the new row for an update, but not the old row that an operator would need to retract its previous result. Operators requiring retractable input, such as joins, aggregations, and window functions, cannot consume the CDC table source directly. Such queries fail with an error such as `upsert stream is not supported as input of ...`.
+
+For queries over the current table state, use `CREATE TABLE` from the shared CDC source. This standard CDC path can backfill existing rows and maintain the state needed by downstream operators:
+
+```sql
+CREATE TABLE orders (*)
+FROM pg_src TABLE 'public.orders';
+
+CREATE MATERIALIZED VIEW customer_order_totals AS
+SELECT customer_id, SUM(amount) AS total_amount
+FROM orders
+GROUP BY customer_id;
+```
+
+If you already have an upsert source and only need to materialize changes observed from now on, create a target table with the same primary key and use [`CREATE SINK ... INTO`](/sql/commands/sql-create-sink-into):
+
+```sql
+CREATE TABLE orders_state (
+    id INT PRIMARY KEY,
+    customer_id INT,
+    amount INT
+);
+
+CREATE SINK orders_into_state INTO orders_state AS
+SELECT id, customer_id, amount FROM orders_cdc;
+
+CREATE MATERIALIZED VIEW observed_customer_order_totals AS
+SELECT customer_id, SUM(amount) AS total_amount
+FROM orders_state
+GROUP BY customer_id;
+```
+
+The target table supplies retractable changes to downstream queries. It does not backfill rows that existed before the sink started, or recover values already missing from the upsert input.
+
+### Limitations
+
+- **No snapshot or historical backfill.** CDC table sources require exactly `WITH (snapshot = 'false')`. Creating the source does not retain changes for future consumers: each new downstream job starts from its own creation point.
+- **No PostgreSQL TOAST reconstruction.** When PostgreSQL omits an unchanged TOAST value from a change record, the upsert source cannot recover it from prior row state. Unavailable-value placeholders can reach downstream consumers. Do not use this path when correct TOAST values are required; use the standard CDC `CREATE TABLE` path with backfill instead. Adding `AS CHANGELOG` or sinking this upsert source into a table does not fix missing TOAST values.
+- **Upsert input, not retractable input.** Operators and sink formats that require old row values are unsupported directly on the source. Materialize a table first as shown above, or use `AS CHANGELOG` if you want to compute over events rather than current rows.
+- **No direct batch queries.** You cannot run `SELECT` directly against a CDC table source. Query a downstream table or materialized view instead.
+- **Restricted source changes.** You cannot alter the table source's columns or connector properties.
 
 ## Change Data Capture (CDC)
 
