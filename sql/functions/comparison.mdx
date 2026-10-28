@@ -35,6 +35,12 @@ title: "Comparison functions and operators"
 | IS UNKNOWN | `boolean IS UNKNOWN`  <br/>Whether a boolean expression returns an unknown value (typically represented by a null). | null IS UNKNOWN → t  <br/>false IS UNKNOWN → f |
 | IS NOT UNKNOWN | `boolean IS NOT UNKNOWN`  <br/>Whether a boolean expression returns true or false. | true IS NOT UNKNOWN → t  <br/>null IS NOT UNKNOWN → f |
 
+<Note>
+`IS DISTINCT FROM` and `IS NOT DISTINCT FROM` have higher precedence than `AND` and `OR`. For example, RisingWave interprets `a IS DISTINCT FROM b AND c` as `(a IS DISTINCT FROM b) AND c`.
+
+An unparenthesized `IS` predicate cannot directly follow the right operand. For example, `a IS DISTINCT FROM b IS NULL` is a syntax error. To use an `IS` predicate as the right operand, add parentheses: `a IS DISTINCT FROM (b IS NULL)`.
+</Note>
+
 ## Special Comparison
 
 ### `secure_compare`
