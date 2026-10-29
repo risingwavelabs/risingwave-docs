@@ -7,7 +7,7 @@ description: "Understand the disk cache on RisingWave Cloud and tune it to match
 The disk cache is a local disk-based caching layer that sits between memory and object storage, reducing latency and object storage costs for performance-sensitive workloads on RisingWave Cloud.
 
 <Note>
-Every RisingWave Cloud cluster comes with a default disk cache configuration. Only **Pro plan** clusters can customize the cache size and performance tier.
+Every RisingWave Cloud cluster comes with a default disk cache configuration. Only **Pro plan** clusters can customize the cache size and performance tier for the cluster and individual resource groups.
 </Note>
 
 ## When to use disk cache
@@ -26,7 +26,7 @@ Key benefits:
 
 ## Cache size
 
-The default cache size scales with your streaming node configuration: approximately 32 GB per [RWU](/cloud/pricing#risingwave-unit-rwu) for larger streaming nodes (5 RWUs or more), or 100 GB total for smaller streaming nodes. A larger cache reduces the frequency of object storage access.
+The default cache size scales with the streaming node configuration of your cluster or resource group: approximately 32 GB per [RWU](/cloud/pricing#risingwave-unit-rwu) for larger streaming nodes (5 RWUs or more), or 100 GB for smaller streaming nodes. A larger cache reduces the frequency of object storage access.
 
 ## Performance tiers
 
@@ -42,20 +42,21 @@ RisingWave Cloud offers up to three performance tiers that control the I/O throu
 Not all tiers are available in every region or cloud provider. The rescale dialog shows only the tiers available for your cluster. For example, some regions may only offer the Standard tier.
 </Note>
 
-The default performance tier depends on your cloud provider and streaming node size. On GCP, the default is **Standard**. On AWS and Azure, larger streaming nodes (5 RWUs or more) default to **Performance**, while smaller streaming nodes default to **Standard**.
+The default performance tier depends on your cloud provider and the streaming node size of the cluster or resource group. On GCP deployments that offer only the Standard tier, the default is **Standard**. Otherwise, larger streaming nodes (5 RWUs or more) default to **Performance**, while smaller streaming nodes default to **Standard**.
 
 ## View and configure disk cache
 
-The **Disk Cache** page shows the current cache configuration and lets you adjust the cache size and performance tier for your cluster.
+The **Disk Cache** page shows the current cache configuration and lets you adjust the cache size and performance tier independently for your cluster and each [resource group](/cloud/manage-resources).
 
 1. Go to the [RisingWave Cloud dashboard](https://cloud.risingwave.com/dashboard), open your cluster, and select **Disk Cache** under the **Management** section.
-2. Review the **Recommended disk cache config** panel at the top. Click **Apply Recommended** to fill the form with the recommended size and tier for your current streaming node shape.
-3. Adjust **Cache Size (GB)** using the input, slider, or preset buttons. The minimum is 20 GB and the maximum depends on your cluster.
-4. Select a **Disk Performance Tier**. The recommended tier is marked, and only tiers available in your region and cloud provider are shown.
-5. Click **Save Changes** to apply the new configuration.
+2. To configure a specific resource group, select it from the **Resource group** dropdown, if available. Leave the selection empty, or deselect a previously selected group, to configure the cluster.
+3. Review the **Recommended disk cache config** panel at the top. Click **Apply** to fill the form with the recommended size and tier for the current streaming node shape of your cluster or selected resource group.
+4. Adjust **Size** in GB using the input, slider, or preset buttons. The minimum is 64 GB and the maximum depends on your cluster.
+5. Select a **Performance tier**. The recommended tier is marked, and only tiers available in your region and cloud provider are shown.
+6. Click **Save changes** to apply the new configuration to the cluster or selected resource group.
 
 <Frame>
-  <img src="/images/cloud/manage-disk-cache/disk-cache-page-v2.png" alt="Disk Cache page showing the recommended config panel, cache size input, and performance tier options." />
+  <img src="/images/cloud/manage-disk-cache/disk-cache-resource-group.webp" alt="Disk Cache page showing the resource group selector, recommended config panel, cache size input, and performance tier options." />
 </Frame>
 
 ## Scale the disk cache during a cluster rescale
@@ -63,6 +64,8 @@ The **Disk Cache** page shows the current cache configuration and lets you adjus
 When you scale up your streaming nodes, the cache configuration from the previous size may no longer fit the new node shape. An undersized cache or a lower-tier disk can cause temporary performance regressions while new data is fetched from object storage.
 
 When the rescale changes the streaming node size, the rescale dialog shows a **Disk Cache Configuration** section with an **Apply recommended optimization** toggle. Enable it to resize the cache and select an appropriate performance tier in the same operation.
+
+This optimization updates the cluster's disk cache configuration. To adjust disk cache for a specific resource group, select it on the **Disk Cache** page.
 
 <Frame>
   <img src="/images/cloud/manage-disk-cache/rescale-dialog-disk-cache-v2.png" alt="Cluster rescale dialog with the Disk Cache Configuration section and the Apply recommended optimization toggle." />
