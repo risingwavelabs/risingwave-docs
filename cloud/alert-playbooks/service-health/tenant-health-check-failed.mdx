@@ -1,0 +1,51 @@
+---
+title: "Cluster health check failed"
+sidebarTitle: "Cluster health check failed"
+description: "Investigate a failed project health check in RisingWave Cloud."
+---
+
+This warning indicates that the latest reported routine health check for the
+project has remained unhealthy for five minutes. The rule evaluates
+`mgmt_tenant_unhealth_status` using the latest monitor timestamp for the project.
+It identifies the project rather than a particular source or sink.
+
+A failed check is a signal to investigate. It does not by itself establish
+that every workload is unavailable or identify the failing component.
+
+## Diagnosis
+
+1. Open the project's [status and metrics](/cloud/check-status-and-metrics) in
+   the Cloud console. Compare the alert time with changes in project status and
+   other alerts.
+2. Check application-side connection or query failures, streaming freshness,
+   source progress, and sink lag. Record whether the problem affects the whole
+   project or only particular workloads.
+3. Note recent project changes and upstream or downstream incidents. If you
+   cannot determine the impact from the console, contact Cloud support rather
+   than assuming that a healthy-looking status alone resolves the failed check.
+
+## Resolution and support
+
+Contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com)
+to investigate the failed health check. Include the project and region, alert
+time, observed application errors, affected workloads, recent changes, and metric
+screenshots. Support can inspect the health-check results and service logs.
+
+If the project is degraded, preserve upstream data retention and use supported
+application buffering, retries, or fallbacks to reduce downstream impact.
+Coordinate project restarts, pause/resume actions, or resource changes with
+support. Avoid deleting and recreating resources as a response to the health
+check alone.
+
+## Confirm recovery
+
+Confirm that fresh health checks report healthy results and that affected
+queries and streaming workloads return to their normal behavior. A cleared
+alert can also result from missing monitoring data; it is not sufficient proof
+of recovery. If failures recur or application impact continues after the alert
+clears, provide the new time window to Cloud support.
+
+## Related topics
+
+- [Check status and metrics of clusters](/cloud/check-status-and-metrics)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
