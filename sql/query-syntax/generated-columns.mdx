@@ -21,6 +21,17 @@ A generated column in a table is slightly different from one in a source.
 * A generated column in a table is stored in the created table, and computed when it is inserted. This is equivalent to the `STORED` type of generated columns in PostgreSQL.
 * A generated column in a source is not stored in the created source, and is computed when the source is queried. This is equivalent to the `VIRTUAL` type of generated columns in PostgreSQL.
 
+Generated columns are also supported on CDC tables created with `CREATE TABLE`, including tables created from a shared CDC source, as long as you define the table schema explicitly in the statement.
+For example:
+
+```sql
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  first_name VARCHAR,
+  last_name VARCHAR,
+  full_name VARCHAR AS first_name || ' ' || last_name
+) FROM pg_source TABLE 'public.users';
+```
 
 To create a generated column as the processing time of a message, use the `proctime()` function, for example:
 
