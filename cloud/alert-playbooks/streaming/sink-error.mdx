@@ -1,0 +1,57 @@
+---
+title: "Sink error"
+sidebarTitle: "Sink error"
+description: "Diagnose sink delivery errors in RisingWave Cloud."
+---
+
+This warning indicates that a sink has reported errors. It detects new errors
+during the last minute, a newly observed error counter that is already positive,
+or a positive legacy error metric on older supported versions. There is no
+additional waiting period before the alert fires. Use the sink name and project
+in the alert to identify the affected sink.
+
+Sink errors can delay delivery and make downstream results stale. An error
+does not by itself establish that data was lost.
+
+## Diagnosis
+
+1. Inspect the affected sink's recent errors, throughput, and lag in the Cloud
+   console. Use a time range starting before the alert. If error details are
+   unavailable, ask your project administrator or Cloud support for help.
+2. Check the downstream system's availability, network access, authentication,
+   permissions, and capacity. Use the error message to distinguish connection
+   failures, rate limits, and rejected records or schema mismatches.
+3. If metrics are available, inspect `user_sink_error_cnt` for the affected
+   project and sink. Look for new increments rather than a nonzero historical
+   total. Older versions may report `user_sink_error` instead. Check other sinks
+   separately to determine whether the problem is shared or isolated.
+
+## Resolution
+
+- Restore downstream connectivity or availability, or correct credentials and
+  permissions when the error identifies them as the cause.
+- For capacity or rate-limit errors, review the downstream limits and workload
+  before changing capacity or delivery configuration.
+- For rejected records or schema mismatches, identify the affected data and
+  destination requirements before changing the sink. Consult support before
+  recreating a sink or skipping data, because replay behavior depends on the
+  connector and configuration.
+- If the downstream system is healthy but errors continue, contact the
+  [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+  Include the project, sink name, time window, representative errors with
+  credentials removed, and any upstream or downstream changes.
+
+## Confirm recovery
+
+Confirm that new errors stop, delivery makes progress, and sink lag returns
+toward its normal baseline. With continuous metric collection, the alert clears
+when none of its counter or legacy-metric conditions still match. Missing
+metrics can also remove an alert result, so a cleared alert alone does not prove
+that delivery recovered. Check the destination when confirming data freshness.
+
+## Related topics
+
+- [Manage sinks](/cloud/manage-sinks)
+- [Sink lag too large](/cloud/alert-playbooks/streaming/sink-lag-too-large)
+- [Source and sink troubleshooting](/troubleshoot/troubleshoot-source-sink)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
