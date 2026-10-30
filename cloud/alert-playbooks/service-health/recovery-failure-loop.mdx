@@ -1,0 +1,59 @@
+---
+title: "Meta recovery - high frequency"
+sidebarTitle: "Frequent recovery failures"
+description: "Assess repeated recovery failures and their impact on a RisingWave Cloud project."
+---
+
+This warning indicates that the project's recovery failure counter increased by
+more than five during the last minute. The rule uses
+`increase(recovery_failure_cnt[1m]) > 5` and has no additional waiting period.
+It reports failed recovery attempts, rather than every successful recovery or
+restart.
+
+Repeated recovery failures can prevent streaming work from resuming and delay
+fresh results. The alert alone does not identify the underlying cause or prove
+data loss.
+
+## Assess the impact
+
+1. Open the project's [status and metrics](/cloud/check-status-and-metrics) in
+   the Cloud console. Review a time range starting before the alert.
+2. Check streaming freshness, source progress, sink lag, and application-side
+   query errors or latency. Record which workloads are affected and when the
+   interruption started.
+3. Note recent project changes, resource changes, or upstream and downstream
+   failures. If metrics are available, inspect `recovery_failure_cnt` for the
+   affected project; a historical nonzero total does not mean failures are
+   continuing.
+
+## Resolution and support
+
+Contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com)
+for recovery investigation. Include the project and region, alert time, affected
+workloads, recent changes, and relevant metric screenshots. Cloud support can
+inspect recovery logs and determine the appropriate repair; there is no single
+customer-side repair implied by this alert.
+
+If workloads are degraded while recovery is investigated:
+
+- Preserve upstream data and replication-log retention so ingestion can catch
+  up after recovery.
+- Where supported by your applications, buffer incoming work and allow for
+  stale downstream results or transient query failures.
+- Coordinate project restarts, pause/resume actions, and resource changes with
+  support instead of repeatedly restarting the project without a diagnosis.
+
+## Confirm recovery
+
+Confirm that recovery completes and the affected workloads resume progress.
+With continuous metric collection, the alert condition clears when the failure
+increase is no longer greater than five in the one-minute window. That can
+happen even if recovery has stopped making progress, so also verify streaming
+freshness, backlog, and application behavior. A missing metric is not evidence
+of a successful recovery.
+
+## Related topics
+
+- [Check status and metrics of clusters](/cloud/check-status-and-metrics)
+- [General performance troubleshooting](/performance/performance-troubleshoot-ov)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
