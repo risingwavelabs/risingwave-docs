@@ -1,0 +1,56 @@
+---
+title: "Streaming source offline"
+sidebarTitle: "Streaming source offline"
+description: "Investigate a source that remains offline in RisingWave Cloud."
+---
+
+This warning indicates that a streaming source has reported an offline status
+continuously for 15 minutes. The rule checks `source_status_is_up == 0` and
+identifies the affected source by its name and `source_id`.
+
+An offline source can interrupt ingestion and leave downstream results stale.
+This alert is different from low throughput: a healthy source can have no new
+records when its upstream system is idle.
+
+## Diagnosis
+
+1. Use the project, source name, and source ID from the alert to locate the
+   source in the Cloud console. Inspect its recent errors and source throughput
+   over the same time window.
+2. Check the upstream system's availability, credentials, permissions, network
+   access, and connection limits. Look for changes around the time the source
+   went offline, such as credential rotation or a network-policy change.
+3. For a CDC source, inspect the saved replication position and the upstream
+   replication slot or binlog status. Check whether required logs are still
+   retained. An unavailable log position may require a connector-specific
+   recovery plan.
+4. If metrics are available, inspect `source_status_is_up` for this project and
+   source, along with its error and throughput signals. If the metric is absent,
+   check project health and metric collection before concluding that the source
+   recovered.
+
+## Resolution
+
+- Correct the upstream availability, connectivity, authentication, or permission
+  problem identified by the source errors.
+- Preserve replication logs and upstream retention while investigating a CDC
+  interruption. Consult support before resetting a replication position,
+  recreating the source, or skipping records.
+- If the upstream is healthy but the source remains offline, contact the
+  [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+  Include the project, source ID and name, upstream system type, time window,
+  and representative error messages with credentials removed.
+
+## Confirm recovery
+
+Confirm that the source reports an online status and resumes ingestion when
+the upstream produces data. For CDC, verify that the saved replication position
+advances and any backlog starts to catch up. Check downstream freshness as well
+as the alert state; an idle upstream or missing metric is not proof of recovery.
+
+## Related topics
+
+- [Manage sources](/cloud/manage-sources)
+- [Source error](/cloud/alert-playbooks/streaming/source-error)
+- [Source and sink troubleshooting](/troubleshoot/troubleshoot-source-sink)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
