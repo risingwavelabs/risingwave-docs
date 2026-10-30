@@ -14,6 +14,10 @@ When upgrading RisingWave, it's important to be aware that there may be breaking
 Assuming that the Kubernetes namespace is `default`, if your RisingWave cluster is deployed in another namespace, please add the `-n <namespace>` argument to the `kubectl` and `helm` commands below. Remember to replace the `<namespace>` with your own namespace.
 </Note>
 
+<Warning>
+When performing a rolling upgrade from v3.1 or earlier to v3.2, do not drop tables or streaming jobs while the cluster has a v3.2 Meta Node and pre-v3.2 Serving Nodes. Wait until all Serving Nodes have been upgraded or restarted. During this mixed-version window, a dropped-table notification can cause an older Serving Node to stop. If this occurs, restart the affected Serving Node with v3.2 to recover it.
+</Warning>
+
 ## Upgrade RisingWave with Helm[](#upgrade-risingwave-with-helm "Direct link to Upgrade RisingWave with Helm")
 
 1. Check the current status of the RisingWave helm release.
