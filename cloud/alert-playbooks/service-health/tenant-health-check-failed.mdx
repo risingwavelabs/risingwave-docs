@@ -1,49 +1,65 @@
 ---
 title: "Cluster health check failed"
 sidebarTitle: "Cluster health check failed"
-description: "Investigate a failed project health check in RisingWave Cloud."
+description: "Assess the impact of a failed health check and protect connected systems."
 ---
 
-This warning indicates that the latest reported routine health check for the
-project has remained unhealthy for five minutes. The rule evaluates
-`mgmt_tenant_unhealth_status` using the latest monitor timestamp for the project.
-It identifies the project rather than a particular source or sink.
+This warning indicates that the cluster's routine health check has reported an
+unhealthy condition for five minutes. It is a cluster-level signal, rather than
+an error for a particular source or sink, and does not necessarily mean that all
+workloads are unavailable.
 
-A failed check is a signal to investigate. It does not by itself establish
-that every workload is unavailable or identify the failing component.
+Cloud support handles investigation of the failed check and any required service
+repair. Your first step is to check whether your workloads are affected.
 
-## Diagnosis
+## Assess the impact
 
-1. Open the project's [status and metrics](/cloud/check-status-and-metrics) in
-   the Cloud console. Compare the alert time with changes in project status and
-   other alerts.
-2. Check application-side connection or query failures, streaming freshness,
-   source progress, and sink lag. Record whether the problem affects the whole
-   project or only particular workloads.
-3. Note recent project changes and upstream or downstream incidents. If you
-   cannot determine the impact from the console, contact Cloud support rather
-   than assuming that a healthy-looking status alone resolves the failed check.
+1. Open the affected cluster in the [Cloud dashboard](https://cloud.risingwave.com/dashboard)
+   and select **Metrics**. Choose a time range starting before the alert.
+2. Compare these charts with the cluster's normal baseline:
 
-## Resolution and support
+   | Metrics tab | Chart | Look for |
+   | --- | --- | --- |
+   | **Streaming** | **Streaming Freshness** | Increasing delay in streaming results. |
+   | **Streaming** | **Source Rows Processed** | An interruption while upstream data is available. |
+   | **Query** | **Query Local Average Latency** and **Query Distributed Average Latency** | Higher latency alongside application errors or timeouts. |
+   | **Query** | **Queries Per Second** | An unexpected decrease accompanied by failed application requests. |
 
-Contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com)
-to investigate the failed health check. Include the project and region, alert
-time, observed application errors, affected workloads, recent changes, and metric
-screenshots. Support can inspect the health-check results and service logs.
+3. Check application-side connection and query errors and whether downstream
+   results are fresh. Note whether the impact is widespread or limited to
+   particular workloads.
 
-If the project is degraded, preserve upstream data retention and use supported
-application buffering, retries, or fallbacks to reduce downstream impact.
-Coordinate project restarts, pause/resume actions, or resource changes with
-support. Avoid deleting and recreating resources as a response to the health
-check alone.
+If metrics and application behavior remain normal, no customer-side mitigation
+is needed. Continue monitoring. Contact support if the alert persists or recurs,
+or if you cannot determine the impact.
+
+## Protect connected systems
+
+If workloads are degraded:
+
+- Preserve upstream data retention and buffer incoming work where supported.
+- Allow for delayed downstream results, defer non-critical dependent work, or
+  use an application fallback if one is available.
+- Use your application's retry policy for transient connection or query failures.
+
+Do not delete or recreate resources in response to this health check alone.
+Coordinate cluster restarts, **Pause**/**Resume**, and resource changes with
+Cloud support.
+
+## Investigation and support
+
+For production impact or a persistent failed check, contact the
+[RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+Include the cluster and region, alert time, application errors, affected
+workloads, metric screenshots, recent changes, and protective actions already
+taken. Support can inspect the health-check results and service logs.
 
 ## Confirm recovery
 
-Confirm that fresh health checks report healthy results and that affected
-queries and streaming workloads return to their normal behavior. A cleared
-alert can also result from missing monitoring data; it is not sufficient proof
-of recovery. If failures recur or application impact continues after the alert
-clears, provide the new time window to Cloud support.
+Confirm that queries and streaming workloads return to their normal behavior,
+upstream backlogs catch up, and downstream results are fresh. A cleared alert
+can also result from missing monitoring data. If business impact continues or
+the alert recurs, share the new time window with support.
 
 ## Related topics
 
