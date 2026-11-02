@@ -1,59 +1,68 @@
 ---
 title: "Meta recovery - high frequency"
 sidebarTitle: "Frequent recovery failures"
-description: "Assess repeated recovery failures and their impact on a RisingWave Cloud project."
+description: "Assess the impact of repeated recovery failures and protect connected systems."
 ---
 
-This warning indicates that the project's recovery failure counter increased by
-more than five during the last minute. The rule uses
-`increase(recovery_failure_cnt[1m]) > 5` and has no additional waiting period.
-It reports failed recovery attempts, rather than every successful recovery or
-restart.
+This warning indicates that the cluster has reported more than five recovery
+failures within one minute. Repeated failures can delay streaming work and leave
+results stale. The alert alone does not identify the cause or establish data loss.
 
-Repeated recovery failures can prevent streaming work from resuming and delay
-fresh results. The alert alone does not identify the underlying cause or prove
-data loss.
+Cloud support handles investigation and repair of the recovery process. Your
+first step is to check whether your workloads are affected.
 
 ## Assess the impact
 
-1. Open the project's [status and metrics](/cloud/check-status-and-metrics) in
-   the Cloud console. Review a time range starting before the alert.
-2. Check streaming freshness, source progress, sink lag, and application-side
-   query errors or latency. Record which workloads are affected and when the
-   interruption started.
-3. Note recent project changes, resource changes, or upstream and downstream
-   failures. If metrics are available, inspect `recovery_failure_cnt` for the
-   affected project; a historical nonzero total does not mean failures are
-   continuing.
+1. Open the affected cluster in the [Cloud dashboard](https://cloud.risingwave.com/dashboard)
+   and select **Metrics**. Choose a time range starting before the alert.
+2. Compare these charts with the cluster's normal baseline and your application
+   behavior:
 
-## Resolution and support
+   | Metrics tab | Chart | Look for |
+   | --- | --- | --- |
+   | **Streaming** | **Streaming Freshness** | Increasing delay in streaming results. |
+   | **Streaming** | **Source Rows Processed** | An interruption while upstream data is available. |
+   | **Query** | **Query Local Average Latency** and **Query Distributed Average Latency** | Higher latency alongside application errors or timeouts. |
 
-Contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com)
-for recovery investigation. Include the project and region, alert time, affected
-workloads, recent changes, and relevant metric screenshots. Cloud support can
-inspect recovery logs and determine the appropriate repair; there is no single
-customer-side repair implied by this alert.
+3. Check whether downstream applications are receiving fresh results. Note
+   affected workloads and changes made around the alert time.
+
+If metrics and application behavior remain normal, no customer-side mitigation
+is needed. Continue monitoring. Contact support if the alert persists or recurs,
+or if you need help interpreting the impact.
+
+## Protect connected systems
 
 If workloads are degraded while recovery is investigated:
 
-- Preserve upstream data and replication-log retention so ingestion can catch
-  up after recovery.
-- Where supported by your applications, buffer incoming work and allow for
-  stale downstream results or transient query failures.
-- Coordinate project restarts, pause/resume actions, and resource changes with
-  support instead of repeatedly restarting the project without a diagnosis.
+- Preserve upstream data and replication-log retention so ingestion can catch up.
+- Buffer incoming work where supported by your upstream system.
+- Allow for delayed downstream results, defer non-critical dependent work, or
+  use an application fallback if one is available.
+
+Do not repeatedly restart the cluster to clear this alert. Coordinate restarts,
+**Pause**/**Resume**, and resource changes with Cloud support.
+
+## Investigation and support
+
+For ongoing failures or production impact, contact the
+[RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+Include the cluster and region, alert time, affected workloads, recent changes,
+metric screenshots, and any protective actions already taken. Support can
+inspect recovery logs and determine the appropriate repair.
 
 ## Confirm recovery
 
-Confirm that recovery completes and the affected workloads resume progress.
-With continuous metric collection, the alert condition clears when the failure
-increase is no longer greater than five in the one-minute window. That can
-happen even if recovery has stopped making progress, so also verify streaming
-freshness, backlog, and application behavior. A missing metric is not evidence
-of a successful recovery.
+Confirm that streaming results become fresh again, ingestion resumes when data
+is available, and affected applications return to normal. Check that any upstream
+backlog catches up. The alert can clear when failures leave its one-minute
+window even if work has not resumed, so do not rely on the alert state alone.
+
+## Applicability
+
+This alert applies to clusters running RisingWave v1.7.1 or later.
 
 ## Related topics
 
 - [Check status and metrics of clusters](/cloud/check-status-and-metrics)
-- [General performance troubleshooting](/performance/performance-troubleshoot-ov)
 - [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
