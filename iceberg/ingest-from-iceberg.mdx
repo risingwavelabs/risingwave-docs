@@ -8,7 +8,7 @@ This guide shows how to read data from external Apache Iceberg tables in RisingW
 
 You can ingest data from Iceberg tables using two approaches:
 
-1. **[Continuous ingestion (default)](#continuous-ingestion-with-create-source)**: Create an Iceberg source with the `CREATE SOURCE` statement for continuous, streaming ingestion of append-only data.
+1. **[Continuous ingestion (default)](#continuous-ingestion-with-create-source)**: Create an Iceberg source with the `CREATE SOURCE` statement. Sources ingest append-only data by default, or can opt in to streaming updates for supported tables written by RisingWave.
 2. **[Periodic full reload](#periodic-full-reload-with-create-table)**: Create an Iceberg table with `refresh_mode = 'FULL_RELOAD'` for scheduled full table refreshes. Note that you must use `CREATE TABLE` (not `CREATE SOURCE`), and data will only be loaded after you trigger a refresh—either manually or via the configured schedule.
 
 After the source or table is created, you can run ad hoc queries against it or maintain materialized views for continuous analytics.
@@ -22,10 +22,11 @@ After the source or table is created, you can run ad hoc queries against it or m
 
 ## Continuous ingestion with CREATE SOURCE
 
-### Limitations
+### Modes and limitations
 
-- **PRIMARY KEY is not supported.** Iceberg `CREATE SOURCE` is for append-only, streaming ingestion. RisingWave internally uses a hidden, system-generated `_row_id` column to uniquely identify each record, which is incompatible with user-defined primary keys. If you need to ingest a mutable Iceberg table (with updates and deletes), use [`CREATE TABLE` with `refresh_mode = 'FULL_RELOAD'`](#periodic-full-reload-with-create-table) instead — note that `FULL_RELOAD` is periodic snapshot-style ingestion, not continuous streaming.
-- **Column definitions are not allowed for Iceberg sources.** RisingWave automatically infers the schema from the Iceberg table metadata. Specifying column definitions in the `CREATE SOURCE` statement will result in an error. Use `CREATE SOURCE <name> WITH (...)` rather than `CREATE SOURCE <name> (<columns>) WITH (...)`.
+- **Append-only ingestion is the default.** In this mode, RisingWave uses a hidden, system-generated `_row_id` column, and you cannot define a primary key.
+- **Streaming updates are opt-in.** Set `streaming_updates = 'true'` and specify a primary key to ingest updates and deletes from [supported RisingWave-written tables](#stream-updates-and-deletes).
+- **Column definitions are not allowed for Iceberg sources.** RisingWave automatically infers the schema from the Iceberg table metadata. Do not specify column names or types in the `CREATE SOURCE` statement. In streaming update mode, specify only the `PRIMARY KEY` constraint before the `WITH` clause.
 
 ### Basic connection example
 
@@ -59,6 +60,7 @@ DESCRIBE my_iceberg_source;
 | `connector` | Required. For Iceberg sources, it must be `'iceberg'` | `'iceberg'` |
 | `database.name` | Required. The Iceberg database/namespace name. | `'analytics'` |
 | `table.name` | Required. The Iceberg table name. | `'user_events'` |
+| `streaming_updates` | Optional. Set to `'true'` to ingest updates and deletes from a supported table written by a RisingWave PK-index sink. Default: `'false'`. | `'true'` |
 | `commit_checkpoint_interval` | Optional. Determines the Iceberg commit frequency. Default: `60` (about **60 seconds** in the default configuration). | `60` |
 
 You also need to specify catalog and object storage parameters in the `CREATE SOURCE` statement. Because these parameters are shared across all Iceberg objects—sources, sinks, and internal Iceberg tables—they are documented separately.
@@ -87,6 +89,45 @@ WITH (
     s3.region = 'us-west-2'
 );
 ```
+
+### Stream updates and deletes
+
+Set `streaming_updates = 'true'` to ingest an initial snapshot and then continuously propagate inserts, updates, and deletes. You can use either `CREATE SOURCE` or `CREATE TABLE`; in both cases, specify a logical primary key whose columns uniquely identify the rows written by the upstream RisingWave PK-index sink.
+
+```sql
+CREATE SOURCE iceberg_updates (PRIMARY KEY (id))
+WITH (
+    connector = 'iceberg',
+    streaming_updates = 'true',
+    catalog.type = 'rest',
+    catalog.uri = 'https://catalog.example.com',
+    warehouse.path = 's3://my-data-lake/warehouse',
+    database.name = 'analytics',
+    table.name = 'events'
+);
+```
+
+The schema is still inferred from Iceberg. The `PRIMARY KEY` clause declares the logical key; do not define column names or types in the statement.
+
+<Warning>
+Streaming update ingestion is intended only for Iceberg tables produced by a RisingWave PK-index writer, such as an [upsert Iceberg sink](/iceberg/deliver-to-iceberg). It is not a general CDC reader for tables written by arbitrary Iceberg writers.
+</Warning>
+
+The mode supports Iceberg V2 tables with file-scoped Parquet position deletes and Iceberg V3 tables with deletion vectors. Equality deletes are not supported. Without `streaming_updates = 'true'`, existing append-only, batch, and refresh behavior remains unchanged.
+
+Keep the snapshots, manifests, data files, and delete artifacts needed by lagging or recovering jobs. If required history is expired, or if RisingWave detects a rollback, changed table identity or schema, equality deletes, or another unsupported artifact, the streaming job fails instead of silently loading a new snapshot.
+
+The following features are not supported with `streaming_updates = 'true'`:
+
+- Shared sources
+- Refresh, including `refresh_mode = 'FULL_RELOAD'`
+- `INCLUDE` columns and source watermarks
+- Source rate limiting
+- Streaming time travel queries
+
+You cannot change `streaming_updates` with `ALTER`. Create a new source or table to change modes.
+
+Updates are applied as a delete phase followed by an insert phase. Downstream results converge to the Iceberg table contents, but intermediate states between these phases can be visible; the mode does not provide atomic snapshot switching.
 
 ## Periodic full reload with CREATE TABLE
 
