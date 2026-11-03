@@ -1,0 +1,58 @@
+---
+title: "Streaming source offline"
+sidebarTitle: "Streaming source offline"
+description: "Locate an offline source and restore ingestion safely."
+---
+
+This warning indicates that a streaming source has reported an offline status
+for 15 minutes. Ingestion can be interrupted and downstream results can become
+stale. An idle upstream with no new records is different from an offline source.
+
+## Find the source and assess the impact
+
+1. Open the affected cluster in the [Cloud dashboard](https://cloud.risingwave.com/dashboard).
+2. Go to **Data Catalog** > **Sources** and open the source named in the alert.
+   Use the source ID from the alert to distinguish it if needed.
+3. Check its running status, errors, and throughput. Set the time range to
+   include the start of the interruption. If you cannot access these details,
+   ask your cluster administrator or Cloud support for help.
+4. Check whether applications that depend on the source are receiving fresh
+   results. Compare other sources to determine whether they share the failure.
+
+## Restore ingestion
+
+- For connection errors, check the upstream service's availability, network
+  access, and connection limits.
+- For authentication or permission errors, check the credentials and connector
+  permissions, including any recent credential rotation.
+- For a CDC source whose error mentions an unavailable replication position,
+  check the connector-specific requirements for retained logs. See
+  [MySQL CDC](/ingestion/sources/mysql/mysql-cdc) or
+  [PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc), as applicable. Preserve
+  required binlogs or WAL while investigating; consult support before resetting
+  a replication position, recreating the source, or skipping records.
+
+See [Source and sink troubleshooting](/troubleshoot/troubleshoot-source-sink)
+for additional diagnosis. If the upstream is healthy but the source stays
+offline, the error is unclear, or production ingestion is affected, contact the
+[RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+Include the cluster and region, source name and ID, upstream system type,
+alert time, and representative error messages with credentials removed.
+
+## Confirm recovery
+
+Confirm that the source reports an online status, errors stop, and throughput
+resumes when the upstream produces data. For CDC sources, use
+[Monitor CDC progress](/ingestion/monitor-cdc-progress) to check that ingestion
+is catching up. Confirm downstream freshness as well. Zero throughput from an
+idle upstream or a cleared alert alone is not proof of recovery.
+
+## Applicability
+
+This alert applies to clusters running RisingWave v1.7.1 or later.
+
+## Related topics
+
+- [Manage sources](/cloud/manage-sources)
+- [Source error](/cloud/alert-playbooks/streaming/source-error)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
