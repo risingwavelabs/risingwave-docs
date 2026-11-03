@@ -1,39 +1,27 @@
 ---
 title: "Meta recovery - high frequency"
 sidebarTitle: "Meta recovery - high frequency"
-description: "Assess the impact of repeated recovery failures and protect connected systems."
+description: "Respond to repeated streaming recovery failures and confirm recovery."
 ---
 
 This warning indicates that the cluster has reported more than five recovery
-failures within one minute. Repeated failures can delay streaming work and leave
-results stale. The alert alone does not identify the cause or establish data loss.
+failures within one minute. Repeated recovery failures interrupt streaming
+processing and can leave results stale. The alert alone does not identify the
+cause or establish data loss.
 
-Cloud support handles investigation and repair of the recovery process. Your
-first step is to check whether your workloads are affected.
+Cloud support handles investigation and repair of the recovery process. Contact
+support and protect connected systems while streaming recovers.
 
-## Assess the impact
+## Investigation and support
 
-1. Open the affected cluster in the [Cloud dashboard](https://cloud.risingwave.com/dashboard)
-   and select **Metrics**. Choose a time range starting before the alert.
-2. Compare these charts with the cluster's normal baseline and your application
-   behavior:
-
-   | Metrics tab | Chart | Look for |
-   | --- | --- | --- |
-   | **Streaming** | **Streaming Freshness** | Increasing delay in streaming results. |
-   | **Streaming** | **Source Rows Processed** | An interruption while upstream data is available. |
-   | **Query** | **Query Local Average Latency** and **Query Distributed Average Latency** | Higher latency alongside application errors or timeouts. |
-
-3. Check whether downstream applications are receiving fresh results. Note
-   affected workloads and changes made around the alert time.
-
-If metrics and application behavior remain normal, no customer-side mitigation
-is needed. Continue monitoring. Contact support if the alert persists or recurs,
-or if you need help interpreting the impact.
+Contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+Include the cluster and region, alert time, affected workloads, recent changes,
+metric screenshots, and any protective actions already taken. Support can
+inspect recovery logs and determine the appropriate repair.
 
 ## Protect connected systems
 
-If workloads are degraded while recovery is investigated:
+While support investigates and streaming recovers:
 
 - Preserve upstream data and replication-log retention so ingestion can catch up.
 - Buffer incoming work where supported by your upstream system.
@@ -43,20 +31,18 @@ If workloads are degraded while recovery is investigated:
 Do not repeatedly restart the cluster to clear this alert. Coordinate restarts,
 **Pause**/**Resume**, and resource changes with Cloud support.
 
-## Investigation and support
-
-For ongoing failures or production impact, contact the
-[RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
-Include the cluster and region, alert time, affected workloads, recent changes,
-metric screenshots, and any protective actions already taken. Support can
-inspect recovery logs and determine the appropriate repair.
-
 ## Confirm recovery
 
-Confirm that streaming results become fresh again, ingestion resumes when data
-is available, and affected applications return to normal. Check that any upstream
-backlog catches up. The alert can clear when failures leave its one-minute
-window even if work has not resumed, so do not rely on the alert state alone.
+1. Open the affected cluster in the [Cloud dashboard](https://cloud.risingwave.com/dashboard)
+   and select **Metrics**. Choose a time range starting before the alert.
+2. In the **Streaming** tab, confirm that **Streaming Freshness** returns to its
+   normal baseline and **Source Rows Processed** resumes when upstream data is
+   available.
+3. Confirm that downstream applications receive fresh results again and any
+   upstream backlog catches up.
+
+The alert can clear when failures leave its one-minute window even if work has
+not resumed, so do not rely on the alert state alone.
 
 ## Applicability
 
