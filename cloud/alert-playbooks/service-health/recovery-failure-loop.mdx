@@ -1,0 +1,54 @@
+---
+title: "Meta recovery - high frequency"
+sidebarTitle: "Meta recovery - high frequency"
+description: "Respond to repeated streaming recovery failures and confirm recovery."
+---
+
+This warning indicates that the cluster has reported more than five recovery
+failures within one minute. Repeated recovery failures interrupt streaming
+processing and can leave results stale. The alert alone does not identify the
+cause or establish data loss.
+
+Cloud support handles investigation and repair of the recovery process. Contact
+support and protect connected systems while streaming recovers.
+
+## Investigation and support
+
+Contact the [RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+Include the cluster and region, alert time, affected workloads, recent changes,
+metric screenshots, and any protective actions already taken. Support can
+inspect recovery logs and determine the appropriate repair.
+
+## Protect connected systems
+
+While support investigates and streaming recovers:
+
+- Preserve upstream data and replication-log retention so ingestion can catch up.
+- Buffer incoming work where supported by your upstream system.
+- Allow for delayed downstream results, defer non-critical dependent work, or
+  use an application fallback if one is available.
+
+Do not repeatedly restart the cluster to clear this alert. Coordinate restarts,
+**Pause**/**Resume**, and resource changes with Cloud support.
+
+## Confirm recovery
+
+1. Open the affected cluster in the [Cloud dashboard](https://cloud.risingwave.com/dashboard)
+   and select **Metrics**. Choose a time range starting before the alert.
+2. In the **Streaming** tab, confirm that **Streaming Freshness** returns to its
+   normal baseline and **Source Rows Processed** resumes when upstream data is
+   available.
+3. Confirm that downstream applications receive fresh results again and any
+   upstream backlog catches up.
+
+The alert can clear when failures leave its one-minute window even if work has
+not resumed, so do not rely on the alert state alone.
+
+## Applicability
+
+This alert applies to clusters running RisingWave v1.7.1 or later.
+
+## Related topics
+
+- [Check status and metrics of clusters](/cloud/check-status-and-metrics)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)

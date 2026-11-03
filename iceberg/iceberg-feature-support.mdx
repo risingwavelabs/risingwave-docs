@@ -33,7 +33,7 @@ You can use normal batch `SELECT` operations such as projection, filters, and `L
 
 | Area | Support | Notes |
 | :-- | :-- | :-- |
-| External Iceberg sources | Supported | Use `CREATE SOURCE` for continuous ingestion from append-only tables. Schema is inferred from Iceberg metadata. |
+| External Iceberg sources | Supported | Use `CREATE SOURCE` for continuous ingestion. Sources are append-only by default; supported tables written by RisingWave can opt in to streaming updates. Schema is inferred from Iceberg metadata. |
 | Refreshable external Iceberg tables | Supported | Use `CREATE TABLE ... WITH (connector = 'iceberg', refresh_mode = 'FULL_RELOAD')` for on-demand or scheduled full reloads. |
 | External Iceberg sinks | Supported | Use `CREATE SINK` to write append-only or upsert streams to Iceberg tables. |
 | Internal Iceberg tables | Supported | Use `CREATE TABLE ... ENGINE = iceberg` to store RisingWave-managed tables in Iceberg format. |
@@ -51,11 +51,12 @@ You can use normal batch `SELECT` operations such as projection, filters, and `L
 | Ad hoc snapshot queries | Supported | Query an Iceberg source directly to read the current table snapshot. |
 | One-time loading | Supported | Append-only and mutable Iceberg tables are supported. RisingWave applies Iceberg equality deletes and position deletes when reading mutable tables. |
 | Continuous ingestion from append-only tables | Supported | Use `CREATE SOURCE` and build materialized views on top of the source. |
-| Continuous ingestion from mutable tables | Not supported for update/delete propagation | `CREATE SOURCE` is designed for append-only continuous ingestion. For mutable Iceberg tables, use refreshable `CREATE TABLE` with `FULL_RELOAD` when downstream results must reflect updates and deletes. |
+| Continuous ingestion from mutable tables | Supported with restrictions | Set `streaming_updates = 'true'` and specify a primary key for Iceberg V2 or V3 tables written by a RisingWave PK-index sink. This mode is not a general CDC reader for arbitrary Iceberg writers. |
 | On-demand full reload | Supported | Use `REFRESH TABLE` on a refreshable Iceberg table. |
 | Scheduled full reload | Supported | Set `refresh_interval_sec` together with `refresh_mode = 'FULL_RELOAD'`. |
-| Equality deletes | Supported | Supported when reading mutable tables in snapshot/full-reload paths. |
-| Position deletes | Supported | Supported when reading mutable tables in snapshot/full-reload paths. |
+| Equality deletes | Supported in snapshot/full-reload paths | Equality deletes are not supported with `streaming_updates = 'true'`. |
+| Position deletes | Supported | Snapshot/full-reload paths support position deletes. Streaming updates support file-scoped Parquet position deletes in Iceberg V2 tables written by a RisingWave PK-index sink. |
+| Deletion vectors | Supported for streaming updates | Streaming updates support Iceberg V3 deletion vectors in tables written by a RisingWave PK-index sink. |
 | Predicate pushdown | Supported | Filters can be pushed into Iceberg scans where applicable. |
 | Time travel | Supported | Query committed Iceberg snapshots by timestamp or snapshot ID where the target object supports time travel. |
 
@@ -138,7 +139,7 @@ For setup and sizing, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy
 
 ## Important limitations
 
-- `CREATE SOURCE` for Iceberg is intended for append-only continuous ingestion. Use refreshable `CREATE TABLE` with `FULL_RELOAD` for mutable external Iceberg tables.
+- Iceberg sources are append-only by default. Streaming updates require `streaming_updates = 'true'`, a SQL primary key, and an Iceberg V2 or V3 table written by a RisingWave PK-index sink. For other mutable external Iceberg tables, use refreshable `CREATE TABLE` with `FULL_RELOAD`.
 - Do not define columns in an Iceberg `CREATE SOURCE`; RisingWave infers the schema from Iceberg metadata.
 - `refresh_mode` is supported for `CREATE TABLE`, not `CREATE SOURCE`.
 - Append-only Iceberg sinks and append-only internal Iceberg tables must use merge-on-read mode.
