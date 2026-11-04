@@ -1,0 +1,142 @@
+---
+title: "Install RisingWave Cloud agent skills"
+sidebarTitle: "Agent skills"
+description: "Install and update RisingWave Cloud diagnostic skills for your AI coding assistant using the RisingWave Cloud CLI."
+---
+
+RisingWave Cloud agent skills give your AI assistant instructions and tools for discovering clusters and investigating metrics, logs, and SQL performance through Cloud APIs. Install the package with `rwc`, then use the skills from your assistant.
+
+<Note>
+The paid package requires an organization with access to paid agent skills. Check **AI Agent → Agent Skills** in the Cloud console for availability. Installing skills does not grant additional permissions: API requests use the permissions of the user or service account configured in your CLI.
+</Note>
+
+## What's included
+
+| Skill | Purpose |
+| --- | --- |
+| `rwc-cloud-discovery` | Discover account, region, and cluster context from your authenticated CLI. |
+| `risingwave-cloud-metrics` | Investigate cluster health and performance using metrics. |
+| `risingwave-cloud-logs` | Investigate errors and connector failures using cluster logs. |
+| `risingwave-sql-diagnostics` | Inspect SQL execution plans, system catalogs, and diagnostic queries. |
+| `risingwave-troubleshooting-runbooks` | Coordinate diagnostics for stalled streaming, source and sink failures, memory issues, and slow queries. |
+
+This package is separate from the embedded CLI command-reference skills installed by `rwc skill install` without `--pro`.
+
+## Step 1: Prepare your CLI
+
+[Install the latest RisingWave Cloud CLI](/cloud/install-cli) and check its version:
+
+```bash
+rwc version
+```
+
+The diagnostic helper also requires Node.js 20 or later. Use a CLI release that supports `--pro` and includes the paid package verification key. If installation reports `paid skill release trust root is not configured`, update the CLI; do not disable signature verification.
+
+## Step 2: Authenticate
+
+Browser sign-in does not authenticate the CLI. Choose either method below.
+
+<Tabs>
+  <Tab title="Service account API key">
+    Service accounts work with CLI, agent, and automation workflows, regardless of how you sign in to the console.
+
+    1. Open **AI Agent → Credentials** in the Cloud console.
+    2. Create a service account, or select one you have permission to use. Creating service accounts and keys requires the appropriate organization permissions.
+    3. Create an API key and save its secret, which is shown only once.
+    4. Configure the CLI with that key:
+
+    ```bash
+    rwc auth config --api-key '<key>' --api-key-secret '<secret>'
+    ```
+
+    Use a service account in the organization that has access to the package. Access to cluster metrics, logs, and SQL also depends on that service account's permissions. See [Role-based access control](/cloud/organization-rbac).
+  </Tab>
+  <Tab title="Email and password">
+    If your account has a RisingWave Cloud password, sign in using the interactive password prompt:
+
+    ```bash
+    rwc auth login --account 'you@example.com'
+    ```
+
+    Do not enter a Google or other identity-provider password. You can use a service account API key instead.
+  </Tab>
+</Tabs>
+
+<Warning>
+Keep API secrets and CLI configuration private. Do not paste them into assistant conversations, logs, or source control. Your shell may save commands containing secrets in its history; use your organization's approved credential-handling practices.
+</Warning>
+
+## Step 3: Install for your assistant
+
+In **AI Agent → Agent Skills**, the **Paid Agent Skills** panel shows the available package version and installation commands.
+
+For a project-local installation, run the command from the project directory where you use your assistant. Choose your target:
+
+<Tabs>
+  <Tab title="Codex">
+    ```bash
+    rwc skill install --pro --target codex
+    ```
+    Installs under `.agents/skills/` in the current project.
+  </Tab>
+  <Tab title="Claude Code">
+    ```bash
+    rwc skill install --pro --target claude-code
+    ```
+    Installs under `.claude/skills/` in the current project.
+  </Tab>
+  <Tab title="Cursor">
+    ```bash
+    rwc skill install --pro --target cursor
+    ```
+    Installs under `.agents/skills/` in the current project.
+  </Tab>
+  <Tab title="GitHub Copilot">
+    ```bash
+    rwc skill install --pro --target copilot
+    ```
+    Installs under `.agents/skills/` in the current project.
+  </Tab>
+  <Tab title="Claude Desktop">
+    ```bash
+    rwc skill install --pro --target claude-desktop
+    ```
+    Installs at user scope under `~/.claude/skills/`, not in the current project. This command writes the skill files; consult your client's skill-loading requirements to make them available in the assistant.
+  </Tab>
+</Tabs>
+
+The installer checks your package access, downloads the package, verifies its signature and file hashes, and writes the installed files and a lockfile. Keep the lockfile with the installation.
+
+## Step 4: Verify and use the skills
+
+Verify the installed files with the same target and directory used for installation. For example, for Codex:
+
+```bash
+rwc skill verify --target codex
+rwc skill doctor --target codex
+```
+
+`verify` checks installed files against the lockfile. `doctor` checks the installed package and authenticated access to the package service; it is not a cluster health check.
+
+Open the project in your assistant and follow that client's instructions for loading skills. Start with a bounded, read-only request, for example:
+
+> Use the RisingWave Cloud skills to investigate streaming latency for my cluster over the last 30 minutes. Start by discovering the cluster and region, and report your findings without changing resources.
+
+The discovery skill resolves the cluster's region; you do not need to select a region just to install the package. For manual CLI commands such as `rwc cluster list`, first [select a region](/cloud/install-cli#step-3-select-a-region).
+
+## Update the package
+
+Run the installation command again to fetch the current package, using the same target and project directory:
+
+```bash
+rwc skill install --pro --target codex
+rwc skill verify --target codex
+```
+
+Keep your own notes or custom skills separate from the managed package files. If verification fails, do not edit the lockfile to suppress the mismatch; review local modifications before reinstalling.
+
+## Related topics
+
+- [Install the RisingWave Cloud CLI](/cloud/install-cli)
+- [Service accounts and API keys](/cloud/service-account)
+- [Role-based access control](/cloud/organization-rbac)
