@@ -1,16 +1,70 @@
 ---
-title: "Install RisingWave Cloud agent skills"
+title: "Choose and install RisingWave agent skills"
 sidebarTitle: "Agent skills"
-description: "Install and update RisingWave Cloud diagnostic skills for your AI coding assistant using the RisingWave Cloud CLI."
+description: "Choose between free public skills, embedded CLI skills, and paid Cloud diagnostic skills, then install the skills for your AI assistant."
 ---
 
-RisingWave Cloud agent skills give your AI assistant instructions and tools for discovering clusters and investigating metrics, logs, and SQL performance through Cloud APIs. Install the package with `rwc`, then use the skills from your assistant.
+RisingWave provides free skills for general development and CLI guidance, plus a paid Cloud package for cluster diagnostics. Choose the skills that match your workflow; the paid package is not required to use the free skills.
+
+## Choose your skills
+
+| Option | Use it for | Installation requirements |
+| --- | --- | --- |
+| [Free public skills](#free-public-skills) | RisingWave development guidance and streaming SQL best practices. | Node.js and npm (`npx`); no Cloud login or paid package access required to install. |
+| [Free CLI skills](#free-cli-skills) | Guidance for using `rwc` commands. | An installed `rwc` binary; no Cloud login or paid package access required to install. |
+| [Paid Cloud skills](#paid-cloud-skills) | Discovering Cloud clusters and investigating metrics, logs, SQL, and operational symptoms. | An authenticated `rwc` CLI and an organization with access to the paid package. |
+
+Installing any skill does not grant access to Cloud resources. Cloud operations still require valid credentials and the appropriate permissions.
+
+## Free public skills
+
+The public [RisingWave agent skills repository](https://github.com/risingwavelabs/agent-skills) includes:
+
+- `risingwave`: guidance for connections, sources, materialized views, sinks, and streaming SQL.
+- `risingwave-best-practices`: guidance for schema design, streaming queries, CDC, and performance.
+
+With Node.js and npm installed, run the following from your project directory and select your assistant when prompted:
+
+```bash
+npx skills add risingwavelabs/agent-skills
+```
+
+To select just one skill:
+
+```bash
+npx skills add risingwavelabs/agent-skills --skill risingwave-best-practices
+```
+
+These skills do not install the paid Cloud diagnostic package.
+
+## Free CLI skills
+
+The [RisingWave Cloud CLI](/cloud/install-cli) bundles command-reference skills with the binary. Installing them does not contact the paid package service or require CLI authentication.
+
+Choose a supported target and run its command from your project directory:
+
+```bash
+# Codex
+rwc skill install --target codex
+
+# Claude Code
+rwc skill install --target claude-code
+
+# Cursor
+rwc skill install --target cursor
+```
+
+These embedded skills describe CLI commands; they are different from the paid diagnostic package installed with `--pro`. Authenticate the CLI separately before using it to operate on Cloud resources.
+
+## Paid Cloud skills
+
+The paid package provides instructions and tools for discovering clusters and investigating metrics, logs, and SQL performance through Cloud APIs.
 
 <Note>
 The paid package requires an organization with access to paid agent skills. Check **AI Agent → Agent Skills** in the Cloud console for availability. Installing skills does not grant additional permissions: API requests use the permissions of the user or service account configured in your CLI.
 </Note>
 
-## What's included
+### What's included
 
 | Skill | Purpose |
 | --- | --- |
@@ -20,9 +74,7 @@ The paid package requires an organization with access to paid agent skills. Chec
 | `risingwave-sql-diagnostics` | Inspect SQL execution plans, system catalogs, and diagnostic queries. |
 | `risingwave-troubleshooting-runbooks` | Coordinate diagnostics for stalled streaming, source and sink failures, memory issues, and slow queries. |
 
-This package is separate from the embedded CLI command-reference skills installed by `rwc skill install` without `--pro`.
-
-## Step 1: Prepare your CLI
+### Step 1: Prepare your CLI
 
 [Install the latest RisingWave Cloud CLI](/cloud/install-cli) and check its version:
 
@@ -32,7 +84,7 @@ rwc version
 
 The diagnostic helper also requires Node.js 20 or later. Use a CLI release that supports `--pro` and includes the paid package verification key. If installation reports `paid skill release trust root is not configured`, update the CLI; do not disable signature verification.
 
-## Step 2: Authenticate
+### Step 2: Authenticate
 
 Browser sign-in does not authenticate the CLI. Choose either method below.
 
@@ -66,7 +118,7 @@ Browser sign-in does not authenticate the CLI. Choose either method below.
 Keep API secrets and CLI configuration private. Do not paste them into assistant conversations, logs, or source control. Your shell may save commands containing secrets in its history; use your organization's approved credential-handling practices.
 </Warning>
 
-## Step 3: Install for your assistant
+### Step 3: Install for your assistant
 
 In **AI Agent → Agent Skills**, the **Paid Agent Skills** panel shows the available package version and installation commands.
 
@@ -107,7 +159,7 @@ For a project-local installation, run the command from the project directory whe
 
 The installer checks your package access, downloads the package, verifies its signature and file hashes, and writes the installed files and a lockfile. Keep the lockfile with the installation.
 
-## Step 4: Verify and use the skills
+### Step 4: Verify and use the skills
 
 Verify the installed files with the same target and directory used for installation. For example, for Codex:
 
@@ -124,7 +176,7 @@ Open the project in your assistant and follow that client's instructions for loa
 
 The discovery skill resolves the cluster's region; you do not need to select a region just to install the package. For manual CLI commands such as `rwc cluster list`, first [select a region](/cloud/install-cli#step-3-select-a-region).
 
-## Update the package
+### Update the paid package
 
 Run the installation command again to fetch the current package, using the same target and project directory:
 
