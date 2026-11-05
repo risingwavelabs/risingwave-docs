@@ -92,9 +92,13 @@ Support for ADLS was added in RisingWave v2.5.0. ADLS can only be used with REST
 | Parameter | Description |
 |---|---|
 | `warehouse.path` | **Required**. The warehouse path. This is typically just the name of the container or a relative path. |
-| `adlsgen2.account_name` | **Required**. The Azure Storage account name. |
-| `adlsgen2.account_key` | **Required**. The Azure Storage account key. Alternatively, you can use client credentials (client ID, client secret, tenant ID) configured in your REST catalog. |
+| `adlsgen2.account_name` | **Required unless you use vended credentials**. The Azure Storage account name. |
+| `adlsgen2.account_key` | **Required for shared-key authentication**. The Azure Storage account key. Alternatively, you can use client credentials (client ID, client secret, tenant ID) configured in your REST catalog, or vended credentials. |
 | `adlsgen2.endpoint` | **Optional**. The endpoint URL for ADLS. Defaults to `https://<account_name>.dfs.core.windows.net/`. |
+
+<Note>
+If you use a REST catalog with **vended credentials** (`vended_credentials = true`), you can omit the ADLS account name and account key. RisingWave uses the account-scoped SAS credentials provided by the catalog and refreshes them automatically before they expire.
+</Note>
 
 ```sql Example
 CREATE SINK my_iceberg_sink FROM my_mv WITH (
