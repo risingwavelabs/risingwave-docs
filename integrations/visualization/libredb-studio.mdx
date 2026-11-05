@@ -1,0 +1,41 @@
+---
+title: "Connect LibreDB Studio to RisingWave"
+sidebarTitle: LibreDB Studio
+description: "LibreDB Studio is an open-source SQL IDE that runs in the browser. It connects to PostgreSQL and many other databases. Since RisingWave is PostgreSQL-compatible, you can connect LibreDB Studio to RisingWave with its PostgreSQL driver."
+---
+
+This guide shows how to connect [LibreDB Studio](https://github.com/libredb/libredb-studio) to RisingWave so you can browse your tables and materialized views and run SQL from a browser.
+
+## Prerequisites
+
+* Install and start RisingWave. For instructions on how to get started, see the [Quick start guide](/get-started/quickstart).
+* Run LibreDB Studio. For example, with Docker:
+
+    ```bash
+    docker run -p 3000:3000 ghcr.io/libredb/libredb-studio:latest
+    ```
+
+    Open `http://localhost:3000` and sign in. On first run, the admin email and password are printed to the container log. For other ways to run it, such as the Helm chart or `npx @libredb/studio`, see the [LibreDB Studio repository](https://github.com/libredb/libredb-studio).
+
+## Establish the connection
+
+1. In LibreDB Studio, open the SQL editor workspace. An admin account opens to the admin dashboard first; click **Editor** in its top bar.
+2. Click **+** in the sidebar to add a connection, and select **PostgreSQL** as the database type.
+3. Provide the following information:
+   * Connection Name: A name for this connection.
+   * Host & Instance: The hostname or IP address of the RisingWave database, and the port number in the field beside it. The default **Host** is `localhost`. LibreDB Studio fills in port `5432`; change it to `4566`, the default RisingWave port.
+   * Username: The username for accessing the database. The default **Username** is `root`.
+   * Password: The password associated with the provided username. By default, there is no password for `root`.
+   * Database Name: The name of the RisingWave database you want to connect to. The default database is `dev`.
+
+    <Note>
+    If LibreDB Studio runs in a Docker container, `localhost` refers to that container. Use an address of the RisingWave host that the container can reach instead, such as `host.docker.internal` on Docker Desktop.
+    </Note>
+
+<Frame>
+  <img src="/images/libredb-studio-connection.png"/>
+</Frame>
+
+4. Click **Test Connection**. If there are no errors, click **Establish Connection**.
+
+Now that the connection is established, the object browser lists the tables and materialized views in the database, and expanding one shows its columns and their types. By default, anything created in RisingWave will be listed under the `dev` database and the `public` schema. You can run queries against RisingWave from the SQL editor.
