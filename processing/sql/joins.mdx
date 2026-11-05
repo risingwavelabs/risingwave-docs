@@ -259,7 +259,7 @@ An append-only temporal join is often used to widen a fact table. Its advantage 
 
 ```sql Syntax
 SELECT ... FROM <table_expression> [AS <alias>]
-[ LEFT | INNER ] JOIN <table_expression> FOR SYSTEM_TIME AS OF PROCTIME() [AS <alias>]
+[ BROADCAST ] [ LEFT | INNER ] JOIN <table_expression> FOR SYSTEM_TIME AS OF PROCTIME() [AS <alias>]
 ON <join_conditions>;
 ```
 
@@ -271,6 +271,8 @@ ON <join_conditions>;
 - The join condition must include the key columns that form the distribution key of the lookup table (right table expression).
 - Use `DESCRIBE <table_name>` to view the table's key information.
 - You can create an index on the lookup table to facilitate the temporal join if the required key columns are not part of the primary key.
+- You can add `BROADCAST` before `JOIN` or `LEFT JOIN` to preserve the left-side distribution and broadcast lookup-table changes to each temporal join actor. This can reduce actor hot spots when lookup keys are skewed.
+- `BROADCAST` temporal joins only support equality-based `INNER` and `LEFT` joins.
 
 </Note>
 
@@ -315,7 +317,7 @@ Compared to the append-only temporal join, the non-append-only temporal join can
 The non-append-only temporal join shares the same syntax as the append-only temporal join.
 
 ```sql Syntax
-<table_expression> [ LEFT | INNER ] JOIN <table_expression> FOR SYSTEM_TIME AS OF PROCTIME() ON <join_conditions>;
+<table_expression> [ BROADCAST ] [ LEFT | INNER ] JOIN <table_expression> FOR SYSTEM_TIME AS OF PROCTIME() ON <join_conditions>;
 ```
 
 For example, if you update the table `sales`:
@@ -334,6 +336,10 @@ You will get these results:
 
 <Note>
 Every time you update the left-hand side table, it will look up the latest data from the right-hand side table.
+</Note>
+
+<Note>
+`BROADCAST` remains a contextual word. If you have an existing alias named `broadcast` immediately before `JOIN`, `INNER JOIN`, or `LEFT JOIN`, write it as `AS broadcast` or `"broadcast"` to keep it as an identifier.
 </Note>
 
 <Note>
