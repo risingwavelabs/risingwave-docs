@@ -55,12 +55,34 @@ ALTER TABLE table_name CONNECTOR WITH (
 | Parameter         | Description |
 | :---------------- | :---------- |
 | **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing table without recreating it. Be aware that the properties defined in CONNECTION should be altered by `ALTER CONNECTION`.|
-| property_name | We currently support altering Kafka connectors only. Support for more connectors and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.auto.commit.interval.ms`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.reconnect.backoff.ms`, `properties.reconnect.backoff.max.ms`, `properties.retry.backoff.ms`, `properties.retry.backoff.max.ms`, `properties.socket.connection.setup.timeout.ms`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.ssl.ca.location`, `properties.ssl.ca.pem`, `properties.ssl.certificate.location`, `properties.ssl.certificate.pem`, `properties.ssl.key.location`, `properties.ssl.key.pem`, `properties.ssl.key.password`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
+| property_name | The connector property to update. For tables with connector settings, supported connectors include Kafka, Google Pub/Sub, Pulsar, MySQL CDC, PostgreSQL CDC, SQL Server CDC, and MongoDB CDC. See the [supported connector properties](/sql/commands/sql-alter-source#connector-with) for the allowed properties of each connector. For tables created with `ENGINE = iceberg`, see [Iceberg engine table properties](#iceberg-engine-table-properties). |
+
+For tables created from a shared CDC source, update the source with `ALTER SOURCE ... CONNECTOR WITH`. `ALTER TABLE ... CONNECTOR WITH` applies to tables with their own connector settings and to Iceberg engine tables. Properties outside the supported list for the connector cannot be changed with this command.
 
 ```sql Example
 ALTER TABLE plain_students
 CONNECTOR WITH (
   'properties.security.protocol' = 'SASL_SSL'
+);
+```
+
+#### Iceberg engine table properties
+
+For tables created with `ENGINE = iceberg`, use `ALTER TABLE ... CONNECTOR WITH` to update the following properties without recreating the table:
+
+| Category | Supported properties |
+| :------- | :------------------- |
+| Commit interval | `commit_checkpoint_interval` |
+| Maintenance scheduling | `enable_compaction`, `compaction_interval_sec` |
+| Snapshot expiration | `enable_snapshot_expiration`, `snapshot_expiration_max_age_millis`, `snapshot_expiration_retain_last`, `snapshot_expiration_clear_expired_files`, `snapshot_expiration_clear_expired_meta_data` |
+| Manifest rewrite | `enable_manifest_rewrite`, `manifest_rewrite_target_size_bytes`, `manifest_rewrite_min_count_to_merge` |
+| Compaction | `compaction.max_snapshots_num`, `compaction.small_files_threshold_mb`, `compaction.delete_files_count_threshold`, `compaction.trigger_snapshot_count`, `compaction.target_file_size_mb`, `compaction.type`, `compaction.write_parquet_compression`, `compaction.write_parquet_max_row_group_rows`, `compaction.write_parquet_max_row_group_bytes` |
+
+Properties outside this list, such as `write_mode`, cannot be changed with this command. For maintenance configuration details and prerequisites, see [Iceberg table maintenance](/iceberg/maintenance).
+
+```sql
+ALTER TABLE my_iceberg_table CONNECTOR WITH (
+  compaction_interval_sec = '600'
 );
 ```
 
