@@ -3,6 +3,56 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v3.1.1" description="Unreleased">
+
+This patch release adds CDC upsert table sources and broadcast temporal joins, and improves connector reliability, backfill correctness, and access control.
+
+## Breaking changes and upgrade notes
+
+- `BROADCAST` is now recognized as a temporal join modifier. If an existing query uses the bare table alias `broadcast` immediately before `JOIN`, `INNER JOIN`, or `LEFT JOIN`, write the alias as `AS broadcast` or `"broadcast"`. [#27262](https://github.com/risingwavelabs/risingwave/pull/27262)
+- Fixes silent row loss when arrangement backfill finishes immediately before a barrier while upstream writes continue. Existing indexes and materialized views created under these conditions may need to be checked and recreated if rows are missing; upgrading does not repair previously missing rows. [#27589](https://github.com/risingwavelabs/risingwave/pull/27589)
+- Preserves the deletion of the old target key when an update changes a sink's primary key, preventing stale rows when the sink key differs from the upstream stream key. Previously stale downstream rows require separate reconciliation. [#27419](https://github.com/risingwavelabs/risingwave/pull/27419)
+
+## SQL features
+
+- Adds keyed changelogs with `AS CHANGELOG FROM ... KEY (...)`. Changes are buffered until each barrier and compacted by stream key, with removals emitted before additions for replacement rows sharing the declared key. [#27252](https://github.com/risingwavelabs/risingwave/pull/27252)
+- Adds `BROADCAST JOIN` and `BROADCAST LEFT JOIN` for process-time temporal joins using `FOR SYSTEM_TIME AS OF PROCTIME()`. The lookup side is replicated across join actors, allowing join parallelism to be independent of lookup-table parallelism. Broadcast temporal joins require an equality condition and do not support snapshot backfill. [#27262](https://github.com/risingwavelabs/risingwave/pull/27262)
+- Makes streaming `NOW()` catch-up with `now_progress_ratio` follow actual elapsed time between barrier batches. Also prevents this setting from throttling streaming `generate_series` or stalling its watermarks. [#27333](https://github.com/risingwavelabs/risingwave/pull/27333), [#27491](https://github.com/risingwavelabs/risingwave/pull/27491)
+- Fixes state eviction for `EMIT ON WINDOW CLOSE` over-window queries when partition, order, and stream-key columns overlap, preventing incorrect results after recovery. [#27482](https://github.com/risingwavelabs/risingwave/pull/27482)
+- Rejects unsupported temporal join types with an error instead of crashing the frontend. [#27262](https://github.com/risingwavelabs/risingwave/pull/27262)
+
+## Connectors
+
+- Adds CDC upsert table sources using `CREATE SOURCE ... WITH (snapshot = 'false') FROM <shared_source> TABLE '...'`. These sources require a primary key and keep a catalog definition without materializing the upstream table; downstream streaming jobs consume changes through independent CDC scans. [#27711](https://github.com/risingwavelabs/risingwave/pull/27711)
+- Rejects `ALTER SOURCE ... REFRESH SCHEMA` on connector-backed tables with a hint to use `ALTER TABLE`, avoiding a frontend crash. [#27711](https://github.com/risingwavelabs/risingwave/pull/27711)
+- Preserves connection and secret references when altering source or table connector properties. Properties supplied by a connection must be changed through `ALTER CONNECTION`. Sink property validation now resolves existing secret references before validating the altered configuration. [#27200](https://github.com/risingwavelabs/risingwave/pull/27200), [#27433](https://github.com/risingwavelabs/risingwave/pull/27433)
+- Fixes MySQL CDC schema-history recovery without GTIDs by comparing binlog file positions correctly when server IDs are missing or zero. [#27405](https://github.com/risingwavelabs/risingwave/pull/27405)
+- Stops the previous CDC engine when its reader is dropped during startup, preventing PostgreSQL replication slots from remaining occupied while waiting for streaming readiness. [#27444](https://github.com/risingwavelabs/risingwave/pull/27444)
+- Allows SQL Server CDC sources to become ready while waiting for new changes. Validation checks SQL Server Agent status when accessible and falls back to CDC log availability otherwise. [#27467](https://github.com/risingwavelabs/risingwave/pull/27467)
+- Prevents SQL Server CDC shutdown from hanging on blocked JDBC I/O by force-closing connections after graceful shutdown times out. [#27336](https://github.com/risingwavelabs/risingwave/pull/27336)
+- Validates SQL Server schema and table name casing against the upstream catalog and reports the exact name to use when casing differs. [#27503](https://github.com/risingwavelabs/risingwave/pull/27503)
+- Escapes identifiers in MySQL, PostgreSQL, and SQL Server CDC snapshot queries, fixing snapshot and backfill failures for names containing quote characters. [#27695](https://github.com/risingwavelabs/risingwave/pull/27695)
+- Includes CDC offsets persisted at non-checkpoint barriers in the next checkpoint's upstream offset commit. [#27688](https://github.com/risingwavelabs/risingwave/pull/27688)
+- Restores support for base64-encoded JSON credentials in the Pub/Sub source's `pubsub.credentials` option. [#27607](https://github.com/risingwavelabs/risingwave/pull/27607)
+- Retries Pulsar sources when the SDK consumer terminates unexpectedly instead of leaving ingestion stalled. [#27516](https://github.com/risingwavelabs/risingwave/pull/27516)
+- Fixes parsing of string values for `kinesis.reader.eof_retry_interval_ms` and `kinesis.reader.error_retry_interval_ms`. [#27707](https://github.com/risingwavelabs/risingwave/pull/27707)
+- Fixes ClickHouse sinks failing with `decompression error: incorrect magic number` against ClickHouse 26.9 and later. [#27807](https://github.com/risingwavelabs/risingwave/pull/27807)
+
+## Administration and performance
+
+- Enforces `SELECT` privileges on shared CDC sources when creating CDC tables or using the source-name forms of `postgres_query` and `mysql_query`. Checks schema `CREATE` privileges before fetching an external schema for source or table creation. [#27218](https://github.com/risingwavelabs/risingwave/pull/27218), [#27219](https://github.com/risingwavelabs/risingwave/pull/27219), [#27527](https://github.com/risingwavelabs/risingwave/pull/27527)
+- Excludes the secret-store private key from serialized meta-node options, including startup event logs. [#27697](https://github.com/risingwavelabs/risingwave/pull/27697)
+- Fixes source-split restoration for independent snapshot-backfill jobs during recovery. [#27333](https://github.com/risingwavelabs/risingwave/pull/27333)
+- Adds `meta.iceberg_compaction_schedule_on_startup`, disabled by default. When enabled, meta schedules compaction for existing Iceberg sinks with automatic compaction after startup, including copy-on-write sinks with unpublished commits and no new incoming commits. [#27585](https://github.com/risingwavelabs/risingwave/pull/27585)
+- Supports an optional `database_id` filter for dashboard diagnostic reports. Shared cluster diagnostics remain included. [#27511](https://github.com/risingwavelabs/risingwave/pull/27511)
+- Reports object metadata lookup failures during object-store listing instead of silently treating an incomplete listing as complete. [#27338](https://github.com/risingwavelabs/risingwave/pull/27338)
+- Avoids waiting for unrelated storage-version updates when a batch query's requested epoch is already readable, and reduces SSTable metadata and block decoding overhead. [#27663](https://github.com/risingwavelabs/risingwave/pull/27663), [#27790](https://github.com/risingwavelabs/risingwave/pull/27790)
+- Compresses meta notification responses with Zstandard for clients that support it, reducing transfer size and allowing large initial snapshots to be delivered. Older clients continue to receive uncompressed responses. [#27693](https://github.com/risingwavelabs/risingwave/pull/27693)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.1.0...04db7efd159bfe2941cd0aeaf1a42288d49a70ff).
+
+</Update>
+
 <Update label="v3.0.5" description="2026-10-12">
 
 ## SQL features
