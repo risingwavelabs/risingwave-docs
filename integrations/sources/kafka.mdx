@@ -594,9 +594,8 @@ WITH (
 | properties.security.protocol                     | Set to SASL\_PLAINTEXT, as RisingWave does not support using SASL/GSSAPI with SSL. |
 | properties.sasl.mechanism                        | Set to GSSAPI.                                                                     |
 | properties.sasl.kerberos.service.name            |                                                                                    |
-| properties.sasl.kerberos.keytab                  |                                                                                    |
-| properties.sasl.kerberos.principal               |                                                                                    |
-| properties.sasl.kerberos.kinit.cmd               |                                                                                    |
+| properties.sasl.kerberos.keytab                  | The value must not start with `-` or contain a single quote (`'`).                  |
+| properties.sasl.kerberos.principal               | The value must not start with `-` or contain a single quote (`'`).                  |
 | properties.sasl.kerberos.min.time.before.relogin |                                                                                    |
 
 <Note>
@@ -620,7 +619,6 @@ WITH (
    properties.sasl.kerberos.service.name='kafka',
    properties.sasl.kerberos.keytab='/etc/krb5kdc/kafka.client.keytab',
    properties.sasl.kerberos.principal='kafkaclient4@AP-SOUTHEAST-1.COMPUTE.INTERNAL',
-   properties.sasl.kerberos.kinit.cmd='sudo kinit -R -kt "%{sasl.kerberos.keytab}" %{sasl.kerberos.principal} || sudo kinit -kt "%{sasl.kerberos.keytab}" %{sasl.kerberos.principal}',
    properties.sasl.kerberos.min.time.before.relogin='10000'
 ) FORMAT PLAIN ENCODE JSON;
 ```
