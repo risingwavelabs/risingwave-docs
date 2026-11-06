@@ -50,6 +50,14 @@ WITH (
 FROM <shared_source_name> TABLE <upstream_table_name>;
 ```
 
+If an upstream schema or table name contains a period (`.`), enclose that identifier in double quotes inside the single-quoted `TABLE` value. For example, use `TABLE 'public."a.b"'` for a table named `a.b` in the `public` schema, or `TABLE '"s.x".t'` for a table named `t` in the `s.x` schema.
+
+<Warning>
+A shared source cannot distinguish upstream tables whose identifier parts produce the same period-separated name. For example, do not use the same source to ingest both `TABLE '"public.a".b'` and `TABLE 'public."a.b"'`; each RisingWave table would receive changes from both upstream tables.
+</Warning>
+
+PostgreSQL CDC tables created with a quoted name containing a period before this support was introduced must be recreated after upgrading. Earlier versions accepted the table definition but did not deliver its streaming changes.
+
 ### Basic connection example
 
 ```sql
