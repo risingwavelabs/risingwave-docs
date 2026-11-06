@@ -28,6 +28,18 @@ CREATE SOURCE [ IF NOT EXISTS ] source_name (
 ];
 ```
 
+To expose a table from a shared CDC source as an upsert source without an initial snapshot, use this syntax:
+
+```sql
+CREATE SOURCE [ IF NOT EXISTS ] source_name (
+    *
+    | col_name data_type [ PRIMARY KEY ], ...
+      [ PRIMARY KEY (col_name, ...) ]
+)
+WITH (snapshot = 'false')
+FROM shared_cdc_source TABLE 'upstream_table_name';
+```
+
 ## Notes
 
 A [generated column](/sql/query-syntax/generated-columns) is defined with non-deterministic functions. When the data is ingested, the function will be evaluated to generate the value of this field.
@@ -149,6 +161,21 @@ FORMAT UPSERT ENCODE JSON;
 <Note>
 Upsert sources emit **upsert streams**, which do not contain old values for `UPDATE` operations. Therefore, stateful operators like JOINs, aggregations, and window functions do not work on an upsert source. Attempting to do so will result in errors like `"upsert stream is not supported as input of ..."`.
 </Note>
+
+### CDC table sources
+
+For MySQL, PostgreSQL, and SQL Server CDC, you can expose one upstream table from an existing [shared CDC source](/ingestion/cdc-with-risingwave#shared-sources-and-transactional-consistency) as a catalog-only upsert source. Use `*` to infer the upstream schema, or declare columns and a primary key that match the upstream table.
+
+```sql
+CREATE SOURCE orders_cdc (*)
+WITH (snapshot = 'false')
+FROM mysql_cdc TABLE 'mydb.orders';
+
+CREATE MATERIALIZED VIEW orders AS
+SELECT * FROM orders_cdc;
+```
+
+A CDC table source does not create a streaming job by itself. Each downstream streaming job starts an independent CDC scan and receives only changes that arrive after that job is created. This mode requires exactly `WITH (snapshot = 'false')`; initial snapshots and batch queries on the source are not supported.
 
 ## Change Data Capture (CDC)
 
