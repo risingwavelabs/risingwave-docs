@@ -142,6 +142,17 @@ The following configuration controls how often the join hash map cache is evicte
 
 Storage configurations can be set in `[storage]` and `[storage.xxx]` sections.
 
+#### S3 HTTP client rotation
+
+For S3 and MinIO object stores, RisingWave can periodically replace the HTTP client so that new connections can resolve the object store endpoint again after DNS changes. Configure the rotation interval in milliseconds:
+
+```toml
+[storage.object_store.s3]
+http_client_rotation_interval_ms = 60000
+```
+
+The option is disabled by default. When set, the value must be greater than `0`. The first rotation occurs after one configured interval plus a random delay of up to one interval; later rotations use the configured interval. Requests already in progress continue across rotations and may outlive the interval, so this option does not impose a maximum connection lifetime or guarantee that a new connection uses a different backend.
+
 #### File cache and block cache
 
 In RisingWave, several node-specific configurations are provided to control the refilling process of file cache and block cache.
