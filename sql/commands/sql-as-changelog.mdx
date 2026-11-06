@@ -13,11 +13,21 @@ The AS CHANGELOG clause adds two metadata columns:
 ## Syntax
 
 ```sql
-WITH table_name AS CHANGELOG FROM source_table [KEY (column_name [, ...])]
+WITH table_name AS CHANGELOG FROM source_table
+    [KEY (column_name [, ...])]
+    [DISTRIBUTED BY (column_name [, ...])]
 SELECT ... FROM table_name;
 ```
 
 This uses common table expression (CTE) syntax within `CREATE MATERIALIZED VIEW` or `CREATE SINK`. It exposes changes from the source relation as rows with metadata columns. The optional `KEY` clause enables keyed changelogs; omit it to retain the existing per-change behavior.
+
+The optional `DISTRIBUTED BY` clause specifies the source columns that determine the virtual node encoded in each generated `_changelog_row_id`. Rows with the same values in these columns use the same virtual node. You can use `DISTRIBUTED BY` with or without `KEY`. When both clauses are present, `DISTRIBUTED BY` must follow `KEY`, and its columns must be a subset of the `KEY` columns.
+
+```sql
+WITH changes AS CHANGELOG FROM orders
+KEY (tenant_id, order_id) DISTRIBUTED BY (tenant_id)
+SELECT * FROM changes;
+```
 
 ## Example
 
@@ -58,7 +68,7 @@ v1  v2  changelog_op
 
 ## Keyed changelogs
 
-Use `KEY (column_name [, ...])` to group change events by a business key. Each key column must be a distinct, visible column in the source relation. This key controls how changes are distributed and ordered; it does not declare a primary key or enforce uniqueness.
+Use `KEY (column_name [, ...])` to group change events by a business key. Each key column must be a distinct, visible column in the source relation. This key controls how changes are compacted and ordered; it does not declare a primary key or enforce uniqueness. If you omit `DISTRIBUTED BY`, the key columns also determine distribution.
 
 Keyed changelogs buffer changes until each barrier. They compact changes using the upstream stream key together with the declared key, removing intermediate changes that cancel out within that interval. For rows sharing the declared key, removal events are emitted before addition events. This ensures that replacing a row leaves its addition as the latest event, even if the upstream insert arrives before the delete. Multiple upstream rows with the same declared key can still produce separate events.
 
