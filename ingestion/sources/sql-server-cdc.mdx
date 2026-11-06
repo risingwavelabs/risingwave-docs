@@ -83,6 +83,12 @@ WITH (
 FROM source TABLE sqlserver_table_name;
 ```
 
+If an upstream database, schema, or table name contains a period (`.`), enclose that identifier in square brackets inside the single-quoted `TABLE` value. For example, use `TABLE 'dbo.[a.b]'` for a table named `a.b`, `TABLE '[s.x].t'` for a schema named `s.x`, or `TABLE '[my.db].dbo.[a.b]'` to include the database name. If specified, the database name must match `database.name` in the source definition.
+
+<Warning>
+A shared source cannot distinguish upstream tables whose identifier parts produce the same period-separated name. For example, do not use the same source to ingest both `TABLE '[my.db].[dbo.a].[b]'` and `TABLE '[my.db].[dbo].[a.b]'`; each RisingWave table would receive changes from both upstream tables.
+</Warning>
+
 Although SQL Server is case-insensitive in most cases, to avoid potential issues, please ensure that the case of the schema names, table names, and column names in RisingWave and SQL Server is consistent.
 
 ### Connector parameters
