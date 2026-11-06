@@ -1,7 +1,7 @@
 ---
 title: "What is Change Data Capture (CDC) in RisingWave?"
 sidebarTitle: "Change Data Capture (CDC)"
-description: "Change data capture (CDC) in RisingWave lets you replicate real-time database changes from PostgreSQL, MySQL, SQL Server, and MongoDB — no Kafka or Debezium required. Learn how native CDC works."
+description: "Change data capture (CDC) in RisingWave lets you replicate real-time database changes from PostgreSQL, MySQL, MariaDB, SQL Server, and MongoDB — no Kafka or Debezium required. Learn how native CDC works."
 ---
 
 ## What is change data capture?
@@ -35,7 +35,7 @@ CREATE TABLE orders (
 Once created, the CDC table:
 
 1. **Performs an initial snapshot** of the existing data in the source table.
-2. **Streams ongoing changes** in real time using the database's replication protocol (WAL for PostgreSQL, binlog for MySQL).
+2. **Streams ongoing changes** in real time using the database's replication protocol (WAL for PostgreSQL, binlog for MySQL and MariaDB).
 3. **Maintains transactional consistency** — changes are applied in the same order as the source database.
 4. **Recovers automatically** from failures using checkpoint-based restoration.
 
@@ -45,6 +45,7 @@ Once created, the CDC table:
 | :--- | :--- | :--- |
 | PostgreSQL | `postgres-cdc` | Logical replication (WAL) |
 | MySQL | `mysql-cdc` | Binlog replication |
+| MariaDB | `mariadb-cdc` | Binlog replication |
 | SQL Server | `sqlserver-cdc` | SQL Server CDC tables |
 | MongoDB | `mongodb-cdc` | Change streams |
 
@@ -100,6 +101,7 @@ You can also ingest CDC events through Kafka using Debezium or other CDC tools t
 - [CDC with RisingWave](/ingestion/cdc-with-risingwave) — Connector setup guides
 - [PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc) — PostgreSQL-specific setup
 - [MySQL CDC](/ingestion/sources/mysql/mysql-cdc) — MySQL-specific setup
+- [MariaDB CDC](/ingestion/sources/mariadb-cdc) — MariaDB-specific setup
 - [Source, Table, MV, and Sink](/get-started/source-table-mv-sink) — Why CDC requires tables
 
 <head>
@@ -114,7 +116,7 @@ You can also ingest CDC events through Kafka using Debezium or other CDC tools t
           "name": "What is change data capture (CDC) in RisingWave?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Change data capture (CDC) in RisingWave is the process of tracking row-level changes (inserts, updates, deletes) in a source database and streaming them into RisingWave in real time. RisingWave provides native CDC connectors for PostgreSQL, MySQL, SQL Server, and MongoDB that connect directly to the source database without requiring Kafka or Debezium."
+            "text": "Change data capture (CDC) in RisingWave is the process of tracking row-level changes (inserts, updates, deletes) in a source database and streaming them into RisingWave in real time. RisingWave provides native CDC connectors for PostgreSQL, MySQL, MariaDB, SQL Server, and MongoDB that connect directly to the source database without requiring Kafka or Debezium."
           }
         },
         {
@@ -122,7 +124,7 @@ You can also ingest CDC events through Kafka using Debezium or other CDC tools t
           "name": "Does RisingWave CDC require Kafka or Debezium?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. RisingWave provides native CDC connectors that connect directly to source databases (PostgreSQL, MySQL, SQL Server, MongoDB) without requiring Kafka, Debezium, or any other middleware. This reduces infrastructure complexity and operational overhead. Kafka-based CDC via Debezium JSON is also supported as an alternative."
+            "text": "No. RisingWave provides native CDC connectors that connect directly to source databases (PostgreSQL, MySQL, MariaDB, SQL Server, MongoDB) without requiring Kafka, Debezium, or any other middleware. This reduces infrastructure complexity and operational overhead. Kafka-based CDC via Debezium JSON is also supported as an alternative."
           }
         },
         {
