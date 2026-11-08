@@ -17,8 +17,10 @@ The `CREATE FUNCTION` command is used to declare these UDFs. After that, you can
 CREATE FUNCTION [ IF NOT EXISTS ] function_name ( argument_type [, ...] )
     [ RETURNS return_type | RETURNS TABLE ( column_name column_type [, ...] ) ]
     [ LANGUAGE language_name ]
+    [ IMMUTABLE ]
     AS function_name_defined_in_server
-    USING LINK 'udf_server_address';
+    USING LINK 'udf_server_address'
+    [ WITH ( option = value [, ...] ) ];
 ```
 
 <Note>
@@ -96,6 +98,35 @@ $$;
 ```
 
 For more details, see [Use UDFs in Rust](/sql/udfs/use-udfs-in-rust).
+
+## Skip result materialization for scalar UDFs
+
+By default, RisingWave materializes evaluated UDF results on retract streams. For a deterministic scalar external or embedded UDF, you can opt the function out of result materialization to reduce state storage and I/O. Declare the function `IMMUTABLE` and set `unsafe_skip_materializing_exprs` to `true`:
+
+```sql
+CREATE FUNCTION identity(v int) RETURNS int
+LANGUAGE javascript
+IMMUTABLE
+AS $$
+    return v;
+$$
+WITH (unsafe_skip_materializing_exprs = true);
+```
+
+`IMMUTABLE` declares that the function is deterministic and has no side effects. It allows RisingWave to treat the function as pure when its arguments are pure, but does not by itself disable result materialization. The `unsafe_skip_materializing_exprs` option defaults to `false` and requires `IMMUTABLE`.
+
+RisingWave trusts the `IMMUTABLE` declaration and does not inspect the function implementation. Without materialized results, RisingWave may re-evaluate the function when processing updates or retractions. If the function is not deterministic and side-effect-free, re-evaluation can produce inconsistent results or execution failures.
+
+The option is supported only for scalar external and embedded UDFs; table functions, aggregate functions, and SQL UDFs cannot use it. `IMMUTABLE` itself is also rejected for table and aggregate functions. For an external scalar UDF, `IMMUTABLE` requires network retries to be enabled:
+
+```sql
+WITH (
+    always_retry_on_network_error = true,
+    unsafe_skip_materializing_exprs = true
+)
+```
+
+This per-function option affects retract streams. On UPSERT streams, RisingWave does not materialize computed project expressions regardless of this option. The [`streaming_unsafe_allow_unmaterialized_impure_expr`](/operate/view-configure-runtime-parameters#how-to-view-runtime-parameters) session parameter is a broader override: when enabled, it skips planner-inserted materialization for every expression on retract streams, not just selected immutable UDFs.
 
 ## SQL UDFs
 
