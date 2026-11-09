@@ -87,3 +87,9 @@ SELECT
 FROM t
 EMIT ON WINDOW CLOSE;
 ```
+
+When `ORDER BY` uses a single ascending column with a watermark, `RANGE` and `SESSION` frames can close based on the watermark, even if no later row arrives in the same partition. A `SESSION` frame closes when the watermark reaches the earliest value that would start the next session. A bounded `RANGE` frame closes when the watermark passes the frame end, because a row equal to the frame end still belongs to the frame. If a `RANGE` frame ends before the current row, it can close as soon as the current row arrives.
+
+<Note>
+This behavior applies to materialized views created after upgrading to a RisingWave version that supports it. Existing materialized views retain their previous execution plans and wait for a later row in the same partition. Recreate them to enable watermark-triggered closure for `RANGE` and `SESSION` frames.
+</Note>
