@@ -5,6 +5,8 @@ description: "This guide introduces how to back up meta service data and restore
 
 A meta snapshot is a backup of meta service's data at a specific point in time. Meta snapshots are persisted in object storage. RisingWave supports multiple object storage backends including S3, MinIO, Google Cloud Storage (GCS), Alibaba Cloud OSS, Huawei Cloud OBS, Azure Blob Storage, HDFS, WebHDFS, and local filesystem.
 
+Meta snapshots reference the state-store objects needed for restoration instead of copying those objects into the backup. Garbage collection preserves the referenced objects, including while a snapshot is being created. Delete snapshots that you no longer need so unreferenced objects can be reclaimed.
+
 ## Set backup parameters
 
 Before you can create a meta snapshot, you need to set the `backup_storage_url` and `backup_storage_directory` system parameters prior to the first backup attempt.
