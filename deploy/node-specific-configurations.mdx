@@ -222,6 +222,23 @@ Supported values are:
 
 The override is persisted with the materialized view. After recovery, RisingWave rebuilds the cache refill runtime state from the persisted config automatically. For `serving`, `streaming`, and `both`, the runtime state also refreshes when worker ownership changes, so a full cluster recovery is not required to pick up serving worker changes.
 
+#### OpenDAL streaming reads
+
+For object store backends that use OpenDAL, you can split a streaming read into fully buffered range requests and fetch multiple ranges concurrently. Configure the range size and concurrency in the `[storage.object_store]` section:
+
+```toml
+[storage.object_store]
+opendal_streaming_read_chunk_size = 8388608
+opendal_streaming_read_chunk_concurrency = 4
+```
+
+| Configuration | Default | Description |
+| :------------ | :------ | :---------- |
+| `opendal_streaming_read_chunk_size` | `0` | Maximum number of bytes in each range request. Set this to a positive value to enable chunked reads. A value of `0` disables chunking. |
+| `opendal_streaming_read_chunk_concurrency` | `1` | Maximum number of concurrent range requests when chunked reads are enabled. OpenDAL treats `0` as `1`. |
+
+These configurations do not affect other object store backends. Increasing the chunk size or concurrency can increase memory usage during compaction.
+
 #### Other storage configurations
 
 Except for the above, RisingWave also provides some other storage configurations to help control the overall buffer and cache limits. Please see [Dedicated Compute Nodes](/operate/dedicated-compute-node) for more.
