@@ -1,0 +1,98 @@
+---
+title: "MariaDB CDC"
+sidebarTitle: MariaDB CDC
+description: "Replicate data from MariaDB 11.4 to RisingWave in real time using the native MariaDB CDC connector."
+---
+
+Connect RisingWave to MariaDB 11.4 to ingest data changes in real time using the native MariaDB CDC source connector. The connector uses Debezium's dedicated MariaDB connector and supports snapshots, incremental changes, transactions, automatic schema changes, recovery, and binlog monitoring.
+
+## Prerequisites
+
+Configure the MariaDB server to use row-based binary logging. In the MariaDB server configuration file, set the following options and restart the server:
+
+```ini
+server_id = 4101
+log_bin = mariadb-bin
+binlog_format = ROW
+binlog_row_image = FULL
+binlog_legacy_event_pos = ON
+```
+
+`binlog_legacy_event_pos` must be enabled so that the connector can resume reliably from a saved binlog position.
+
+Create a MariaDB user and grant it the privileges needed for a shared CDC source:
+
+```sql
+CREATE USER 'rw_cdc'@'%' IDENTIFIED BY '<password>';
+GRANT SELECT, REPLICATION SLAVE, BINLOG MONITOR ON *.* TO 'rw_cdc'@'%';
+FLUSH PRIVILEGES;
+```
+
+MariaDB 10.5 and later reports `BINLOG MONITOR` as the renamed equivalent of `REPLICATION CLIENT`. RisingWave accepts either privilege when validating the source.
+
+## Connect to MariaDB
+
+First, create a shared source that establishes the connection to MariaDB:
+
+```sql
+CREATE SOURCE mariadb_source WITH (
+  connector = 'mariadb-cdc',
+  hostname = '127.0.0.1',
+  port = '3306',
+  username = 'rw_cdc',
+  password = '<password>',
+  database.name = 'mydb',
+  server.id = '4102'
+);
+```
+
+Then create a table for each upstream table that you want to replicate. The upstream table name must include the database name.
+
+```sql
+CREATE TABLE orders (*)
+FROM mariadb_source TABLE 'mydb.orders';
+```
+
+You can use one shared source to create tables from multiple databases by setting `database.name` to a comma-separated list of database names.
+
+## Source parameters
+
+| Parameter | Description |
+| :--- | :--- |
+| `connector` | Must be set to `mariadb-cdc`. |
+| `hostname` | Hostname of the MariaDB server. |
+| `port` | Port number of the MariaDB server. |
+| `username` | Username used to connect to MariaDB. |
+| `password` | Password used to connect to MariaDB. |
+| `database.name` | Name of the database to replicate. To replicate tables from multiple databases, specify a comma-separated list. |
+| `server.id` | **Optional.** A numeric replication client ID. It must be unique among all replication clients in the MariaDB cluster. If omitted, RisingWave generates a random ID. |
+| `auto.schema.change` | **Optional.** Set to `true` to replicate supported upstream table schema changes. The default is `false`. |
+| `ssl.mode` | **Optional.** TLS mode. Accepted values are `disabled`, `required`, `verify-ca`, and `verify-full`. The default is `disabled`. `preferred` is not supported. |
+| `ssl.root.cert` | **Optional.** Path to a CA certificate. Set this when `ssl.mode` is `verify-ca` or `verify-full` and the MariaDB server certificate is signed by a private CA. |
+
+For Debezium MariaDB connector properties, add the `debezium.` prefix to the property name and specify it in the `WITH` clause.
+
+## Table parameters
+
+Tables created from a MariaDB CDC source support the same snapshot and backfill parameters as MySQL CDC tables. See [MySQL CDC table parameters](/ingestion/sources/mysql/mysql-cdc#parameters).
+
+MariaDB columns use the same RisingWave type mappings as MySQL columns. See [MySQL CDC data type mapping](/ingestion/sources/mysql/mysql-cdc#data-type-mapping).
+
+## Automatically replicate schema changes
+
+Set `auto.schema.change = 'true'` on the source to automatically apply supported upstream schema changes to tables created with `*`:
+
+```sql
+CREATE SOURCE mariadb_source WITH (
+  connector = 'mariadb-cdc',
+  hostname = '127.0.0.1',
+  port = '3306',
+  username = 'rw_cdc',
+  password = '<password>',
+  database.name = 'mydb',
+  auto.schema.change = 'true'
+);
+
+CREATE TABLE orders (*)
+FROM mariadb_source TABLE 'mydb.orders';
+```

@@ -1,17 +1,17 @@
 ---
 title: "Change data capture"
 sidebarTitle: "CDC with RisingWave"
-description: "Ingest real-time change data capture (CDC) streams from PostgreSQL, MySQL, SQL Server, and MongoDB into RisingWave — no Kafka required. Native CDC connectors with shared source support."
+description: "Ingest real-time change data capture (CDC) streams from PostgreSQL, MySQL, MariaDB, SQL Server, and MongoDB into RisingWave — no Kafka required. Native CDC connectors with shared source support."
 ---
 
-Change data capture (CDC) lets you replicate real-time data changes from operational databases into RisingWave for stream processing and analytics. RisingWave provides **native CDC connectors** for PostgreSQL, MySQL, SQL Server, and MongoDB — no Kafka, no Debezium deployment, and no additional middleware required.
+Change data capture (CDC) lets you replicate real-time data changes from operational databases into RisingWave for stream processing and analytics. RisingWave provides **native CDC connectors** for PostgreSQL, MySQL, MariaDB, SQL Server, and MongoDB — no Kafka, no Debezium deployment, and no additional middleware required.
 
 ## How RisingWave implements CDC
 
 RisingWave reads database change streams differently depending on the source database:
 
 - **PostgreSQL**: RisingWave uses an embedded Debezium connector to connect to PostgreSQL's logical replication slot and read the write-ahead log (WAL) using the native replication protocol, without requiring Kafka or an external Debezium deployment.
-- **MySQL and SQL Server**: RisingWave embeds the [Debezium Embedded Engine](https://debezium.io/documentation/reference/development/engine.html) in-process. The engine reads binlog (MySQL) or CDC (SQL Server) directly, without requiring a Kafka cluster or Kafka Connect worker.
+- **MySQL, MariaDB, and SQL Server**: RisingWave embeds the [Debezium Embedded Engine](https://debezium.io/documentation/reference/development/engine.html) in-process. The engine reads binlog (MySQL and MariaDB) or CDC (SQL Server) directly, without requiring a Kafka cluster or Kafka Connect worker.
 - **MongoDB**: RisingWave reads MongoDB change streams via the native MongoDB change stream API.
 
 In all cases, changes flow directly from the source database into RisingWave's streaming engine with transactional consistency and automatic checkpoint recovery.
@@ -66,12 +66,13 @@ When replicating multiple tables from the same database, use a **shared source**
 
 If each table created its own separate replication connection, a transaction updating both `users` and `orders` could arrive at the two tables at different times — breaking transactional consistency. With a shared source, all tables consume the same ordered change stream, so multi-table transactions are always applied together.
 
-Shared sources are supported for PostgreSQL CDC, MySQL CDC, and SQL Server CDC.
+Shared sources are supported for PostgreSQL CDC, MySQL CDC, MariaDB CDC, and SQL Server CDC.
 
 ## Connector reference
 
 - [PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc)
 - [MySQL CDC](/ingestion/sources/mysql/mysql-cdc)
+- [MariaDB CDC](/ingestion/sources/mariadb-cdc)
 - [SQL Server CDC](/ingestion/sources/sql-server-cdc)
 - [MongoDB CDC](/ingestion/sources/mongodb-cdc)
 
