@@ -18,7 +18,7 @@ In all cases, changes flow directly from the source database into RisingWave's s
 
 ## CDC sources and tables
 
-CDC connectors in RisingWave require a **Table**, not just a Source. Because a CDC stream contains inserts, updates, and deletes, RisingWave must materialize the current state of the data to correctly apply each operation. A Table provides this state store, along with a primary key and offset tracking for fault-tolerant recovery.
+For the standard CDC ingestion path, use a **Table** to materialize the current state of the upstream data. Because a CDC stream contains inserts, updates, and deletes, the table provides a state store, primary key, and offset tracking for fault-tolerant recovery.
 
 You can create CDC tables in two ways:
 
@@ -59,6 +59,55 @@ CREATE SOURCE pg_src WITH (
 CREATE TABLE users (...) FROM pg_src TABLE 'public.users';
 CREATE TABLE orders (...) FROM pg_src TABLE 'public.orders';
 ```
+
+### CDC upsert sources
+
+If you only need future changes, you can expose one table from a shared MySQL, PostgreSQL, or SQL Server CDC source as an upsert source:
+
+```sql
+CREATE SOURCE orders_cdc (*)
+WITH (snapshot = 'false')
+FROM pg_src TABLE 'public.orders';
+```
+
+Typical uses are forwarding changes to an upsert-capable sink, or using `AS CHANGELOG` to process each change as an append-only event.
+
+For a passthrough sink with stateless transformations, assume `orders_cdc` has columns `id INT PRIMARY KEY`, `customer_id INT`, and `amount INT`. Create the downstream PostgreSQL table as shown in the [sink example](/sql/commands/sql-create-source#use-case-forward-changes-to-an-upsert-sink), then run this in RisingWave:
+
+```sql
+CREATE SINK orders_to_postgres AS
+SELECT id, customer_id, amount::BIGINT AS amount
+FROM orders_cdc
+WHERE id > 0
+WITH (
+    connector = 'jdbc',
+    jdbc.url = 'jdbc:postgresql://postgres:5432/replica',
+    user = 'sink_user',
+    password = 'your_password',
+    schema.name = 'public',
+    table.name = 'orders_replica',
+    type = 'upsert',
+    primary_key = 'id'
+);
+```
+
+This example projects columns, casts `amount` to `BIGINT`, and filters on the primary key, so the predicate can also be evaluated for deletes that contain only key values. Replace the connection settings with your downstream PostgreSQL configuration.
+
+To process changes as append-only events instead, use `AS CHANGELOG`:
+
+```sql
+CREATE MATERIALIZED VIEW order_change_events AS
+WITH changes AS CHANGELOG FROM orders_cdc
+SELECT * FROM changes;
+```
+
+The source does not store the current table state or backfill existing rows. Each downstream job starts receiving changes when that job is created. Its output is an **upsert stream**: updates carry new values without old values, and deletes may contain only primary-key values. Joins, aggregations, and other operators requiring retractable input need a table first, created with `CREATE TABLE` or populated through `CREATE SINK ... INTO`.
+
+<Warning>
+CDC upsert sources cannot reconstruct unchanged PostgreSQL TOAST values omitted from change records. Use the standard CDC table path with backfill when correct TOAST values are required. `AS CHANGELOG` and sinking the upsert source into a table do not remove this limitation.
+</Warning>
+
+See [CDC table sources](/sql/commands/sql-create-source#cdc-table-sources) for passthrough sink, changelog, and table-materialization examples, as well as the full limitations.
 
 ## Shared sources and transactional consistency
 
