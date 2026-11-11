@@ -3,6 +3,61 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v3.1.1" description="2026-11-05">
+
+This is a patch release for the v3.1 line. It backports the keyed changelog and `NOW()` progress improvements from v3.0.5, adds broadcast temporal joins, and fixes a set of CDC, sink, privilege, and recovery issues.
+
+## SQL features
+
+- Adds [keyed changelogs](/sql/commands/sql-as-changelog#keyed-changelogs) with `AS CHANGELOG FROM ... KEY (...)` to the v3.1 line. [#27252](https://github.com/risingwavelabs/risingwave/pull/27252)
+- Supports broadcast temporal joins, which replicate a small versioned table to every parallelism instead of shuffling the probe side. [#27262](https://github.com/risingwavelabs/risingwave/pull/27262)
+- Makes streaming `NOW()` catch-up with `now_progress_ratio` follow actual elapsed time between barrier batches, and recovers source splits for independent snapshot-backfill jobs during recovery. [#27333](https://github.com/risingwavelabs/risingwave/pull/27333)
+- Stops `now_progress_ratio` from throttling `generate_series` sources. [#27491](https://github.com/risingwavelabs/risingwave/pull/27491)
+- Builds emit-on-window-close eviction keys by column index, fixing wrong eviction when the window column is not the first output column. [#27482](https://github.com/risingwavelabs/risingwave/pull/27482)
+- Forwards buffered upstream rows when an arrangement backfill finishes on a barrier, preventing dropped rows at the end of a backfill. [#27589](https://github.com/risingwavelabs/risingwave/pull/27589)
+
+## Security and privileges
+
+- Enforces the `SELECT` privilege on the source when calling `postgres_query`. [#27218](https://github.com/risingwavelabs/risingwave/pull/27218)
+- Checks the `CREATE` privilege before fetching upstream schemas. [#27527](https://github.com/risingwavelabs/risingwave/pull/27527)
+- Checks the source privilege when creating CDC tables. [#27219](https://github.com/risingwavelabs/risingwave/pull/27219)
+- No longer serializes the secret store private key in meta options. [#27697](https://github.com/risingwavelabs/risingwave/pull/27697)
+
+## Connectors
+
+- Preserves connection and secret references when altering source or table connector properties, and fills secrets before validating altered sink properties. [#27200](https://github.com/risingwavelabs/risingwave/pull/27200), [#27433](https://github.com/risingwavelabs/risingwave/pull/27433)
+- Preserves the deletion of the old target key when an update changes a sink's primary key. [#27419](https://github.com/risingwavelabs/risingwave/pull/27419)
+- Backports upsert CDC sources and the CDC schema-refresh fix to the v3.1 line. [#27711](https://github.com/risingwavelabs/risingwave/pull/27711)
+- CDC fixes: cancels engine startup when the reader is dropped ([#27444](https://github.com/risingwavelabs/risingwave/pull/27444)); compares MySQL schema-history positions by binlog coordinates ([#27405](https://github.com/risingwavelabs/risingwave/pull/27405)); starts SQL Server sources on databases with no recent change ([#27467](https://github.com/risingwavelabs/risingwave/pull/27467)); force-closes SQL Server connections on shutdown ([#27336](https://github.com/risingwavelabs/risingwave/pull/27336)); validates SQL Server table name casing ([#27503](https://github.com/risingwavelabs/risingwave/pull/27503)); escapes identifiers in external table snapshot queries ([#27695](https://github.com/risingwavelabs/risingwave/pull/27695)); commits offsets persisted on non-checkpoint barriers ([#27688](https://github.com/risingwavelabs/risingwave/pull/27688)).
+- Restores base64-encoded Pub/Sub source credentials. [#27607](https://github.com/risingwavelabs/risingwave/pull/27607)
+- Retries when a Pulsar consumer terminates. [#27516](https://github.com/risingwavelabs/risingwave/pull/27516)
+- Parses Kinesis reader retry intervals supplied as strings. [#27707](https://github.com/risingwavelabs/risingwave/pull/27707)
+- Moves the ClickHouse sink to `clickhouse-rs` 0.15.3. [#27807](https://github.com/risingwavelabs/risingwave/pull/27807)
+
+## Iceberg
+
+- Recovers Iceberg compaction schedules after a meta node restart. [#27585](https://github.com/risingwavelabs/risingwave/pull/27585)
+
+## Administration and storage
+
+- Supports database filters in diagnostic reports. [#27511](https://github.com/risingwavelabs/risingwave/pull/27511)
+- Sends notification service responses zstd-compressed. [#27693](https://github.com/risingwavelabs/risingwave/pull/27693)
+- Reports object metadata lookup failures during object-store listing instead of treating an incomplete listing as complete. [#27338](https://github.com/risingwavelabs/risingwave/pull/27338)
+- Storage performance: avoids version waits for readable batch query epochs ([#27663](https://github.com/risingwavelabs/risingwave/pull/27663)); omits unused fields from serverless compaction reports ([#27753](https://github.com/risingwavelabs/risingwave/pull/27753)); reduces SST metadata and block decode overhead ([#27790](https://github.com/risingwavelabs/risingwave/pull/27790)); shortens the Hummock GC context lock scope ([#27650](https://github.com/risingwavelabs/risingwave/pull/27650)).
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.1.1 single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.1.1/risingwave-v3.1.1-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.1.1.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.1.1.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.1.1/risectl-v3.1.1-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.1.0...v3.1.1).
+
+</Update>
+
 <Update label="v3.0.5" description="2026-10-12">
 
 ## SQL features
