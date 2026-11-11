@@ -23,11 +23,21 @@ Here’s what you should know about the upgrade:
 
 ## How to upgrade
 
-Upgrading your RisingWave version is simple:
+### Upgrade in the Cloud portal
 
 1. Go to the [RisingWave Cloud dashboard](https://cloud.risingwave.com/dashboard), and open the cluster you want to upgrade.
 2. Click **Upgrade** in the cluster header or the upgrade banner on the **Overview** page.
 3. Wait for the upgrade to complete. This typically takes a few minutes.
+
+The Cloud portal upgrades your cluster one eligible release at a time. If a newer patch is available for the current minor version, the portal targets the latest supported patch first. Otherwise, it targets the latest supported patch of the next minor version. Repeat the steps above to move through multiple minor versions.
+
+### Upgrade with Terraform
+
+If you manage your cluster with the [RisingWave Cloud Terraform Provider](https://registry.terraform.io/providers/risingwavelabs/risingwavecloud/latest/docs), update the `version` attribute of the [`risingwavecloud_cluster` resource](https://registry.terraform.io/providers/risingwavelabs/risingwavecloud/latest/docs/resources/cluster#version), then run `terraform plan` and `terraform apply`.
+
+We recommend upgrading one minor version at a time. Contact RisingWave Support before skipping a minor version, because some upgrade paths may require intermediate migration steps.
+
+If the cluster was upgraded outside Terraform, such as through the Cloud portal or by RisingWave Support, update the `version` attribute in your Terraform configuration to match the cluster's current version before the next `terraform apply`. Otherwise, Terraform will attempt to restore the older configured version, and the apply will fail because downgrades are not supported.
 
 <Note>
 You can only upgrade to newer versions of RisingWave. Downgrading to previous versions is not supported.
