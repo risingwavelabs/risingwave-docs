@@ -47,6 +47,8 @@ All parameters are required unless specified otherwise.
 | primary\_key                 | Required if type is `upsert`. The primary key of the downstream table.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | commit\_checkpoint\_interval | **Optional**. Commit every N checkpoints (N > 0). Default value is 10. The behavior of this field also depends on the `sink_decouple` setting:<ul><li>If `sink_decouple` is true (the default), the default value of `commit_checkpoint_interval` is 10.</li> <li>If `sink_decouple` is set to false, the default value of `commit_checkpoint_interval` is 1.</li> <li>If `sink_decouple` is set to false and `commit_checkpoint_interval` is set to larger than 1, an error will occur.</li></ul>                                                                 |
 
+For an existing [decoupled sink](/delivery/overview#sink-decoupling), use [`ALTER SINK ... CONNECTOR WITH`](/sql/commands/sql-alter-sink#connector-with) to update `starrocks.max_transaction_size_bytes`. The new limit applies after RisingWave rebuilds the sink writer.
+
 ## Examples
 
 Assume we have a materialized view, `bhv_mv`.
