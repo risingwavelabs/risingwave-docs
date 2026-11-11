@@ -27,6 +27,7 @@ Every user and service account in an organization also has a system-managed `Org
 | `OrganizationMember` | Organization | System-managed baseline access to view organization information, list projects, users, service accounts, role bindings, and invitations, and manage personal notifications. It does not grant access to operate project resources, manage organization access, or view billing. |
 | `BillingManager` | Organization | Full access to billing profiles, usage, payments, and invoices. It does not grant access to operate projects or manage organization access. |
 | `ProjectAdmin` | Organization or project | Full access to project resources. At organization scope, the role applies to all projects. At project scope, it applies only to the selected project. It does not grant access to manage users, service accounts, invitations, role bindings, or billing. |
+| `ProjectViewer` | Organization or project | Read-only access to project resources and operational views, including metrics and data previews. At organization scope, the role applies to all projects. At project scope, it applies only to the selected project. It does not allow resource changes, arbitrary SQL execution, credential or raw-log access, organization access management, or billing access. |
 
 <Note>
 Every organization must have at least one user with the organization-scoped `OrganizationAdmin` role. RisingWave Cloud rejects attempts to remove the last such role binding.
@@ -34,15 +35,17 @@ Every organization must have at least one user with the organization-scoped `Org
 
 ## Choose a scope
 
-Use an **organization scope** when a principal needs the same role in every project. For example, an organization-scoped `ProjectAdmin` can operate all current and future projects without receiving organization administration or billing permissions.
+Use an **organization scope** when a principal needs the same role in every project. For example, an organization-scoped `ProjectAdmin` can operate all current and future projects without receiving organization administration or billing permissions. An organization-scoped `ProjectViewer` can view those projects without changing them.
 
-Use a **project scope** to restrict `ProjectAdmin` access to one project. The binding includes the selected project's resources, such as clusters, databases, sources, sinks, tables, views, private links, and backups. It does not grant access to any other project.
+Use a **project scope** to restrict `ProjectAdmin` or `ProjectViewer` access to one project. The binding includes the selected project's resources, such as clusters, databases, sources, sinks, tables, views, private links, and backups. It does not grant access to any other project.
 
 | Requirement | Recommended role binding |
 | :--- | :--- |
 | Administer the organization, its access, billing, and all projects | `OrganizationAdmin` at organization scope |
 | Operate every project without managing organization access or billing | `ProjectAdmin` at organization scope |
 | Operate one selected project | `ProjectAdmin` at project scope |
+| View every project without changing project resources | `ProjectViewer` at organization scope |
+| View one selected project without changing project resources | `ProjectViewer` at project scope |
 | Manage billing without operating projects | `BillingManager` at organization scope |
 | Give an application access to two selected projects | Two project-scoped `ProjectAdmin` bindings for its service account |
 
