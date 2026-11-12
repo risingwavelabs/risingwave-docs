@@ -38,7 +38,7 @@ Before setting up a BYOK8s environment, you must provision the following resourc
 <Tabs>
 <Tab title="AWS">
 - [`aws/base_env`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/base_env) — VPC, EKS, S3, KMS, IAM, NLBs + VPC Endpoint Services
-- [`aws/k8s_addons`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/k8s_addons) — cert-manager and mode-specific node pools; standard EKS also installs the AWS Load Balancer Controller and Karpenter (emits `byok_config.yaml`)
+- [`aws/k8s_addons`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/k8s_addons) — cert-manager, Mountpoint S3 CSI driver, and mode-specific node pools; standard EKS also installs the AWS Load Balancer Controller and Karpenter (emits `byok_config.yaml`)
 - [`aws/tenant_resources`](https://github.com/risingwavelabs/risingwave-byok-terraform-example/tree/main/aws/tenant_resources) — per-cluster RDS metastore + IAM role (emits `byok_tenant_config.yaml`)
 </Tab>
 <Tab title="GCP">
@@ -86,12 +86,14 @@ The following Kubernetes namespaces are reserved for RisingWave-managed componen
 
 <Tabs>
 <Tab title="AWS">
-Install cert-manager v1.19.2 or later in both cluster modes. The remaining dependencies differ by mode:
+Install cert-manager v1.19.2 or later in both cluster modes. To enable optional heap storage, also install the **Mountpoint for Amazon S3 CSI driver**. S3 CSI is a separate installation even on EKS Auto Mode. Use an EKS add-on version compatible with your Kubernetes version; the Terraform example pins `v2.6.0-eksbuild.1`. The remaining dependencies differ by mode:
 
 | Cluster mode | Additional software dependencies |
 | --- | --- |
 | Standard EKS | AWS Load Balancer Controller Helm chart 1.17.0 or later and Amazon EBS CSI Driver v1.54.0 or later |
 | EKS Auto Mode | None. Use the built-in load-balancing and EBS storage capabilities. Do not install the self-managed AWS Load Balancer Controller or Amazon EBS CSI Driver for this setup. |
+
+For S3 CSI, configure **driver-level credentials** using the [dedicated IAM role](#6-identity-and-access-management). The node DaemonSet must run on every node that can host RisingWave, including tainted nodes (`node.tolerateAllTaints: true`). Configure the driver controller’s node selector and tolerations to match your system node pool. Install the add-on after those node pools are available. Retain the CloudAgent Kubernetes RBAC permissions to create static PersistentVolumes and PersistentVolumeClaims and update RisingWave resources; heap mounts rely on those permissions. Follow the [AWS installation guide](https://docs.aws.amazon.com/eks/latest/userguide/s3-csi-create.html) and verify the add-on is healthy before creating RisingWave clusters with heap storage enabled.
 
 In EKS Auto Mode, RisingWave creates native `eks.amazonaws.com/v1` `TargetGroupBinding` resources. In a standard EKS cluster, RisingWave creates `elbv2.k8s.aws/v1beta1` `TargetGroupBinding` resources that the self-managed AWS Load Balancer Controller reconciles.
 </Tab>
@@ -102,20 +104,21 @@ In EKS Auto Mode, RisingWave creates native `eks.amazonaws.com/v1` `TargetGroupB
 
 ### 3. Object storage
 
-Provision **two separate** storage buckets in the same region as your Kubernetes cluster.
+Provision separate data and log storage buckets in the same region as your Kubernetes cluster. To enable optional heap storage, provision a third bucket for heap dumps.
 
 | Bucket | Purpose |
 | --- | --- |
 | **Data store** | RisingWave state store (cluster data) |
 | **Log store** | Loki log storage (self-hosted telemetry) |
+| **Heap store** (optional) | Heap dumps for memory diagnostics |
 
 <Note>
-We recommend separate buckets so that data and logs can have independent lifecycle policies, access controls, and retention. The data store typically contains sensitive cluster state, while the log store contains observability data with different access and retention requirements.
+Keep data, logs, and heap dumps in separate buckets with independent access controls and retention. Heap dumps can contain application data. Block public access, enable server-side encryption, and configure lifecycle expiration and cleanup of incomplete multipart uploads. The Terraform example uses SSE-S3 encryption, seven-day heap retention (configurable with `heap_retention_days`), and one-day cleanup of incomplete uploads.
 </Note>
 
 <Tabs>
 <Tab title="AWS">
-Provide the S3 bucket **ARNs** for both buckets.
+Provide the data and log S3 bucket **ARNs** in `aws.s3_buckets`: `data_store_arn` and `log_store_arn`. To opt into heap storage, also provide `heap_store_arn`. You can omit this field when creating a new AWS BYOK8s environment; heap storage remains disabled. The Terraform example provisions the heap prerequisites and includes this field to demonstrate the enabled setup. RisingWave stores each cluster’s dumps under `heap/<resource-namespace>/` and mounts that prefix at `/var/mnt/heap` inside its pods.
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
@@ -228,6 +231,38 @@ This role is assumed by Loki via IRSA for reading and writing logs to S3. Minimu
     ]
 }
 ```
+
+**D. Mountpoint S3 CSI IAM (driver context)**
+
+When enabling heap storage, create a dedicated role for the S3 CSI driver. With IRSA, its trust policy must allow `sts:AssumeRoleWithWebIdentity` from your EKS OIDC provider, with both of these `StringEquals` conditions:
+
+- `<OIDC_ISSUER>:sub`: `system:serviceaccount:kube-system:s3-csi-driver-sa`
+- `<OIDC_ISSUER>:aud`: `sts.amazonaws.com`
+
+Use the OIDC issuer without `https://` in the condition keys. Set this role as the EKS add-on’s `service_account_role_arn`. The reference Terraform example configures this trust and role attachment. Driver-level EKS Pod Identity is also supported by AWS; follow the [driver authentication guide](https://github.com/awslabs/mountpoint-s3-csi-driver/blob/main/docs/CONFIGURATION.md#aws-credentials) if you use it instead.
+
+Grant the driver access to the dedicated heap bucket:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": ["s3:ListBucket"],
+            "Resource": "arn:aws:s3:::$HEAP_STORE_BUCKET"
+        },
+        {
+            "Effect": "Allow",
+            "Action": ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload"],
+            "Resource": "arn:aws:s3:::$HEAP_STORE_BUCKET/heap/*"
+        }
+    ]
+}
+```
+
+Heap mounts use the driver’s identity, so they require no heap permissions on the RisingWave cluster IAM role or CloudAgent IAM role. The driver does not need object-delete permission for this setup; S3 lifecycle rules handle retention. If you use SSE-KMS instead of SSE-S3, also grant the driver `kms:GenerateDataKey` and `kms:Decrypt` on the bucket’s KMS key and allow that role in the key policy. Bucket policies and network endpoint policies must also permit the driver’s access.
+
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
@@ -429,6 +464,7 @@ aws:
   s3_buckets:
     data_store_arn: arn:aws:s3:::my-risingwave-data
     log_store_arn: arn:aws:s3:::my-risingwave-logs
+    heap_store_arn: arn:aws:s3:::my-risingwave-heap # Optional; requires the heap bucket and S3 CSI setup
 
   ebs_encryption_key_arn: arn:aws:kms:us-west-2:123456789012:key/...
 
@@ -740,6 +776,21 @@ rwc byok apply --name <env-name>
 
 The cluster mode cannot be updated. To switch between standard EKS and EKS Auto Mode, create a new BYOK8s environment configured for the target mode.
 
+### Heap storage for existing environments
+
+New AWS BYOK8s environments can opt into heap storage through `heap_store_arn` during normal creation. When supplied, new RisingWave clusters inherit that configuration without an additional enablement call. When omitted, the environment starts with heap storage disabled.
+
+For an existing environment created without heap storage:
+
+1. Provision the heap bucket and driver IAM role, then install and verify the S3 CSI driver. When using the Terraform example, update and apply `base_env` before `k8s_addons`.
+2. Contact the RisingWave team with the environment and heap bucket name. Coordinate a window without cluster changes or automated configuration updates.
+3. During that window, the team enables heap storage and creates the backing storage resources for **all existing clusters**, including stopped clusters. This preparation does not mount storage or roll pods. Keep the window open until preparation completes successfully for every cluster; partial failures must be retried before normal operations resume.
+4. The team can mount individual clusters when diagnostics are needed. Adding the mount can roll running pods. A stopped cluster remains stopped and mounts storage on its next normal start.
+
+Once enabled, the configuration applies to newly created clusters and later full cluster configuration rebuilds as well. Existing environments without heap settings continue to work until enabled. Disabling heap storage or replacing an enabled bucket is not currently supported.
+
+A successful configuration request does not prove the mount is healthy. Check the driver pods, the cluster’s PVC binding, and pod events (`kubectl describe pod <pod> -n <resource-namespace>`). `FailedMount` or S3 access errors require checking driver scheduling, IRSA trust, bucket permissions, and any KMS policy. Repair those prerequisites and verify workload readiness with the RisingWave team before retrying heap collection. Removing a PVC or editing a pod is not a durable way to disable the environment setting. Confirm an actual heap dump appears under the cluster’s S3 prefix; mounting storage alone does not trigger a dump.
+
 ### Delete a BYOK8s environment
 
 1. Delete all RisingWave clusters running in the environment.
@@ -772,7 +823,8 @@ BYOK8s is a shared responsibility model. The table below outlines what each part
 - Kubernetes cluster and worker nodes (including upgrades to the minimum supported version).
 - Firewall and security group rules.
 - IAM roles / service accounts used by BYOK8s environments and clusters.
-- Object storage buckets for data storage and log storage.
+- Object storage buckets for data and logs, plus a heap-dump bucket if enabled, including encryption and retention.
+- When heap storage is enabled, the Mountpoint S3 CSI driver, its scheduling configuration, and its bucket IAM permissions.
 - Network connectivity resources (NLBs and VPC Endpoint Services on AWS).
 - PostgreSQL databases serving as metadata stores.
 - Terraform state backend.
