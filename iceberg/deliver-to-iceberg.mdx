@@ -45,8 +45,9 @@ WITH (
 | `type` | Yes | Sink mode. `'append-only'` for new records only; `'upsert'` to handle updates and deletes. |
 | `database.name` | Yes | The name of the target Iceberg database. |
 | `table.name`| Yes| The name of the target Iceberg table.|
-| `primary_key`| Yes, if `type` is `upsert` | A comma-separated list of columns that form the primary key. |
+| `primary_key`| Yes, if `type` is `upsert` and `enable_pk_index` is `false` | A comma-separated list of columns that form the primary key. Do not set this option when `enable_pk_index` is `true`; RisingWave derives the primary key from the upstream stream key instead. |
 | `write_mode` | No | Write mode for the sink. Options: `'merge-on-read'` (default) or `'copy-on-write'`. **Important:** Copy-on-write is only supported for upsert sinks. Append-only sinks must use merge-on-read. See [Write modes](/iceberg/write-modes) for details. |
+| `enable_pk_index` | No | For an upsert sink that uses merge-on-read with Iceberg format version 2 or later, set to `true` to maintain a primary key index and use position-based deletes instead of equality deletes. Default: `false`. Requires a license that includes the `IcebergSinkWithPkIndex` feature. |
 | `force_append_only`| No | If `true`, converts an `upsert` stream to `append-only`. Updates become inserts and deletes are ignored. Default: `false`. |
 | `is_exactly_once`| No | Set to `true` to enable exactly-once delivery semantics. This provides stronger consistency but may impact performance. Default: `true`. <br/><br/> Exactly-once delivery requires [sink decoupling](/delivery/overview#sink-decoupling) to be enabled (the default behavior). If you `SET sink_decouple = false;`, exactly-once semantics will be automatically disabled for the sink.|
 | `commit_checkpoint_interval`| No | Controls how often RisingWave commits to Iceberg. Default: `60` (about every 60 seconds in the default configuration). |
