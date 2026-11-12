@@ -18,7 +18,7 @@ In all cases, changes flow directly from the source database into RisingWave's s
 
 ## CDC sources and tables
 
-CDC connectors in RisingWave require a **Table**, not just a Source. Because a CDC stream contains inserts, updates, and deletes, RisingWave must materialize the current state of the data to correctly apply each operation. A Table provides this state store, along with a primary key and offset tracking for fault-tolerant recovery.
+Use a CDC-backed **table** when RisingWave should materialize the current state of the upstream data. A table provides a state store, along with a primary key and offset tracking for fault-tolerant recovery. Alternatively, a CDC table source can expose changes as an upsert stream without materializing the state in RisingWave.
 
 You can create CDC tables in two ways:
 
@@ -59,6 +59,19 @@ CREATE SOURCE pg_src WITH (
 CREATE TABLE users (...) FROM pg_src TABLE 'public.users';
 CREATE TABLE orders (...) FROM pg_src TABLE 'public.orders';
 ```
+
+**Catalog-only CDC table source without an initial snapshot:**
+
+```sql
+CREATE SOURCE orders_cdc (*)
+WITH (snapshot = 'false')
+FROM pg_src TABLE 'public.orders';
+
+CREATE MATERIALIZED VIEW recent_orders AS
+SELECT * FROM orders_cdc;
+```
+
+This mode is supported for PostgreSQL, MySQL, and SQL Server shared CDC sources. The source itself is catalog metadata rather than a streaming job. Each downstream streaming job creates an independent CDC scan and receives only changes that arrive after that job is created. Batch queries on the source are not supported. For the full syntax and limitations, see [CDC table sources](/sql/commands/sql-create-source#cdc-table-sources).
 
 ## Shared sources and transactional consistency
 
