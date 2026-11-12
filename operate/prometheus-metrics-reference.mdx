@@ -14,6 +14,21 @@ Use the [RisingWave metrics reference](https://github.com/risingwavelabs/risingw
 - Alert thresholds used by the shipped Grafana dashboards
 - Operational metrics grouped by domain, such as streaming, storage, sources, sinks, memory, CPU, batch queries, and UDFs
 
+### Actor IDs and metric levels
+
+The default server metric level is `Info`. At the `Info` and `Critical` levels, compute-node and meta-node metrics replace `actor_id` values with an empty string to reduce Prometheus series cardinality. At `Debug`, actor-level diagnostic metrics retain their actual actor IDs. The `actor_info` metric is the only exception: it retains actor IDs at every enabled metric level because dashboards use it to locate and count actors.
+
+When actor series are combined, gauges for counts and sizes report the sum of live actor contributions. Progress gauges, such as epochs and message IDs, report the minimum live value. These aggregates are node-local, so Prometheus queries must still aggregate across compute nodes.
+
+To retain actor IDs for diagnostics, set the metric level on the relevant nodes and restart them:
+
+```toml
+[server]
+metrics_level = "Debug"
+```
+
+The `Debug` level increases metric cardinality. For details about applying node-specific settings, see [Node-specific configurations](/deploy/node-specific-configurations).
+
 For table change log troubleshooting, the reference also includes these metrics:
 
 - `state_store_table_change_log_fetch_latency`: latency for fetching table change logs from the state store.
