@@ -1,0 +1,125 @@
+---
+title: "Benchmark object storage with risectl"
+description: "Use risectl to measure S3-compatible object storage operations and compactor-style reads without connecting to a RisingWave cluster."
+---
+
+The `risectl bench object-store` command measures S3-compatible object storage through the same object store client that RisingWave uses. The CLI connects directly to the object store, so results reflect the host that runs the command and its network path to the storage endpoint. Running the command on a bastion measures the path from that bastion. You can run the benchmark without a RisingWave cluster, a Meta connection, or Kubernetes resources.
+
+The benchmark supports Amazon S3 and S3-compatible services such as MinIO. A run with a fresh prefix performs a functional preflight before preparing the benchmark data.
+
+<Warning>
+The benchmark creates, reads, lists, and deletes objects and can generate significant storage and network traffic. Use a dedicated test bucket when possible, and avoid running it against storage that serves a production workload.
+</Warning>
+
+## Prerequisites
+
+Before running the benchmark, prepare:
+
+- A `risectl` or `risingwave` build that includes the benchmark. The v3.1.1 release predates this command. For preview use, the [`nightly-20261110` image](https://github.com/orgs/risingwavelabs/packages/container/risingwave/1536027625?tag=nightly-20261110) includes it through `risingwave ctl`. Check that `risectl bench object-store --help` or `risingwave ctl bench object-store --help` displays the benchmark options.
+- Access to an existing bucket from the host where you run the command. Pass `s3://<bucket>` with `--store`, or set `RW_HUMMOCK_URL`. For an S3-compatible service such as MinIO, configure the endpoint with `RW_S3_ENDPOINT`.
+- Credentials that can upload, read, list, and delete objects in the target bucket. Configure credentials, the endpoint, TLS, and related settings as you do for RisingWave.
+
+You can optionally pass an existing `risingwave.toml` with `--config-path`. The command reads the `[storage.object_store]` settings from that file. It does not connect to the cluster described by the configuration.
+
+## Run a benchmark
+
+The following example runs the basic profile and saves the JSON report to `report.json`:
+
+```bash
+risectl bench object-store \
+  --store s3://benchmark-bucket \
+  --config-path /etc/risingwave.toml \
+  --profile basic \
+  --objects 16 \
+  --object-size 64MiB \
+  --concurrency 8 \
+  --output report.json
+```
+
+If you use the `risingwave` binary instead of the standalone `risectl` binary, replace `risectl` with `./risingwave ctl`.
+
+The command supports these profiles:
+
+| Profile | Workload |
+| --- | --- |
+| `basic` | Measures complete streaming uploads, random ranged GETs, small block GETs, complete prefix listings, and batched deletion of existing objects. Each measured operation phase schedules work for up to 30 seconds or 10,000 attempts by default. |
+| `compactor` | Compares continuous reads, intermittent reads from an open response, and separate short ranged GETs. It also compares a fast-reader cohort alone and with continuous or intermittent readers. |
+| `all` | Runs both profiles with shared data preparation and cleanup. This is the default. |
+
+Use `--basic-duration-ms 0` to use fixed operation counts in the basic phases. The `--basic-max-operations` cap still applies. Operations already in flight can finish after the phase stops scheduling work.
+
+## Configure the workload
+
+Common options include:
+
+| Option | Description |
+| --- | --- |
+| `--objects` | Number of large objects. The default is `16`. |
+| `--object-size` | Size of each large object. The default is `64MiB`. |
+| `--concurrency` | Number of concurrent workers. The default is `8`. |
+| `--basic-duration-ms` | Wall-clock scheduling budget for each basic phase. The default is `30000`; use `0` for fixed-count mode. |
+| `--basic-max-operations` | Maximum logical attempts per basic phase, including failures. The default is `10000`. |
+| `--pause-ms` | Base pause between eligible chunks in non-continuous compactor reads. The default is `10000`. |
+| `--pause-every-chunks` | Pause after this many nonempty chunks. The default is `1`. |
+| `--max-pauses` | Maximum pauses per logical read. The default is unlimited. Set it to `0` to disable pauses. |
+| `--max-runtime-secs` | Cooperative benchmark deadline in seconds. The default is `1800`. The timer starts after the object store client initializes. In-flight operations, cleanup, and report finalization can extend total wall-clock time. |
+| `--parameters` | JSON file containing benchmark parameters. Explicit CLI options override the file. |
+
+For `basic` and `all`, `--object-size` must exceed both 5 MiB and the configured `upload_part_size`. For `compactor` and `all`, set `--objects` to at least the sum of `--concurrency` and `--fast-readers` (default `2`). With OpenDAL, any nonzero `req_concurrency_limit` and `http_concurrent_limit` settings must also allow that total.
+
+Run `risectl bench object-store --help` for the complete option list. For example, you can configure range and block sizes, metadata object counts, interference duration, jitter, and the S3 client backend.
+
+## Collect results and traces
+
+The command writes a human-readable summary to standard error and one JSON report to standard output. If you specify `--output`, it also saves the JSON report atomically at that path. The report includes effective settings, phase throughput and operation counts, successful and failed latency distributions, stop reasons, retry observations, and cleanup results.
+
+For compactor-style read diagnostics, add `--trace-output`:
+
+```bash
+risectl bench object-store \
+  --store s3://benchmark-bucket \
+  --profile compactor \
+  --objects 16 \
+  --object-size 64MiB \
+  --concurrency 8 \
+  --pause-ms 1000 \
+  --max-pauses 1 \
+  --output report.json \
+  --trace-output reads.jsonl
+```
+
+The example uses the default `--pause-every-chunks 1` and explicitly sets `--max-pauses 1`. Each intermittent read pauses after the first nonempty stream chunk if unread data remains, then consumes the rest without further intentional pauses. In the chunked comparison, each complete short GET counts as one chunk.
+
+Inspect the `compactor_intermittent` phase to see how long the client waited for subsequent data chunks. Its `resume_poll` excludes intentional pauses and EOF. Its `latency` measures the full object read, including intentional pauses.
+
+```bash
+jq '.benchmark.phases[]
+  | select(.name == "compactor_intermittent")
+  | {name, status, succeeded, failed, resume_poll}' report.json
+```
+
+The trace records compactor and interference read spans as JSON Lines. Use a new trace filename in an existing directory and a separate path for `--output`. Match a `next` record to its `read_start` record by `request_id` to identify the phase, object, and byte range. The `next` record's `elapsed_us` measures a client-side await. Correlate that wait with SDK logs to investigate retries.
+
+Tracing adds CPU and scheduling overhead. Before relying on the trace, check that `read_trace.complete` is `true` and `read_trace.summary.records_dropped` is `0`. If the trace writer drops records or fails, the CLI attempts to emit the report and exits with a nonzero status. Check `read_trace.error` for a writer error. Check the target phase status in the report as well as the overall command status.
+
+## Interpret the results
+
+Keep these measurement boundaries in mind:
+
+- Results describe client-observed logical operations, not physical HTTP requests or SDK retry counts. Complete upload latency is not individual multipart upload latency, and a complete listing can include metadata requests.
+- Stream-poll timing can include buffered data. Cache state and server backpressure are not verified, and intentional pauses are included in end-to-end latency.
+- Before comparing interference results, check `interference.comparison_valid` in the phase reports. A worker failure or a fast cohort with no completed reads invalidates the comparison.
+- Latency quantiles are descriptive. A small sample does not establish stable tail latency.
+- The command does not apply automatic performance thresholds. Compare runs made with the same topology, object store configuration, dataset, and workload settings.
+
+## Clean up benchmark data
+
+By default, each run uses a unique `risectl-bench/<run-id>/` prefix and attempts to delete the known objects it created. The JSON report records the prefix and cleanup status.
+
+Use `--keep-data` to skip final cleanup. The preflight still deletes its probe, and the `basic` and `all` profiles still run their measured batch DELETE phase.
+
+To read retained large objects, run the `compactor` profile with `--reuse-prefix <prefix>`. Use the full prefix from the report, including its trailing slash, and set `--objects` and `--object-size` to select existing objects of the expected size. This mode validates object sizes and preserves the retained data.
+
+If the process terminates abruptly or a multipart upload cannot be aborted, you might need to remove leftover data using the object store's lifecycle or administration tools.
+
+For guidance on diagnosing storage-related cluster bottlenecks, see [Object store issues](/performance/specific-bottlenecks#object-store-issues).
