@@ -1,0 +1,111 @@
+---
+title: "Sink data from RisingWave to Google Cloud Firestore"
+sidebarTitle: Google Cloud Firestore
+description: "Learn how to sink data from RisingWave to Google Cloud Firestore."
+---
+
+[Cloud Firestore](https://cloud.google.com/firestore/docs/overview) is a serverless document database on Google Cloud. The Firestore sink writes inserts, updates, and deletes from RisingWave to a Firestore collection.
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+## Syntax
+
+```sql
+CREATE SINK [ IF NOT EXISTS ] sink_name
+[ FROM sink_from | AS select_query ]
+WITH (
+    connector = 'firestore',
+    type = 'upsert',
+    primary_key = 'column_name',
+    firestore.project_id = 'project_id',
+    firestore.collection = 'collection_path',
+    firestore.credentials = SECRET secret_name,
+    connector_parameter = 'value', ...
+);
+```
+
+## Parameters
+
+| Parameter | Description |
+| :--- | :--- |
+| `connector` | **Required**. Set to `firestore`. |
+| `firestore.project_id` | **Required**. Google Cloud project ID. It must not be empty or contain `/`. |
+| `firestore.collection` | **Required**. Firestore collection path. A parent document segment can reference a sink column, for example, `users/{user_id}/orders`. |
+| `firestore.database_id` | **Optional**. Firestore database ID for a multi-database project. It must not be empty or contain `/`. |
+| `firestore.credentials` | **Optional**. Raw JSON for a Google Cloud service account key. On RisingWave Cloud, provide the JSON through a RisingWave secret. If omitted, the connector uses [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials) from the RisingWave environment. |
+| `firestore.document_id_column` | **Optional**. Column whose value becomes the Firestore document ID. Values must be unique within each resolved collection. If omitted, RisingWave derives a path-safe document ID from the sink primary key. |
+| `firestore.skip_invalid_rows` | **Optional**. Whether to skip invalid rows and document-level `INVALID_ARGUMENT` or `OUT_OF_RANGE` errors. Defaults to `false`. See [Invalid row handling](#invalid-row-handling). |
+| `firestore.decimal_mode` | **Optional**. How to encode `DECIMAL`: `decimal128` (the default) preserves precision and requires Firestore Enterprise edition; `double` works with Standard edition but can lose precision. |
+| `firestore.max_batch_size` | **Optional**. Maximum number of writes in one batch. The value must be from 1 through 500. Defaults to `500`. |
+| `firestore.max_future_send_nums` | **Optional**. Maximum number of concurrent batch write requests within a chunk. The value must be greater than 0. Defaults to `256`. Chunks are written sequentially to preserve per-document mutation order. |
+
+You must provide either a sink primary key or `firestore.document_id_column`. For an upsert sink, set `type = 'upsert'` and specify `primary_key` so that updates and deletes are propagated correctly.
+
+## Create a Firestore sink
+
+The service account must have permission to write documents in the target database. Store its JSON key in a RisingWave secret:
+
+```sql
+CREATE SECRET firestore_credentials WITH (backend = 'meta') AS
+'<service-account-key-JSON>';
+```
+
+Then create the sink:
+
+```sql
+CREATE TABLE firestore_source (
+    id INT PRIMARY KEY,
+    name VARCHAR,
+    active BOOLEAN
+);
+
+CREATE SINK firestore_sink FROM firestore_source WITH (
+    connector = 'firestore',
+    type = 'upsert',
+    primary_key = 'id',
+    firestore.project_id = 'my-project',
+    firestore.collection = 'users',
+    firestore.document_id_column = 'id',
+    firestore.credentials = SECRET firestore_credentials
+);
+```
+
+The secret must contain the JSON content, not a path to a key file. If the RisingWave environment is already configured with ADC, omit `firestore.credentials`.
+
+## Document IDs and subcollections
+
+Values from `firestore.document_id_column` must be non-NULL, no longer than 1,500 bytes, and valid Firestore document IDs. They cannot contain `/`, equal `.` or `..`, or use a name that starts and ends with `__`. Duplicate values in the same resolved collection map different RisingWave rows to the same Firestore document.
+
+To write to subcollections, use a column placeholder as a complete parent-document segment in `firestore.collection`:
+
+```sql
+CREATE SINK order_sink FROM orders WITH (
+    connector = 'firestore',
+    type = 'upsert',
+    primary_key = 'user_id,order_id',
+    firestore.project_id = 'my-project',
+    firestore.collection = 'users/{user_id}/orders',
+    firestore.document_id_column = 'order_id',
+    firestore.credentials = SECRET firestore_credentials
+);
+```
+
+This writes each row to `users/<user_id>/orders/<order_id>`. A placeholder must reference a sink column and occupy an entire parent-document segment. Include parent-path columns in the sink primary key so that identical document IDs under different parents remain independent.
+
+## Data types and limits
+
+The connector preserves Boolean, integer, floating-point, timestamp, string, `NULL`, list, struct, and JSON values as corresponding Firestore values. `BYTEA` is stored as a base64-encoded string. `DATE`, `TIME`, `INTERVAL`, `SERIAL`, and `INT256` are stored as strings. `TIMESTAMP` values are interpreted as UTC.
+
+`DECIMAL` uses Decimal128 by default. If the target is a Firestore Standard edition database, set `firestore.decimal_mode = 'double'` or cast the value to `VARCHAR`. The `double` mode can round values that cannot be represented exactly as 64-bit floating-point numbers.
+
+The sink rejects `MAP`, `VECTOR`, `VARIANT`, and directly nested SQL arrays when the sink is created. `JSONB` contents are validated per row. Firestore documents must not exceed 1 MiB. Firestore batch writes are non-atomic, and this connector does not provide exactly-once delivery.
+
+## Invalid row handling
+
+By default, an invalid row fails the write so that RisingWave can replay it. Setting `firestore.skip_invalid_rows = 'true'` permanently skips invalid document IDs or values, oversized documents, out-of-range timestamps, and document-level `INVALID_ARGUMENT` or `OUT_OF_RANGE` responses.
+
+Authentication, permission, quota, transport, transient, and incomplete-acknowledgement errors are never skipped. Skipping an update can leave an older document in Firestore, and skipped rows are not sent to a dead-letter queue.
