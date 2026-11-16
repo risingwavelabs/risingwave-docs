@@ -68,6 +68,10 @@ If each table created its own separate replication connection, a transaction upd
 
 Shared sources are supported for PostgreSQL CDC, MySQL CDC, MariaDB CDC, and SQL Server CDC.
 
+<Note>
+For shared CDC sources, change events preserve an explicit `NULL` in a nullable upstream column even when that column has a default value. RisingWave does not replace the `NULL` with the column default. This behavior applies to PostgreSQL, MySQL, MariaDB, and SQL Server CDC. Existing rows ingested before an upgrade are not rewritten.
+</Note>
+
 ## Connector reference
 
 - [PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc)
