@@ -48,15 +48,11 @@ WITH (
 | bigquery.table                      | **Required**. The BigQuery table you want to sink to.                                                                                                                                                                                                                                            |
 | bigquery.credentials | **Optional**. Enter the JSON key credentials as a string. Both plain JSON and Base64-encoded JSON are accepted; Base64 is recommended for inline use to avoid escaping issues. At least one of `bigquery.credentials`, `bigquery.local.path`, or `bigquery.s3.path` must be specified. |
 | bigquery.retry\_times               | **Optional**. The number of times the system should retry a BigQuery insert operation before ultimately returning an error. Defaults to 5.                                                                                                                                                       |
-| bigquery.change\_sequence\_number   | **Optional**. Applies to upsert sinks. Defaults to `false`. If set to `true`, RisingWave writes `_CHANGE_SEQUENCE_NUMBER` for each upsert and delete so that BigQuery applies changes to each primary key in the order RisingWave sends them. If `false`, changes to the same key while requests are in flight may be applied out of order. You can update this option with [`ALTER SINK ... CONNECTOR WITH`](/sql/commands/sql-alter-sink#connector-with). |
+| bigquery.change\_sequence\_number   | **Optional**. Applies to upsert sinks. Defaults to `false`. If `true`, RisingWave writes [`_CHANGE_SEQUENCE_NUMBER`](https://cloud.google.com/bigquery/docs/change-data-capture#manage_custom_ordering), so that BigQuery applies the changes of each primary key in the order RisingWave sends them. See [Change sequence numbers](#change-sequence-numbers). |
 | auto\_create                        | **Optional**. Defaults to false. If true, a new table will be automatically created in BigQuery when the specified table is not found.                                                                                                                                                           |
 | aws.credentials.access\_key\_id     | **Optional**. The access key for accessing the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                                      |
 | aws.credentials.secret\_access\_key | **Optional**. The secret access key for accessing the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                               |
 | region                              | **Optional**. The AWS region of the S3 file storing the JSON key. Required when `bigquery.s3.path` is specified.                                                                                                                                                                                 |
-
-<Warning>
-Once a BigQuery table contains rows written with `_CHANGE_SEQUENCE_NUMBER`, do not disable `bigquery.change_sequence_number` for that table. BigQuery can ignore subsequent updates and deletes that do not include a sequence number. To stop using sequence numbers, create a new table and sink instead.
-</Warning>
 
 ## Examples
 
@@ -114,6 +110,12 @@ WITH (
     force_append_only='true'
 );
 ```
+
+## Change sequence numbers
+
+Without `_CHANGE_SEQUENCE_NUMBER`, BigQuery applies the changes of each primary key in the order it ingests them, so a key that changes several times within a short time can end at an older version. With it, queries that trigger a [runtime merge](https://cloud.google.com/bigquery/docs/change-data-capture#query-max-staleness) read more data, because BigQuery retains changes that carry a sequence number for 48 hours.
+
+You can change `bigquery.change_sequence_number` with [`ALTER SINK ... CONNECTOR WITH`](/sql/commands/sql-alter-sink#connector-with). After it is turned off, BigQuery ignores later updates and deletes of rows that were written with a sequence number.
 
 ## Data type mapping
 
