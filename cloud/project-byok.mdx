@@ -228,6 +228,18 @@ This role is assumed by Loki via IRSA for reading and writing logs to S3. Minimu
     ]
 }
 ```
+
+**D. Worker-node IAM (image pulls)**
+
+The IAM role used by each EKS worker node that runs RisingWave must allow image pulls from RisingWave's regional Amazon ECR pull-through cache, including importing a version that is not yet cached. These permissions belong on the **worker-node role**, not the CloudAgent or RisingWave service-account role.
+
+Attach the AWS-managed [`AmazonEC2ContainerRegistryPullOnly`](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEC2ContainerRegistryPullOnly.html) policy, or grant equivalent permissions:
+
+- `ecr:GetAuthorizationToken`
+- `ecr:BatchGetImage`
+- `ecr:GetDownloadUrlForLayer`
+- `ecr:BatchImportUpstreamImage`
+
 </Tab>
 <Tab title="GCP">
 <Note>GCP GKE support is planned. Stay tuned.</Note>
