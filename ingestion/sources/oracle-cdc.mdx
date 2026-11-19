@@ -1,0 +1,100 @@
+---
+title: "Ingest data from Oracle CDC"
+sidebarTitle: Oracle CDC
+description: "Ingest Oracle change data with a shared CDC source and backfill existing rows into RisingWave tables."
+---
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+<Warning>
+Oracle CDC is experimental. Test the connector with your workload before using it in production.
+</Warning>
+
+RisingWave can ingest changes from Oracle by using an embedded Debezium LogMiner connector. Create one shared source for an Oracle schema, and then create multiple RisingWave tables from it. When you create a table, RisingWave backfills its existing rows and merges changes that occur during the backfill before continuing with live CDC events.
+
+## Prepare Oracle
+
+Before creating the source, make sure that:
+
+- Oracle runs in `ARCHIVELOG` mode with force logging and minimal supplemental logging enabled.
+- All-column supplemental logging is enabled for each captured table, or at the PDB or CDB level.
+- Each captured table has an enabled primary key backed by a valid, visible index.
+- The connector user has the `SELECT_CATALOG_ROLE` and `EXECUTE_CATALOG_ROLE` roles and these privileges: `CREATE SESSION`, `SET CONTAINER`, `FLASHBACK ANY TABLE`, `SELECT ANY TABLE`, `SELECT ANY TRANSACTION`, `LOGMINING`, `LOCK ANY TABLE`, `CREATE TABLE`, and `CREATE SEQUENCE`.
+- Redo logs are retained long enough for backfill and recovery. RisingWave does not automatically take a new snapshot if the required redo has expired.
+
+Oracle CDC also requires a heartbeat table with two `NUMBER` columns named `ID` and `HEARTBEAT`, a single-column primary key on `ID`, and a seed row whose `ID` is `1`. The connector user must be able to update `HEARTBEAT`. To let RisingWave create and seed this table, set `heartbeat.table.auto.initialize = 'true'`. The table's schema must already exist.
+
+## Create a shared source
+
+Create a source that connects to the Oracle container database (CDB) and selects a pluggable database (PDB) and schema:
+
+```sql
+CREATE SOURCE oracle_source WITH (
+  connector = 'oracle-cdc',
+  hostname = 'oracle.example.com',
+  port = '1521',
+  username = 'RW_CDC',
+  password = 'secret',
+  database.name = 'ORCLCDB',
+  database.pdb.name = 'ORCLPDB1',
+  schema.name = 'APP',
+  heartbeat.table.name = 'RW_CDC.RW_HEARTBEAT',
+  heartbeat.table.auto.initialize = 'true'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+The following source parameters are specific to Oracle CDC. The standard connection parameters in the example are required.
+
+| Parameter | Description |
+| :--- | :--- |
+| `database.name` | Oracle CDB service name. |
+| `database.pdb.name` | PDB that contains the captured tables. |
+| `schema.name` | Schema to capture. Oracle identifiers are matched exactly. |
+| `heartbeat.table.name` | Heartbeat table in `schema.table` format. This parameter is required. |
+| `heartbeat.table.auto.initialize` | **Optional.** If `true`, RisingWave creates and seeds the heartbeat table when necessary. The default is `false`. |
+| `debezium.rac.nodes` | Comma-separated Oracle RAC node addresses. Required when Oracle RAC is enabled. |
+| `debezium.database.connection.adapter` | **Optional.** LogMiner adapter. Accepted values are `logminer_unbuffered` (default) and `logminer`. |
+
+The default `logminer_unbuffered` adapter keeps open transactions in Oracle until they commit. The `logminer` adapter buffers open transactions in the connector node's memory. With either adapter, many concurrent large transactions can exhaust memory on the side that buffers them.
+
+## Create tables and backfill data
+
+You can let RisingWave discover the upstream columns and primary key:
+
+```sql
+CREATE TABLE orders (*)
+FROM oracle_source TABLE 'APP.ORDERS';
+```
+
+The `TABLE` value must contain exactly `schema.table`. RisingWave matches both identifier parts exactly and does not apply Oracle's usual uppercase conversion. For an Oracle table created with unquoted identifiers, use its uppercase catalog name, as in `APP.ORDERS`. Identifiers containing periods are not supported.
+
+You can also declare the schema explicitly. Quoted RisingWave column names preserve the uppercase Oracle column names:
+
+```sql
+CREATE TABLE customers (
+  "ID" INT,
+  "NAME" VARCHAR,
+  PRIMARY KEY ("ID")
+) FROM oracle_source TABLE 'APP.CUSTOMERS';
+```
+
+By default, table creation backfills existing rows. To consume only changes that occur after table creation, disable the snapshot:
+
+```sql
+CREATE TABLE new_orders (*)
+WITH (snapshot = 'false')
+FROM oracle_source TABLE 'APP.ORDERS';
+```
+
+## Limitations
+
+- Parallel snapshot splits are not supported. Oracle CDC backfills each table in primary-key order with a single snapshot reader.
+- The order of a composite primary key in the RisingWave table must match the Oracle primary-key index.
+- Automatic schema change is not supported.
+- Committed changes are delivered, but changes from one Oracle transaction are not guaranteed to become visible atomically downstream.
+- `LONG`, `LONG RAW`, `UROWID`, Oracle 23 `BOOLEAN`, and `XMLTYPE` columns are not supported.
+- If `debezium.time.precision.mode = 'connect'`, a `TIMESTAMP` primary key with fractional precision greater than 3 is not supported. Omit this option to use the default microsecond precision.
