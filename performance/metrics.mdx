@@ -140,9 +140,9 @@ In a perfect world, the barrier latency should stay at 1 second. But in reality,
 
 We typically check them out first when we log into Grafana to diagnose any performance issues or even bugs. We further investigate which resources we need to increase once we run into the phenomena (1). Consistently high barrier latency is a strong indicator of performance problems.
 
-## Data ingestion
+## Data throughput
 
-Monitoring data ingestion metrics helps you understand the rate at which RisingWave is receiving data from upstream sources.
+Monitoring data throughput metrics helps you understand the rate at which RisingWave receives data from upstream sources and streams data into sinks.
 
 ### Source throughput
 
@@ -155,5 +155,9 @@ For example, RisingWave may ingest data from an upstream message queue. Either t
 **Takeaway**
 
 We suggest users also monitor the CPU utilization, disk I/O, and network I/O of RisingWave's upstream systems, e.g., message queues or databases, to determine the end-to-end bottleneck. If source throughput is significantly lower than expected, investigate the upstream system for potential issues.
+
+### Sink throughput
+
+The **Sink Throughput (rows/s)** panel reports the number of visible rows streamed into each sink per second. Rows filtered out and marked as invisible in an incoming stream chunk are excluded from this count, so they do not inflate the reported sink throughput.
 
 For any other questions or tips regarding performance tuning, feel free to join our [Slack community](https://www.risingwave.com/slack) and become part of our growing network of users. Engage in discussions, seek assistance, and share your experiences with fellow users and our engineers who are eager to provide insights and solutions.
