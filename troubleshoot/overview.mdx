@@ -53,6 +53,12 @@ The logs of RisingWave are outputted to `stdout` by default. If you are deployin
 
 We recommend that you deploy a dedicated logging system, such as [Grafana Loki](https://grafana.com/oss/loki/) or [Elasticsearch](https://www.elastic.co/elasticsearch).
 
+### SQL text in server logs
+
+When SQL text is recorded in server-side query logs, the default redaction settings replace password literals in parseable `CREATE USER` and `ALTER USER` statements with `[REDACTED]`. This covers both `PASSWORD` and `ENCRYPTED PASSWORD` clauses.
+
+This redaction applies to backend pgwire logging; it does not change client-side query history. DML values and SQL that cannot be parsed are not covered by this redaction.
+
 ## Leverage system catalogs
 
 System catalogs provide comprehensive information about the definitions and metadata of objects in RisingWave. For a detailed list of system catalogs available, see [System catalogs](/sql/system-catalogs/overview).
