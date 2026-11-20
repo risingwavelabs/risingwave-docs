@@ -169,7 +169,7 @@ array_ndims(array[array[2, 3], array[4, 5]]) → 2
 
 ### `array_overlaps`[](#array%5Foverlaps "Direct link to array_overlaps")
 
-Checks whether two arrays share any non-NULL element.
+Checks whether two arrays share any non-NULL element. NULL elements do not match each other. An empty array does not overlap another array; a NULL array argument produces NULL.
 
 Aliases: `array_is_overlap`, `array_is_intersect`
 
@@ -488,6 +488,10 @@ array[1,2,3] && array[3,4] → t
 array[1,2,3] && array[4,5] → f
 
 array[null]::int[] && array[null]::int[] → f
+
+array[]::int[] && array[1] → f
+
+NULL::int[] && array[1] → NULL
 ```
 
 ### `array || anycompatible → array`[](#array--anycompatible--array "Direct link to array--anycompatible--array")
