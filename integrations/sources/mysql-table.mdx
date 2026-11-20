@@ -40,7 +40,7 @@ mysql_query(
 
 The source-based form requires an existing [MySQL CDC](/ingestion/sources/mysql/mysql-cdc) source. It reuses the connection properties already defined on that source, including credentials managed as secrets. Added in v2.3.0.
 
-The `cdc_source_name` argument accepts either a bare identifier (resolved against the session `search_path`) or a schema-qualified name (for example `'my_schema.my_cdc_source'` or `'"my_schema"."my_cdc_source"'`). Use the schema-qualified form when the CDC source lives outside the default `search_path`.
+The `cdc_source_name` argument accepts either a bare identifier (resolved against the session `search_path`) or a schema-qualified name (for example `'my_schema.my_cdc_source'` or `'"my_schema"."my_cdc_source"'`). Use the schema-qualified form when the CDC source lives outside the session `search_path`. The caller needs SELECT privilege on the shared CDC source. Schema-qualified strings require a build containing the source-name resolution fix [#26712](https://github.com/risingwavelabs/risingwave/pull/26712). Older builds can report `source not found: schema.source`; use a bare name with the appropriate `search_path`, or upgrade.
 
 ## Data type mapping
 
@@ -118,7 +118,7 @@ CREATE SOURCE mysql_source WITH (
     hostname = 'mysql',
     port = '3306',
     username = 'myuser',
-    password = secret mysql_password,
+    password = '<password>',
     database.name = 'tvf'
 );
 
@@ -126,7 +126,7 @@ CREATE SOURCE mysql_source WITH (
 SELECT *
 FROM mysql_query('mysql_source', 'select * from test;');
 
--- Schema-qualified reference (required when the CDC source lives outside the search_path)
+-- This source was created in public; qualify it explicitly when needed.
 SELECT *
-FROM mysql_query('my_schema.mysql_source', 'select * from test;');
+FROM mysql_query('public.mysql_source', 'select * from test;');
 ```

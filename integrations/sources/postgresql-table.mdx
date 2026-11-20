@@ -36,7 +36,7 @@ postgres_query(
 
 The source-based form requires an existing [PostgreSQL CDC](/ingestion/sources/postgresql/pg-cdc) source. It reuses the connection properties already defined on that source, including credentials managed as secrets.
 
-The `cdc_source_name` argument accepts either a bare identifier (resolved against the session `search_path`) or a schema-qualified name (for example `'my_schema.my_cdc_source'` or `'"my_schema"."my_cdc_source"'`). Use the schema-qualified form when the CDC source lives outside the default `search_path`.
+The `cdc_source_name` argument accepts either a bare identifier (resolved against the session `search_path`) or a schema-qualified name (for example `'my_schema.my_cdc_source'` or `'"my_schema"."my_cdc_source"'`). Use the schema-qualified form when the CDC source lives outside the session `search_path`. The caller needs SELECT privilege on the shared CDC source. Schema-qualified strings require a build containing the source-name resolution fix [#26712](https://github.com/risingwavelabs/risingwave/pull/26712). Older builds can report `source not found: schema.source`; use a bare name with the appropriate `search_path`, or upgrade.
 
 ## Example
 

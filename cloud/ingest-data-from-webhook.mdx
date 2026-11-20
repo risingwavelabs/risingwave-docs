@@ -1,9 +1,9 @@
 ---
 title: "Ingest data from webhook"
-description: "Use managed webhook endpoints in RisingWave Cloud to ingest webhook events directly into your project."
+description: "Use managed webhook endpoints in RisingWave Cloud to ingest webhook events directly into your cluster."
 ---
 
-This guide covers webhook ingestion for **managed RisingWave Cloud** projects, where requests are routed through the managed RWProxy webhook endpoint.
+This guide covers webhook ingestion for **managed RisingWave Cloud** clusters, where requests are routed through the managed RWProxy webhook endpoint.
 
 <Warning>
 Webhook ingestion for managed RisingWave Cloud is currently in **preview**. General availability is planned for RisingWave 2.8. If you'd like to enable it before then, contact us at [cloud-support@risingwave-labs.com](mailto:cloud-support@risingwave-labs.com) and we'll help you get set up.
@@ -19,7 +19,7 @@ For low-latency streaming ingestion over a persistent connection, see [Ingest da
 
 ## How managed webhook routing works
 
-In managed RisingWave Cloud, webhook requests are accepted by RWProxy over HTTPS and forwarded to your project's frontend webhook listener.
+In managed RisingWave Cloud, webhook requests are accepted by RWProxy over HTTPS and forwarded to your cluster's frontend webhook listener.
 
 - Public ingress: HTTPS `:443`
 - Webhook path format: `/webhook/<database>/<schema>/<table>`
@@ -31,8 +31,8 @@ Tenant routing:
 
 ## Prerequisites
 
-1. A running RisingWave Cloud project.
-2. The tenant identifier of your project (for example, `rwc-g1huxxxxxx-mycluster`).
+1. A running RisingWave Cloud cluster.
+2. The tenant identifier of your cluster (for example, `rwc-g1huxxxxxx-mycluster`).
 3. A webhook table in your target database/schema (you can create it in the wizard).
 
 For details on tenant identifier and project connection details, see [Connection errors](/cloud/connection-errors).
@@ -56,8 +56,8 @@ Use the wizard as the primary setup path so users do not need to manually constr
 
 Wizard steps:
 
-1. Open your project workspace and go to **Connect Your Data**.
-2. Open **Webhook Configuration**.
+1. Go to the [RisingWave Cloud dashboard](https://cloud.risingwave.com/dashboard), open your cluster, and select **Data Catalog** in the cluster navigation.
+2. Click **Create source**, then open **Webhook**.
 3. Select **Database**, **Schema**, and **Table**.
 4. (Optional) Use **Create new webhook table** to generate SQL, preview it, and run it.
 5. Copy the generated **Webhook Endpoint URL**.
@@ -65,19 +65,19 @@ Wizard steps:
 
 Wizard screenshots:
 
-**Webhook entry in Connect page**
+**Webhook entry in Data Catalog**
 <Frame>
-  <img src="/images/cloud/ingest-data-from-webhook/webhook-card-in-connect-page.png" alt="Webhook card in the Connect Your Data page in RisingWave Cloud" />
+  <img src="/images/cloud/ingest-data-from-webhook/webhook-card-in-connect-page-v2.png" alt="Webhook card in the Data Catalog create source dialog in RisingWave Cloud" />
 </Frame>
 
 **Create webhook table and review generated SQL**
 <Frame>
-  <img src="/images/cloud/ingest-data-from-webhook/webhook-create-table-and-sql-preview.png" alt="Create webhook table wizard showing generated SQL preview" />
+  <img src="/images/cloud/ingest-data-from-webhook/webhook-create-table-and-sql-preview-v2.png" alt="Create webhook table wizard showing generated SQL preview" />
 </Frame>
 
 **Generated endpoint URL and cURL example**
 <Frame>
-  <img src="/images/cloud/ingest-data-from-webhook/webhook-endpoint-and-curl-example.png" alt="RisingWave Cloud portal webhook configuration wizard showing the generated webhook endpoint URL and cURL example" />
+  <img src="/images/cloud/ingest-data-from-webhook/webhook-endpoint-and-curl-example-v2.png" alt="RisingWave Cloud portal webhook configuration wizard showing the generated webhook endpoint URL and cURL example" />
 </Frame>
 
 ## Recommended SQL and cURL commands

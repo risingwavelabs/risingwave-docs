@@ -8,7 +8,7 @@ Need help generating SQL? Use [Claude Code](https://claude.ai/claude-code) or [C
 
 This guide explains how to connect RisingWave to a PostgreSQL database to ingest data changes in real time using the native PostgreSQL CDC source connector.
 
-RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-compliant database that supports logical replication, and supports **PostgreSQL versions 10 through 17**.
+RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-compliant database that supports logical replication, and supports **PostgreSQL versions 10 through 18**. PostgreSQL 18 support was added in RisingWave v3.0.0.
 
 ## Prerequisites
 
@@ -50,6 +50,14 @@ WITH (
 FROM <shared_source_name> TABLE <upstream_table_name>;
 ```
 
+If an upstream schema or table name contains a period (`.`), enclose that identifier in double quotes inside the single-quoted `TABLE` value. For example, use `TABLE 'public."a.b"'` for a table named `a.b` in the `public` schema, or `TABLE '"s.x".t'` for a table named `t` in the `s.x` schema.
+
+<Warning>
+A shared source cannot distinguish upstream tables whose identifier parts produce the same period-separated name. For example, do not use the same source to ingest both `TABLE '"public.a".b'` and `TABLE 'public."a.b"'`; each RisingWave table would receive changes from both upstream tables.
+</Warning>
+
+PostgreSQL CDC tables created with a quoted name containing a period before this support was introduced must be recreated after upgrading. Earlier versions accepted the table definition but did not deliver its streaming changes.
+
 ### Basic connection example
 
 ```sql
@@ -87,11 +95,10 @@ These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 | `slot.name`                | The name of the PostgreSQL replication slot to use. If not specified, a unique name is generated. Each source needs a unique slot. Valid characters: lowercase letters, numbers, underscore. Max length: 63.              | No       |
 | `publication.name`         | The name of the PostgreSQL publication to use. Defaults to `'rw_publication'`.                                                                                                                                              | No       |
 | `publication.create.enable`| Whether to automatically create the publication if it doesn't exist. Defaults to `true`.                                                                                                                                    | No       |
-| `auto.schema.change`       | Set to `true` to enable automatic replication of DDL changes from Postgres. Defaults to `false`.                                                                                                                             | No       |
+| `auto.schema.change`       | Set to `true` to enable automatic replication of DDL changes from Postgres. Defaults to `false`. The value must be a plaintext Boolean; you cannot provide it as a secret.                                                   | No       |
 | `ssl.mode`                 | SSL/TLS encryption mode. Accepted values: `disabled`, `preferred`, `required`, `verify-ca`, `verify-full`. Defaults to `disabled`.                                                                                          | No       |
 | `ssl.root.cert`            | The PEM-encoded root certificate for `verify-ca` or `verify-full` mode. Use a [secret](/operate/manage-secrets).                                                                                                             | No       |
 | `postgres.is.aws.rds`      | Set to `true` to specify that the upstream database is AWS RDS. This enhances RDS detection and supports scenarios that use a custom DNS endpoint. The default value is `false`.                                            | No       |
-| `transactional`            | Ensures that changes from a single upstream transaction are processed atomically. Defaults to `true` for shared sources.                                                                                                      | No       |
 
 <Note>
 For PostgreSQL CDC sources, RisingWave manages the publication and replication slot automatically. By default, RisingWave will create the publication and slot if they don't exist (`publication.create.enable = 'true'`). If you want to use an existing publication, set `publication.create.enable = 'false'`. This is useful when the RisingWave database user doesn't have `CREATE PUBLICATION` permissions.
@@ -131,6 +138,8 @@ You can also specify any valid [Debezium PostgreSQL connector configuration prop
 If `debezium.time.precision.mode` is not specified, RisingWave uses
 `microseconds`. Set it to `connect` only when the upstream temporal values use
 millisecond precision.
+
+RisingWave uses `string` for `debezium.decimal.handling.mode` to preserve decimal precision. Omit this property or set it to `string`; other values, including `precise` and `double`, are rejected.
 
 For example, to skip unknown DDL statements, use:
 
@@ -275,8 +284,12 @@ The PostgreSQL CDC connector uses the Debezium JSON format for data.
 The following table shows the data type mapping from PostgreSQL to RisingWave.
 
 <Note>
-RisingWave does not support directly creating tables from PostgreSQL composite types. If you want to read composite type data, you will need to use a source and create a materialized view based off that source.
+To ingest user-defined composite types, create a shared PostgreSQL CDC source with `debezium.include.unknown.datatypes = 'true'`, then create a table with `CREATE TABLE ... FROM source`. Scalar composite columns map to `varchar` values in PostgreSQL text format. You can create materialized views from that table if needed.
+
+Composite array columns map to `varchar[]`, with each element preserved in PostgreSQL text format.
 </Note>
+
+The connector uses a nullable text representation for composite columns. With PostgreSQL `REPLICA IDENTITY DEFAULT`, DELETE events can carry `NULL` for non-key composite columns even when the upstream column is declared `NOT NULL`.
 
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | :--------------------------------------------------- | :------------------------- |
@@ -300,7 +313,8 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | JSON, JSONB                                          | JSONB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | XML                                                  | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | UUID                                                 | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| POINT                                                | STRUCT (with form `<x REAL, y REAL>`)                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| POINT                                                | STRUCT (with form `<x DOUBLE PRECISION, y DOUBLE PRECISION>`)                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| POINT[]                                              | No support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | LTREE                                                | No support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | CITEXT                                               | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | INET                                                 | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -471,6 +485,11 @@ Instead of defining columns individually, you can use `*` when creating a table 
 ```sql
 CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_name>';
 ```
+
+If the upstream PostgreSQL primary key uses an `INCLUDE` clause, RisingWave maps
+only the constrained key columns to the RisingWave primary key. The included
+payload columns are ingested as regular columns.
+
 ### Auto schema change
 
 <Tip>
@@ -487,8 +506,8 @@ Currently, RisingWave supports the `ALTER TABLE` command with the following oper
 * `DROP COLUMN`: Allows you to remove an existing column from a table.
 
 During automatic schema changes, RisingWave maps PostgreSQL enum arrays, such
-as `mood_enum[]`, to `varchar[]`. Arrays of PostgreSQL composite types are not
-supported by this mapping.
+as `mood_enum[]`, and arrays of user-defined composite types to `varchar[]`.
+Composite array elements are preserved in PostgreSQL text format.
 
 To enable this feature, set `auto.schema.change = 'true'` in your PostgreSQL CDC source configuration:
 
