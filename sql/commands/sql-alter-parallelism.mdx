@@ -1,0 +1,58 @@
+---
+title: "ALTER ... SET PARALLELISM"
+sidebarTitle: "ALTER ... SET PARALLELISM"
+description: "Choose a fixed or adaptive parallelism policy for an existing streaming job or fragment."
+---
+
+Use `SET PARALLELISM` on an existing streaming job to change its persisted policy. Changing session defaults alone affects newly created jobs, not existing ones.
+
+## Streaming jobs
+
+```sql
+ALTER { TABLE | MATERIALIZED VIEW | INDEX | SINK | SOURCE } object_name
+SET PARALLELISM { TO | = } parallelism_value;
+```
+
+For a source, this applies to a shared source with a streaming job.
+
+| Value | Policy |
+| --- | --- |
+| A positive integer, such as `4` | Fixed parallelism, subject to the job's maximum and available resources. |
+| `ADAPTIVE` or `0` | Full adaptive scheduling within the resource group. |
+| `'bounded(4)'` | Adaptive scheduling capped at the specified number. |
+| `'ratio(0.5)'` | Adaptive scheduling using a fraction of available worker parallelism. |
+
+For example, for an existing table named `orders`:
+
+```sql
+ALTER TABLE orders SET PARALLELISM = 2;
+ALTER TABLE orders SET PARALLELISM = 'bounded(4)';
+ALTER TABLE orders SET PARALLELISM = 'ratio(0.5)';
+```
+
+Read [Adaptive parallelism strategies](/operate/view-configure-runtime-parameters#adaptive-parallelism-strategies) for session defaults and the built-in `default` resolution rules. Defaults for new jobs are not universally full adaptive: tables and sources can resolve to `bounded(4)` while other types resolve to `bounded(64)`.
+
+## Fragments
+
+Fragment-level overrides use a narrower value set:
+
+```sql
+ALTER FRAGMENT fragment_id [, ...]
+SET PARALLELISM { TO | = } { positive_integer | ADAPTIVE | DEFAULT };
+```
+
+`DEFAULT` removes the fragment override so it inherits the job policy. Do not use job-level `bounded(...)` or `ratio(...)` values as fragment-level overrides. See [ALTER FRAGMENT](/sql/commands/sql-alter-fragment#set-parallelism).
+
+## Inspect policies and capacity
+
+```sql
+SELECT id, name, relation_type, parallelism, max_parallelism
+FROM rw_streaming_parallelism;
+
+SELECT name, fragment_id, parallelism
+FROM rw_fragment_parallelism;
+```
+
+Review cluster capacity and job limits before increasing parallelism. Rescheduling moves actors and can affect latency; this command is not a promise of interruption-free execution or immediate resource availability. See [Cluster scaling](/deploy/k8s-cluster-scaling).
+
+For object-specific options, including backfill parallelism, see [ALTER TABLE](/sql/commands/sql-alter-table), [ALTER MATERIALIZED VIEW](/sql/commands/sql-alter-materialized-view), [ALTER INDEX](/sql/commands/sql-alter-index), [ALTER SINK](/sql/commands/sql-alter-sink), and [ALTER SOURCE](/sql/commands/sql-alter-source).
