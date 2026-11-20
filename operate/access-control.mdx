@@ -95,3 +95,11 @@ GRANT SELECT, UPDATE
 ON TABLE t1
 TO user1;
 ```
+
+## Metadata visibility in SHOW commands
+
+Catalog-backed `SHOW` commands follow access control. To list objects with commands such as `SHOW TABLES`, `SHOW SOURCES`, `SHOW SINKS`, `SHOW VIEWS`, `SHOW MATERIALIZED VIEWS`, `SHOW CONNECTIONS`, or `SHOW SECRETS`, you must have `USAGE` on the schema and the relevant privilege on each object. Having schema `USAGE` alone does not reveal object names.
+
+Known-name metadata commands such as `SHOW COLUMNS FROM <object_name>` and `SHOW INDEXES FROM <table_name>` also honor object-level permissions and do not expose metadata for hidden objects.
+
+For connection metadata, referenced secrets are only shown by name when you can access both the secret object and the schema that contains it. Otherwise, RisingWave redacts the secret reference in `SHOW CONNECTIONS` and `rw_catalog.rw_connections`.
