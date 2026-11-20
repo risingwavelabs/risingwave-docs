@@ -1,7 +1,7 @@
 ---
-title: "Source, Table, MV, and Sink"
+title: "Source, Table, Materialized View, and Sink"
 sidebarTitle: "Source, Table, MV, and Sink"
-description: "This topic explains the four core objects in RisingWave: Source, Table, Materialized View (MV), and Sink. Learn their distinct roles in data storage, ingress, real-time computation, and egress."
+description: "Understand the four core objects in RisingWave: Source (data ingress), Table (persistent storage), Materialized View (real-time computation), and Sink (data egress). Includes CDC requirements and connector support matrix."
 ---
 
 To build real-time data applications in RisingWave, you must understand four core objects: **Table**, **Source**, **Materialized View (MV)**, and **Sink**. They represent storage, data ingress, real-time computation, and data egress. Common beginner questions include: Both Table and Source can connect to external systems—what’s the difference? Why are Tables required for CDC? Must a Sink consume from an MV? Can Iceberg or Kafka Sources be queried directly? This guide clarifies these concepts with comparison tables, examples, and diagrams.
@@ -60,7 +60,7 @@ CREATE TABLE events (
   connector = 'kafka',
   topic = 'user_events',
   properties.bootstrap.server = 'broker:9092'
-);
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 Regardless of the method, a Table stores data internally within RisingWave and maintains offsets/checkpoints to ensure fault tolerance and data consistency. Therefore, for any pipeline involving CDC or long-running jobs, a Table is indispensable.
@@ -80,7 +80,7 @@ CREATE SOURCE kafka_src (
   connector = 'kafka',
   topic = 'user_events',
   properties.bootstrap.server = 'broker:9092'
-);
+) FORMAT PLAIN ENCODE JSON;
 
 SELECT * FROM kafka_src LIMIT 10;
 ```
@@ -106,7 +106,8 @@ CREATE SOURCE pg_src WITH (
   port = '5432',
   username = 'user',
   password = 'pwd',
-  database.name = 'mydb'
+  database.name = 'mydb',
+  slot.name = 'rw_shared_slot'
 );
 
 CREATE TABLE users (...) FROM pg_src TABLE 'public.users';

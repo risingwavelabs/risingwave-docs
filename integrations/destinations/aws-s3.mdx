@@ -31,6 +31,8 @@ WITH (
 | `s3.endpoint_url`       | **Optional**. The host URL for an S3-compatible object storage server. This allows users to use a different server instead of the standard S3 server.|
 | `s3.assume_role`        | **Optional**. Specifies the ARN of an IAM role to assume when accessing S3. It allows temporary, secure access to S3 resources without sharing long-term credentials. |
 | `type`                  | **Required**. Defines the type of the sink. The S3 sink only supports `append-only`|
+| `max_row_count`         | **Optional**. Maximum number of rows per output file. Defaults to `10240`. A file is finalized when this threshold **or** `rollover_seconds` is reached first. |
+| `rollover_seconds`      | **Optional**. Maximum duration (in seconds) before the current file is finalized and a new one is started. Defaults to `10`. A file is finalized when this threshold **or** `max_row_count` is reached first. |
 
 <Note>
 In RisingWave Cloud, the default AWS credential provider chain is disabled. Provide `s3.credentials.access` and `s3.credentials.secret` (or use a supported assume-role setup). These credentials cannot be omitted. The `enable_config_load` option is supported only in self-hosted deployments.
@@ -58,3 +60,15 @@ WITH (
 For more information about encode `Parquet` or `JSON`, see [Sink data in parquet or json format](/delivery/overview#sink-data-in-parquet-or-json-format).
 
 For more information about batching strategy, see [Batching strategy for file sink](/delivery/overview#batching-strategy-for-file-sink).
+
+### Multiple output files during backfill
+
+When a sink is created, RisingWave performs an initial backfill of the upstream table. Because a file is finalized when either `rollover_seconds` (default: `10`) or `max_row_count` (default: `10240`) is reached, a table with more than 10,240 rows will produce **multiple output files** under the configured `s3.path`. Seeing roughly 10K rows in a single file does not mean data is missing.
+
+To verify that all rows were delivered, list all objects under the sink path and sum their row counts:
+
+```bash
+aws s3 ls s3://<bucket>/<path>/ --recursive
+```
+
+Adjust `max_row_count` and `rollover_seconds` when creating the sink if you need different file sizes.

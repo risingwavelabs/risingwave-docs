@@ -1,0 +1,120 @@
+---
+title: "What is a Source in RisingWave?"
+sidebarTitle: "Sources"
+description: "A source in RisingWave is a connection to an external data system that streams data into the database. Learn about source types, supported connectors, and when to use a source vs. a table."
+---
+
+## What is a source?
+
+A source in RisingWave is a connection to an external data system that streams data into the database. Sources define where data comes from and how it should be parsed — they are the entry point for all data ingestion in RisingWave.
+
+When you create a source with [`CREATE SOURCE`](/sql/commands/sql-create-source), RisingWave establishes a connection to the external system and begins reading data according to the specified format and encoding. Sources do not persist data inside RisingWave — they provide a live window into the external data stream.
+
+## How sources work
+
+```sql
+-- Create a source that reads from a Kafka topic
+CREATE SOURCE pageviews (
+  user_id INT,
+  page_url VARCHAR,
+  view_time TIMESTAMP
+) WITH (
+  connector = 'kafka',
+  topic = 'pageviews',
+  properties.bootstrap.server = 'broker:9092'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+Once created, a source can be:
+
+- **Queried directly** (for supported connectors like Kafka, S3, Iceberg) — useful for ad-hoc exploration and validation.
+- **Referenced in materialized views** — to build continuous streaming pipelines.
+- **Used as input for sinks** — to transform and deliver data to downstream systems.
+
+## Source vs. Table
+
+A common question is when to use a source versus a [table with connector settings](/sql/commands/sql-create-table). The key difference is **data persistence**:
+
+| | Source | Table (with connector) |
+| :--- | :--- | :--- |
+| Persists data in RisingWave | No | Yes |
+| Supports DML (INSERT, UPDATE, DELETE) | No | Yes |
+| Required for CDC connectors | No — must use Table | Yes |
+| Primary key required | No | Required for CDC |
+| Best for | Exploration, stateless pipelines | Persistent storage, CDC, updates |
+
+**Rule of thumb**: Use a source when you only need to stream data through to materialized views or sinks without storing the raw data. Use a table when you need to persist the raw data, use CDC connectors, or need to update/delete individual rows.
+
+## Supported source connectors
+
+RisingWave supports a wide range of source connectors:
+
+**Message brokers**: Apache Kafka, Apache Pulsar, Amazon Kinesis, MQTT, NATS, Google Pub/Sub
+
+**Databases (CDC)**: PostgreSQL, MySQL, SQL Server, MongoDB — via native CDC connectors, no Kafka or Debezium required
+
+**Object storage**: Amazon S3, Google Cloud Storage, Azure Blob Storage
+
+**Data lakes**: Apache Iceberg
+
+**Other**: Webhooks, Datagen (for testing)
+
+For the full list, see [Supported source connectors](/ingestion/overview).
+
+## Data formats and encoding
+
+Sources support multiple data formats:
+
+- **JSON** — most common; schema inferred or specified in DDL
+- **Avro** — requires schema registry URL (Kafka sources)
+- **Protobuf** — requires schema specification
+- **CSV** — for file-based sources
+- **Bytes** — raw bytes for custom parsing
+- **Debezium JSON** — for CDC events from Kafka topics
+
+```sql
+-- Avro source with schema registry
+CREATE SOURCE events WITH (
+  connector = 'kafka',
+  topic = 'events',
+  properties.bootstrap.server = 'broker:9092'
+) FORMAT PLAIN ENCODE AVRO (
+  schema.registry = 'http://schema-registry:8081'
+);
+```
+
+## Related topics
+
+- [CREATE SOURCE](/sql/commands/sql-create-source) — SQL reference
+- [Ingestion overview](/ingestion/overview) — Connector list and ingestion patterns
+- [Source, Table, MV, and Sink](/get-started/source-table-mv-sink) — Core object comparison
+- [CDC with RisingWave](/ingestion/cdc-with-risingwave) — Native CDC connectors
+
+<head>
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is a source in RisingWave?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A source in RisingWave is a connection to an external data system (such as Kafka, S3, or a database) that streams data into RisingWave. Sources define where data comes from and how it is parsed. They do not persist data inside RisingWave — they provide a live window into the external data stream for use in materialized views, queries, and sinks."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between a source and a table in RisingWave?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A source does not persist data inside RisingWave and cannot be updated with DML statements. A table with connector settings persists the ingested data and supports INSERT, UPDATE, and DELETE operations. CDC connectors (PostgreSQL, MySQL, SQL Server, MongoDB) require tables with primary keys. Use a source for stateless streaming; use a table when you need persistent storage or CDC."
+          }
+        }
+      ]
+    }
+    `}
+  </script>
+</head>

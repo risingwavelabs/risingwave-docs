@@ -20,16 +20,22 @@ The docker images for `x86_64` are built with AVX2 SIMD extensions, and the imag
 - To build the images without SIMD vector extensions, run the following from the project root `docker build . -f docker/Dockerfile --build-arg simd_disabled=true` and run any subsequent docker commands on the resultant image.
 </Note>
 
+## Kubernetes resource sizing guidance
+
+When deploying on Kubernetes (via Helm or the RisingWave Kubernetes Operator), set resource `requests` and `limits` to the **same values** for each component. Matching them places pods in the [`Guaranteed` QoS class](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/), which improves scheduling predictability and makes pods less likely to be evicted under resource pressure.
+
+RisingWave is memory-intensive. Use a **1:4 CPU:memory ratio** when sizing components (for example, 1 CPU core to 4 GiB memory). See [Optional: Resize a node](/deploy/risingwave-k8s-helm#optional-resize-a-node) for an example `values.yaml` snippet.
+
 ## Compute Nodes
 
 Compute Nodes (including Streaming Nodes and Serving Nodes) handle query processing and state management. More resources enable higher query throughput. For cost efficiency, machines with high memory-to-CPU ratios (4:1 or higher) are recommended due to RisingWave's memory-intensive nature.
 
 * Minimum:
    * 2 CPU cores
-   * 8 GB memory
+   * 8 GiB memory
 * Recommended:
    * ≥4 CPU cores
-   * ≥16 GB memory
+   * ≥16 GiB memory
 
 ## Compactor Nodes
 
@@ -37,21 +43,32 @@ Compactor Nodes perform background compaction jobs to optimize state storage. In
 
 * Minimum:
    * 1 CPU core
-   * 1 GB memory
+   * 4 GiB memory
 * Recommended:
    * ≥ 2 CPU cores
-   * ≥ 2 GB memory
+   * ≥ 8 GiB memory
 
 ## Meta Nodes
 
 Meta Nodes manage metadata and coordinate the cluster. It is advisable to deploy 2 Meta Nodes (primary and backup) to ensure faster recovery and avoid single points of failure (SPOF).
 
 * Minimum:
-   * 2 CPU cores
-   * 1 GB memory
+   * 1 CPU core
+   * 4 GiB memory
 * Recommended:
    * ≥ 2 CPU cores
-   * ≥ 4 GB memory
+   * ≥ 8 GiB memory
+
+## Frontend Nodes
+
+Frontend Nodes serve SQL queries from clients, parse and plan queries, and route requests to Compute Nodes. They are stateless and typically do not require as many resources as Compute or Compactor Nodes, but they should still be sized to handle peak client concurrency.
+
+* Minimum:
+   * 1 CPU core
+   * 4 GiB memory
+* Recommended:
+   * ≥ 2 CPU cores
+   * ≥ 8 GiB memory
 
 ## Storage
 

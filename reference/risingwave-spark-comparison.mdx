@@ -1,0 +1,172 @@
+---
+title: "RisingWave vs. Spark Structured Streaming"
+sidebarTitle: "RisingWave vs. Spark Streaming"
+description: "Compare RisingWave and Apache Spark Structured Streaming for stream processing: micro-batch vs. continuous processing, SQL compatibility, state management, latency, and operational complexity."
+---
+
+We periodically update this article to keep up with the rapidly evolving landscape.
+
+## Summary
+
+|  | Spark Structured Streaming | RisingWave |
+| :--- | :--- | :--- |
+| System category | Unified batch and stream processing engine | Streaming database |
+| License | Apache License 2.0 | Apache License 2.0 |
+| Architecture | Distributed compute engine (JVM-based, Scala/Java/Python) | Cloud-native streaming database (Rust) |
+| Processing model | Micro-batch (default) or continuous (experimental) | True event-driven continuous processing |
+| SQL dialect | Spark SQL (Hive-compatible) | PostgreSQL-compatible SQL |
+| State management | HDFS/S3 checkpoints + RocksDB state store | Hummock LSM-tree persisted to object storage |
+| Storage | No built-in storage; requires external systems | Built-in storage backed by object storage (S3) |
+| Query serving | No built-in serving; requires external database | Built-in SQL query serving via Serving Nodes |
+| Latency | 100ms–seconds (micro-batch); sub-100ms (continuous, experimental) | Sub-second (continuous incremental processing) |
+| Typical use cases | Large-scale ETL, ML pipelines, batch + stream unification | Streaming ETL, monitoring, real-time serving |
+
+## Introduction
+
+_Spark Structured Streaming is a stream processing engine built on Apache Spark's batch engine; RisingWave is a purpose-built streaming database with PostgreSQL-compatible SQL._
+
+### Spark Structured Streaming
+
+Apache Spark Structured Streaming is the stream processing module of Apache Spark. It treats streaming data as an unbounded table and reuses Spark's batch execution engine to process it in micro-batches. This "batch-first" design means Spark users can apply the same DataFrame/Dataset APIs and Spark SQL to both batch and streaming workloads. Spark is widely adopted for large-scale data engineering, machine learning pipelines, and ETL.
+
+### RisingWave
+
+RisingWave is an open-source streaming database that processes data continuously as it arrives, not in micro-batches. It uses PostgreSQL-compatible SQL and stores all data in object storage. RisingWave provides built-in source and sink connectors, incremental materialized view maintenance, and a dedicated query serving layer — no external systems required for a complete streaming pipeline.
+
+## Processing model
+
+_Spark uses micro-batch processing by default; RisingWave uses true continuous incremental processing._
+
+Spark Structured Streaming processes data in **micro-batches** by default. The engine periodically polls sources for new data, collects it into a batch, and processes the batch using Spark's execution engine. The default trigger interval is 0ms (process as fast as possible), but actual latency depends on batch scheduling overhead and data volume. Spark also offers an experimental **Continuous Processing** mode with lower latency, but it supports only a subset of operations (map-like operations only — no aggregations or joins).
+
+RisingWave processes data **continuously and incrementally**. When new events arrive, they flow through the streaming pipeline immediately and update materialized views in place. There is no batching overhead. This architecture delivers consistently low latency regardless of trigger intervals.
+
+| | Spark Structured Streaming | RisingWave |
+| :--- | :--- | :--- |
+| Default mode | Micro-batch | Continuous incremental |
+| Minimum latency | ~100ms (micro-batch); lower with continuous (experimental) | Sub-second |
+| Aggregation support | Full (micro-batch only) | Full (continuous) |
+| Join support | Full (micro-batch only) | Full (continuous) |
+
+## SQL compatibility
+
+_Spark uses Spark SQL (Hive-compatible); RisingWave uses PostgreSQL-compatible SQL._
+
+Spark SQL is a powerful SQL dialect with strong Hive compatibility and deep integration with the Spark DataFrame API. However, it differs from standard SQL in many places — it uses Spark-specific syntax for streaming operations (e.g., `readStream`, `writeStream`, `watermark`, `outputMode`), and streaming queries typically require a mix of SQL and Scala/Python API calls.
+
+RisingWave uses PostgreSQL-compatible SQL. Streaming pipelines are defined entirely in SQL using `CREATE SOURCE`, `CREATE MATERIALIZED VIEW`, and `CREATE SINK`. Any tool that works with PostgreSQL (psql, JDBC, Python psycopg2) works with RisingWave.
+
+```python
+# Spark Structured Streaming: Python + SQL mix
+spark.readStream \
+  .format("kafka") \
+  .option("subscribe", "orders") \
+  .load() \
+  .selectExpr("CAST(value AS STRING)") \
+  .writeStream \
+  .outputMode("append") \
+  .format("iceberg") \
+  .option("path", "catalog.db.orders") \
+  .start()
+```
+
+```sql
+-- RisingWave: Pure SQL
+CREATE SOURCE orders (order_id INT, amount DECIMAL, ts TIMESTAMP)
+WITH (connector = 'kafka', topic = 'orders', ...) FORMAT PLAIN ENCODE JSON;
+
+CREATE SINK orders_to_iceberg FROM orders
+WITH (connector = 'iceberg', type = 'append-only', ...);
+```
+
+## State management
+
+_Spark checkpoints state to HDFS/S3; RisingWave persists state to object storage via Hummock._
+
+Spark Structured Streaming manages state through **checkpointing** and **state stores**. By default, state is stored in an HDFS-compatible state store (or RocksDB for larger state). Checkpoints are written to a distributed file system (HDFS, S3) for fault tolerance. Changing a streaming query's logic typically requires discarding checkpoints and reprocessing from scratch.
+
+RisingWave manages state through its **Hummock** storage engine, an LSM-tree that persists all state to object storage. Checkpoint-based recovery is fast (seconds), and the system supports schema evolution and query changes without full reprocessing in many cases.
+
+## Built-in storage and query serving
+
+_Spark has no built-in storage or serving; RisingWave includes both._
+
+Spark is a compute engine — it does not store data or serve queries. To build a complete pipeline, you need:
+- Spark for processing
+- An external database (e.g., PostgreSQL, Cassandra, Redis) for serving results
+- An orchestrator (e.g., Airflow) for scheduling and monitoring
+
+RisingWave is a database. It stores data in object storage, maintains materialized views, and serves queries through dedicated Serving Nodes. A complete streaming pipeline requires only RisingWave.
+
+## Connectors
+
+_Both systems support major data sources and sinks, but with different integration approaches._
+
+Spark has a vast connector ecosystem through the Spark DataSource API. However, configuring connectors requires Scala/Python code and JAR dependency management.
+
+RisingWave provides built-in connectors configured entirely in SQL DDL statements. Native CDC connectors for PostgreSQL, MySQL, SQL Server, and MongoDB require no external tools.
+
+| | Spark Structured Streaming | RisingWave |
+| :--- | :--- | :--- |
+| Kafka | Yes (via Spark-Kafka connector JAR) | Yes (built-in, SQL DDL) |
+| Database CDC | Via Debezium + Kafka | Native CDC (no Kafka required) |
+| Iceberg | Yes (via Iceberg Spark runtime) | Yes (built-in with compaction) |
+| Configuration | Scala/Python code + JARs | SQL DDL statements |
+
+## Operational complexity
+
+_Spark requires a distributed cluster, JVM tuning, and JAR management; RisingWave is a standalone database._
+
+| | Spark Structured Streaming | RisingWave |
+| :--- | :--- | :--- |
+| Deployment | Spark cluster (YARN, Mesos, K8s, or Standalone) | Docker, Kubernetes, or Cloud |
+| Runtime | JVM (Scala/Java/Python driver + executors) | Native Rust binary |
+| Job management | Spark Submit, JAR packaging, driver/executor config | SQL statements |
+| Monitoring | Spark UI, custom metrics integration | Built-in dashboard, Prometheus/Grafana |
+| Adding a new pipeline | Write code, package JAR, submit job | `CREATE MATERIALIZED VIEW ...` |
+
+## How to choose?
+
+Choose **Spark Structured Streaming** if:
+- You already have a large Spark ecosystem (Spark batch, MLlib, Spark SQL) and want to reuse it for streaming.
+- You need unified batch and streaming with the same API.
+- Your streaming use case tolerates micro-batch latency (100ms+).
+- You need deep integration with Hadoop/Hive ecosystem.
+- Your team has strong Scala/Python/JVM expertise.
+
+Choose **RisingWave** if:
+- You want to define streaming pipelines entirely in SQL without writing application code.
+- You need continuous incremental processing with sub-second latency.
+- You want built-in storage and query serving without external systems.
+- You need native CDC connectors without Kafka or Debezium.
+- You want cascading materialized views for multi-layered streaming pipelines.
+- You want a simpler operational model — SQL statements instead of JAR submissions.
+
+<head>
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the difference between RisingWave and Spark Structured Streaming?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Spark Structured Streaming is a micro-batch stream processing engine built on Apache Spark that requires external storage and serving systems. RisingWave is a purpose-built streaming database with continuous incremental processing, built-in storage, and SQL query serving. Spark uses Scala/Python APIs; RisingWave uses PostgreSQL-compatible SQL for all operations."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can RisingWave replace Spark Structured Streaming?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "For streaming ETL and real-time analytics, RisingWave can replace Spark Structured Streaming with a simpler, SQL-only approach and lower latency. However, Spark is better suited when you need unified batch and streaming with the same API, deep Hadoop/Hive integration, or Spark MLlib for machine learning pipelines."
+          }
+        }
+      ]
+    }
+    `}
+  </script>
+</head>
