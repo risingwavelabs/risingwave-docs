@@ -11,11 +11,11 @@ A sink is an external target that you can send data to. To stream data out of Ri
 The Kafka sink provides **at-least-once delivery** guarantees. RisingWave may retry failed sends, which can cause the same Kafka message to be written more than once during failures or retries.
 
 - For append-only sinks, this means the same row may be emitted to Kafka more than once, so downstream consumers should handle duplicate messages.
-- For upsert sinks, Kafka stores a changelog keyed by the sink primary key. Multiple messages with the same key are expected. If those messages have different values, they usually represent normal updates to that key rather than retry duplicates. A retry duplicate is when the same key and value are written again.
+- For upsert sinks, Kafka stores a changelog keyed by the sink primary key. Multiple messages with the same key are expected. If those messages have different values, they usually represent normal updates to that key rather than retry duplicates. A retry duplicate is a repeated copy of the same change caused by a retry; identical keys alone do not establish duplication.
 
 To reduce duplicates caused by producer retries after broker or acknowledgment failures, you can set `properties.enable.idempotence = true`. This enables Kafka producer idempotence for a single producer session, so Kafka can deduplicate retried sends from that producer and preserve message order.
 
-This does **not** provide end-to-end exactly-once delivery for the Kafka sink. RisingWave checkpoints and Kafka writes are not committed as one atomic transaction, and RisingWave writes to Kafka in non-transactional mode. If Kafka accepts some records but RisingWave fails before the corresponding checkpoint is fully committed, RisingWave recovers from the previous checkpoint and sends those records again. After recovery, Kafka sees those as new sends from a new producer session, so `enable.idempotence` cannot deduplicate them.
+This does **not** provide end-to-end exactly-once delivery for the Kafka sink. RisingWave checkpoints and Kafka writes are not committed as one atomic transaction, and RisingWave writes to Kafka in non-transactional mode. If Kafka accepts some records but RisingWave fails before the corresponding checkpoint is fully committed, RisingWave recovers from the previous checkpoint and sends those records again. Checkpoint replay submits fresh sends, which producer idempotence does not deduplicate.
 
 ## Syntax
 
@@ -70,9 +70,13 @@ When creating a Kafka sink in RisingWave, you can specify the following Kafka-sp
 | queue.buffering.max.kbytes            | properties.queue.buffering.max.kbytes            | int    |
 | queue.buffering.max.messages          | properties.queue.buffering.max.messages          | int    |
 | queue.buffering.max.ms                | properties.queue.buffering.max.ms                | float  |
+| reconnect.backoff.ms                  | properties.reconnect.backoff.ms                  | int    |
+| reconnect.backoff.max.ms              | properties.reconnect.backoff.max.ms              | int    |
 | request.required.acks                 | properties.request.required.acks                 | int    |
 | retry.backoff.ms                      | properties.retry.backoff.ms                      | int    |
+| retry.backoff.max.ms                  | properties.retry.backoff.max.ms                  | int    |
 | receive.message.max.bytes             | properties.receive.message.max.bytes             | int    |
+| socket.connection.setup.timeout.ms    | properties.socket.connection.setup.timeout.ms    | int    |
 | ssl.endpoint.identification.algorithm | properties.ssl.endpoint.identification.algorithm | str    |
 | statistics.interval.ms                | properties.statistics.interval.ms                | int    |
 

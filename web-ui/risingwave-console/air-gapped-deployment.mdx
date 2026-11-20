@@ -1,0 +1,115 @@
+---
+title: "Air-gapped deployment"
+description: "Run RisingWave Console v0.8.0 in a restricted network and prepare optional offline cluster-management artifacts."
+---
+
+Use this guide when Console cannot reach the public internet. First prepare only what is needed to connect an existing cluster. Add component images and Helm charts only if Console will install a full Kubernetes Environment.
+
+## Choose a v0.8.0 image
+
+Released on October 20, 2026, the four v0.8.0 variants support linux/amd64 and linux/arm64:
+
+| Image | Console metadata | Pre-cached `risectl` |
+| --- | --- | --- |
+| `risingwavelabs/risingwave-console:v0.8.0` | External PostgreSQL | No |
+| `risingwavelabs/risingwave-console:v0.8.0-pgbundle` | Bundled PostgreSQL | No |
+| `risingwavelabs/risingwave-console:airgap-v0.8.0` | External PostgreSQL | v2.8.5 and v3.0.1 |
+| `risingwavelabs/risingwave-console:airgap-v0.8.0-pgbundle` | Bundled PostgreSQL | v2.8.5 and v3.0.1 |
+
+The air-gap images do not contain every possible version. **Registered RisingWave version** selects the requested CLI version. Console first looks for the exact cached binary and can fall back to the highest available cached patch version in the same major/minor series. For example, a cluster registered as `v2.8.2` can use cached `v2.8.5`. This selection behavior is not a compatibility guarantee for every CLI and database combination.
+
+## Connect an existing cluster offline
+
+Prepare:
+
+- one of the Console images above in a registry reachable from the runtime,
+- a signed license mounted as a file or Kubernetes Secret,
+- Console metadata PostgreSQL, preferably external for durability,
+- network and DNS access from Console to the cluster's SQL, Meta RPC, Meta HTTP, and optional metrics endpoints,
+- the requested `risectl` binary, or a suitable cached patch version in the same major/minor series, for operational commands.
+
+Set the air-gap environment and the baked-in tool directory when using an `airgap-v0.8.0` image:
+
+```shell
+RCONSOLE_NOINTERNET=true
+RCONSOLE_RISECTLDIR=/home/console/.risectl
+RW_LICENSE_KEY_PATH=/etc/rconsole/license.jwt
+```
+
+The baked-in layout is:
+
+```text
+/home/console/.risectl/v2.8.5/risectl
+/home/console/.risectl/v3.0.1/risectl
+```
+
+If your existing deployment provisions tools on a PVC, keep its current `RCONSOLE_RISECTLDIR` and place binaries at `<RCONSOLE_RISECTLDIR>/<version>/risectl`. Console prefers an exact match, then considers other cached patch versions in the requested major/minor series. Do not mount an empty volume over `/home/console/.risectl` and hide the baked-in cache.
+
+After connecting the cluster, use **Risectl > Check CLI** to inspect the executable's reported version. The check does not prove Meta connectivity, cluster health, or command compatibility. Run a permitted read-only Meta command as a separate end-to-end check.
+
+## Optionally prepare full Environment installation
+
+Skip this section if Console only connects to existing clusters.
+
+For a full Environment installation, also prepare:
+
+- private-registry copies of every selected infrastructure and RisingWave image,
+- the cert-manager and RisingWave Operator Helm chart archives,
+- any optional metrics, logs, Grafana, or object-store images,
+- broad Environment-manager and cluster-installer permissions approved by the platform administrator.
+
+The air-gap Console image alone is not an offline Environment installer.
+
+### Mirror images
+
+Render the exact Helm chart versions you plan to install and mirror the images they reference. The current Environment defaults can include:
+
+| Component | Image |
+| --- | --- |
+| Metadata PostgreSQL | `postgres:16` |
+| Object store | `minio/minio:RELEASE.2023-12-02T10-51-33Z` |
+| Grafana | `grafana/grafana-oss:11.4.0` |
+| Init / utility | `busybox:1.36` |
+| Metrics | `victoriametrics/victoria-metrics:v1.108.1` |
+| Metrics agent | `victoriametrics/vmagent:v1.108.1` |
+| Logs | `victoriametrics/victoria-logs:v1.3.1-victorialogs` |
+| Log forwarder | `fluent/fluent-bit:latest` |
+
+<Note>
+  `fluent/fluent-bit:latest` is mutable. For reproducible mirrors, configure a
+  fixed supported tag and mirror that exact tag.
+</Note>
+
+Also mirror the selected RisingWave database image and the images referenced by the cert-manager and RisingWave Operator charts. Configure **Settings > Docker Registry > Private Docker Registry** with the same registry prefix used for those mirrors.
+
+### Provide Helm charts
+
+Mount valid `.tgz` chart archives in the directory selected by `RCONSOLE_HELM_CHART_DIR`, or upload them from the install workflow when prompted. For example:
+
+```shell
+RCONSOLE_HELM_CHART_DIR=/risingwave-console-data/helm-charts
+```
+
+## Validate the setup
+
+For an existing-cluster connection:
+
+1. Confirm Console starts with `RCONSOLE_NOINTERNET=true`.
+2. Test SQL, Meta RPC, and Meta HTTP from the Console runtime.
+3. Confirm the requested `risectl` version or a same-series patch fallback exists in the configured cache.
+4. Run **Check CLI** to inspect the selected executable, then run a permitted read-only Meta command.
+5. Confirm configured metrics independently.
+
+For a full Environment installation, additionally verify registry credentials, image pulls, chart lookup, component readiness, and the Environment acceptance test.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| `risectl` binary is missing | Check for the exact requested version and other cached patch versions in the same major/minor series under `<RCONSOLE_RISECTLDIR>/<version>/risectl`. The air-gap image includes v2.8.5 and v3.0.1. |
+| **Check CLI** succeeds but Meta commands fail | **Check CLI** validates the executable, not the cluster. Test Meta RPC connectivity and authorization. |
+| Initial Meta Service is reachable but commands still fail | Inspect the advertised Meta leader and member addresses. Every address returned to Console must be resolvable and reachable across namespaces. |
+| Cross-namespace Meta addresses do not resolve | Prefer platform-supported, resolvable full Service addresses. Do not blindly change an existing cluster's `enableFullKubernetesAddr` setting, and do not use one namespace's DNS search path as a multi-target workaround. |
+| `helm chart not available for air-gapped install` | Mount or upload the required chart archive. Charts are needed for optional Environment installation, not ordinary cluster connection. |
+| Kubernetes reports `ImagePullBackOff` | Confirm the private registry prefix, exact image names and tags, registry credentials, and node trust configuration. |
+| A PVC-backed tool cache stopped working | Preserve the existing `RCONSOLE_RISECTLDIR`; do not mask it with the baked-in path or an empty volume. |
