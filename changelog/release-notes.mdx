@@ -62,6 +62,65 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 
 </Update>
 
+<Update label="v3.0.6" description="2026-11-20">
+
+This patch release improves backfill correctness, connector reliability, recovery, and runtime security.
+
+## Upgrade notes
+
+- Fixes silent row loss when arrangement backfill finishes immediately before a barrier while upstream writes continue. Check existing affected indexes and materialized views and recreate them if rows are missing; upgrading does not restore previously missing rows. [#27590](https://github.com/risingwavelabs/risingwave/pull/27590)
+- Fixes rows being skipped when backfill hands off to a shared Kafka source. Previously affected materialized views require data validation and recreation if rows are missing. [#28048](https://github.com/risingwavelabs/risingwave/pull/28048)
+- Prevents garbage collection from deleting SST files still referenced by backups or time-travel snapshots. Upgrading protects retained files going forward; it cannot restore files already deleted. Validate affected historical backups and time-travel queries before relying on them. [#27898](https://github.com/risingwavelabs/risingwave/pull/27898)
+- Standard and HDFS container builds require Ubuntu's patched OpenJDK 21 runtime package `21.0.13.1+2-1~24.04.1` or newer. Replace running containers with updated images; restarting an old container does not update its JDK. Custom image builds should use `--pull --no-cache` and mirrors that contain the security update. Binary deployments should update their JDK and restart RisingWave. The embedded JVM also disables Base64 intrinsics on x86-64 as an additional mitigation for CVE-2026-114938. [#28113](https://github.com/risingwavelabs/risingwave/pull/28113)
+
+## SQL and streaming
+
+- Eliminates updates whose projected old and new rows are identical during cross-database table scans and snapshot-backfill catch-up, avoiding unnecessary downstream work. [#28104](https://github.com/risingwavelabs/risingwave/pull/28104)
+- Correctly parses and formats escaped double quotes inside quoted SQL identifiers. [#27716](https://github.com/risingwavelabs/risingwave/pull/27716)
+- Updates time-zone data to 2026f, changing `America/Vancouver` conversions after the November 2026 transition. Review queries that depend on the previous time-zone rules. [#28054](https://github.com/risingwavelabs/risingwave/pull/28054)
+- Prevents `now_progress_ratio` from throttling streaming `generate_series` or stalling its watermarks. [#27490](https://github.com/risingwavelabs/risingwave/pull/27490)
+- Fixes state eviction for `EMIT ON WINDOW CLOSE` over-window queries when partition, order, and stream-key columns overlap, preventing incorrect results after recovery. [#27483](https://github.com/risingwavelabs/risingwave/pull/27483)
+- Supports standard HTTP and HTTPS endpoints in UDF `USING LINK` clauses, including default ports and TLS for HTTPS. [#27691](https://github.com/risingwavelabs/risingwave/pull/27691)
+
+## Connectors
+
+- Adds opt-in ordering for BigQuery upsert changes with `bigquery.change_sequence_number = 'true'`, disabled by default and alterable with `ALTER SINK ... CONNECTOR WITH`. Without it, repeated changes to a key can be applied out of order. **Once rows have been written with sequence numbers, do not disable the option on that destination table:** BigQuery can ignore subsequent updates and deletes without sequence numbers; switching back requires a new destination table and sink. Enabling it can increase BigQuery query costs. Keep compute-node clocks synchronized: a handoff to a node whose clock is behind the previous writer can cause changes to be ignored until its clock catches up, requiring downstream reconciliation. [#27864](https://github.com/risingwavelabs/risingwave/pull/27864), [#28013](https://github.com/risingwavelabs/risingwave/pull/28013)
+- Prevents empty BigQuery `AppendRows` requests when batching large rows. [#27887](https://github.com/risingwavelabs/risingwave/pull/27887)
+- Fixes ClickHouse sinks failing with `decompression error: incorrect magic number` against ClickHouse 26.9 and later. [#27808](https://github.com/risingwavelabs/risingwave/pull/27808)
+- Fixes Iceberg sinks with automatic schema changes failing when nested columns are added, and replays pending schema changes during recovery before writers start. [#27980](https://github.com/risingwavelabs/risingwave/pull/27980)
+- Escapes identifiers in MySQL, PostgreSQL, and SQL Server CDC snapshot queries, fixing snapshot and backfill failures for names containing quote characters. [#27696](https://github.com/risingwavelabs/risingwave/pull/27696)
+- Allows SQL Server CDC sources to become ready when no new changes are available. Validation checks SQL Server Agent status when accessible and falls back to CDC log availability otherwise. [#27469](https://github.com/risingwavelabs/risingwave/pull/27469)
+- Validates SQL Server schema and table name casing against the upstream catalog and reports the exact name to use when casing differs. [#27504](https://github.com/risingwavelabs/risingwave/pull/27504)
+- Includes CDC offsets persisted at non-checkpoint barriers in the next checkpoint's upstream offset commit. [#27690](https://github.com/risingwavelabs/risingwave/pull/27690)
+- Retries Pulsar sources when the SDK consumer terminates unexpectedly instead of leaving ingestion stalled. [#27515](https://github.com/risingwavelabs/risingwave/pull/27515)
+- Fixes parsing of string values for `kinesis.reader.eof_retry_interval_ms` and `kinesis.reader.error_retry_interval_ms`. [#27708](https://github.com/risingwavelabs/risingwave/pull/27708)
+- Allows Kinesis sources to use plain Avro with AWS Glue Schema Registry. [#28053](https://github.com/risingwavelabs/risingwave/pull/28053)
+- Resolves stored secret references before validating altered sink properties. [#27434](https://github.com/risingwavelabs/risingwave/pull/27434)
+
+## Administration and performance
+
+- Checks schema `CREATE` privileges before fetching an external schema for source or table creation. [#27525](https://github.com/risingwavelabs/risingwave/pull/27525)
+- Excludes the secret-store private key from serialized meta-node options, including startup event logs. [#27698](https://github.com/risingwavelabs/risingwave/pull/27698)
+- Supports an optional `database_id` filter for dashboard diagnostic reports. Shared cluster diagnostics remain included. [#27512](https://github.com/risingwavelabs/risingwave/pull/27512)
+- Queues snapshot-backfill catch-up barriers and limits pending barriers using `streaming.in_flight_barrier_nums` multiplied by `streaming.snapshot_backfill_barrier_amplification_factor` (default `1`). The former setting now counts collected and completing barriers as well as in-flight barriers. **Known limitation:** Keep the effective snapshot-backfill limit above `1`; a limit of `1` cannot drain an existing catch-up backlog. [#27824](https://github.com/risingwavelabs/risingwave/pull/27824)
+- Prevents repeated discarded or rejected commands, including no-op parallelism changes, from delaying periodic barriers. [#27948](https://github.com/risingwavelabs/risingwave/pull/27948)
+- Fixes a permanent SST ID allocation stall after an allocation leader is cancelled, and avoids a startup panic when a write-limit notification arrives before the initial snapshot. [#27927](https://github.com/risingwavelabs/risingwave/pull/27927), [#27967](https://github.com/risingwavelabs/risingwave/pull/27967)
+- Reduces SSTable metadata and block decoding overhead. [#27793](https://github.com/risingwavelabs/risingwave/pull/27793)
+- Adds a `-nodwp` Docker image variant that omits the debug-symbol layer. [#28050](https://github.com/risingwavelabs/risingwave/pull/28050)
+
+## Assets
+
+- Run this version from Docker:
+`docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:v3.0.6 single_node`
+- [Prebuilt all-in-one library for Linux](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.6/risingwave-v3.0.6-x86_64-unknown-linux-all-in-one.tar.gz)
+- [Source code (zip)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.6.zip)
+- [Source code (tar.gz)](https://github.com/risingwavelabs/risingwave/archive/refs/tags/v3.0.6.tar.gz)
+- [risectl - a CLI tool for managing and accessing RisingWave clusters](https://github.com/risingwavelabs/risingwave/releases/download/v3.0.6/risectl-v3.0.6-x86_64-unknown-linux.tar.gz)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.0.5...v3.0.6).
+
+</Update>
+
 <Update label="v3.0.5" description="2026-10-12">
 
 ## SQL features
