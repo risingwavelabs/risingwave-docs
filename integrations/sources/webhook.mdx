@@ -6,7 +6,7 @@ description: Describes how to ingest data from webhook to RisingWave.
 
 A webhook is a mechanism that enables real-time data transfer between applications by sending immediate notifications when specific events occur. Instead of continuously polling for updates, applications can receive data automatically, making it an efficient way to integrate with third-party services.
 
-RisingWave can serve as a webhook destination, directly accepting HTTP requests from external services and storing the incoming data in its tables. By default, the Compute Node listens for webhook events on port `4560`. You can reconfigure this depending on how your cluster is deployed. When a webhook is triggered, RisingWave processes and ingests the data in real-time.
+RisingWave can serve as a webhook destination, directly accepting HTTP requests from external services and storing the incoming data in its tables. By default, the frontend listens for webhook events on port `4560`. You can reconfigure this depending on how your cluster is deployed. When a webhook is triggered, RisingWave processes and ingests the data in real-time.
 
 This direct integration eliminates the need for an intermediary message broker like Kafka. Instead of setting up and maintaining an extra Kafka cluster, you can directly send data to RisingWave to process it in real-time, which enables efficient data ingestion and stream processing without extra infrastructure.
 
@@ -30,34 +30,19 @@ Webhook requests should be sent to:
 
 `http://<HOST>:4560/webhook/<database>/<schema>/<table>`
 
-If `RW_SSL_CERT` and `RW_SSL_KEY` are configured, the same endpoint is served over HTTPS instead:
+If `RW_SSL_CERT` and `RW_SSL_KEY` are both configured on the frontend, the listener serves HTTPS instead:
 
 `https://<HOST>:4560/webhook/<database>/<schema>/<table>`
 
+Existing HTTP senders must use HTTPS when TLS is enabled on this listener.
+
 The default listening port is `4560`. Replace `<schema>` with `public` if you didn't create the table under a custom schema.
 
-<Note>
-If your cluster already sets `RW_SSL_CERT` and `RW_SSL_KEY`, existing webhook senders must switch from HTTP to HTTPS after upgrading to a version that includes this feature.
-</Note>
+The same `webhook` table can also accept WebSocket ingest at `ws://<HOST>:4560/ingest/<database>/<schema>/<table>`. WebSocket ingest is a premium feature and requires a license key on self-managed RisingWave deployments. Each DML batch is a single WebSocket text frame. Keep each batch below 8 MiB to stay under the managed Cloud 10 MiB limit (RWProxy default) and the self-hosted frontend 16 MiB limit (the `tungstenite` library default, not overridden by RisingWave). Delivery is at least once: if the connection closes before you receive an ack, reconnect and replay every batch sent after the last acked `dml_batch_id`. For managed RisingWave Cloud routing and protocol details, see [Ingest data from WebSocket](/cloud/ingest-data-from-websocket).
 
-### Choose a table shape
+### Choose a table schema
 
-Webhook tables support two patterns:
-
-- A legacy single-`JSONB` column that stores the full request body.
-- A typed multi-column table that maps top-level JSON fields directly into RisingWave columns.
-
-Use a single `JSONB` column when you want to keep the raw payload and extract fields later in SQL:
-
-```sql
-CREATE TABLE wbhtable (
-  data JSONB
-) WITH (
-  connector = 'webhook'
-);
-```
-
-Use typed columns when you want RisingWave to decode the JSON payload into normal table columns directly:
+A table with a single `JSONB` payload column stores the complete JSON value, as shown in the smoke test below. You can also define typed columns to decode top-level JSON fields directly:
 
 ```sql
 CREATE TABLE orders (
@@ -68,17 +53,12 @@ CREATE TABLE orders (
 ) WITH (
   connector = 'webhook'
 ) VALIDATE AS secure_compare(
-  headers->>'x-hub-signature',
-  'sha1=' || encode(hmac('TEST_WEBHOOK', payload, 'sha1'), 'hex')
+  headers->>'x-rw-signature',
+  'sha256=' || encode(hmac('webhook-secret', payload, 'sha256'), 'hex')
 );
 ```
 
-For typed multi-column webhook tables:
-
-- Each top-level JSON field is decoded into the matching column by name.
-- Missing non-primary-key fields are inserted as `NULL`.
-- Missing primary-key fields are rejected.
-- For batched requests, set `is_batched = true` and send newline-delimited JSON objects.
+For typed columns, RisingWave matches JSON fields by column name. Missing non-primary-key fields become `NULL`; missing primary-key fields are rejected. To ingest newline-delimited JSON objects in one request, set `is_batched = true` in the `WITH` clause.
 
 ### Quick local smoke test (no upstream SaaS required)
 
@@ -156,12 +136,7 @@ CREATE TABLE wbhtable (
 In `headers->>'...'`, always use the lower-case header name (for example, `authorization`). If you use a different casing, validation may fail.
 </Info>
 
-For providers that sign payloads (for example, GitHub/Segment), the second argument of `secure_compare(...)` is typically an expression that computes the expected signature from the secret/raw string and the request body.
-
-- For single-`JSONB` webhook tables, reference the `JSONB` payload column name (for example, `data`).
-- For typed multi-column webhook tables, reference the reserved `payload` identifier, which exposes the raw request body bytes during validation.
-
-See the provider-specific guides below for copy/paste-ready examples.
+For providers that sign payloads (for example, GitHub/Segment), compute the expected signature from the secret and the raw request body. In the validation expression, refer to the single `JSONB` column by its name (for example, `data`), or use the reserved `payload` identifier for a typed-column table. Both expose the raw request body bytes for signature verification. See the provider-specific guides below for examples.
 
 ## Supported webhook sources and authentication methods
 RisingWave has been verified to work with the following webhook sources and authentication methods:
