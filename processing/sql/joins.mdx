@@ -268,7 +268,9 @@ ON <join_conditions>;
 - The right table expression is a table, index or materialized view.
 - The process-time syntax `FOR SYSTEM_TIME AS OF PROCTIME()` is included in the right table expression.
 - The join type is INNER JOIN or LEFT JOIN.
-- The Join condition includes the primary key of the right table expression.
+- The join condition must include the key columns that form the distribution key of the lookup table (right table expression).
+- Use `DESCRIBE <table_name>` to view the table's key information.
+- You can create an index on the lookup table to facilitate the temporal join if the required key columns are not part of the primary key.
 
 </Note>
 
@@ -332,6 +334,10 @@ You will get these results:
 
 <Note>
 Every time you update the left-hand side table, it will look up the latest data from the right-hand side table.
+</Note>
+
+<Note>
+Starting from v3.0.2, materialized views that contain process-time temporal joins support background creation. If you run `SET BACKGROUND_DDL = true` before `CREATE MATERIALIZED VIEW`, RisingWave continues the backfill in the background and can resume creation after recovery. For details, see [SET BACKGROUND_DDL](/sql/commands/sql-set-background-ddl).
 </Note>
 
 <Warning>

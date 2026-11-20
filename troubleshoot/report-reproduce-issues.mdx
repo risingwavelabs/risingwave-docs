@@ -1,159 +1,42 @@
 ---
 title: "Report and reproduce issues"
-description: "Learn how to report bugs, reproduce issues, and provide the information needed for effective troubleshooting and support escalation."
-sidebarTitle: Report & reproduce issues
+sidebarTitle: "Report issues"
+description: "Prepare a minimal reproduction and the diagnostic context needed to investigate a RisingWave issue."
 ---
 
-When you encounter an issue with RisingWave, providing the right information helps our team diagnose and resolve problems quickly. This guide explains how to report reproducible issues and what information to include.
+A useful report lets another person reproduce the problem and compare the result with your expectations.
 
-## Where to report issues
+## Prepare a reproduction
 
-<CardGroup cols={2}>
-<Card title="Slack Community" icon="slack" href="https://www.risingwave.com/slack">
-  For quick questions, real-time support, and community help
-</Card>
-<Card title="GitHub Issues" icon="github" href="https://github.com/risingwavelabs/risingwave/issues/new/choose">
-  For bug reports, feature requests, and detailed issue tracking
-</Card>
-</CardGroup>
+1. Record the output of `SELECT version();`, your deployment method, and the upstream/downstream connector versions.
+2. Reduce the schema and SQL to the smallest case that still fails. Include the relevant `CREATE TABLE`, `CREATE SOURCE`, `CREATE MATERIALIZED VIEW`, or `CREATE SINK` statements.
+3. Provide a small synthetic dataset and the exact commands, in order, needed to reproduce from a clean state.
+4. State the expected result and the actual result. Include the complete error text, timestamps with a timezone, and whether the failure is repeatable.
+5. Include relevant node logs, resource settings, or metrics when the problem depends on load or deployment configuration.
 
-## Before you report: Issue reproduction checklist
+Remove credentials, tokens, personal data and confidential records from SQL, connection strings, logs and screenshots before sharing them. Preserve the structure needed to reproduce the issue and replace sensitive values with placeholders.
 
-To help us triage and fix your issue efficiently, gather the following information before reporting:
-
-<AccordionGroup>
-<Accordion title="Environment information" icon="server">
-- **RisingWave version**: Output from `SELECT version();` or deployment details
-- **Deployment method**: Kubernetes, Docker, binary, RisingWave Cloud
-- **Operating system and architecture**: Linux/macOS/Windows, x86_64/ARM64
-- **Cloud provider or infrastructure**: AWS, GCP, Azure, on-premises
-- **Cluster configuration**: Number of nodes, resource limits (CPU, memory)
-</Accordion>
-
-<Accordion title="SQL statements and queries" icon="code">
-- **Complete SQL statements**: Include `CREATE TABLE`, `CREATE SOURCE`, `CREATE SINK`, `CREATE MATERIALIZED VIEW`, and any relevant queries
-- **Query patterns**: Read queries, write patterns, join operations
-- **Data types and schema**: Full table definitions with column types
-- **Sample data**: Minimal dataset that reproduces the issue (anonymized if needed)
-</Accordion>
-
-<Accordion title="Connector and integration config" icon="plug">
-- **Connector type**: Kafka, PostgreSQL CDC, MySQL CDC, S3, etc.
-- **Connector configuration**: Connection parameters, authentication settings
-- **Upstream/downstream system versions**: Kafka version, database version, etc.
-- **Network topology**: VPC, security groups, firewall rules
-</Accordion>
-
-<Accordion title="Error messages and logs" icon="triangle-exclamation">
-- **Complete error text**: Full stack traces and error messages
-- **RisingWave logs**: Meta node, compute node, frontend node logs
-- **Timestamp of the issue**: When did the problem occur?
-- **Frequency**: Is it intermittent or consistent?
-- **Recent changes**: Did you recently upgrade, change configuration, or deploy new code?
-</Accordion>
-
-<Accordion title="Monitoring and metrics" icon="chart-line">
-- **Dashboard screenshots**: From RisingWave Dashboard or Grafana
-- **Performance metrics**: CPU, memory, network usage
-- **Backpressure indicators**: Fragment graphs showing bottlenecks
-- **Query latency**: End-to-end latency measurements
-</Accordion>
-</AccordionGroup>
-
-## How to create a minimal reproducible example
-
-A minimal reproducible example helps us understand and fix your issue faster:
-
-1. **Isolate the problem**: Remove unrelated code, tables, or configurations
-2. **Simplify the schema**: Use the smallest schema that reproduces the issue
-3. **Provide sample data**: Include `INSERT` statements or a small data file
-4. **Document the steps**: List exact commands to reproduce from a clean state
-5. **Specify expected vs. actual behavior**: What should happen versus what actually happens
-
-### Example: Good issue report structure
+## Report template
 
 ```text
-**Environment:**
-- RisingWave version: 2.1.0
-- Deployment: Kubernetes on AWS EKS
-- Cluster: 3 compute nodes, 4 CPU / 8GB RAM each
+RisingWave version:
+Deployment method and cluster resources:
+Connector and upstream/downstream versions:
 
-**Issue:**
-Materialized view refresh fails with "out of memory" error after 1 hour
+Minimal schema and SQL:
+Synthetic input data:
+Steps to reproduce:
 
-**Steps to reproduce:**
-1. CREATE SOURCE ...
-2. CREATE MATERIALIZED VIEW ...
-3. Wait 1 hour
-4. Observe OOM error in compute node logs
-
-**Expected behavior:**
-Materialized view should continuously refresh without memory issues
-
-**Actual behavior:**
-After ~1 hour, compute node crashes with OOM
-
-**Logs:**
-[Attach relevant log excerpts]
-
-**Additional context:**
-Issue started after upgrading from 2.0.5 to 2.1.0
+Expected result:
+Actual result and error:
+Timestamp/timezone and relevant redacted logs:
+Recent upgrades or configuration changes:
 ```
 
-## Support workflow and escalation
+## Choose a reporting channel
 
-### Community Slack channels
+- Search [existing GitHub issues](https://github.com/risingwavelabs/risingwave/issues) before opening a new one. Use the [issue templates](https://github.com/risingwavelabs/risingwave/issues/new/choose) to report a reproducible product bug.
+- For questions and help reducing a reproduction, ask in the [Community Slack](https://www.risingwave.com/slack).
+- For a RisingWave Cloud project, contact [Cloud support](mailto:cloud-support@risingwave-labs.com) and include the project identifier through the support channel.
 
-Start with our [Community Slack](https://www.risingwave.com/slack) for:
-
-- General questions and troubleshooting
-- Quick support and community help
-- Discussion of workarounds and best practices
-
-**Key channels:**
-- **#ask-ai**: AI assistant trained on RisingWave docs and codebase
-- **#troubleshooting**: Community and team support for issues
-- **#general**: General discussions about RisingWave
-
-### GitHub issue triage
-
-[File a GitHub issue](https://github.com/risingwavelabs/risingwave/issues/new/choose) when:
-
-- You've identified a bug that needs tracking
-- You need a feature request or enhancement
-- The issue requires code changes or extended investigation
-- You want to contribute a fix
-
-**Issue templates:**
-- **Bug report**: For unexpected behavior or errors
-- **Feature request**: For new capabilities
-- **Performance issue**: For latency or throughput problems
-
-### RisingWave Cloud support
-
-For RisingWave Cloud customers:
-
-- **Email support**: [cloud-support@risingwave-labs.com](mailto:cloud-support@risingwave-labs.com)
-- **Priority support**: Available for Enterprise plans
-- **SLA-based response times**: Based on your plan tier
-
-## Additional resources
-
-<CardGroup cols={2}>
-<Card title="Troubleshooting overview" icon="magnifying-glass" href="/troubleshoot/overview">
-  General troubleshooting guidance and monitoring setup
-</Card>
-<Card title="Performance troubleshooting" icon="gauge-high" href="/performance/performance-troubleshoot-ov">
-  Diagnose latency, throughput, and bottleneck issues
-</Card>
-<Card title="System catalogs" icon="database" href="/sql/system-catalogs/overview">
-  Query metadata and system information for debugging
-</Card>
-<Card title="FAQ" icon="circle-question" href="/faq/faq-overview">
-  Common questions and answers about RisingWave
-</Card>
-</CardGroup>
-
-<Note>
-**Tip:** Before reporting an issue, search existing GitHub issues and Slack conversations to see if someone else has encountered the same problem and found a solution.
-</Note>
+See [Troubleshooting](/troubleshoot/overview), [Performance troubleshooting](/performance/performance-troubleshoot-ov), and [System catalogs](/sql/system-catalogs/overview) for diagnostic tools.

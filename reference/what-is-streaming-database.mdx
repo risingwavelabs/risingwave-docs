@@ -1,0 +1,108 @@
+---
+title: "What is a Streaming Database?"
+sidebarTitle: "Streaming Database"
+description: "A streaming database processes data continuously as it arrives, maintaining always-up-to-date results through incrementally maintained materialized views. Learn how streaming databases differ from OLTP, OLAP, and stream processing engines."
+---
+
+## What is a streaming database?
+
+A streaming database is a database system designed to continuously process data as it arrives, rather than processing data only when a query is executed. In a streaming database, computations are defined in advance (typically as SQL queries) and results are incrementally updated in real time whenever new data enters the system.
+
+RisingWave is a streaming database. You define streaming pipelines using standard PostgreSQL-compatible SQL, and RisingWave continuously maintains the results as materialized views. When you query a materialized view, the result is returned instantly because the computation has already been performed.
+
+## Streaming database vs. traditional database
+
+In a traditional OLTP or OLAP database, data is written first and processed later when a user or application sends a query. This "compute on read" model means query latency depends on data volume and query complexity.
+
+A streaming database flips this model to "compute on write." Data is processed as it arrives, and results are stored and ready to serve. Query latency is near-constant regardless of data volume because the heavy computation is done incrementally at ingestion time.
+
+| | Traditional database | Streaming database |
+| :--- | :--- | :--- |
+| When computation happens | On query (read time) | On data arrival (write time) |
+| Query latency | Depends on data volume and query complexity | Near-constant (pre-computed results) |
+| Data freshness | Current at query time | Continuously updated in real time |
+| Primary interface | Ad-hoc SQL queries | Materialized views + ad-hoc queries |
+| Best for | OLTP, ad-hoc analytics | Real-time analytics, monitoring, event-driven apps |
+
+## Streaming database vs. stream processing engine
+
+Stream processing engines like Apache Flink, Apache Spark Streaming, and Kafka Streams process data in motion, but they are not databases. Key differences include:
+
+| | Stream processing engine | Streaming database |
+| :--- | :--- | :--- |
+| Storage | External (Kafka, S3, HDFS) | Built-in persistent storage |
+| Query serving | No built-in serving layer | Built-in SQL query serving |
+| Interface | Java/Scala API or custom SQL dialect | PostgreSQL-compatible SQL |
+| State management | Custom (checkpoints to external storage) | Integrated (Hummock object storage) |
+| Deployment | Separate cluster + storage + serving layer | Single system |
+| Ad-hoc queries | Not supported | Full SQL support |
+
+A streaming database combines the continuous processing capabilities of a stream processing engine with the storage and query serving capabilities of a database — in a single system.
+
+## Streaming database vs. real-time OLAP database
+
+Real-time OLAP databases like ClickHouse, Apache Druid, and Apache Pinot are optimized for fast analytical queries over large datasets. They differ from streaming databases in their approach to freshness and computation:
+
+| | Real-time OLAP database | Streaming database |
+| :--- | :--- | :--- |
+| Storage engine | Columnar (optimized for scans) | Row-based (optimized for incremental updates) |
+| Data freshness | Near real-time (micro-batch ingestion) | True real-time (event-level incremental updates) |
+| Materialized views | Periodic refresh (best-effort) | Incrementally maintained, strongly consistent |
+| Optimization target | Ad-hoc query performance | Result freshness and continuous computation |
+| Best for | Interactive analytics, dashboards over historical data | Real-time monitoring, event-driven applications, streaming ETL |
+
+Streaming databases and OLAP databases are complementary. A common architecture uses a streaming database to process and transform data in real time, then sinks the results to an OLAP database for interactive analytics.
+
+## Why RisingWave?
+
+RisingWave is a streaming database designed to reduce the complexity and cost of building real-time data applications:
+
+- **PostgreSQL-compatible SQL** — no new language or API to learn.
+- **Incrementally maintained materialized views** — results are always up to date without manual refresh.
+- **Cascading materialized views** — build multi-layered streaming pipelines entirely in SQL.
+- **Built-in connectors** — ingest from Kafka, databases (CDC), object storage, and more; deliver to Kafka, Iceberg, Snowflake, PostgreSQL, and many other systems.
+- **Cloud-native architecture** — decoupled compute and storage with object storage (S3) backend for cost efficiency.
+- **Fully open source** — Apache License 2.0 with no resource caps or usage restrictions.
+
+## Related topics
+
+- [RisingWave introduction](/get-started/intro) — Getting started guide
+- [Data processing in RisingWave](/processing/overview) — Streaming vs. ad-hoc execution
+- [RisingWave vs. Flink](/reference/risingwave-flink-comparison) — Comparison with Apache Flink
+
+<head>
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is a streaming database?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A streaming database is a database system that continuously processes data as it arrives, maintaining always-up-to-date results through incrementally maintained materialized views. Unlike traditional databases that compute results at query time, a streaming database computes results at data arrival time, delivering near-constant query latency regardless of data volume."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is a streaming database different from a stream processing engine like Apache Flink?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A stream processing engine processes data in motion but does not include built-in storage or query serving. A streaming database like RisingWave combines continuous processing with persistent storage and SQL query serving in a single system — no external storage, serving layer, or custom code required."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is a streaming database different from a real-time OLAP database?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Real-time OLAP databases like ClickHouse optimize for fast analytical query performance over large datasets using columnar storage. Streaming databases like RisingWave optimize for result freshness with incrementally maintained materialized views using row-based storage. They are complementary — streaming databases process and transform data in real time, while OLAP databases serve interactive analytics."
+          }
+        }
+      ]
+    }
+    `}
+  </script>
+</head>

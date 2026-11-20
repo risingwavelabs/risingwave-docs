@@ -8,23 +8,23 @@ This guide provides the configuration parameters for connecting RisingWave to th
 
 ## S3-compatible storage
 
-These parameters configure the connection to an S3-compatible storage system, such as AWS S3 or MinIO, where your Iceberg data files are stored.
+These parameters configure the connection to an S3-compatible storage system, such as AWS S3, MinIO, or SeaweedFS, where your Iceberg data files are stored.
 
 | Parameter | Description |
 |---|---|
 | `warehouse.path` | **Required**. The base path to your Iceberg warehouse. Example: `'s3://my-bucket/iceberg-warehouse'` |
-| `s3.region` | **Required**. The AWS region where the bucket is hosted. |
+| `s3.region` | **Required**. The region for the bucket, used for request signing with S3-compatible services. |
 | `s3.access.key` | **Required when `enable_config_load = false`**. The AWS access key ID. |
 | `s3.secret.key` | **Required when `enable_config_load = false`**. The AWS secret access key. |
 | `s3.iam_role_arn` | **Optional**. The IAM role ARN to assume for S3 access via STS. Can be used with either `enable_config_load = false` or `true`. |
 | `enable_config_load` | **Optional**. If set to `true`, load AWS config/credentials from the environment (for example, to assume `s3.iam_role_arn`). When `enable_config_load = true`, do not provide `s3.access.key`/`s3.secret.key`. |
-| `s3.endpoint` | **Optional**. The endpoint for S3-compatible services like MinIO. For AWS S3, this is typically not needed. |
-| `s3.path.style.access` | **Optional**. Set to `true` to use path-style access (e.g., for MinIO). Defaults to `false` for virtual-hosted–style access. |
+| `s3.endpoint` | **Optional**. The endpoint for S3-compatible services like MinIO or SeaweedFS. For AWS S3, this is typically not needed. |
+| `s3.path.style.access` | **Optional**. Set to `true` to use path-style access (e.g., for MinIO or SeaweedFS). Defaults to `false` for virtual-hosted–style access. |
 
 <Note>
 In RisingWave Cloud, you have two options:
 - Provide `s3.access.key` and `s3.secret.key`, or
-- Use IAM role delegation: grant S3 permissions to your own IAM role, allow the RisingWave Cloud tenant role to assume it, then set `s3.iam_role_arn = '<your_role_arn>'` and `enable_config_load = true`. The setup is the same as in the Snowflake sink guide: [Set up S3 IAM and role](/integrations/destinations/snowflake-v2#set-up-s3-iam-and-role).
+- Use IAM role delegation: grant S3 permissions to your own IAM role, allow the RisingWave Cloud tenant role to assume it, then set `s3.iam_role_arn = '<your_role_arn>'` and `enable_config_load = true`. See [Set up IAM role assume](/cloud/iam-role-assume) for a step-by-step guide, including how to retrieve the required IAM role ARN from the [Cloud metadata](/cloud/cloud-metadata) page.
 
 If you use a REST catalog with **vended credentials** (`vended_credentials = true`), you can omit S3 credentials here because the catalog server provides temporary credentials.
 
