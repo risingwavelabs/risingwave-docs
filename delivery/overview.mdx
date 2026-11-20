@@ -26,6 +26,7 @@ Currently, RisingWave supports the following sink connectors:
 | [Elasticsearch](/integrations/destinations/elasticsearch) | `connector = 'elasticsearch'` |
 | [Google BigQuery](/integrations/destinations/bigquery) | `connector = 'bigquery'` |
 | [Google Pub/Sub](/integrations/destinations/google-pub-sub) | `connector = 'google_pubsub'` |
+| [HTTP](/integrations/destinations/http) | `connector = 'http'` |
 | JDBC: [MySQL](/integrations/destinations/mysql), [PostgreSQL](/integrations/destinations/postgresql), [SQL Server](/integrations/destinations/sql-server), [TiDB](/integrations/destinations/tidb)| `connector = 'jdbc'` |
 | [Kafka](/integrations/destinations/apache-kafka) | `connector = 'kafka'` |
 | [MQTT](/integrations/destinations/mqtt) | `connector = 'mqtt'` |
@@ -44,7 +45,7 @@ Typically, sinks in RisingWave operate in a blocking manner. This means that if 
 
 Sink decoupling introduces a buffering queue between a RisingWave sink and the downstream system. This buffering mechanism helps maintain the stability and performance of the RisingWave instance, even when the downstream system is temporarily slow or unavailable.
 
-For decoupled sinks, RisingWave persists incoming updates to an internal synced log store before handing them to the downstream connector. This allows RisingWave to keep polling upstream executors and advancing sink progress even when the downstream system is slow or blocked by backpressure.
+For sinks using the synced log-store dispatcher, log-store writes and upstream polling can advance independently of a slow downstream consumer. Persisted updates wait in the log store until the downstream connector can consume them. This decouples progress; it does not make buffering or storage capacity unlimited.
 
 The `sink_decouple` session variable can be specified to enable or disable sink decoupling. The default value for the session variable is `default`.
 
