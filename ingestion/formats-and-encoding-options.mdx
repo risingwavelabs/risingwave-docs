@@ -12,8 +12,6 @@ When connecting to a data source, you specify how the data is formatted and enco
     *   `PLAIN`: Standard formats like JSON, Avro, Protobuf, CSV, Bytes, or Parquet.
     *   `UPSERT`: A stream of updates and deletes (key-value pairs), typically from Kafka.
     *   `DEBEZIUM`: The Debezium change data capture (CDC) format.
-    *   `MAXWELL`: The Maxwell CDC format.
-    *   `CANAL`: The Canal CDC format (TiCDC dialect).
     *   `DEBEZIUM_MONGO`: The Debezium CDC format for MongoDB.
 
 *   **`ENCODE`:** Specifies the specific data encoding. Options:
@@ -38,8 +36,6 @@ When connecting to a data source, you specify how the data is formatted and enco
 | `DEBEZIUM`      | `AVRO`      | Debezium-formatted Avro (requires schema registry).              |
 | `PLAIN`         | `PROTOBUF`  | Standard Protobuf data (requires schema location/registry).      |
 | `DEBEZIUM`      | `JSON`      | Debezium-formatted JSON data.                                   |
-| `MAXWELL`      | `JSON`      | Maxwell-formatted JSON data.                                     |
-| `CANAL`        | `JSON`      | Canal-formatted JSON data.                                      |
 | `DEBEZIUM_MONGO` | `JSON`      | Debezium-formatted JSON data for MongoDB.                         |
 | `PLAIN`         | `CSV`      | Comma-Separated Values.                                             |
 | `PLAIN`         | `BYTES`      | Raw byte stream.                                                 |
@@ -119,24 +115,6 @@ When loading data from MongoDB via Kafka topics in Debezium Mongo JSON format, t
 
 ```sql
 FORMAT DEBEZIUM_MONGO
-ENCODE JSON
-```
-
-### `MAXWELL JSON`
-
-For Maxwell CDC data. Define the schema directly.
-
-```sql label="Syntax"       
-FORMAT MAXWELL
-ENCODE JSON
-```
-
-### `CANAL JSON`
-
-For Canal CDC data (TiCDC dialect). Define the schema directly.
-
-```sql label="Syntax"
-FORMAT CANAL
 ENCODE JSON
 ```
 
@@ -244,7 +222,7 @@ FORMAT PLAIN
 ENCODE BYTES
 ```
 
-If you need key-based upsert semantics with bytes payloads, RisingWave does not provide a separate `FORMAT UPSERT ENCODE BYTES` syntax. Instead, use `FORMAT PLAIN ENCODE BYTES`, add `INCLUDE KEY`, and declare the key column as the primary key.
+RisingWave does not provide a separate `FORMAT UPSERT ENCODE BYTES` syntax. To store byte payloads keyed by the Kafka key, use `FORMAT PLAIN ENCODE BYTES`, add `INCLUDE KEY`, and declare the key column as the primary key.
 
 ## Parquet handling
 
@@ -345,7 +323,4 @@ You can set this parameter for these three combinations:
 - `FORMAT UPSERT ENCODE JSON`
 - `FORMAT DEBEZIUM ENCODE JSON`
 
-You cannot set this parameter for these three combinations:
-- `FORMAT DEBEZIUM_MONGO ENCODE JSON`
-- `FORMAT MAXWELL ENCODE JSON`
-- `FORMAT CANAL ENCODE JSON`
+You cannot set this parameter for `FORMAT DEBEZIUM_MONGO ENCODE JSON`.

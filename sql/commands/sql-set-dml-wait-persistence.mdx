@@ -1,0 +1,33 @@
+---
+title: "SET DML_WAIT_PERSISTENCE"
+description: "The `DML_WAIT_PERSISTENCE` configuration option controls whether DML statements wait until their transaction is included in a successful checkpoint."
+---
+
+## Syntax
+
+```sql
+SET DML_WAIT_PERSISTENCE = { true | false };
+```
+
+## Purpose
+
+When `DML_WAIT_PERSISTENCE` is enabled, `INSERT`, `UPDATE`, and `DELETE` wait until their transaction is included in a successful checkpoint before returning.
+
+Unlike [FLUSH](/sql/commands/sql-flush), this setting does not actively trigger a checkpoint or force immediate frontend snapshot synchronization.
+
+## Behavior
+
+* When `DML_WAIT_PERSISTENCE` is set to `true`,
+   * `INSERT`, `UPDATE`, and `DELETE` wait until their transaction is included in a successful checkpoint.
+   * This setting is ignored when [`RW_IMPLICIT_FLUSH`](/sql/commands/sql-set-rw-implicit-flush) is set to `true`.
+* When `DML_WAIT_PERSISTENCE` is set to `false` (default behavior),
+   * `INSERT`, `UPDATE`, and `DELETE` return without waiting for checkpoint persistence unless another mechanism, such as `FLUSH` or `RW_IMPLICIT_FLUSH`, is used.
+
+## Example
+
+```sql
+SET RW_IMPLICIT_FLUSH = false;
+SET DML_WAIT_PERSISTENCE = true;
+
+INSERT INTO users (id, name) VALUES (1, 'Alice');
+```
