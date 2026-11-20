@@ -7,7 +7,7 @@ Connect RisingWave to a MySQL database to ingest data changes in real time using
 
 Need help generating SQL? Use [Claude Code](https://claude.ai/claude-code) or [Cursor](https://cursor.com) with the [RisingWave MCP server](https://github.com/risingwavelabs/risingwave-mcp) to generate and run SQL interactively.
 
-The native MySQL CDC connector supports MySQL versions 5.7, 8.0, and 8.4, as well as compatible databases such as MariaDB and TiDB.
+The native MySQL CDC connector supports MySQL versions 5.7, 8.0, and 8.4, as well as compatible databases such as TiDB. To ingest changes from MariaDB 11.4, use the dedicated [MariaDB CDC connector](/ingestion/sources/mariadb-cdc).
 
 ## Prerequisites
 
@@ -61,9 +61,8 @@ Use the these parameters when creating a shared source for MySQL CDC.
 | `database.name`          | Name of the database. Note that RisingWave cannot read data from a built-in MySQL database, such as `mysql`, `sys`, etc.                                                                                                                                                                                                                                                            |
 | `table.name`             | Name of the table that you want to ingest data from.                                                                                                                                                                                                                                                                                                                                |
 | `server.id`              | Required if creating a shared source. A numeric ID of the database client. It must be unique across all database processes that are running in the MySQL cluster. If not specified, RisingWave will generate a random ID.                                                                                                                                                             |
-| `auto.schema.change`     | **Optional**. Specify whether you want to enable replicating MySQL table schema change. Set `auto.schema.change = 'true'` to enable it.                                                                                                                                                                                                                                             |
+| `auto.schema.change`     | **Optional**. Specify whether you want to enable replicating MySQL table schema change. Set `auto.schema.change = 'true'` to enable it. The value must be a plaintext Boolean; you cannot provide it as a secret.                                                                                                                                                                  |
 | `ssl.mode`               | **Optional**. The `ssl.mode` parameter determines the level of SSL/TLS encryption for secure communication with MySQL. Accepted values are `disabled`, `preferred`, and `required`. The default value is `disabled`. When set to `required`, it enforces TLS for establishing a connection.                                                                                              |
-| `transactional`          | **Optional**. Specify whether you want to enable transactions for the CDC table that you are about to create. By default, the value is `true` for shared sources, and `false` otherwise. This feature is also supported for shared CDC sources for multi-table transactions. For performance considerations, transactions involving changes to more than 4096 rows cannot be guaranteed. |
 
 Use these parameters when creating a table from a shared source.
 
@@ -94,6 +93,16 @@ FROM mysql_db TABLE 'public.large_table';
 ## Debezium parameters
 
 [Debezium v2.6 connector configuration properties](https://debezium.io/documentation/reference/2.6/connectors/mysql.html#mysql-advanced-connector-configuration-properties) can also be specified under the `WITH` clause when creating a table or shared source. Add the prefix `debezium.` to the connector property you want to include.
+
+If `debezium.time.precision.mode` is not specified, RisingWave uses
+`microseconds`. Set it to `connect` only when the upstream temporal values use
+millisecond precision.
+
+RisingWave uses `string` for `debezium.decimal.handling.mode` to preserve decimal precision. Omit this property or set it to `string`; other values, including `precise` and `double`, are rejected.
+
+RisingWave sets `driver.allowPublicKeyRetrieval=true` by default for embedded Debezium MySQL CDC connections, enabling public key retrieval when required by authentication plugins such as `caching_sha2_password`. The corresponding pass-through option is `debezium.driver.allowPublicKeyRetrieval`; you do not need to set it to enable public key retrieval.
+
+Public key retrieval does not enable TLS. Set `ssl.mode = 'required'` to require encrypted MySQL connections; this mode does not verify the server certificate. To turn off retrieval for the embedded Debezium streaming connection, set `debezium.driver.allowPublicKeyRetrieval = 'false'`. This override does not affect the separate connection used for source validation, which still enables retrieval.
 
 For instance, to skip unknown DDL statements, specify the `schema.history.internal.skip.unparseable.ddl` parameter as `debezium.schema.history.internal.skip.unparseable.ddl`.
 

@@ -12,8 +12,6 @@ When connecting to a data source, you specify how the data is formatted and enco
     *   `PLAIN`: Standard formats like JSON, Avro, Protobuf, CSV, Bytes, or Parquet.
     *   `UPSERT`: A stream of updates and deletes (key-value pairs), typically from Kafka.
     *   `DEBEZIUM`: The Debezium change data capture (CDC) format.
-    *   `MAXWELL`: The Maxwell CDC format.
-    *   `CANAL`: The Canal CDC format (TiCDC dialect).
     *   `DEBEZIUM_MONGO`: The Debezium CDC format for MongoDB.
 
 *   **`ENCODE`:** Specifies the specific data encoding. Options:
@@ -37,8 +35,6 @@ When connecting to a data source, you specify how the data is formatted and enco
 | `DEBEZIUM`      | `AVRO`      | Debezium-formatted Avro (requires schema registry).              |
 | `PLAIN`         | `PROTOBUF`  | Standard Protobuf data (requires schema location/registry).      |
 | `DEBEZIUM`      | `JSON`      | Debezium-formatted JSON data.                                   |
-| `MAXWELL`      | `JSON`      | Maxwell-formatted JSON data.                                     |
-| `CANAL`        | `JSON`      | Canal-formatted JSON data.                                      |
 | `DEBEZIUM_MONGO` | `JSON`      | Debezium-formatted JSON data for MongoDB.                         |
 | `PLAIN`         | `CSV`      | Comma-Separated Values.                                             |
 | `PLAIN`         | `BYTES`      | Raw byte stream.                                                 |
@@ -118,24 +114,6 @@ When loading data from MongoDB via Kafka topics in Debezium Mongo JSON format, t
 
 ```sql
 FORMAT DEBEZIUM_MONGO
-ENCODE JSON
-```
-
-### `MAXWELL JSON`
-
-For Maxwell CDC data. Define the schema directly.
-
-```sql label="Syntax"       
-FORMAT MAXWELL
-ENCODE JSON
-```
-
-### `CANAL JSON`
-
-For Canal CDC data (TiCDC dialect). Define the schema directly.
-
-```sql label="Syntax"
-FORMAT CANAL
 ENCODE JSON
 ```
 
@@ -267,7 +245,7 @@ When using a file source to read Parquet files, the schema must be defined accor
 <Note>
 By default, Parquet sources require case-sensitive column name matching. However, PostgreSQL converts unquoted column names to lowercase by default. To preserve case sensitivity when defining the schema, use double quotes around column names.
 
-Alternatively, you can set `parquet.case_insensitive = 'true'` in the source connector options to enable case-insensitive column matching. This allows you to use lowercase column names in your schema (e.g., `id`, `name`) even when the Parquet file has mixed-case column names (e.g., `ID`, `Name`). If multiple columns match case-insensitively, the match is ambiguous and ignored.
+Alternatively, you can set `parquet.case_insensitive = 'true'` in the source connector options to enable case-insensitive column matching. This allows you to use lowercase column names in your schema (e.g., `id`, `name`) even when the Parquet file has mixed-case column names (e.g., `ID`, `Name`). Exact-case matches take precedence. If there is no exact match, RisingWave uses a unique case-insensitive match; ambiguous fallback matches are ignored.
 </Note>
 
 ## Parameter reference
@@ -328,7 +306,4 @@ You can set this parameter for these three combinations:
 - `FORMAT UPSERT ENCODE JSON`
 - `FORMAT DEBEZIUM ENCODE JSON`
 
-You cannot set this parameter for these three combinations:
-- `FORMAT DEBEZIUM_MONGO ENCODE JSON`
-- `FORMAT MAXWELL ENCODE JSON`
-- `FORMAT CANAL ENCODE JSON`
+You cannot set this parameter for `FORMAT DEBEZIUM_MONGO ENCODE JSON`.

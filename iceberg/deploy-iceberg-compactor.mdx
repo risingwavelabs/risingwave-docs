@@ -72,6 +72,8 @@ See [Helm chart configuration](https://github.com/risingwavelabs/helm-charts/blo
 
 If you deployed RisingWave using the Kubernetes Operator, add or update the `compactor` section under `spec.components` in your `RisingWave` custom resource.
 
+To dedicate a compactor node for Iceberg maintenance, add a node group named `iceberg-compactor` and set the `RW_COMPACTOR_MODE` environment variable to `dedicated_iceberg`. This node group handles only Iceberg compaction and snapshot expiration. The default node group (with empty name `""`) continues to handle regular Hummock compaction and must remain in place.
+
 #### Minimal configuration
 
 ```yaml risingwave.yaml
@@ -84,10 +86,26 @@ spec:
   components:
     compactor:
       nodeGroups:
+        # Default compactor for Hummock compaction
         - name: ""
           replicas: 1
           template:
             spec:
+              resources:
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
+                requests:
+                  cpu: "1"
+                  memory: 2Gi
+        # Dedicated Iceberg compactor
+        - name: iceberg-compactor
+          replicas: 1
+          template:
+            spec:
+              env:
+                - name: RW_COMPACTOR_MODE
+                  value: dedicated_iceberg
               resources:
                 limits:
                   cpu: "2"
@@ -105,6 +123,8 @@ kubectl apply -f risingwave.yaml
 
 #### Production configuration
 
+For production workloads with frequent writes or large data volumes, allocate more CPU and memory to both node groups:
+
 ```yaml risingwave.yaml
 apiVersion: risingwave.risingwavelabs.com/v1alpha1
 kind: RisingWave
@@ -115,18 +135,36 @@ spec:
   components:
     compactor:
       nodeGroups:
+        # Default compactor for Hummock compaction
         - name: ""
           replicas: 1
           template:
             spec:
               resources:
                 limits:
-                  cpu: "8"
-                  memory: 16Gi
+                  cpu: "4"
+                  memory: 8Gi
+                requests:
+                  cpu: "4"
+                  memory: 8Gi
+        # Dedicated Iceberg compactor
+        - name: iceberg-compactor
+          replicas: 1
+          template:
+            spec:
+              env:
+                - name: RW_COMPACTOR_MODE
+                  value: dedicated_iceberg
+              resources:
+                limits:
+                  cpu: "4"
+                  memory: 8Gi
                 requests:
                   cpu: "4"
                   memory: 8Gi
 ```
+
+For a complete end-to-end example manifest that includes meta store, state store, and all component definitions, see the [`risingwave-postgresql-s3-with-iceberg-compaction.yaml`](https://github.com/risingwavelabs/risingwave-operator/blob/main/docs/manifests/risingwave/risingwave-postgresql-s3-with-iceberg-compaction.yaml) reference in the `risingwave-operator` repository.
 
 ## Verify the compactor is running
 

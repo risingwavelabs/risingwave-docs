@@ -28,11 +28,11 @@ WITH (
 | schema                       | Redshift schema name |
 | table.name                   | Name of the target table |
 | intermediate.table.name      | Name of the intermediate table used for upsert mode. No need to fill this out in append-only mode |
-| auto_schema_change             | Enable automatic schema change for upsert sink; adds new columns to target table if needed |
+| intermediate.schema.name     | Schema name for creating the intermediate table in upsert mode. No need to fill this out in append-only mode. If not configured, defaults to the schema specified in the `schema` setting |
 | create_table_if_not_exists   | Create target table if it does not exist |
-| write.target.interval.seconds      | Interval in seconds for triggering writes to the target table (default: 3600) |
-| write.intermediate.interval.seconds | Interval in seconds for triggering writes to intermediate storage (default: 1800) |
-| batch_insert_rows            | Number of rows per batch insert (default: 4096) |
+| write.target.interval.seconds      | Interval in seconds for merging data from the intermediate table into the target table (default: 3600) |
+| write.intermediate.interval.seconds | Interval in seconds for writing data into the intermediate table (default: 1800) |
+| batch.insert.rows            | Number of rows per batch insert (default: 4096) |
 
 **S3 parameters**
 
@@ -59,15 +59,9 @@ These options only need to be set when `with_s3 = true`:
 This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
 </Tip>
 
-Redshift sinks support auto schema change to automatically adapt their output schema according to changes in the upstream table. This feature is supported only when [`sink_decoupling`](/delivery/overview#sink-decoupling) is disabled.
+Redshift sinks support auto schema change to automatically adapt their output schema according to changes in the upstream table. This feature is always enabled and requires no additional configuration.
 
-Once auto schema change is enabled, if you add new columns to the source table, the sink will automatically update to match the new schema. This reduces manual intervention and makes your data pipelines more robust to schema evolution.
-
-To enable it, set the following option when creating the sink:
-
-```sql
-auto_schema_change = true
-```
+When you add new columns to the source table, the sink will automatically update to match the new schema. This reduces manual intervention and makes your data pipelines more robust to schema evolution.
 
 ## Configure RisingWave to write to S3
 
@@ -106,6 +100,8 @@ In `upsert` mode, performance is optimized through the use of an intermediate ta
 
 - An intermediate table is created to stage data before merging it into the target table. If `create_table_if_not_exists` is set to true, the table is automatically named `rw_<target_table_name>_<uuid>`.
 
+- You can specify a different schema for the intermediate table using the `intermediate.schema.name` parameter. If not configured, the intermediate table will be created in the same schema as the target table. If the intermediate schema differs from the target schema, ensure the user has `CREATE` privilege on that schema (for example, `GRANT CREATE ON SCHEMA [intermediate_schema_name] TO [username]`).
+
 - Data is written to intermediate storage (S3) at intervals defined by `write.intermediate.interval.seconds` (default: 1800 seconds).
 
 - Data is periodically merged from the intermediate table into the target table according to the `write.target.interval.seconds` setting (default: 3600 seconds).
@@ -127,7 +123,7 @@ CREATE SINK redshift_sink FROM test_table WITH (
 
     -- JDBC configs are always required for Redshift
     jdbc.url = 'jdbc:redshift://...',
-    username = '...',
+    user = '...',
     password = '...',
 
     -- `with_s3` is default to true. If `with_s3` is set to false (not recommended), you to specify `batch.insert.rows`, and the value must be a power of 2, such as 1024 or 4096.
@@ -145,7 +141,6 @@ CREATE SINK redshift_sink FROM test_table WITH (
     enable_config_load = 'true',
 
     -- Defaults (can be overridden)
-    auto.schema.change = 'false',
     create_table_if_not_exists = 'false'
 );
 ```
@@ -161,12 +156,14 @@ CREATE SINK redshift_sink FROM test_table WITH (
 
     -- Intermediate table required for upsert
     intermediate.table.name = '...',
+    -- Optional: specify a different schema for the intermediate table
+    intermediate.schema.name = '...',
     -- Default: 3600 seconds (1 hour)
     write.target.interval.seconds = '...',
 
     -- JDBC configs are always required for Redshift
     jdbc.url = 'jdbc:redshift://...',
-    username = '...',
+    user = '...',
     password = '...',
 
     -- `with_s3` is default to true. If `with_s3` is set to false (not recommended), you to specify `batch.insert.rows`, and the value must be a power of 2, such as 1024 or 4096.
@@ -184,7 +181,6 @@ CREATE SINK redshift_sink FROM test_table WITH (
     enable_config_load = 'true',
 
     -- Defaults (can be overridden)
-    auto.schema.change = 'false',
     create_table_if_not_exists = 'false'
 );
 ```
