@@ -37,7 +37,7 @@ CREATE TABLE wbhtable (
 
 | Parameter or clause | Description |
 | :--------- | :-----------|
-| `data JSONB` | Defines the name of column to store the JSON payload from the webhook. Currently, only `JSONB` type is supported for webhook tables. |
+| `data JSONB` | Stores the full JSON payload from the webhook. This example uses a single `JSONB` column, but webhook tables can also use typed multi-column schemas. |
 | `is_batched` | Optional, set to `true` to enable batch ingestion of multiple JSON lines in a single request. |
 | `SECRET <secret>` | Use an existing [secret](/operate/manage-secrets) to verify incoming webhook requests. This is optional. You can also use a raw string to verify.|
 | `headers->>'...'` | Extracts the signature provided by GitHub in the `x-hub-signature-256` HTTP header. <br/> <br/> In `secure_compare()` function, the whole HTTP header is interpreted as a JSONB object, and you can access the header value using the `->>` operator, but only the lower-case header names in the `->>` operator, otherwise the verification will fail. |
