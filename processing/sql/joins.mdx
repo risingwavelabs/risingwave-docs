@@ -245,7 +245,8 @@ ON s1.id = s2.id and s1.ts between s2.ts and s2.ts + INTERVAL '1' MINUTE;
 ```
 
 <Note>
-Interval join‘s state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
+- Interval join's state cleaning is triggered only when upstream messages arrive, and it operates at the granularity of each join key. As a result, if no messages are received for a join key, the state may still hold stale data.
+- **Watermark behavior**: When both inputs have watermarks on the columns in an inequality, that inequality derives an output watermark for its larger-value side: `l.ts >= r.ts` derives a watermark for `l.ts`, while `l.ts <= r.ts` derives one for `r.ts`. Other join predicates can contribute their own watermark derivations. Output watermark progress remains coordinated across the inputs.
 
 </Note>
 
