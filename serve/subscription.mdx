@@ -44,15 +44,17 @@ DROP SUBSCRIPTION <subscription_name>;
 
 ### Alter subscription
 
-To rename a subscription, change the owner, or set a new schema, use the syntax below:
+To rename a subscription, change the owner, set a new schema, or change its retention period, use the syntax below:
 
 ```sql
 ALTER SUBSCRIPTION <subscription_name>
-    [ RENAME TO <new_subscription_name> ]
-    [ OWNER TO <new_owner> ]
-    [ SET SCHEMA <new_schema_name> ]
-    ;
+    { RENAME TO <new_subscription_name>
+    | OWNER TO <new_owner>
+    | SET SCHEMA <new_schema_name>
+    | SET RETENTION { TO | = } '<duration>' };
 ```
+
+Increasing the retention period preserves incremental data for longer. Data that has already expired cannot be restored by increasing retention.
 
 ## Subscription cursor
 
@@ -108,17 +110,9 @@ FETCH n FROM cursor_name;
 
 `FETCH NEXT FROM cursor_name` is equivalent to `FETCH 1 FROM cursor_name`.
 
-Both forms are non-blocking: if fewer than `n` rows are available, only the available rows are returned immediately. If no rows are available, an empty result is returned immediately.
+Without a `timeout`, neither form waits for new data. `FETCH n` can return fewer than `n` rows if fewer rows are available, or an empty result if the cursor has caught up.
 
-```sql
-FETCH NEXT FROM cur;
-
-----RESULT
-t1.v1 | t1.v2 | t1.v3 |    t1.op     |  rw_timestamp  
--------+-------+-------+--------------+---------------
-    1 |     1 |     1 | UpdateDelete | 1715669376304
-(1 row)
-```
+The following example shows a short read that returns both rows of an update:
 
 ```sql
 -- Fetch up to 10 rows at once
@@ -137,18 +131,14 @@ In the example above, the `op` column in the result indicates the type of change
 #### Blocking data fetch
 
 ```sql
--- Block until 1 row arrives or the timeout elapses
+-- Wait for data, up to the timeout, and return at most one row
 FETCH NEXT FROM cursor_name WITH (timeout = '1s');
 
--- Block until up to n rows arrive or the timeout elapses
+-- Wait for data, up to the timeout, and return at most n rows
 FETCH n FROM cursor_name WITH (timeout = '1s');
 ```
 
-Fetch up to `n` rows from the cursor with a specified timeout. The `timeout` value should be a string in the interval format. The fetch statement returns when either `n` rows have been fetched or the timeout occurs. If the timeout occurs, whatever has been read up to that point will be returned. Here are two scenarios to trigger the timeout:
-
-1. The cursor has reached the latest data and has been waiting too long for new data to arrive.
-
-2. At least `n` rows are available for the cursor to read, but retrieving all of them takes an extended period.
+Fetch up to `n` rows from the cursor with a specified timeout. The `timeout` value is a string in interval format. If no data is available, RisingWave can wait for new data until the timeout. Once rows are available, the call can return a short batch; it does not wait to fill all `n` rows. If the cursor stays caught up until the timeout, the result is empty.
 
 To avoid polling for new data frequently with the non-blocking `FETCH`, you can set a longer timeout to simulate a scenario where you want the `FETCH` to block until new data arrives.
 

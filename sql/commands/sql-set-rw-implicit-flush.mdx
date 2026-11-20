@@ -20,9 +20,11 @@ However, when the `RW_IMPLICIT_FLUSH` option is enabled, explicit use of the `FL
 * When `RW_IMPLICIT_FLUSH` is set to `true`,
    * Data changes through `INSERT`, `UPDATE`, and `DELETE` are implicitly flushed and made visible after batch operations.
    * RisingWave ensures that data consistency and visibility are maintained similar to traditional databases, where read-after-write guarantees are provided.
+   * [`DML_WAIT_PERSISTENCE`](/sql/commands/sql-set-dml-wait-persistence) is ignored.
 * When `RW_IMPLICIT_FLUSH` is set to `false` (default behavior),
    * RisingWave does not guarantee read-after-write consistency — a write may not be visible to subsequent reads immediately.
-   * You need to call `FLUSH` explicitly after batch operations to immediately persist the changes to storage.
+   * You can call `FLUSH` explicitly after batch operations to immediately persist the changes to storage.
+   * Alternatively, you can enable [`DML_WAIT_PERSISTENCE`](/sql/commands/sql-set-dml-wait-persistence) to make DML wait for checkpoint persistence without triggering `FLUSH`.
 
 ## Example
 
