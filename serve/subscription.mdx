@@ -44,15 +44,17 @@ DROP SUBSCRIPTION <subscription_name>;
 
 ### Alter subscription
 
-To rename a subscription, change the owner, or set a new schema, use the syntax below:
+To rename a subscription, change the owner, set a new schema, or change its retention period, use the syntax below:
 
 ```sql
 ALTER SUBSCRIPTION <subscription_name>
-    [ RENAME TO <new_subscription_name> ]
-    [ OWNER TO <new_owner> ]
-    [ SET SCHEMA <new_schema_name> ]
-    ;
+    { RENAME TO <new_subscription_name>
+    | OWNER TO <new_owner>
+    | SET SCHEMA <new_schema_name>
+    | SET RETENTION { TO | = } '<duration>' };
 ```
+
+Increasing the retention period preserves incremental data for longer. Data that has already expired cannot be restored by increasing retention.
 
 ## Subscription cursor
 
@@ -290,7 +292,9 @@ The persistent nature of subscriptions allows the subscriber to resume from a sp
 
 ### Using `risingwave-py`
 
-If you are consuming subscriptions from Python, [`risingwave-py`](/python-sdk/intro) provides a simpler exactly-once flow. Set `persist_progress=True` in `on_change()` and the SDK will automatically persist the last consumed `rw_timestamp` and resume from it after a restart.
+If you are consuming subscriptions from Python, [`risingwave-py`](/sql/python-sdk/intro) provides progress persistence for subscription consumers. Set `persist_progress=True` in `on_change()` and the SDK will automatically persist the last consumed `rw_timestamp` and resume from it after a restart.
+
+The example assumes an existing SDK materialized-view handle `mv` and your callback `simple_event_handler`; see the [Python SDK setup](/sql/python-sdk/intro) for connection and handler examples.
 
 ```py
 import threading
@@ -305,6 +309,8 @@ threading.Thread(
     )
 ).start()
 ```
+
+The SDK persists progress after the handler returns. Make external side effects idempotent: a crash between the handler completing and progress persistence can replay work. This option alone does not make an external destination atomic with subscription progress.
 
 Use the manual approach below if you are consuming subscriptions through a Postgres driver directly or need to manage progress storage yourself.
 

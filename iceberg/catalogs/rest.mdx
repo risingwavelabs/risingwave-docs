@@ -128,6 +128,28 @@ CREATE SINK sink_t FROM t WITH (
 );
 ```
 
+### GCS with Google authentication
+
+For a Google-authenticated REST catalog backed by GCS, set `catalog.security = 'google'` and enable vended credentials. RisingWave uses the native REST catalog implementation and authenticates catalog requests with `gcs.credential`, or with Google Application Default Credentials (ADC) when `gcs.credential` is omitted. Use `gcp.auth.scopes` to override the default `https://www.googleapis.com/auth/cloud-platform` scope.
+
+```sql Example: Authenticate with ADC and use vended GCS credentials
+CREATE SOURCE gcs_iceberg_source WITH (
+    connector = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = '<rest_catalog_url>',
+    catalog.security = 'google',
+    gcp.auth.scopes = 'https://www.googleapis.com/auth/cloud-platform',
+    vended_credentials = true,
+    warehouse.path = 'gs://my-bucket/warehouse',
+    database.name = 'ns',
+    table.name = 't'
+);
+```
+
+Catalog authentication and storage authentication are separate. When delegation is enabled, the catalog must vend valid GCS tokens for storage access. RisingWave does not fall back to `gcs.credential` or ambient storage credentials when a vended token is missing, expired, or revoked. Disable `vended_credentials` if the catalog does not vend GCS tokens and you need to use static or ambient storage credentials.
+
+If `DISABLE_DEFAULT_CREDENTIAL=true` is set in your deployment, ADC is unavailable and you must provide `gcs.credential` when using `catalog.security = 'google'`.
+
 <Card
   title="Deploying a Lakekeeper REST catalog"
   href="/iceberg/catalogs/lakekeeper"
