@@ -14,22 +14,22 @@ The snapshot location is determined by two system parameters:
 - `backup_storage_url`: The object store endpoint or bucket.
 - `backup_storage_directory`: The directory inside that storage location.
 
-Together, these parameters define the physical location of your meta snapshots. `risectl meta backup-meta`, `SELECT ... FROM rw_catalog.rw_meta_snapshot`, and `risectl meta restore-meta` all operate on the snapshot history stored at that location.
+Together, these parameters select where the live cluster writes and lists snapshots. During restore, pass the matching `--backup-storage-url` and `--backup-storage-directory` to `risectl meta restore-meta` to read that snapshot history.
 
 If you do not set these parameters explicitly, RisingWave initializes them from your state store configuration:
 
-- `backup_storage_url` defaults to the `state_store` URL, with the `hummock+` prefix removed. If you use the in-memory state store, it defaults to `memory`.
+- When `state_store` starts with `hummock+`, `backup_storage_url` defaults to the URL after that prefix. Otherwise, it defaults to `memory`.
 - `backup_storage_directory` defaults to `{data_directory}/backup`.
 
-This default keeps meta snapshots next to your state data, which is simple to operate because backup and state storage share the same backend and credentials. The trade-off is that backup history and live state also share the same blast radius, lifecycle policies, and access boundary. If you need separate retention rules, stricter environment isolation, or a different restore path, set dedicated backup storage before you create the first snapshot.
+Using the same storage backend for snapshots and state simplifies configuration, but also couples their storage availability, lifecycle policies and access boundary. If you need separate retention rules, stricter environment isolation, or a different restore path, set dedicated backup storage before you create the first snapshot.
 
 Set `backup_storage_url` and `backup_storage_directory` before the first backup attempt. After snapshots exist, treat changes to either parameter as the start of a new backup history.
 
 <Warning>
-Changing `backup_storage_url` or `backup_storage_directory` after snapshots already exist does not move or rewrite the old snapshots. It points new backup and restore operations at a different location, so the previously written snapshots are no longer visible there and cannot be used for restore or time-travel workflows unless you keep using the original settings or migrate the snapshot data yourself.
+Changing `backup_storage_url` or `backup_storage_directory` after snapshots already exist does not move or rewrite the old snapshots. It points new backup and restore operations at a different location, so the previously written snapshots are no longer visible there and cannot be used for restore or time-travel workflows unless you keep using the original location or migrate the snapshot data yourself. Keeping old metadata snapshots alone is not sufficient for recovery: their referenced state files must also remain available. Plan retention and restore requirements before changing the active location.
 </Warning>
 
-To verify that your configuration is working, create a snapshot with [`risectl meta backup-meta`](#create-a-meta-snapshot), then [view existing meta snapshots](#view-existing-meta-snapshots). Plan retention and cleanup for the chosen storage location before relying on it for recovery. When you need to recover a cluster, continue with [Restore from a meta snapshot](#restore-from-a-meta-snapshot).
+With `RW_META_ADDR` configured to reach your Meta Node, create a snapshot with [`risectl meta backup-meta`](#create-a-meta-snapshot), then [view existing meta snapshots](#view-existing-meta-snapshots). Plan retention and cleanup for the chosen storage location before relying on it for recovery. When you need to recover a cluster, continue with [Restore from a meta snapshot](#restore-from-a-meta-snapshot).
 
 ### Parameters
 
@@ -101,11 +101,34 @@ If the cluster has been using a SQL database as meta store backend, follow these
    <Note>
    This step is especially important because the meta backup and recovery process does not replicate SST files. It is not permitted for multiple clusters to run with the same SSTs set at any time, as this can corrupt the SST files.
    </Note>
-2. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. To achieve this, you can either: 
-   * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas, or
+
+2. If the Elastic Disk Cache feature is enabled, clear the disk cache on every node where disk cache is enabled before starting the restored cluster. Specifically, delete the contents of the directories configured by `storage.meta_file_cache.dir` and `storage.data_file_cache.dir`, or delete and then recreate those directories with the correct permissions before starting the restored cluster.
+
+3. Create a new meta store, i.e., a new SQL database. This database must have the same table structure as the original, but all tables must be empty. Use one of the following methods to achieve this:
+   * (Preferred) Create the meta store schema using `risectl meta create-meta-store-schema`.
+     * For RisingWave v3.0.2 and above, use the RisingWave image where the embedded `risectl` supports `create-meta-store-schema`. Ensure the RisingWave image version matches your meta snapshot.
+     ```
+     /risingwave/bin/risingwave ctl meta create-meta-store-schema \
+      --meta-store-type postgres \
+      --sql-endpoint 127.0.0.1:8432 \
+      --sql-username placeholder \
+      --sql-password placeholder \
+      --sql-database placeholder
+     ```
+     * For RisingWave prior to v3.0.2, use the [dedicated risectl image](https://github.com/risingwavelabs/risingwave/pkgs/container/risectl) that supports create-meta-store-schema. Ensure the risectl image version matches your meta snapshot. For example, for a RisingWave v2.8.3 meta snapshot, use risectl v2.8.
+      ```bash
+     /risingwave/bin/risectl meta create-meta-store-schema \
+      --meta-store-type postgres \
+      --sql-endpoint 127.0.0.1:8432 \
+      --sql-username placeholder \
+      --sql-password placeholder \
+      --sql-database placeholder
+     ```
+      * After running the command, truncate tables populated during `create-meta-store-schema`, such as `seaql_migrations`.
+   * Use database-specific tools (e.g., `pgdump` for Postgres) to duplicate table schemas.
    * Use the [schema migration tool](https://github.com/risingwavelabs/risingwave/tree/main/src/meta/model/migration) to create tables, then truncate those non-empty tables populated by the tool. The version of the migration tool must match the version of the meta snapshot. For example, if the meta snapshot was created with RisingWave v2.4.3, the migration tool should also be from RisingWave v2.4.3.
 
-3. Restore the meta snapshot to the new meta store.
+4. Restore the meta snapshot to the new meta store.
    ```
    risectl \
    meta \
@@ -145,7 +168,7 @@ If the cluster has been using a SQL database as meta store backend, follow these
    - `--overwrite-backup-storage-directory`: Override backup storage directory in restored meta store
    - `--sql-url-params`: Additional SQL connection parameters (e.g., `sslmode=disable`)
 
-4. Configure meta service to use the new meta store.
+5. Configure meta service to use the new meta store.
 
 ### etcd as meta store backends
 
