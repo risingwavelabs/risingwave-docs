@@ -1,0 +1,160 @@
+---
+title: "Azure AD (Microsoft Entra ID) OAuth authentication"
+description: "Configure Microsoft Entra ID (Azure AD) OAuth tokens for RisingWave user authentication."
+---
+
+RisingWave supports OAuth-authenticated database users. This guide shows how to use Microsoft Entra ID (formerly Azure Active Directory, or Azure AD) as the token issuer for those users.
+
+Use this flow when you want Microsoft Entra ID to issue the JWT that a RisingWave user presents at login time. If you only need database-local credentials, use [password authentication](/sql/commands/sql-create-user). If you need SAML-based organization login for RisingWave Cloud, see [Single Sign-On (SSO)](/cloud/sso).
+
+## Prerequisites
+
+- RisingWave v2.7.0 or later. Starting in v2.7.0, RisingWave requires the JWT `aud` claim to match your cluster ID.
+- Access to a Microsoft Entra tenant where you can create or modify an app registration.
+- A RisingWave user account that will authenticate with an OAuth token instead of a password.
+- `psql` or another PostgreSQL-compatible client for testing.
+
+## Before you start: get your cluster audience
+
+RisingWave validates the JWT `aud` claim against this exact value:
+
+```text
+urn:risingwave:cluster:<cluster_id>
+```
+
+Get the cluster ID from RisingWave first:
+
+```sql
+SELECT rw_cluster_id();
+```
+
+You will use the returned value in both Microsoft Entra ID and `CREATE USER`.
+
+## Configure Microsoft Entra ID
+
+### 1. Register an application
+
+In the Microsoft Entra admin center, create an app registration for RisingWave token issuance. Record these values:
+
+- **Application (client) ID**
+- **Directory (tenant) ID**
+
+### 2. Expose the application as an API
+
+On the app registration, open **Expose an API** and set the **Application ID URI** to:
+
+```text
+urn:risingwave:cluster:<cluster_id>
+```
+
+This makes Microsoft Entra ID issue an access token whose `aud` claim matches what RisingWave expects.
+
+<Note>
+If your tenant policy rejects this identifier URI format, stop here and resolve that policy with your Entra administrator before creating the RisingWave user. RisingWave validates `aud` against `urn:risingwave:cluster:<cluster_id>` and will reject tokens with a different audience.
+</Note>
+
+Create at least one delegated scope, for example `RW.Access`. RisingWave does not require a specific scope name, but your token request must ask for a scope that belongs to this application.
+
+### 3. Build the issuer and JWKS URLs
+
+Use your tenant ID to derive the two values RisingWave needs:
+
+- `issuer`: `https://login.microsoftonline.com/<tenant_id>/v2.0`
+- `jwks_url`: `https://login.microsoftonline.com/<tenant_id>/discovery/v2.0/keys`
+
+You can also confirm both values from the tenant's OpenID Connect metadata document:
+
+```text
+https://login.microsoftonline.com/<tenant_id>/v2.0/.well-known/openid-configuration
+```
+
+## Create the RisingWave user
+
+Create the database user with Microsoft Entra ID's issuer metadata:
+
+```sql
+CREATE USER alice WITH oauth (
+  jwks_url = 'https://login.microsoftonline.com/<tenant_id>/discovery/v2.0/keys',
+  issuer = 'https://login.microsoftonline.com/<tenant_id>/v2.0',
+  tid = '<tenant_id>'
+);
+```
+
+In this example:
+
+- `jwks_url` and `issuer` are required.
+- `tid` is optional but recommended. RisingWave checks any extra lowercase options against the JWT claims, so adding `tid` ensures the token comes from the expected tenant.
+
+## JWT requirements
+
+RisingWave checks the token before allowing the login:
+
+- The JWT header must include `kid` and `alg`.
+- The JWT payload must include `iss`, `aud`, and `exp`.
+- `iss` must equal the `issuer` value in `CREATE USER`.
+- `aud` must equal `urn:risingwave:cluster:<cluster_id>`.
+- Any additional lowercase options in `CREATE USER`, such as `tid`, must match string claims in the JWT payload.
+
+Microsoft Entra ID access tokens satisfy the `kid`/`alg` requirement and publish the corresponding signing keys through the tenant JWKS endpoint.
+
+## End-to-end test
+
+### 1. Acquire an access token
+
+Sign in to Azure CLI and request a token for the scope you created earlier:
+
+```bash
+az login --tenant <tenant_id>
+TOKEN=$(az account get-access-token \
+  --scope urn:risingwave:cluster:<cluster_id>/RW.Access \
+  --query accessToken \
+  -o tsv)
+```
+
+<Note>
+Use an access token, not an ID token. If you named the scope differently, replace `RW.Access` with your scope name.
+</Note>
+
+### 2. Connect to RisingWave with the token
+
+Pass the access token as the password for the OAuth-backed database user:
+
+```bash
+PGPASSWORD="$TOKEN" psql -h <host> -p 4566 -d dev -U alice
+```
+
+## Troubleshooting
+
+### `issuer` mismatch
+
+Make sure the token's `iss` claim exactly matches `https://login.microsoftonline.com/<tenant_id>/v2.0`. Common failures are:
+
+- Using `/common` instead of a tenant-specific issuer.
+- Omitting `/v2.0`.
+- Mixing a token from one tenant with the `issuer` from another tenant.
+
+### Audience mismatch
+
+If RisingWave rejects the token because of `aud`:
+
+1. Run `SELECT rw_cluster_id();` again and confirm the cluster ID.
+2. Check that the app registration's **Application ID URI** is `urn:risingwave:cluster:<cluster_id>`.
+3. Inspect the access token and confirm its `aud` claim matches that same value.
+
+### Missing `kid` or signing-key mismatch
+
+Use the Microsoft Entra ID access token issued for your app registration, and make sure `jwks_url` points to the same tenant. RisingWave matches the token header's `kid` to the keys published by the JWKS endpoint.
+
+### Expired token or clock skew
+
+RisingWave requires a valid `exp` claim. If the token is near expiry, request a fresh token and verify the system clocks on the client and the cluster are accurate.
+
+## Roles and groups
+
+This guide covers token-based authentication only. It does not cover automatic mapping from Microsoft Entra ID roles or groups to RisingWave privileges. Continue granting database privileges with SQL statements such as `GRANT` after you create the user.
+
+## References
+
+- [CREATE USER](/sql/commands/sql-create-user)
+- [Microsoft identity platform: OpenID Connect and OAuth 2.0 endpoints](https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols-oidc)
+- [Identifier URI restrictions in Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity-platform/identifier-uri-restrictions)
