@@ -10,7 +10,7 @@ Performance metrics provide crucial insights into the health and efficiency of y
 
 You can also monitor your RisingWave cluster using the [RisingWave Console](/web-ui/risingwave-console/manage-monitor-clusters), which provides built-in monitoring capabilities and diagnostic collection for comprehensive cluster observability.
 
-RisingWave provides two pre-generated Grafana dashboards that you can import directly:
+RisingWave provides two pre-generated Grafana dashboards. Download a JSON file and import that file into Grafana:
 
 1. [Dev dashboard (`risingwave-dev-dashboard.json`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.json) — finer-grained metrics covering all components. **Recommended** for most monitoring needs.
 2. [User dashboard (`risingwave-user-dashboard.json`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.json) — summarizes high-level metrics such as source and sink throughput, barrier latency, cluster alerts, and compute/source/sink streaming error rates.
@@ -126,6 +126,8 @@ Barriers are a fundamental mechanism for synchronization and consistency in Risi
 RisingWave by default generates a barrier every second and ingests it into the source operator (e.g., operators that read data from upstream) among regular input data. The barrier serves multiple purposes when it flows through each operator, e.g., triggering the computation of the delta between the current barrier and the last barrier, flushing new states into the storage engine, determining the completion of a checkpoint, etc.
 
 Not familiar with barriers/checkpoints? See [Data persistence](/reference/data-persistence#what-are-barriers-and-checkpoints).
+
+In the `risingwave_dev_dashboard`, the **Streaming Barrier** section breaks down compute-node barrier metrics by partial graph. This lets you distinguish the database-wide graph from independent job graphs when investigating high barrier latency or stalled progress. In Prometheus, these series use a human-readable `partial_graph` label such as `database <id>` or `database <id> job <job_id>`.
 
 In a perfect world, the barrier latency should stay at 1 second. But in reality, we may observe two phenomena in general:
 
