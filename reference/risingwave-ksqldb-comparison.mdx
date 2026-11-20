@@ -1,0 +1,149 @@
+---
+title: "RisingWave vs. ksqlDB"
+sidebarTitle: "RisingWave vs. ksqlDB"
+description: "Compare RisingWave and ksqlDB for stream processing: SQL compatibility, Kafka dependency, storage, query serving, materialized views, and operational complexity."
+---
+
+We periodically update this article to keep up with the rapidly evolving landscape.
+
+## Summary
+
+|  | ksqlDB | RisingWave |
+| :--- | :--- | :--- |
+| System category | Streaming database built on Kafka Streams | Streaming database |
+| License | Confluent Community License (not OSI open-source) | Apache License 2.0 |
+| Architecture | Built on Kafka Streams; requires Kafka | Cloud-native; decoupled compute and storage |
+| SQL dialect | Custom ksqlDB SQL | PostgreSQL-compatible SQL |
+| Client libraries | REST API and CLI | PostgreSQL drivers (Java, Python, Node.js, etc.) |
+| State management | RocksDB on local disk; changelog in Kafka topics | Hummock LSM-tree persisted to object storage (S3) |
+| Storage dependency | Kafka required for all data storage | Independent object storage (S3, GCS, Azure Blob) |
+| Query serving | Pull queries with limitations | Full SQL ad-hoc queries with high concurrency |
+| Materialized views | CTAS tables with limited pull queries | Full SQL materialized views with cascading support |
+| Integrations | Via Kafka Connect | Built-in source and sink connectors via SQL |
+| Learning curve | Moderate (requires Kafka expertise) | Shallow (PostgreSQL knowledge transfers directly) |
+| Typical use cases | Kafka-centric stream processing | Streaming ETL, analytics, and online serving |
+
+## Introduction
+
+_ksqlDB is a streaming database purpose-built for Apache Kafka; RisingWave is a general-purpose streaming database with PostgreSQL compatibility._
+
+### ksqlDB
+
+ksqlDB is a streaming database developed by Confluent for building stream processing applications on top of Apache Kafka. It provides a SQL interface over Kafka topics, enabling users to create streams and tables, run continuous queries, and serve point-in-time lookups. Under the hood, ksqlDB translates SQL statements into Kafka Streams topologies. It is licensed under the Confluent Community License, which restricts its use in competing SaaS offerings.
+
+### RisingWave
+
+RisingWave is an open-source distributed SQL streaming database designed for real-time data processing. It uses PostgreSQL-compatible SQL and stores data in object storage (S3, GCS, Azure Blob), enabling independent scaling of compute and storage. RisingWave supports ingesting data from a wide range of sources — not just Kafka — and can serve concurrent ad-hoc queries directly.
+
+## Kafka dependency
+
+_ksqlDB requires a running Kafka cluster for all operations; RisingWave operates independently and treats Kafka as one of many optional data sources._
+
+ksqlDB is tightly coupled with Apache Kafka. All input data must reside in Kafka topics, all output is written to Kafka topics, and internal state is backed by Kafka changelog topics. A running Kafka cluster (with ZooKeeper or KRaft) is required at all times. ksqlDB also generates multiple internal Kafka topics per query (output, repartition, changelog, command topics), adding load to the Kafka brokers.
+
+RisingWave operates independently and does not require Kafka. While it supports Kafka as a source and sink, it also supports direct CDC from PostgreSQL, MySQL, SQL Server, and MongoDB, as well as ingestion from S3, Pulsar, Kinesis, MQTT, and webhooks. This makes RisingWave suitable for architectures that don't use Kafka.
+
+## SQL compatibility
+
+_ksqlDB uses a custom SQL dialect with significant restrictions; RisingWave uses PostgreSQL-compatible SQL._
+
+ksqlDB uses its own SQL dialect that differs from standard SQL. Key limitations include:
+
+- Join expressions must be **single-column equality comparisons only** — no non-equi joins or multi-column joins.
+- Stream-stream joins require a `WITHIN` time-window clause.
+- Pull queries (point-in-time lookups) support only a strict subset of SQL — no joins, GROUP BY, WINDOW, or PARTITION BY.
+- No `NOT NULL` constraints.
+
+RisingWave uses PostgreSQL-compatible SQL, which means existing SQL knowledge transfers directly. It supports multi-way JOINs, subqueries, CTEs, window functions, and a wide range of built-in functions. Any tool or driver compatible with PostgreSQL can connect to RisingWave.
+
+## State management and storage
+
+_ksqlDB relies on local RocksDB plus Kafka changelog topics; RisingWave persists state to cloud object storage._
+
+ksqlDB inherits Kafka Streams' state management approach: internal state is stored in RocksDB on local disk and backed by compacted Kafka changelog topics. If a ksqlDB server fails, state must be rematerialized by replaying the changelog from Kafka, which can be time-consuming for large state.
+
+RisingWave uses Hummock, a cloud-native LSM-tree storage engine that persists all state and data to object storage (S3, GCS, Azure Blob). This approach decouples compute from storage, enabling independent scaling and eliminating local disk dependencies. Frequent checkpointing ensures fast recovery from failures.
+
+## Query serving
+
+_ksqlDB pull queries have significant limitations; RisingWave supports full SQL ad-hoc queries with high concurrency._
+
+ksqlDB offers three query types:
+
+1. **Persistent queries** (CSAS/CTAS): Run continuously and write results to Kafka topics.
+2. **Push queries**: Stream results to subscribed clients in real time.
+3. **Pull queries**: Point-in-time lookups against materialized tables. However, pull queries are limited to key-based lookups by default, do not support joins or aggregations, and the ksqlDB documentation warns of potential deadlocks under concurrent pull query load.
+
+RisingWave supports full SQL ad-hoc queries over tables, materialized views, and sources. Queries are served by dedicated Serving Nodes optimized for high concurrency and low latency. There are no restrictions on query complexity — you can use joins, aggregations, subqueries, and window functions in ad-hoc queries.
+
+## Materialized views
+
+_ksqlDB supports materialized tables with limited queryability; RisingWave supports cascading materialized views with full SQL access._
+
+In ksqlDB, `CREATE TABLE AS SELECT` (CTAS) creates a materialized table that is incrementally updated and can be queried via pull queries. However, pull queries are limited (see above), and plain `CREATE TABLE` tables are not materialized and cannot be queried via pull queries.
+
+RisingWave supports `CREATE MATERIALIZED VIEW` with full SQL semantics. Materialized views are incrementally maintained in real time and can be queried with unrestricted SQL. RisingWave also supports **cascading materialized views** — building materialized views on top of other materialized views — which enables multi-layered streaming pipelines entirely in SQL.
+
+## Connectors and integrations
+
+_ksqlDB relies on Kafka Connect for external integrations; RisingWave has built-in connectors defined via SQL._
+
+ksqlDB integrates with external systems through Kafka Connect. Connectors must be installed from Confluent Hub and managed either in a separate Connect cluster or in embedded mode. Only the JDBC connector is natively documented.
+
+RisingWave provides built-in source and sink connectors that are defined directly in SQL statements (`CREATE SOURCE`, `CREATE TABLE`, `CREATE SINK`). This includes native CDC connectors for PostgreSQL, MySQL, SQL Server, and MongoDB, as well as connectors for Kafka, S3, Iceberg, Snowflake, ClickHouse, and many more.
+
+## Scalability
+
+_ksqlDB parallelism is bounded by Kafka partition count; RisingWave scales compute and storage independently._
+
+In ksqlDB, maximum parallelism for a query is bounded by the number of partitions in the input Kafka topic. For example, a topic with 5 partitions can only be processed by 5 parallel threads. Scaling requires repartitioning the Kafka topic, which is a complex operation.
+
+RisingWave scales compute and storage independently. Compute nodes can be added or removed based on workload, and storage scales elastically via cloud object storage. There is no partition-count bottleneck.
+
+## How to choose?
+
+Choose **ksqlDB** if:
+- Your architecture is fully Kafka-centric and all data already lives in Kafka topics.
+- You need a lightweight SQL layer for simple Kafka transformations.
+- You are already using Confluent Platform and want tight integration.
+
+Choose **RisingWave** if:
+- You need to ingest data from multiple sources (databases, object storage, message queues), not just Kafka.
+- You need full SQL ad-hoc query capabilities over streaming results.
+- You want cascading materialized views for complex multi-layered streaming pipelines.
+- You need an open-source solution (Apache 2.0 license).
+- You want a PostgreSQL-compatible interface with standard client library support.
+- You need elastic, cloud-native scaling independent of Kafka partition counts.
+
+<Note>
+Confluent has shifted its strategic focus toward Apache Flink as its primary stream processing solution. Teams evaluating ksqlDB for new projects should consider this trajectory.
+</Note>
+
+<head>
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the difference between RisingWave and ksqlDB?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave is an open-source (Apache 2.0) streaming database with PostgreSQL-compatible SQL and independent object storage. ksqlDB is a Confluent Community Licensed streaming database built on Kafka Streams that requires a Kafka cluster. RisingWave supports multiple data sources, full SQL ad-hoc queries, and cascading materialized views, while ksqlDB is limited to Kafka topics and has restricted pull query capabilities."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can RisingWave replace ksqlDB?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. RisingWave can replace ksqlDB for most stream processing use cases. It supports Kafka as a source and sink while also supporting many additional data sources. RisingWave offers broader SQL compatibility, full ad-hoc query support, cascading materialized views, and does not require a Kafka dependency."
+          }
+        }
+      ]
+    }
+    `}
+  </script>
+</head>

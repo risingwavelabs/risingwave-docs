@@ -22,6 +22,8 @@ Before sinking data from RisingWave to SQL Server, please ensure the following:
 
 - The SQL Server table you want to sink to is accessible from RisingWave.
 - You have an upstream materialized view or table in RisingWave that you can sink data from.
+- For the SQL Server native connector, the SQL Server user must be able to inspect the target table metadata. During sink creation, RisingWave validates the target columns, data types, and primary key definition against the downstream table.
+- For the SQL Server native connector, append-only sinks require `INSERT` permission on the target table. Upsert sinks require `INSERT`, `UPDATE`, and `DELETE` permissions.
 - If you are running RisingWave locally from binaries and intend to use the JDBC sink connector, make sure you have [JDK 11](https://openjdk.org/projects/jdk/11/) or later versions installed in your environment.
 
 ## Create a sink
@@ -52,6 +54,10 @@ WITH (
 | primary\_key        | **Conditional**. The primary keys of the sink. Use ',' to delimit the primary key columns. Primary keys are required for upsert sinks. |
 | jdbc.query.timeout  | **Optional**. Specifies the timeout for the operations to downstream. If not set, the default is 60s.                             |
 | jdbc.auto.commit    | **Optional**. Controls whether to automatically commit transactions for JDBC sink. If not set, the default is false.              |
+| tcp.keepalive.enable | **Optional**. Enables TCP keepalive for the connection to the downstream database. If not set, the default is `false`. |
+| tcp.keepalive.idle | **Optional**. The time (in seconds) the connection must be idle before the first keepalive probe is sent. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `600` (10 minutes). |
+| tcp.keepalive.interval | **Optional**. The time (in seconds) between consecutive keepalive probes. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `10`. |
+| tcp.keepalive.count | **Optional**. The number of unacknowledged keepalive probes before the connection is considered dead. Takes effect only when `tcp.keepalive.enable` is `true`. If not set, the default is `3`. |
 
 ### Parameters (SQL Server native connector)
 
@@ -66,7 +72,17 @@ WITH (
 | sqlserver.user      | **Required**. The user for SQL Server access.                                                                                          |
 | sqlserver.password  | **Required**. The password for SQL Server access.                                                                                      |
 | sqlserver.database  | **Required**. The SQL Server database you want to sink to.                                                                             |
+| sqlserver.schema    | **Optional**. The SQL Server schema name. If not specified, the default schema `dbo` is used.                                         |
 | sqlserver.table     | **Required**. The SQL Server table you want to sink to.                                                                                |
+
+For native SQL Server sinks, RisingWave validates the downstream table when you create the sink:
+
+- Sink columns must exist in the target SQL Server table and use compatible data types.
+- For upsert sinks, the `primary_key` setting must match the target table primary key columns.
+- `timestamptz` columns are written according to the target SQL Server column type:
+  - `datetimeoffset` stores an offset-aware timestamp.
+  - `datetime`, `datetime2`, and `smalldatetime` store a UTC timestamp without offset.
+  - `bigint`, `int`, `smallint`, and `tinyint` store microsecond epoch values.
 
 ## Examples
 
@@ -112,8 +128,9 @@ The following table shows the corresponding data types between RisingWave and SQ
 | date            | date                        |
 | nvarchar        | varchar                     |
 | time            | time                        |
-| datetime2       | time without time zone      |
-| bigint          | timestamp without time zone |
+| datetime / datetime2 / smalldatetime | timestamp without time zone |
+| datetimeoffset  | timestamp with time zone |
+| bigint / int / smallint / tinyint | timestamp with time zone |
 | No support      | interval                    |
 | No support      | struct                      |
 | No support      | array                       |

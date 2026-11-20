@@ -1,0 +1,68 @@
+---
+title: "Webhook event ingestion"
+sidebarTitle: "Webhook ingest"
+description: "Receive webhook events over HTTP directly into RisingWave, process them with SQL, and serve results."
+---
+
+**What this does:** Exposes an HTTP endpoint that accepts webhook payloads, ingests them as a stream, and makes them queryable via materialized views.
+
+**When to use this:** You receive events from SaaS apps (GitHub, Stripe, Segment, HubSpot, etc.) or internal services via webhooks and want to process them in real time without a separate Kafka/queue setup.
+
+## Setup
+
+### 1. Create a webhook source
+
+The webhook connector requires exactly one JSONB column — the full payload lands there.
+
+```sql
+CREATE TABLE webhook_events (
+  payload JSONB
+) WITH (
+  connector = 'webhook',
+  secret.header = 'X-Webhook-Secret',
+  secret.value = 'your-webhook-secret'
+);
+```
+
+### 2. Send a test event
+
+```bash
+curl -X POST http://localhost:4560/webhook/dev/public/webhook_events \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your-webhook-secret" \
+  -d '{"event_type": "order.created", "order_id": "123", "amount": 99.99}'
+```
+
+### 3. Create a materialized view to process events
+
+Extract fields from the JSONB payload in the MV:
+
+```sql
+CREATE MATERIALIZED VIEW order_events AS
+SELECT
+  payload->>'order_id' AS order_id,
+  (payload->>'amount')::DOUBLE PRECISION AS amount,
+  payload->>'event_type' AS event_type
+FROM webhook_events
+WHERE payload->>'event_type' = 'order.created';
+```
+
+### 4. Query results
+
+```sql
+SELECT order_id, amount, event_type
+FROM order_events
+LIMIT 10;
+```
+
+## Key points
+
+- Webhook endpoint format: `http://<host>:4560/webhook/<database>/<schema>/<table_name>`
+- Default port for webhooks is `4560` (not the SQL port `4566`)
+- The `secret.header` and `secret.value` are used to validate incoming requests
+- The webhook connector requires exactly one JSONB column — all payload fields must be extracted via `->>`/`->` operators in downstream MVs
+
+## Next steps
+
+- [Webhook connector reference](/integrations/sources/webhook) — full options and validation modes
+- [Kafka to MV recipe](/get-started/recipes/kafka-to-mv-to-serve) — alternative for high-volume event streams
