@@ -1,0 +1,124 @@
+---
+title: "What is Stream Processing?"
+sidebarTitle: "Stream Processing"
+description: "Stream processing is the continuous, real-time computation of data as it arrives. Learn how stream processing differs from batch processing, common use cases, and how RisingWave simplifies stream processing with SQL."
+---
+
+## What is stream processing?
+
+Stream processing is the technique of continuously computing on data as it is produced or received, rather than storing it first and processing it later. In stream processing, data is treated as an unbounded, continuous flow of events — each event is processed as soon as it arrives, producing results in real time.
+
+Examples of streaming data include sensor readings from IoT devices, user clickstreams on a website, financial market trades, application logs, and database change events (CDC). All of these are naturally produced as continuous streams of events over time.
+
+## Stream processing vs. batch processing
+
+The fundamental difference is **when** computation happens:
+
+| | Batch processing | Stream processing |
+| :--- | :--- | :--- |
+| When data is processed | After collection, on a schedule | Continuously, as data arrives |
+| Latency | Minutes to hours | Milliseconds to seconds |
+| Data model | Bounded datasets (files, tables) | Unbounded event streams |
+| Typical tools | Spark, Hive, traditional SQL | RisingWave, Flink, Kafka Streams |
+| Best for | Historical analytics, reporting | Real-time monitoring, alerting, serving |
+
+Batch processing is ideal when you need to analyze large historical datasets and can tolerate delay. Stream processing is essential when you need results immediately — for monitoring, fraud detection, real-time personalization, or operational dashboards.
+
+Many modern architectures use both: stream processing for real-time results and batch processing for historical analysis and backfilling.
+
+## Core concepts in stream processing
+
+### Events
+
+An event is a single record in a data stream — for example, a user click, a sensor reading, or a database row change. Events typically have a timestamp, a key, and a payload.
+
+### Windows
+
+Windows group events by time for aggregation. Common window types include:
+
+- **Tumble windows**: Fixed-size, non-overlapping time intervals (e.g., every 1 minute).
+- **Hop windows**: Fixed-size, overlapping intervals (e.g., 5-minute windows sliding every 1 minute).
+- **Session windows**: Dynamic intervals based on event activity gaps.
+
+### State
+
+Stream processing often requires maintaining state across events — for example, running counts, sums, or the latest value per key. State management is one of the most challenging aspects of stream processing, as it must be durable, consistent, and recoverable from failures.
+
+### Watermarks and late events
+
+In distributed systems, events may arrive out of order or late. Watermarks are a mechanism to track event-time progress and determine when a window can be closed. Stream processing systems must handle late events gracefully — either by updating existing results or discarding them.
+
+## How RisingWave simplifies stream processing
+
+Traditional stream processing frameworks like Apache Flink and Kafka Streams require writing Java/Scala code, managing state backends, deploying application JARs, and building separate serving layers. RisingWave simplifies this by providing stream processing as a database:
+
+- **SQL-native**: Define streaming pipelines with `CREATE MATERIALIZED VIEW` — no application code needed.
+- **Built-in state management**: State is stored in object storage (S3) via the Hummock engine — no external state backends.
+- **Built-in query serving**: Query materialized view results directly with SQL — no separate serving database needed.
+- **PostgreSQL compatibility**: Use psql, JDBC, or any PostgreSQL-compatible tool.
+
+```sql
+-- Stream processing in RisingWave: detect high-value orders in real time
+CREATE MATERIALIZED VIEW high_value_orders AS
+SELECT
+  customer_id,
+  window_start,
+  SUM(amount) AS total_amount,
+  COUNT(*) AS order_count
+FROM TUMBLE(orders, order_time, INTERVAL '5 minutes')
+GROUP BY customer_id, window_start
+HAVING SUM(amount) > 10000;
+```
+
+## Common stream processing use cases
+
+- **Real-time monitoring and alerting**: Detect anomalies, threshold violations, or SLA breaches as they happen.
+- **Fraud detection**: Identify suspicious patterns across financial transactions in real time.
+- **Real-time dashboards**: Power live dashboards with continuously updated metrics.
+- **Event-driven microservices**: React to business events (orders, payments, sign-ups) immediately.
+- **IoT and telemetry**: Aggregate sensor data, compute rolling averages, and detect device failures.
+- **Streaming ETL**: Transform and enrich data in flight before delivering to data warehouses or lakes.
+
+## Related topics
+
+- [What is a Streaming Database?](/reference/what-is-streaming-database) — How streaming databases differ from stream processing engines
+- [What is Streaming ETL?](/reference/what-is-streaming-etl) — ETL pipelines built on stream processing
+- [Data processing in RisingWave](/processing/overview) — Streaming and ad-hoc execution modes
+- [RisingWave vs. Apache Flink](/reference/risingwave-flink-comparison) — Stream processing framework comparison
+
+<head>
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is stream processing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Stream processing is the technique of continuously computing on data as it is produced or received, rather than storing it first and processing it later. Data is treated as an unbounded flow of events, and each event is processed as soon as it arrives, producing results in real time — typically within milliseconds to seconds."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between stream processing and batch processing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Batch processing collects data first and processes it on a schedule (minutes to hours latency). Stream processing computes on data continuously as it arrives (milliseconds to seconds latency). Batch processing works on bounded datasets; stream processing works on unbounded event streams. Many architectures use both for different needs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does RisingWave handle stream processing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RisingWave provides stream processing as a PostgreSQL-compatible database. You define streaming pipelines using SQL (CREATE MATERIALIZED VIEW), and RisingWave continuously maintains results as data arrives. It includes built-in state management via object storage and built-in query serving — no separate frameworks, state backends, or serving databases needed."
+          }
+        }
+      ]
+    }
+    `}
+  </script>
+</head>

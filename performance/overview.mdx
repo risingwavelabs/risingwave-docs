@@ -32,8 +32,8 @@ Several key concepts are fundamental to understanding performance in RisingWave:
 
 -   **Latency:** As mentioned above, the time it takes to process data. We'll distinguish between *end-to-end latency* (total time) and *processing time* (time within RisingWave).
 -   **Throughput:** The volume of data processed per unit of time.
--   **Backpressure:** A mechanism that prevents RisingWave from being overwhelmed by data. When a downstream component cannot keep up with the upstream data flow, backpressure signals the upstream to slow down, ensuring system stability. Backpressure is most useful as a *secondary diagnostic signal*: start with direct job/fragment resource metrics to identify the hot fragment, then use backpressure to confirm downstream-propagation effects. This is a natural and essential part of stream processing.
--   **Resource utilization:** The consumption of resources like CPU, memory, and disk I/O. Monitoring resource utilization is key to identifying bottlenecks. RisingWave exposes these metrics at the streaming job and fragment level, enabling direct identification of resource-saturated fragments without requiring backpressure tracing.
+-   **Backpressure:** A critical mechanism that prevents RisingWave from being overwhelmed by data. When a downstream component cannot keep up with the upstream data flow, backpressure signals the upstream to slow down, ensuring system stability. This is a natural and essential part of stream processing.
+-   **Resource utilization:** The consumption of resources like CPU, memory, and disk I/O. Monitoring resource utilization is key to identifying bottlenecks.
 -   **State:** Stateful operators in RisingWave (like joins and aggregations) maintain internal state. The size and access patterns of this state significantly impact performance.
 -   **Barrier:** A special type of message injected into the data stream. Barriers play a critical role in synchronization, consistency, and triggering operations within RisingWave.
 -   **Fragment**: A streaming job can be divided into multiple fragments.
@@ -53,3 +53,9 @@ This performance guide is structured to provide a logical progression from gener
 5.  **Frequently asked questions (FAQs):** Addresses common questions related to RisingWave performance.
 
 Throughout the guide, you'll find numerous cross-references (links) to other relevant sections. Use these links to explore topics in more detail and navigate the guide effectively.
+
+## Compare jobs and fragments
+
+In the dev Grafana dashboard, start with **Top Fragments by Busy Rate** and **Top Fragments by CPU Rate** in **Streaming Fragments**, or **Top Relations by Busy Rate** and **Top Relations by CPU Rate** in **Streaming Relation Metrics**. Correlate the rankings with CPU, cache memory and backpressure rather than treating busy rate alone as proof of CPU saturation.
+
+See [Streaming job and fragment metrics](/performance/metrics#streaming-job-and-fragment-metrics) for interpretation and [Workload analysis](/performance/workload-analysis) for graph-level investigation.

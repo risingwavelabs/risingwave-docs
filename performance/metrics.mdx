@@ -8,16 +8,22 @@ Performance metrics provide crucial insights into the health and efficiency of y
 
 **Alternative: RisingWave Console**
 
-You can also monitor your RisingWave cluster using the [RisingWave Console](/risingwave-console/manage-monitor-clusters), which provides built-in monitoring capabilities and diagnostic collection for comprehensive cluster observability.
+You can also monitor your RisingWave cluster using the [RisingWave Console](/web-ui/risingwave-console/manage-monitor-clusters), which provides built-in monitoring capabilities and diagnostic collection for comprehensive cluster observability.
 
 RisingWave provides two Grafana dashboard templates, generated from Python scripts using `grafanalib`:
 
 The source code and generation details can be found at [github.com/risingwavelabs/risingwave/tree/main/grafana](https://github.com/risingwavelabs/risingwave/tree/main/grafana). The two dashboard scripts are:
 
-1. Implement a [dev-facing dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.dashboard.py). It includes finer-grained metrics. Many of them may only make sense to the developers of a specific component.
-2. Implement a [user-facing dashboard](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py). It summarizes some high-level metrics.
+1. [Dev dashboard (`risingwave-dev-dashboard.dashboard.py`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-dev-dashboard.dashboard.py) — finer-grained metrics covering all components. **Recommended** for most monitoring needs.
+2. [User dashboard (`risingwave-user-dashboard.dashboard.py`)](https://github.com/risingwavelabs/risingwave/blob/main/grafana/risingwave-user-dashboard.dashboard.py) — summarizes high-level metrics such as source and sink throughput, barrier latency, cluster alerts, and compute/source/sink streaming error rates.
 
 Both dashboards support multi-cluster deployments via environment variable configuration during generation (see the [Grafana README](https://github.com/risingwavelabs/risingwave/blob/main/grafana/README.md)).
+
+<Note>
+Use the dashboard JSON generated from the same RisingWave version that you run. Dashboard queries are updated as Prometheus metrics evolve, so older exported dashboards can contain stale queries and leave panels blank after an upgrade. If you upgrade RisingWave or regenerate dashboards, re-import the latest `risingwave-dev-dashboard.json` or `risingwave-user-dashboard.json`.
+</Note>
+
+If you need the full list of exposed Prometheus metric families instead of the curated dashboard views, see [Prometheus metrics reference](/operate/prometheus-metrics-reference).
 
 ## Resource utilization
 
@@ -54,37 +60,14 @@ See [Best Practices - Resource Allocation](/performance/best-practices#resource-
 
 ## Streaming job and fragment metrics
 
-RisingWave's Grafana dashboard exposes CPU, memory, and busy-rate metrics at the streaming job and fragment level. These metrics let you directly identify which job or fragment is consuming a disproportionate share of resources, enabling faster bottleneck localization compared to tracing backpressure propagation alone.
+In the dev dashboard, use **Streaming Fragments** and **Streaming Relation Metrics** to compare activity across jobs and fragments:
 
-### Job/fragment CPU and memory usage
+- **Top Fragments by Busy Rate** and **Top Fragments by CPU Rate** rank active fragments.
+- **Top Relations by Busy Rate** and **Top Relations by CPU Rate** provide the relation-level view.
+- **Actor Busy Rate** measures time not blocked by upstream or downstream; it can include both CPU work and I/O. A high busy rate alone does not prove CPU saturation.
+- **Executor Cache Memory Usage of Streaming Relations** helps compare state/cache memory across relations.
 
-The **Streaming** section of the Grafana dashboard (dev) includes panels that break down CPU and memory usage by streaming job and fragment. Use these panels to spot which jobs or fragments are the heaviest consumers at a glance.
-
-**Takeaway**
-
-1. A job or fragment with consistently high CPU usage is a strong candidate for query optimization (e.g., reducing join amplification, simplifying aggregations) or increased parallelism.
-2. A job or fragment with consistently high memory usage may benefit from additional memory allocation or state-size reduction.
-
-### Actor busy rate
-
-The **Actor Busy Rate** panels show the fraction of time actors in each fragment spend actively processing data versus waiting for input or output. A fragment with a near-100% busy rate is CPU-bound.
-
-**Takeaway**
-
-1. High busy rate combined with high CPU usage signals CPU saturation. Consider scaling the cluster or optimizing the query.
-2. High busy rate with normal CPU usage may indicate memory pressure that is causing frequent state eviction and cache misses.
-
-### Bottleneck percentage tables
-
-The **Streaming** section of the Grafana dashboard (dev) contains bottleneck tables that rank streaming jobs and fragments by their share of overall system bottlenecks, expressed as a percentage.
-
-**Takeaway**
-
-1. Start your diagnosis here: the job or fragment ranked highest in the bottleneck table is the most likely root cause of latency or throughput degradation.
-2. After addressing the top bottleneck, re-check the table to determine whether a new bottleneck has surfaced.
-3. Use the fragment ID shown in the table to correlate with your SQL query plan. Run `EXPLAIN CREATE MATERIALIZED VIEW …` and cross-reference with the **Fragment** panel in the RisingWave Dashboard at `http://meta-node:5691`.
-
-For a step-by-step guide on using these metrics during an active incident, see [Troubleshooting - High Latency](/performance/troubleshoot-high-latency).
+Correlate these views with CPU, memory, cache misses and backpressure. High CPU and busy rate together suggest a compute constraint; lower CPU with high busy rate calls for further I/O/cache investigation. Use fragment IDs with [DESCRIBE FRAGMENTS](/sql/commands/sql-describe#describe-fragments) and [Workload analysis](/performance/workload-analysis) to locate the operator in the query graph.
 
 ## Cache performance
 
@@ -156,6 +139,8 @@ Barriers are a fundamental mechanism for synchronization and consistency in Risi
 RisingWave by default generates a barrier every second and ingests it into the source operator (e.g., operators that read data from upstream) among regular input data. The barrier serves multiple purposes when it flows through each operator, e.g., triggering the computation of the delta between the current barrier and the last barrier, flushing new states into the storage engine, determining the completion of a checkpoint, etc.
 
 Not familiar with barriers/checkpoints? See [Data persistence](/reference/data-persistence#what-are-barriers-and-checkpoints).
+
+In the `risingwave_dev_dashboard`, the **Streaming Barrier** section breaks down compute-node barrier metrics by partial graph. This lets you distinguish the database-wide graph from independent job graphs when investigating high barrier latency or stalled progress. In Prometheus, these series use a human-readable `partial_graph` label such as `database <id>` or `database <id> job <job_id>`.
 
 In a perfect world, the barrier latency should stay at 1 second. But in reality, we may observe two phenomena in general:
 

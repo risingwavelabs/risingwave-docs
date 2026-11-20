@@ -9,7 +9,9 @@ You can monitor your RisingWave cluster using multiple approaches:
 
 2. **Prometheus + Grafana**: For detailed performance metrics and alerting. RisingWave exposes Prometheus metrics endpoints on each component (compute, meta, frontend, compactor). This page describes how to set up the Prometheus/Grafana monitoring stack.
 
-3. **RisingWave Console** (separate product): An enhanced on-premise UI with additional features like risectl command execution, automated diagnostics, and metadata snapshot management. See [RisingWave Console documentation](/risingwave-console/introduction) for details.
+3. **RisingWave Console** (separate product): An enhanced on-premise UI with additional features like risectl command execution, automated diagnostics, and metadata snapshot management. See [RisingWave Console documentation](/web-ui/introduction) for details.
+
+For the complete Prometheus metric catalog, see [Prometheus metrics reference](/operate/prometheus-metrics-reference).
 
 ## Monitoring with Prometheus and Grafana
 
@@ -49,7 +51,7 @@ The command above allows you to access Grafana from the local machine only. If y
 kubectl port-forward -n monitoring svc/prometheus-grafana 3000:http-web --address 0.0.0.0
 ```
 3. Go to [http://localhost:3000](http://localhost:3000) if you access Grafana from a local machine, or `http://<client_address>:3000` if you access Grafana from a different host, where `<client_address>` is the IP address of the machine running the Grafana service. When prompted, enter the default credentials (username: `admin`; password: `prom-operator`).
-4. From **Dashboards**, select **RisingWave** \-> **RisingWave Dashboard**. You can edit metrics in the dashboard and add new metrics.
+4. From **Dashboards**, select **RisingWave** \-> **risingwave_dev_dashboard**. You can edit metrics in the dashboard and add new metrics.
 
 <Frame>
   <img src="/images/current/monitor-risingwave-cluster/risingwave-grafana-k8s.png"/>
@@ -59,6 +61,9 @@ kubectl port-forward -n monitoring svc/prometheus-grafana 3000:http-web --addres
 
 This section explains how to generate a Grafana dashboard for monitoring multiple RisingWave clusters deployed within a Kubernetes environment. These steps only generate the dashboard's JSON model and can be performed on any machine with the necessary tools.
 
+<Note>
+We recommend using `risingwave_dev_dashboard` for monitoring — it is more comprehensive and better organized than `risingwave_dashboard`. Note that `generate.sh` produces both `risingwave-dev-dashboard.gen.json` and `risingwave-user-dashboard.gen.json` using the same `DASHBOARD_UID`; to avoid UID collisions on import, import only `risingwave-dev-dashboard.gen.json`.
+</Note>
 
 1. Clone the [risingwave](https://github.com/risingwavelabs/risingwave) repository:
 ```bash
@@ -73,7 +78,7 @@ Execute the following command to create the Grafana dashboard JSON model, enabli
 DASHBOARD_NAMESPACE_FILTER_ENABLED=true \
 DASHBOARD_RISINGWAVE_NAME_FILTER_ENABLED=true \
 DASHBOARD_DYNAMIC_SOURCE=true \
-DASHBOARD_UID=risingwave_dashboard \
+DASHBOARD_UID=risingwave_dev_dashboard \
 ./generate.sh
 ```
 This command sets several environment variables to configure the dashboard generation:
@@ -84,7 +89,7 @@ This command sets several environment variables to configure the dashboard gener
 
 - `DASHBOARD_DYNAMIC_SOURCE=true`: Enables dynamic selection of the data source in Grafana.
 
-- `DASHBOARD_UID=risingwave_dashboard`: Sets the unique identifier (UID) for the dashboard.
+- `DASHBOARD_UID=risingwave_dev_dashboard`: Sets the unique identifier (UID) for the dashboard.
 4. Import the generated JSON models (with the extension `.gen.json`) into your Grafana instance.
 
 
