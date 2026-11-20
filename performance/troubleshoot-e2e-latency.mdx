@@ -49,7 +49,7 @@ There is an [inherent trade-off](https://blog.danslimmon.com/2019/02/26/the-late
 
 ### Aggregation operator configuration
 
-One notable configuration parameter in the aggregation operator is [`hash_agg_max_dirty_groups_heap_size`](https://github.com/risingwavelabs/risingwave/blob/main/src/config/example.toml). Set it under `[streaming.developer]` in `risingwave.toml` to control how many changes the aggregation operator buffers before consolidating them and sending the results to the next operator in the query plan. The trade-off here is between latency and computation efficiency.
+One notable configuration parameter in the aggregation operator is [`hash_agg_max_dirty_groups_heap_size`](https://github.com/risingwavelabs/risingwave/blob/main/src/config/example.toml). Set it under `[streaming.developer]` in `risingwave.toml` to set the maximum heap size, in bytes, of dirty aggregation groups buffered before their changes are flushed downstream. The trade-off here is between latency and computation efficiency.
 
 #### Example
 
@@ -86,3 +86,4 @@ It is often more efficient to use a single large physical machine for computatio
 ## What's next
 
 Finally, if you experience higher-than-expected latency, refer to this [guide](/performance/troubleshoot-high-latency#high-latency) for initial debugging steps. If the issue persists, feel free to join our [Slack community](https://www.risingwave.com/slack), and we will help diagnose it in more detail.
+

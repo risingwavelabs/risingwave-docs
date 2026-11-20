@@ -68,9 +68,13 @@ When creating a Kafka sink in RisingWave, you can specify the following Kafka-sp
 | queue.buffering.max.kbytes            | properties.queue.buffering.max.kbytes            | int    |
 | queue.buffering.max.messages          | properties.queue.buffering.max.messages          | int    |
 | queue.buffering.max.ms                | properties.queue.buffering.max.ms                | float  |
+| reconnect.backoff.ms                  | properties.reconnect.backoff.ms                  | int    |
+| reconnect.backoff.max.ms              | properties.reconnect.backoff.max.ms              | int    |
 | request.required.acks                 | properties.request.required.acks                 | int    |
 | retry.backoff.ms                      | properties.retry.backoff.ms                      | int    |
+| retry.backoff.max.ms                  | properties.retry.backoff.max.ms                  | int    |
 | receive.message.max.bytes             | properties.receive.message.max.bytes             | int    |
+| socket.connection.setup.timeout.ms    | properties.socket.connection.setup.timeout.ms    | int    |
 | ssl.endpoint.identification.algorithm | properties.ssl.endpoint.identification.algorithm | str    |
 | statistics.interval.ms                | properties.statistics.interval.ms                | int    |
 
@@ -182,6 +186,10 @@ When creating an append-only Protobuf sink, the following options can be used fo
 
 <Note>
 The `file://` format is not recommended for production use. If it is used, it needs to be available for both Meta and Compute Nodes.
+</Note>
+
+<Note>
+When using Protobuf with Confluent Schema Registry, RisingWave bundles only protobuf [well-known types](https://protobuf.dev/reference/protobuf/google.protobuf/), such as `google/protobuf/timestamp.proto`, `duration.proto`, `any.proto`, `empty.proto`, `struct.proto`, and wrappers. Other imports, including Google common types such as `google/type/date.proto`, `google/type/latlng.proto`, `google/rpc/*`, `google/api/*`, and `confluent/meta.proto`, must also be registered as schema references in Schema Registry so that RisingWave can encode them properly.
 </Note>
 
 ```sql FORMAT as PLAIN
