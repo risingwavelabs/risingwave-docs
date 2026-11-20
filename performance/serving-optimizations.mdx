@@ -38,6 +38,62 @@ We encourage users to detect the patterns in batch queries and create indexes if
 
 You can check the [Indexes](/processing/indexes) page for more details on how to create and use indexes.
 
+### Accelerate batch queries with automatic MV selection
+
+<Note>
+Added in v2.8.0.
+</Note>
+
+When `enable_mv_selection` is enabled, the query optimizer automatically rewrites a batch query to scan a matching materialized view instead of the base tables. If the query's `SELECT` list, `WHERE` clause, and `GROUP BY` match an existing MV (an additional `ORDER BY` on top is allowed), RisingWave reads the pre-computed result directly instead of rescanning and re-aggregating raw data.
+
+This is most useful for recurring dashboard or reporting queries that are already backed by an incrementally maintained MV.
+
+```sql
+-- A materialized view maintaining daily order totals
+CREATE TABLE orders (order_id BIGINT, amount DECIMAL, order_time TIMESTAMPTZ);
+CREATE MATERIALIZED VIEW daily_order_totals AS
+  SELECT date_trunc('day', order_time) AS day, SUM(amount) AS total
+  FROM orders
+  GROUP BY 1;
+```
+
+With `enable_mv_selection` enabled, the following query is automatically rewritten to scan `daily_order_totals` instead of `orders`:
+
+```sql
+SET enable_mv_selection = true;
+
+SELECT date_trunc('day', order_time) AS day, SUM(amount) AS total
+FROM orders
+GROUP BY 1
+ORDER BY 1;
+```
+
+Use `EXPLAIN` to verify the optimizer chose the MV:
+
+```sql
+EXPLAIN
+SELECT date_trunc('day', order_time) AS day, SUM(amount) AS total
+FROM orders
+GROUP BY 1
+ORDER BY 1;
+
+----
+ BatchExchange { order: [daily_order_totals.day ASC], dist: Single }
+ └─BatchScan { table: daily_order_totals, columns: [day, total] }
+```
+
+The plan shows a `BatchScan` on `daily_order_totals` — confirming the optimizer rewrote the query to read from the MV instead of scanning and aggregating `orders`.
+
+`enable_mv_selection` is disabled by default. Enable it per session:
+
+```sql
+SET enable_mv_selection = true;
+```
+
+<Tip>
+Currently, MV selection requires an exact structural match between the query and the MV definition. For example, reordering columns in the `SELECT` list or querying only a subset of the MV's columns will not trigger a rewrite. Create an MV that precisely mirrors your most frequent query pattern for best results. We are actively working on broadening the matching to cover more cases in future releases.
+</Tip>
+
 ## Memory management for batch queries
 
 ### Spilling to disk

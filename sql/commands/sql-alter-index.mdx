@@ -48,6 +48,59 @@ SET PARALLELISM { TO | = } parallelism_number;
 ALTER INDEX idx_orders SET PARALLELISM = 3;
 ```
 
-<Note>
-For a comprehensive guide on controlling parallelism across all object types, see [ALTER ... SET PARALLELISM](/sql/commands/sql-alter-parallelism).
-</Note>
+### `SET BACKFILL_PARALLELISM`
+
+```sql
+ALTER INDEX index_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_value [ DEFERRED ];
+```
+
+This statement controls the degree of parallelism used during the backfill phase of an index. It lets you tune resource usage for backfilling independently from the index's steady-state parallelism.
+
+| Parameter or clause           | Description |
+| :---------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_value_           | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+| **DEFERRED**                   | Optional. When specified, the change takes effect after the current backfill completes, without interrupting an ongoing backfill. If omitted, the change is applied immediately. |
+
+```sql
+-- Set backfill parallelism to a fixed value
+ALTER INDEX idx_orders SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER INDEX idx_orders SET BACKFILL_PARALLELISM = ADAPTIVE;
+
+-- Defer the parallelism change until the current backfill completes
+ALTER INDEX idx_orders SET BACKFILL_PARALLELISM = 4 DEFERRED;
+```
+
+### `SET RESOURCE_GROUP`
+
+```sql
+ALTER INDEX index_name
+    SET RESOURCE_GROUP { TO | = } { DEFAULT | resource_group_name } [ DEFERRED ];
+```
+
+```sql
+ALTER INDEX index_name
+    RESET RESOURCE_GROUP [ DEFERRED ];
+```
+
+Use this statement to change the resource group used by the index's streaming job.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RESOURCE_GROUP** | Assigns the index to a specific resource group. |
+| **RESET RESOURCE_GROUP** | Resets the index to the default resource group. |
+| _resource_group_name_ | The target resource group. |
+| **DEFERRED** | Optional. Defers applying the resource group change. |
+
+```sql
+-- Assign the index to a resource group
+ALTER INDEX idx_orders SET RESOURCE_GROUP TO high_priority;
+
+-- Reset the index to the default resource group
+ALTER INDEX idx_orders RESET RESOURCE_GROUP DEFERRED;
+```
+
+<Note>For a unified policy reference, see [ALTER ... SET PARALLELISM](/sql/commands/sql-alter-parallelism).</Note>

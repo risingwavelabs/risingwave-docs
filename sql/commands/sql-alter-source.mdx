@@ -54,15 +54,38 @@ ALTER SOURCE source_name CONNECTOR WITH (
 
 | Parameter         | Description |
 | :---------------- | :---------- |
-| **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing source without recreating it. Be aware that the properties defined in CONNECTION should be altered by `ALTER CONNECTION`.|
-| property_name | We currently support altering Kafka connectors only. Support for more sources and properties will be added in future release. For Kafka, supported parameters include: `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password`|
+| **CONNECTOR WITH**  | Allows you to update connector-specific properties for an existing source without recreating it. Be aware that the properties defined in `CONNECTION` should be altered by `ALTER CONNECTION`.|
+| property_name | The connector property to update. Only a curated allow-list of properties can be altered on the fly; see the table below. Support for more sources and properties will be added in future releases. |
 
-```sql Example
+The following connectors and properties are currently supported:
+
+| Connector | Alterable properties |
+| :-------- | :------------------- |
+| Kafka (`kafka`) | `properties.client.id`, `properties.sync.call.timeout`, `properties.enable.auto.commit`, `properties.auto.commit.interval.ms`, `properties.enable.ssl.certificate.verification`, `properties.fetch.max.bytes`, `properties.fetch.queue.backoff.ms`, `properties.fetch.wait.max.ms`, `properties.message.max.bytes`, `properties.queued.max.messages.kbytes`, `properties.queued.min.messages`, `properties.receive.message.max.bytes`, `properties.reconnect.backoff.ms`, `properties.reconnect.backoff.max.ms`, `properties.retry.backoff.ms`, `properties.retry.backoff.max.ms`, `properties.socket.connection.setup.timeout.ms`, `properties.statistics.interval.ms`, `properties.ssl.endpoint.identification.algorithm`, `properties.security.protocol`, `properties.sasl.mechanism`, `properties.sasl.username`, `properties.sasl.password` |
+| PostgreSQL CDC (`postgres-cdc`), MySQL CDC (`mysql-cdc`), SQL Server CDC (`sqlserver-cdc`), MongoDB CDC (`mongodb-cdc`) | `cdc.source.wait.streaming.start.timeout`, `debezium.max.queue.size`, `debezium.queue.memory.ratio` |
+
+<Note>
+For CDC connectors, only the Debezium runtime tunables above can be altered in place. Connection-level fields such as `hostname`, `port`, `database.name`, `username`, and `password` still require recreating the source. To rotate credentials without changing the SQL definition, store them in a [secret](/sql/commands/sql-create-secret) and update the secret with [`ALTER SECRET`](/sql/commands/sql-alter-secret) — note that running CDC jobs only pick up the new value after a restart.
+</Note>
+
+```sql Example: Kafka
 ALTER SOURCE user_events_src
 CONNECTOR WITH (
   'properties.security.protocol' = 'SASL_SSL'
 );
 ```
+
+```sql Example: Postgres CDC
+-- Increase the Debezium queue size for a shared Postgres CDC source
+ALTER SOURCE pg_cdc_source
+CONNECTOR WITH (
+  'debezium.max.queue.size' = '16384'
+);
+```
+
+<Note>
+For routine, supported property updates, prefer using `ALTER SOURCE ... CONNECTOR WITH`. For advanced operational scenarios (such as updating properties not supported by `ALTER SOURCE`), you can use low-level `risectl` commands. These are intended for cluster operators and require direct access to the RisingWave binary. See [Update source properties with risectl](/operate/risectl-source-commands) for details.
+</Note>
 
 ### `REFRESH SCHEMA`
 
@@ -171,11 +194,33 @@ SET PARALLELISM { TO | = } parallelism_number;
 ALTER SOURCE s_kafka SET PARALLELISM = 2;
 ```
 
-<Note>
-For a comprehensive guide on controlling parallelism across all object types, see [ALTER ... SET PARALLELISM](/sql/commands/sql-alter-parallelism).
-</Note>
+### `SET BACKFILL_PARALLELISM`
 
-### `SET SOURCE_RATE_LIMIT`
+```sql
+ALTER SOURCE source_name
+    SET BACKFILL_PARALLELISM { TO | = } parallelism_value [ DEFERRED ];
+```
+
+This statement controls the degree of parallelism used during the backfill phase of a source. It lets you tune resource usage for backfilling independently from the source's steady-state parallelism.
+
+| Parameter or clause           | Description |
+| :---------------------------- | :---------- |
+| **SET BACKFILL\_PARALLELISM** | Sets the parallelism for the backfill phase of the streaming job. |
+| _parallelism\_value_           | Can be `ADAPTIVE` or a fixed number (e.g., 1, 2, 3). Setting it to `ADAPTIVE` or `0` expands backfill parallelism to all available units. A fixed number locks it at that value. |
+| **DEFERRED**                   | Optional. When specified, the change takes effect after the current backfill completes, without interrupting an ongoing backfill. If omitted, the change is applied immediately. |
+
+```sql
+-- Set backfill parallelism to a fixed value
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = 4;
+
+-- Set backfill parallelism to adaptive
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = ADAPTIVE;
+
+-- Defer the parallelism change until the current backfill completes
+ALTER SOURCE kafka_source SET BACKFILL_PARALLELISM = 4 DEFERRED;
+```
+
+### `SET SOURCE_RATE_LIMIT` {#set-source-rate-limit}
 
 ```sql
 ALTER SOURCE source_name
@@ -219,3 +264,5 @@ SWAP WITH target_name;
 ALTER SOURCE api_data
 SWAP WITH file_data;
 ```
+
+<Note>For a unified policy reference, see [ALTER ... SET PARALLELISM](/sql/commands/sql-alter-parallelism).</Note>

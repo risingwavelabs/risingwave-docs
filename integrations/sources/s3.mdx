@@ -77,7 +77,11 @@ Empty cells in CSV files will be parsed to `NULL`.
 | `_file_`   | **Optional**. The column contains the file name where current record comes from.                                                |
 | `_offset_` | **Optional**. The column contains the corresponding bytes offset (record offset for parquet files) where current message begins |
 
-## Examples
+## Working with S3 sources
+
+Learn how to work with S3 sources through practical examples and scenarios. To avoid conflicts, double-quote all field names (e.g., `"field_name"`) when working with case-sensitive sources. For more conventions on naming and identifier handling, see [Identifiers](/sql/identifiers).
+
+### Basic examples
 
 Here are examples of connecting RisingWave to an S3 source to read data from individual streams.
 <Tabs>
@@ -101,7 +105,7 @@ WITH (
 
 ```
   </Tab>
-  <Tab title=" JSON">
+  <Tab title="JSON">
 ```sql
 CREATE TABLE s3(
     id int,
@@ -158,10 +162,6 @@ WITH (
 </Tabs>
 
 
-
-
-## Important considerations
-
 ### Object filtering in S3 buckets
 
 RisingWave has a prefix argument designed for filtering objects in the S3 bucket. It relies on [Apache Opendal](https://github.com/apache/incubator-opendal) whose prefix filter implementation is expected to be released soon.
@@ -180,22 +180,42 @@ You need to create a materialized view from the source or create a table with th
 
 ```sql
 -- Create a materialized view from the source
-CREATE SOURCE s3_source WITH ( connector = 's3', ... );
+CREATE SOURCE s3_source (
+    product_id INT,
+    sales_date DATE,
+    quantity INT,
+    revenue DOUBLE
+) WITH (
+    connector = 's3',
+    ...
+);
 CREATE MATERIALIZED VIEW mv AS SELECT * FROM s3_source;
 
 -- Create a table with the S3 connector
-CREATE TABLE s3_table ( ... ) WITH ( connector = 's3', ... );
+CREATE TABLE s3_table (
+    product_id INT,
+    sales_date DATE,
+    quantity INT,
+    revenue DOUBLE
+) WITH (
+    connector = 's3',
+    ...
+);
 
 -- Select from the source directly
 SELECT count(*) from s3_source;
 ```
 
-### Read Parquet files from S3[](#read-parquet-files-from-s3 "Direct link to Read Parquet files from S3")
+<Note>
+Column names and types are not inferred automatically from the source. You must explicitly define them when creating the table or materialized view.
+</Note>
+
+### Read Parquet files from S3
 
 You can use the table function `file_scan()` to read Parquet files from S3, either a single file or a directory of Parquet files.
 
 ```sql Function signature
-file_scan(file_format, storage_type, s3_region, s3_access_key, s3_secret_key, file_location_or_directory)
+file_scan('parquet', 's3', s3_region, s3_access_key, s3_secret_key, file_location_or_directory)
 ```
 
 <Note>
