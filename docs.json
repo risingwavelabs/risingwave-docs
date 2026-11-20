@@ -20,7 +20,7 @@
   "navigation": {
     "versions": [
       {
-        "version": "Current (v2.8)",
+        "version": "Current (v3.1)",
         "tabs": [
           {
             "tab": "Guides",
@@ -170,6 +170,7 @@
                               }
                             ]
                           },
+                          "ingestion/sources/mariadb-cdc",
                           "ingestion/sources/mongodb-cdc",
                           "ingestion/sources/sql-server-cdc"
                         ]
@@ -213,6 +214,7 @@
                       {
                         "group": "Other messaging platforms",
                         "pages": [
+                          "ingestion/monitor-source-connector-acks",
                           "integrations/sources/google-pub-sub",
                           "integrations/sources/kinesis",
                           {
@@ -308,6 +310,7 @@
                               "integrations/destinations/aws-kinesis",
                               "integrations/destinations/nats-and-nats-jetstream",
                               "integrations/destinations/google-pub-sub",
+                              "integrations/destinations/http",
                               "integrations/destinations/mqtt"
                             ]
                           },
@@ -319,6 +322,7 @@
                               "integrations/destinations/sql-server",
                               "integrations/destinations/redis",
                               "integrations/destinations/supabase",
+                              "integrations/destinations/turbopuffer",
                               "integrations/destinations/tidb",
                               "integrations/destinations/cockroachdb",
                               "integrations/destinations/cassandra-or-scylladb"
@@ -388,6 +392,7 @@
                         "group": "Monitor",
                         "pages": [
                           "operate/monitor-risingwave-cluster",
+                          "operate/prometheus-metrics-reference",
                           "operate/monitor-statement-progress"
                         ]
                       },
@@ -518,11 +523,12 @@
                     "pages": [
                       "cloud/quickstart",
                       "cloud/signup-login",
-                      "cloud/install-cli"
+                      "cloud/install-cli",
+                      "cloud/agent-skills"
                     ]
                   },
                   {
-                    "group": "Projects",
+                    "group": "Clusters",
                     "pages": [
                       "cloud/manage-projects",
                       "cloud/choose-a-project-plan",
@@ -544,6 +550,7 @@
                       "cloud/manage-resources",
                       "cloud/manage-disk-cache",
                       "cloud/serverless-backfilling",
+                      "cloud/serverless-compaction",
                       "cloud/manage-database-users",
                       "cloud/manage-backups",
                       "cloud/cloud-metadata",
@@ -553,6 +560,12 @@
                         "pages": [
                           "cloud/privatelink-overview",
                           "cloud/create-a-connection"
+                        ]
+                      },
+                      {
+                        "group": "BYOC",
+                        "pages": [
+                          "cloud/connect-byoc-telemetry-to-grafana"
                         ]
                       }
                     ]
@@ -564,6 +577,7 @@
                       "cloud/risingwave-connect",
                       "cloud/manage-sources",
                       "cloud/ingest-data-from-webhook",
+                      "cloud/ingest-data-from-websocket",
                       "cloud/manage-sinks",
                       "cloud/monitor-materialized-views",
                       "cloud/console-overview"
@@ -593,7 +607,44 @@
                     "group": "Messages and alerts",
                     "pages": [
                       "cloud/monitor-messages-and-alerts",
-                      "cloud/alert-playbooks"
+                      {
+                        "group": "Alert playbooks",
+                        "pages": [
+                          "cloud/alert-playbooks",
+                          {
+                            "group": "Service Health",
+                            "pages": [
+                              "cloud/alert-playbooks/service-health/out-of-memory-error",
+                              "cloud/alert-playbooks/service-health/recovery-failure-loop",
+                              "cloud/alert-playbooks/service-health/tenant-health-check-failed",
+                              "cloud/alert-playbooks/service-health/risingwave-pod-crash-looping",
+                              "cloud/alert-playbooks/service-health/risingwave-pod-not-healthy",
+                              "cloud/alert-playbooks/service-health/risingwave-pod-pending",
+                              "cloud/alert-playbooks/service-health/serving-cpu-load-pressure"
+                            ]
+                          },
+                          {
+                            "group": "Streaming",
+                            "pages": [
+                              "cloud/alert-playbooks/streaming/barrier-pending-for-too-long",
+                              "cloud/alert-playbooks/streaming/source-error",
+                              "cloud/alert-playbooks/streaming/sink-error",
+                              "cloud/alert-playbooks/streaming/source-status-down",
+                              "cloud/alert-playbooks/streaming/mysql-cdc-binlog-file-lag",
+                              "cloud/alert-playbooks/streaming/postgresql-cdc-wal-lag",
+                              "cloud/alert-playbooks/streaming/sink-lag-too-large",
+                              "cloud/alert-playbooks/streaming/cross-database-subscription-changelog-expiry-headroom-low"
+                            ]
+                          },
+                          {
+                            "group": "Compaction",
+                            "pages": [
+                              "cloud/alert-playbooks/compaction/compaction-back-pressure",
+                              "cloud/alert-playbooks/compaction/write-stall-compaction-stuck"
+                            ]
+                          }
+                        ]
+                      }
                     ]
                   },
                   {
@@ -651,6 +702,7 @@
                       "iceberg/catalogs/jdbc",
                       "iceberg/catalogs/rest",
                       "iceberg/catalogs/lakekeeper",
+                      "iceberg/catalogs/seaweedfs",
                       "iceberg/catalogs/hive",
                       "iceberg/catalogs/snowflake",
                       "iceberg/catalogs/unity"
@@ -754,6 +806,7 @@
                       "sql/commands/sql-insert",
                       "sql/commands/sql-recover",
                       "sql/commands/sql-refresh-table",
+                      "sql/commands/sql-replace-sink",
                       "sql/commands/sql-revoke",
                       "sql/commands/sql-select",
                       "sql/commands/sql-set-background-ddl",
@@ -821,6 +874,7 @@
                       "sql/data-types/array-type",
                       "sql/data-types/map-type",
                       "sql/data-types/jsonb",
+                      "sql/data-types/variant",
                       "sql/data-types/rw-int256",
                       "sql/data-types/vector",
                       "sql/data-types/supported-protobuf-types"
@@ -923,11 +977,13 @@
                       "web-ui/risingwave-console/installation-setup",
                       "web-ui/risingwave-console/license-management",
                       "web-ui/risingwave-console/air-gapped-deployment",
+                      "web-ui/risingwave-console/single-sign-on",
                       "web-ui/risingwave-console/connect-risingwave-clusters",
                       "web-ui/risingwave-console/manage-environments",
                       "web-ui/risingwave-console/metrics-store",
                       "web-ui/risingwave-console/manage-monitor-clusters",
-                      "web-ui/risingwave-console/use-sql-console"
+                      "web-ui/risingwave-console/use-sql-console",
+                      "web-ui/risingwave-console/release-notes"
                     ]
                   }
                 ]
