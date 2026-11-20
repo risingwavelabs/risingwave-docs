@@ -6,14 +6,14 @@ sidebarTitle: "Datagen"
 
 Use the built-in load generator to create synthetic streams for local development, demos, and connector-free testing.
 
-The datagen connector emits insert-only rows. It does not generate updates or deletes, so it is not suitable for testing CDC, upsert, or delete-driven workloads.
+The datagen connector emits insert-only input events; it does not generate CDC-style update or delete events. A downstream table with a primary key can still apply its normal key-conflict behavior.
 
 ## Syntax
 
 ```sql
 CREATE TABLE source_name ( column_name data_type, ... )
 WITH (
-   connector = ' datagen ',
+   connector = 'datagen',
    fields.column_name.column_parameter = ' value ', ...  -- Configure the generator for each column. See detailed information below.
    datagen.rows.per.second = ' rows_integer ', -- Specify how many rows of records to generate every second. For example, '20'.
    datagen.split.num = ' split_integer '       -- Optional. Specify how many generator splits to use.
@@ -27,7 +27,7 @@ Specify these options in the `WITH` clause.
 | Option | Description |
 | :----- | :---------- |
 | `datagen.rows.per.second` | Total number of rows generated per second across all datagen splits. Default: `10`. |
-| `datagen.split.num` | Number of generator splits. Use this when you want the generated workload to be partitioned across multiple splits. If you set `datagen.split.num = '3'` and `datagen.rows.per.second = '10'`, RisingWave distributes the output across the three splits. |
+| `datagen.split.num` | Number of generator splits. Default: `1`. Use this when you want the generated workload to be partitioned across multiple splits. If you set `datagen.split.num = '3'` and `datagen.rows.per.second = '10'`, RisingWave distributes the output across the three splits. |
 
 ### `WITH` options - _`columnparameter`_[]
 
