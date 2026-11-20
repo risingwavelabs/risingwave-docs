@@ -1,5 +1,5 @@
 ---
-title: "Set up a self-hosted PostgreSQL database"
+title: "Set up a self-hosted MySQL database"
 sidebarTitle: "Self-hosted"
 description: "How to set up a self-hosted MySQL database as a source for RisingWave."
 ---
@@ -18,6 +18,15 @@ CREATE USER 'user'@'%' IDENTIFIED BY 'password';
 ```sql
 GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'user'@'%';
 ```
+
+For MariaDB 10.5 and later, `BINLOG MONITOR` is the renamed equivalent of
+`REPLICATION CLIENT`. You can grant it instead:
+
+```sql
+GRANT SELECT, REPLICATION SLAVE, BINLOG MONITOR ON *.* TO 'user'@'%';
+```
+
+RisingWave accepts either privilege when validating a MariaDB CDC source.
 
 3. Finalize the privileges.
 
