@@ -10,16 +10,14 @@ You can often achieve better performance by rewriting your SQL to follow certain
 
 Unlike ad-hoc queries, a streaming query becomes a long-running job on the cluster after you create it. In most cases, changing the logic of an existing materialized view means creating a new one and switching over. For details, see [Alter a streaming job](/operate/alter-streaming).
 
-Before creating a materialized view or sink, inspect the plan first:
+Before creating a materialized view or sink, inspect the plan first. For an existing table named `input_table`:
 
 ```sql
 EXPLAIN CREATE MATERIALIZED VIEW mv AS
-SELECT ...
-;
+SELECT * FROM input_table;
 
 EXPLAIN (TYPE DISTSQL, VERBOSE) CREATE MATERIALIZED VIEW mv AS
-SELECT ...
-;
+SELECT * FROM input_table;
 ```
 
 Use `EXPLAIN` to check whether a query introduces expensive stateful operators such as joins, aggregations, or over windows. For an existing streaming job, use [`DESCRIBE FRAGMENTS`](/sql/commands/sql-describe#describe-fragments) to inspect its distributed execution fragments.
