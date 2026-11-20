@@ -22,9 +22,9 @@ Here is a brief overview of each component:
 
 ## Serving Node
 
-This node serves as the PostgreSQL-compatible SQL gateway. It handles user requests and delivers results with high concurrency and low latency. Clients like `psql` can connect to it seamlessly.
+The PostgreSQL-compatible frontend serves as the SQL gateway for clients such as `psql`. It parses and plans queries; batch execution can run on serving-role Compute Nodes. In embedded serving mode, frontend pods also host serving execution.
 
-- It executes batch queries directly.
+- It dispatches batch execution to serving compute resources, or executes it in the frontend pods when embedded serving mode is enabled.
 - For streaming queries, it creates an execution plan and sends it to the Streaming Engine.
 
 ### Batch query execution modes
@@ -127,7 +127,7 @@ This accumulation directly impacts read performance because, when reading a rang
 
 Hence, it is typically recommended to maintain a 2:1 ratio between Compute and Compactor sizes. For instance, with a 4 CPU cores, 16 GB memory Compute Node, we recommend using a 2 CPU cores, 8 GB Compactor Node. In a write-heavy workload, such as when 500K rows are written to storage per second, we recommend a 1:8 Compute-to-Compactor ratio. This typically occurs during the backfilling of historical data, where the ingestion size is really large. See how to diagnose [compaction bottleneck](/performance/specific-bottlenecks#compaction-bottleneck) for more information.
 
-In RisingWave Cloud, we can use **Serverless Compaction** (currently in **Public preview** stage) to automatically scale compactors and simplify compaction resource management.
+In RisingWave Cloud, we can use [Serverless Compaction](/cloud/serverless-compaction) to automatically scale compactors and simplify compaction resource management.
 
 ### Compute-Meta
 
