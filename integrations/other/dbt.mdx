@@ -167,7 +167,7 @@ select 1 as c1, 1 c2 union select 2 as c1, 2 as c2
 
 ## Zero-downtime rebuilds for materialized views and views
 
-dbt-risingwave supports swap-based rebuilds for `materialized_view` and `view` models. For materialized views, the adapter uses [`ALTER MATERIALIZED VIEW ... SWAP WITH ...`](/sql/commands/sql-alter-materialized-view#swap-with); for views, it uses [`ALTER VIEW ... SWAP WITH ...`](/sql/commands/sql-alter-view#swap-with). This keeps the original object name resolvable throughout the rebuild. Materialized view swap requires RisingWave v2.2 or later. For the upstream reference, see the [`dbt-risingwave` zero-downtime rebuilds guide](https://github.com/risingwavelabs/dbt-risingwave/blob/main/docs/zero-downtime-rebuilds.md).
+dbt-risingwave supports swap-based rebuilds for `materialized_view` and `view` models. For materialized views, the adapter uses [`ALTER MATERIALIZED VIEW ... SWAP WITH ...`](/sql/commands/sql-alter-materialized-view#swap-with); for views, it uses [`ALTER VIEW ... SWAP WITH ...`](/sql/commands/sql-alter-view#swap-with). For a same-type rebuild, this keeps the original object name resolvable through the swap. Changing between a view and materialized view uses a rename sequence and can leave a brief gap in the canonical name. Materialized view swap requires RisingWave v2.2 or later. For the upstream reference, see the [`dbt-risingwave` zero-downtime rebuilds guide](https://github.com/risingwavelabs/dbt-risingwave/blob/main/docs/zero-downtime-rebuilds.md).
 
 ### How swap-based rebuilds work
 
