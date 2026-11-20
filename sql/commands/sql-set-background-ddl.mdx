@@ -49,6 +49,18 @@ The key difference is during the **creating phase** of a materialized view. Afte
 
 You can monitor the progress of background DDL operations using the [SHOW JOBS](/sql/commands/sql-show-jobs) command. The exception is for `sink jobs`. These are immediately marked as completed, since their output will be immediately visible.
 
+### Wait for jobs to finish
+
+Use the [WAIT](/sql/commands/sql-wait) command to block the current session until a specific job (or all background jobs) complete. This is useful in scripts or workflows where you need to ensure a job is done before proceeding.
+
+```sql
+-- Wait for a specific materialized view creation to finish
+WAIT MATERIALIZED VIEW mv;
+
+-- Wait for all background jobs to finish
+WAIT;
+```
+
 ### Cancel jobs
 
 Currently background_ddl only supports `sink` and `materialized views`. You can just call `DROP SINK` or `DROP MATERIALIZED VIEW` on the corresponding relation to cancel it.
