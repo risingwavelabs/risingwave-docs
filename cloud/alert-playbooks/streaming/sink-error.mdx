@@ -1,0 +1,60 @@
+---
+title: "Sink error"
+sidebarTitle: "Sink error"
+description: "Find the cause of sink delivery errors and restore downstream progress."
+---
+
+This warning indicates that a sink has reported delivery errors. These errors
+can delay downstream updates; the alert alone does not establish data loss.
+Use the cluster and sink name in the alert to locate the affected sink.
+
+## Find the error and assess the impact
+
+1. Open the affected cluster in the [Cloud dashboard](https://cloud.risingwave.com/dashboard).
+2. Go to **Data Catalog** > **Sinks** and open the sink named in the alert.
+   Check its errors, **Throughput**, and **Sink Latency** over a time range
+   starting before the alert. If you cannot access these details, ask your
+   cluster administrator or Cloud support for help.
+3. Check whether the destination is receiving fresh data. Compare with other
+   sinks to determine whether the interruption affects one destination or a
+   shared downstream service.
+
+## Resolve the reported problem
+
+Use the error message to choose the next step:
+
+| Error or symptom | What to check |
+| --- | --- |
+| Connection failure or timeout | Destination availability, network access, and recent network changes. |
+| Authentication or permission failure | Credentials and the destination permissions required by the sink. |
+| Rate limit or slow delivery | Destination quotas, capacity, and competing workload. |
+| Rejected records or schema mismatch | The affected records and the destination's schema and format requirements. |
+
+Correct the identified downstream problem and monitor delivery. See
+[Source and sink troubleshooting](/troubleshoot/troubleshoot-source-sink)
+for additional diagnosis. Consult support before recreating a sink or skipping
+records, because replay behavior depends on the connector and configuration.
+
+If errors have stopped and delivery is progressing normally, continue monitoring;
+no further corrective action is needed. If errors persist, you cannot identify
+the cause, or production data delivery is affected, contact the
+[RisingWave Cloud support team](mailto:cloud-support@risingwave-labs.com).
+Include the cluster and region, sink name, alert time, representative error
+messages with credentials removed, and recent destination changes.
+
+## Confirm recovery
+
+Confirm that no new errors appear, **Throughput** resumes when there is data to
+deliver, **Sink Latency** returns toward its normal baseline, and the destination
+receives fresh results. A cleared alert or missing metrics alone do not prove
+that delivery recovered.
+
+## Applicability
+
+This alert applies to clusters running RisingWave v1.7.1 or later.
+
+## Related topics
+
+- [Manage sinks](/cloud/manage-sinks)
+- [Sink lag too large](/cloud/alert-playbooks/streaming/sink-lag-too-large)
+- [Monitor messages and alerts](/cloud/monitor-messages-and-alerts)
