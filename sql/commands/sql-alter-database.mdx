@@ -75,3 +75,38 @@ ALTER DATABASE travel SET checkpoint_frequency = 2;
 ALTER DATABASE travel SET barrier_interval_ms = DEFAULT;
 ALTER DATABASE travel SET checkpoint_frequency = DEFAULT;
 ```
+
+### `SET RESOURCE_GROUP`
+
+<Tip>
+**PREMIUM FEATURE**
+
+This is a premium feature. For a comprehensive overview of all premium features and their usage, please see [RisingWave premium features](/get-started/premium-features).
+</Tip>
+
+```sql
+ALTER DATABASE database_name
+    SET RESOURCE_GROUP { TO | = } { DEFAULT | resource_group_name } DEFERRED;
+```
+
+```sql
+ALTER DATABASE database_name
+    RESET RESOURCE_GROUP DEFERRED;
+```
+
+Use this statement to change the resource group metadata for a database. The change does not take effect immediately for inherited streaming jobs. After updating the database resource group, manually trigger recovery for inherited streaming jobs to use the new database resource group.
+
+| Parameter or clause | Description |
+| :------------------ | :---------- |
+| **SET RESOURCE_GROUP** | Sets the database's resource group metadata. |
+| **RESET RESOURCE_GROUP** | Resets the database to the default resource group. |
+| _resource_group_name_ | The target resource group. |
+| **DEFERRED** | Required. Applies the metadata change without immediately moving inherited streaming jobs. |
+
+```sql
+-- Change the database resource group metadata
+ALTER DATABASE travel SET RESOURCE_GROUP = high_priority DEFERRED;
+
+-- Reset the database to the default resource group
+ALTER DATABASE travel RESET RESOURCE_GROUP DEFERRED;
+```

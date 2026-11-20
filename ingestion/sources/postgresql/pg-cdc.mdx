@@ -8,7 +8,7 @@ Need help generating SQL? Use [Claude Code](https://claude.ai/claude-code) or [C
 
 This guide explains how to connect RisingWave to a PostgreSQL database to ingest data changes in real time using the native PostgreSQL CDC source connector.
 
-RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-compliant database that supports logical replication, and supports **PostgreSQL versions 10 through 17**.
+RisingWave's PostgreSQL CDC connector is compatible with any PostgreSQL-compliant database that supports logical replication, and supports **PostgreSQL versions 10 through 18**. PostgreSQL 18 support was added in RisingWave v3.0.0.
 
 ## Prerequisites
 
@@ -50,6 +50,14 @@ WITH (
 FROM <shared_source_name> TABLE <upstream_table_name>;
 ```
 
+If an upstream schema or table name contains a period (`.`), enclose that identifier in double quotes inside the single-quoted `TABLE` value. For example, use `TABLE 'public."a.b"'` for a table named `a.b` in the `public` schema, or `TABLE '"s.x".t'` for a table named `t` in the `s.x` schema.
+
+<Warning>
+A shared source cannot distinguish upstream tables whose identifier parts produce the same period-separated name. For example, do not use the same source to ingest both `TABLE '"public.a".b'` and `TABLE 'public."a.b"'`; each RisingWave table would receive changes from both upstream tables.
+</Warning>
+
+PostgreSQL CDC tables created with a quoted name containing a period before this support was introduced must be recreated after upgrading. Earlier versions accepted the table definition but did not deliver its streaming changes.
+
 ### Basic connection example
 
 ```sql
@@ -71,32 +79,31 @@ CREATE TABLE my_table (
 )
 FROM shared_source TABLE 'public.my_upstream_table';
 ```
-
 ## Parameters
 
 These parameters are used in the `WITH` clause of a `CREATE SOURCE` statement.
 
-| Parameter             | Description                                                                                                                                                                                                                  | Required |
-| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------- |
-| `connector`           | Must be set to `'postgres-cdc'`.                                                                                                                                                                                 | Yes      |
-| `hostname`            | The hostname or IP address of your PostgreSQL database server.                                                                                                                                                             | Yes      |
-| `port`                | The port number of your PostgreSQL database server. The default is 5432.                                                                                                                                      | Yes      |
-| `username`            | The username for connecting to your PostgreSQL database.                                                                                                                | Yes      |
-| `password`            | The password for the PostgreSQL user.                                                                                                                                                                                     | Yes      |
-| `database.name`       | The name of the PostgreSQL database to connect to.                                                                                                                                                                        | Yes      |
-| `schema.name`         | The name of the PostgreSQL schema to capture changes from. Defaults to `'public'`.                                                                                                                                       | No       |
-| `slot.name`           | The name of the PostgreSQL replication slot to use. If not specified, a unique name is generated. Each source needs a unique slot. Valid characters: lowercase letters, numbers, underscore. Max length: 63.                 | No       |
-| `publication.name`    | The name of the PostgreSQL publication to use. Defaults to `'rw_publication'`.                                                                                                                                                  | No       |
-| `publication.create.enable` | Whether to automatically create the publication if it doesn't exist. Defaults to `true`.                                                                                                                              | No       |
-| `auto.schema.change`  | Set to `true` to enable automatic replication of DDL changes from Postgres. Defaults to `false`.                                                                                                                            | No       |
+| Parameter                  | Description                                                                                                                                                                                                                  | Required |
+| :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------- |
+| `connector`                | Must be set to `'postgres-cdc'`.                                                                                                                                                                                             | Yes      |
+| `hostname`                 | The hostname or IP address of your PostgreSQL database server.                                                                                                                                                               | Yes      |
+| `port`                     | The port number of your PostgreSQL database server. The default is 5432.                                                                                                                                                     | Yes      |
+| `username`                 | The username for connecting to your PostgreSQL database.                                                                                                                                                                     | Yes      |
+| `password`                 | The password for the PostgreSQL user.                                                                                                                                                                                        | Yes      |
+| `database.name`            | The name of the PostgreSQL database to connect to.                                                                                                                                                                           | Yes      |
+| `schema.name`              | The name of the PostgreSQL schema to capture changes from. Defaults to `'public'`.                                                                                                                                          | No       |
+| `slot.name`                | The name of the PostgreSQL replication slot to use. If not specified, a unique name is generated. Each source needs a unique slot. Valid characters: lowercase letters, numbers, underscore. Max length: 63.              | No       |
+| `publication.name`         | The name of the PostgreSQL publication to use. Defaults to `'rw_publication'`.                                                                                                                                              | No       |
+| `publication.create.enable`| Whether to automatically create the publication if it doesn't exist. Defaults to `true`.                                                                                                                                    | No       |
+| `auto.schema.change`       | Set to `true` to enable automatic replication of DDL changes from Postgres. Defaults to `false`. The value must be a plaintext Boolean; you cannot provide it as a secret.                                                   | No       |
+| `ssl.mode`                 | SSL/TLS encryption mode. Accepted values: `disabled`, `preferred`, `required`, `verify-ca`, `verify-full`. Defaults to `disabled`.                                                                                          | No       |
+| `ssl.root.cert`            | The PEM-encoded root certificate for `verify-ca` or `verify-full` mode. Use a [secret](/operate/manage-secrets).                                                                                                             | No       |
+| `postgres.is.aws.rds`      | Set to `true` to specify that the upstream database is AWS RDS. This enhances RDS detection and supports scenarios that use a custom DNS endpoint. The default value is `false`.                                            | No       |
 
 <Note>
 For PostgreSQL CDC sources, RisingWave manages the publication and replication slot automatically. By default, RisingWave will create the publication and slot if they don't exist (`publication.create.enable = 'true'`). If you want to use an existing publication, set `publication.create.enable = 'false'`. This is useful when the RisingWave database user doesn't have `CREATE PUBLICATION` permissions.
-</Note>
-| `ssl.mode`            | SSL/TLS encryption mode. Accepted values: `disabled`, `preferred`, `required`, `verify-ca`, `verify-full`. Defaults to `disabled`.                                                                       | No       |
-| `ssl.root.cert`       | The PEM-encoded root certificate for `verify-ca` or `verify-full` mode. Use a [secret](/operate/manage-secrets).                                                                                                          | No       |
-| `postgres.is.aws.rds` | Set to `true` to specify that the upstream database is AWS RDS. This enhances RDS detection and supports scenarios that use a custom DNS endpoint. The default value is `false`. | No       |
-| `transactional`       | Ensures that changes from a single upstream transaction are processed atomically. Defaults to `true` for shared sources.                                                   | No       |
+</Note> 
+
 
 These parameters are used in the `WITH` clause of a `CREATE TABLE ... FROM source` statement.
 
@@ -128,11 +135,143 @@ FROM pg_mydb TABLE 'public.large_table';
 
 You can also specify any valid [Debezium PostgreSQL connector configuration property](https://debezium.io/documentation/reference/2.6/connectors/postgresql.html#postgresql-advanced-configuration-properties) in the `WITH` clause. Prefix the Debezium parameter name with `debezium.`.
 
+If `debezium.time.precision.mode` is not specified, RisingWave uses
+`microseconds`. Set it to `connect` only when the upstream temporal values use
+millisecond precision.
+
+RisingWave uses `string` for `debezium.decimal.handling.mode` to preserve decimal precision. Omit this property or set it to `string`; other values, including `precise` and `double`, are rejected.
+
 For example, to skip unknown DDL statements, use:
 
 ```sql
 debezium.schema.history.internal.skip.unparseable.ddl = 'true'
 ```
+
+If you are configuring PostgreSQL 17 standby promotion, set `debezium.slot.failover = 'true'` when RisingWave creates the replication slot. This maps to Debezium's `slot.failover=true` setting so PostgreSQL creates a failover logical slot. If the slot already exists, this property does not modify it.
+
+## High availability and standby promotion
+
+If you use PostgreSQL high availability (HA) and plan to promote a standby, RisingWave direct CDC can continue after failover only if all of the following are true:
+
+- RisingWave reconnects through a stable endpoint such as a DNS name, VIP, or proxy that now points to the promoted primary.
+- The logical replication slot is synchronized to the failover candidate before promotion.
+- The promoted server still retains the WAL needed by RisingWave's last committed LSN.
+
+When you use standby promotion, specify `slot.name` explicitly instead of relying on an auto-generated slot name. This makes it easier to inspect, synchronize, and reuse the same logical slot across failover.
+
+### PostgreSQL 17
+
+PostgreSQL 17 has built-in failover logical slots. When RisingWave creates the slot, set `debezium.slot.failover = 'true'` so the slot is created with `FAILOVER true`.
+
+```sql
+CREATE SOURCE orders_source WITH (
+    connector = 'postgres-cdc',
+    hostname = 'pg-ha-endpoint',
+    port = '5432',
+    username = 'rw_cdc',
+    password = 'your_password',
+    database.name = 'app',
+    schema.name = 'public',
+    slot.name = 'rw_orders',
+    publication.name = 'rw_publication',
+    debezium.slot.failover = 'true'
+);
+```
+
+On the PostgreSQL primary, configure:
+
+```conf
+wal_level = logical
+max_wal_senders = 20
+max_replication_slots = 20
+wal_sender_timeout = 0
+synchronized_standby_slots = 'pg17_physical'
+```
+
+On the standby, configure:
+
+```conf
+hot_standby = on
+hot_standby_feedback = on
+sync_replication_slots = on
+primary_slot_name = 'pg17_physical'
+primary_conninfo = 'host=<primary> port=5432 user=<replication-user> dbname=<source-db> ...'
+```
+
+If you create the slot yourself instead of letting RisingWave create it, make sure the slot is created with `FAILOVER true` and then pass its name to RisingWave through `slot.name`.
+
+If an existing slot was created without `FAILOVER true`, stop its consumer first and update it manually:
+
+```bash
+psql "host=<primary> dbname=<db> user=<replication-user> replication=database" \
+  -c "ALTER_REPLICATION_SLOT <slot> (FAILOVER true);"
+```
+
+Before promoting the standby, verify that the slot is synchronized:
+
+```sql
+SELECT slot_name, slot_type, active, failover, synced,
+       temporary, invalidation_reason, restart_lsn, confirmed_flush_lsn
+FROM pg_replication_slots
+WHERE slot_name = 'rw_orders';
+```
+
+Promotion is safe only after the slot exists on the standby and the query shows:
+
+- `failover = true`
+- `synced = true`
+- `temporary = false`
+- `invalidation_reason IS NULL`
+
+### PostgreSQL 11 through 16
+
+PostgreSQL 11 through 16 do not have built-in logical slot failover. You need external slot synchronization, such as the [`pg_failover_slots`](https://www.enterprisedb.com/docs/pg_extensions/pg_failover_slots/installing/) extension. The following configuration pattern applies to PostgreSQL 11 through 16 and was validated on PostgreSQL 16.
+
+On the primary, configure:
+
+```conf
+wal_level = logical
+max_wal_senders = 20
+max_replication_slots = 20
+wal_sender_timeout = 0
+shared_preload_libraries = 'pg_failover_slots'
+pg_failover_slots.standby_slot_names = 'pg16_physical'
+pg_failover_slots.standby_slots_min_confirmed = -1
+```
+
+On the standby, configure:
+
+```conf
+hot_standby = on
+hot_standby_feedback = on
+primary_slot_name = 'pg16_physical'
+shared_preload_libraries = 'pg_failover_slots'
+pg_failover_slots.synchronize_slot_names = 'name:rw_orders'
+pg_failover_slots.drop_extra_slots = true
+```
+
+<Note>
+With `pg_failover_slots`, do not run `CREATE EXTENSION`. The extension works through `shared_preload_libraries`.
+</Note>
+
+Before promoting the standby, verify that the logical slot has been synchronized:
+
+```sql
+SELECT slot_name, slot_type, active, restart_lsn, confirmed_flush_lsn
+FROM pg_replication_slots
+WHERE slot_name = 'rw_orders';
+```
+
+The slot must exist and show `active = false`. If the slot is missing or `active = true`, it is still initializing and the standby is not ready for promotion.
+
+### Troubleshooting failover recovery
+
+If RisingWave reconnects to the promoted primary but the source does not resume and PostgreSQL reports an error such as `Last recorded offset is no longer available`, the promoted server usually cannot continue from RisingWave's saved LSN. Check whether:
+
+- the logical slot was recreated instead of synchronized;
+- the PostgreSQL 17 slot was created without `FAILOVER true`;
+- the standby was promoted before the slot finished synchronizing;
+- the promoted primary no longer retains the WAL range needed by RisingWave's last committed offset.
 
 ## Features and reference
 
@@ -145,8 +284,12 @@ The PostgreSQL CDC connector uses the Debezium JSON format for data.
 The following table shows the data type mapping from PostgreSQL to RisingWave.
 
 <Note>
-RisingWave does not support directly creating tables from PostgreSQL composite types. If you want to read composite type data, you will need to use a source and create a materialized view based off that source.
+To ingest user-defined composite types, create a shared PostgreSQL CDC source with `debezium.include.unknown.datatypes = 'true'`, then create a table with `CREATE TABLE ... FROM source`. Scalar composite columns map to `varchar` values in PostgreSQL text format. You can create materialized views from that table if needed.
+
+Composite array columns map to `varchar[]`, with each element preserved in PostgreSQL text format.
 </Note>
+
+The connector uses a nullable text representation for composite columns. With PostgreSQL `REPLICA IDENTITY DEFAULT`, DELETE events can carry `NULL` for non-key composite columns even when the upstream column is declared `NOT NULL`.
 
 | PostgreSQL type                                      | RisingWave type                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | :--------------------------------------------------- | :------------------------- |
@@ -169,8 +312,10 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | BYTEA                                                | BYTEA                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | JSON, JSONB                                          | JSONB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | XML                                                  | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| GEOMETRY (PostGIS) | BYTEA (raw EWKB bytes) |
 | UUID                                                 | CHARACTER VARYING                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| POINT                                                | STRUCT (with form `<x REAL, y REAL>`)                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| POINT                                                | STRUCT (with form `<x DOUBLE PRECISION, y DOUBLE PRECISION>`)                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| POINT[]                                              | No support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | LTREE                                                | No support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | CITEXT                                               | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | INET                                                 | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -193,6 +338,49 @@ RisingWave does not support directly creating tables from PostgreSQL composite t
 | CIDR                                                 | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR                                              | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | MACADDR8                                             | CHARACTER VARYING\*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| VECTOR(N)                                            | [VECTOR(N)](/sql/data-types/vector)                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+`pgvector` columns are supported when the upstream column is declared as `vector(n)` with a defined dimension. Dimension-less `vector`, `halfvec`, and `sparsevec` are not supported.
+
+### PostGIS `GEOMETRY` semantics
+
+When you ingest PostgreSQL CDC data from PostGIS, `GEOMETRY` values are preserved as raw EWKB bytes and stored in RisingWave as `BYTEA`.
+
+- The value may look unreadable in SQL clients. This is expected for raw binary data and does not mean the geometry is corrupted.
+- RisingWave does not provide PostGIS geospatial functions for this ingested `BYTEA` value.
+
+To inspect and validate the ingested bytes, encode them to text in RisingWave (replace `locationpoint` with your geometry column name and `cdc_table` with your CDC table name):
+```sql
+SELECT
+  encode(locationpoint, 'hex') AS locationpoint_hex,
+  encode(locationpoint, 'base64') AS locationpoint_base64
+FROM cdc_table;
+```
+
+For end-to-end verification, compare RisingWave and PostgreSQL outputs:
+
+```sql
+-- In PostgreSQL (upstream)
+SELECT encode(ST_AsEWKB(locationpoint), 'hex') AS locationpoint_hex
+FROM source_table;
+
+-- In RisingWave (downstream)
+SELECT encode(locationpoint, 'hex') AS locationpoint_hex
+FROM cdc_table;
+```
+
+For downstream systems (such as Snowflake or PostGIS), treat this value as EWKB and reconstruct the geometry there. See [Snowflake TO_GEOMETRY](https://docs.snowflake.com/en/sql-reference/functions/to_geometry) and [PostGIS ST_GeomFromEWKB](https://postgis.net/docs/ST_GeomFromEWKB.html) for the supported binary input formats. Export `locationpoint_hex` with a RisingWave sink connector or an ETL job. (If your connector supports binary columns directly, you can export the raw `BYTEA` payload instead.) After it lands in a downstream table (for example, `cdc_exported_rows`), you can reconstruct geometry as follows:
+
+```sql
+-- Snowflake pattern: convert exported hex back to binary, then reconstruct geometry
+SELECT TO_GEOMETRY(TO_BINARY(locationpoint_hex, 'HEX')) AS location_geom
+FROM cdc_exported_rows;
+
+-- PostGIS pattern
+SELECT ST_GeomFromEWKB(decode(locationpoint_hex, 'hex')) AS location_geom
+FROM cdc_exported_rows;
+```
+
 
 ### Support for PostgreSQL TOAST
 
@@ -338,6 +526,11 @@ Instead of defining columns individually, you can use `*` when creating a table 
 ```sql
 CREATE TABLE <table_name> (*) FROM <source_name> TABLE '<schema_name>.<table_name>';
 ```
+
+If the upstream PostgreSQL primary key uses an `INCLUDE` clause, RisingWave maps
+only the constrained key columns to the RisingWave primary key. The included
+payload columns are ingested as regular columns.
+
 ### Auto schema change
 
 <Tip>
@@ -353,9 +546,13 @@ Currently, RisingWave supports the `ALTER TABLE` command with the following oper
 * `ADD COLUMN [DEFAULT expr]`: Allows you to add a new column to an existing table. Only constant value expressions are supported for the default value.
 * `DROP COLUMN`: Allows you to remove an existing column from a table.
 
+During automatic schema changes, RisingWave maps PostgreSQL enum arrays, such
+as `mood_enum[]`, and arrays of user-defined composite types to `varchar[]`.
+Composite array elements are preserved in PostgreSQL text format.
+
 To enable this feature, set `auto.schema.change = 'true'` in your PostgreSQL CDC source configuration:
 
-```SQL
+```sql
 CREATE SOURCE pg_source WITH (
  connector = 'postgres-cdc',
  hostname = 'localhost',
@@ -370,7 +567,7 @@ CREATE SOURCE pg_source WITH (
 
 Create a RisingWave table from the PostgreSQL source:
 
-```SQL
+```sql
 CREATE TABLE my_table (
     id INT PRIMARY KEY,
     name VARCHAR

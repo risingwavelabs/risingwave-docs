@@ -162,20 +162,25 @@ The real power for continuous analysis comes from creating *Materialized Views (
 **Critical requirement: `CREATE SUBSCRIPTION`**
 
 *   *Why?* Streaming MVs and Sinks in RisingWave update incrementally by consuming change streams (changelogs) from their upstream sources (tables or MVs). For an MV/Sink in `database_A` to react to ongoing changes in a table/MV from `database_B`, it needs durable, cross-boundary access to the changelog of the source object in `database_B`.
-*   *How?* The `CREATE SUBSCRIPTION` command makes this change stream persistently available across databases. *Before* creating an MV or Sink that reads from a table or MV in another database, you *must first create at least one subscription* for that specific upstream object *in the source database*. The upstream object must also have a primary key defined.
+*   *How?* The `CREATE SUBSCRIPTION` command makes this change stream persistently available across databases. *Before* creating an MV or Sink that reads from a table or MV in another database, you *must first create at least one subscription* for that specific upstream object *in the source database*. 
+*   *Primary key behavior:* A primary key is not required to create a subscription, but its presence affects changelog behavior:
+    *   **With a primary key:** The changelog tracks changes by key, supporting inserts, updates (as paired delete + insert), and deletes. This is recommended for tables with frequent updates.
+    *   **Without a primary key:** The changelog is append-oriented. Updates are represented as a delete of the full old row followed by an insert of the full new row. This works but may be less efficient for tables with frequent modifications.
 *   *Verification:* RisingWave verifies the existence of these necessary log stores (enabled by subscriptions) for all cross-database upstreams during `CREATE MATERIALIZED VIEW` or `CREATE SINK` operations.
 
-**Example workflow:**
+**Example workflows:**
+
+**Example 1: Subscription on a table with a primary key**
 
 1.  **In the source database (`d1`), create a subscription for the upstream table (`t1`):**
 
     ```sql
     -- Connect to d1
     \c d1;
-    CREATE TABLE t1 (v1 INT PRIMARY KEY); -- Ensure PK exists
+    CREATE TABLE t1 (v1 INT PRIMARY KEY, v2 INT);
 
     -- Create the subscription to enable cross-database access to t1's changelog
-    CREATE subscription sub_t1 FROM t1 WITH (retention = '1D');
+    CREATE SUBSCRIPTION sub_t1 FROM t1 WITH (retention = '1D');
     ```
 
 2.  **In the target database (`d2`), create the cross-database MV:**
@@ -195,11 +200,81 @@ The real power for continuous analysis comes from creating *Materialized Views (
     JOIN t2 ON t1.v1 = t2.v2;
     ```
 
+**Example 2: Subscription on a table without a primary key**
+
+1.  **In the source database (`d1`), create a subscription for a table without a primary key:**
+
+    ```sql
+    -- Connect to d1
+    \c d1;
+    CREATE TABLE events (event_id INT, event_time TIMESTAMP, event_data TEXT);
+
+    -- Create a subscription - works even without a primary key
+    CREATE SUBSCRIPTION sub_events FROM events WITH (retention = '1D');
+    ```
+
+2.  **In the target database (`d2`), create a cross-database MV:**
+
+    ```sql
+    -- Connect to d2
+    \c d2;
+    
+    -- Create an MV that aggregates events from d1
+    CREATE MATERIALIZED VIEW event_count AS 
+    SELECT COUNT(*) as total_events FROM d1.public.events; -- Reads via sub_events
+    ```
+
+**Example 3: Subscription on a materialized view**
+
+1.  **In the source database (`d1`), create a subscription for a materialized view:**
+
+    ```sql
+    -- Connect to d1
+    \c d1;
+    CREATE TABLE raw_data (id INT, value INT);
+    
+    -- Create a materialized view
+    CREATE MATERIALIZED VIEW aggregated_data AS 
+    SELECT id, SUM(value) as total FROM raw_data GROUP BY id;
+
+    -- Create a subscription on the materialized view
+    CREATE SUBSCRIPTION sub_aggregated FROM aggregated_data WITH (retention = '1D');
+    ```
+
+2.  **In the target database (`d2`), use the subscription:**
+
+    ```sql
+    -- Connect to d2
+    \c d2;
+    
+    -- Create an MV that further processes the aggregated data from d1
+    CREATE MATERIALIZED VIEW final_report AS 
+    SELECT * FROM d1.public.aggregated_data WHERE total > 100; -- Reads via sub_aggregated
+    ```
+
 <Note>
 Creating a cross-database Materialized View or Sink introduces a dependency between the databases involved regarding checkpointing and job execution. Actors processing the MV/Sink might run within its database's resource group while consuming data originating from another resource group's source database via the subscription.
 
 Additionally, RisingWave provides safeguards: `DROP MATERIALIZED VIEW ... CASCADE` or `DROP SINK ... CASCADE` operations are rejected if they have cross-database dependencies to prevent accidental data loss in the upstream database.
 </Note>
+
+### Handling stale cross-database consumers
+
+The upstream subscription only retains its changelog for the configured `retention` duration. If a cross-database MV or Sink cannot consume the changelog fast enough — for example, because the downstream database is paused, a compute node is offline for an extended period, or the downstream job is significantly under-provisioned — its last-consumed epoch can fall outside the retention window.
+
+When this happens, the cross-database consumer detects that the required upstream data is no longer retained and enters a **terminal stopped state**:
+
+*   The affected actors keep participating in cluster checkpoints (they continue accepting barriers, so they do not block recovery for other jobs).
+*   They stop producing further changes to the downstream MV or Sink. Existing rows in the downstream object are preserved, but new upstream updates are not applied.
+*   The consumer does not repeatedly retry the miss, so it no longer triggers cluster-wide recovery loops when the retention window has already elapsed.
+
+To resume replication from the latest upstream state, drop the affected cross-database MV or Sink and recreate it. To make this less likely to recur, either increase the upstream subscription's `retention` window or reduce the downstream job's lag (for example, by scaling the resource group or unpausing the downstream database) before falling behind again.
+
+**Monitoring**
+
+The `Streaming Backfill` section of the shipped Grafana `RisingWave Dev Dashboard` includes the **Cross-DB Change Log Expiry Headroom** panel. It reports, per cross-database changelog stream scan, how long remains until the last-consumed epoch falls outside the upstream subscription's retention window. Negative values indicate that the consumer has already fallen behind retention and has entered the stopped state described above.
+
+The `Cluster Alerts` > `Streaming Alerts` section adds a **Cross-DB Log Retention Expiring** signal in the `Streaming Alert Signals` panel. It fires when the same headroom drops below 12 hours for any cross-database consumer, giving operators a chance to intervene before the consumer becomes stale.
 
 ## Common use cases and benefits summary
 
