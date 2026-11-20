@@ -86,14 +86,14 @@ Long-running `DROP` and `CANCEL JOBS` statements are usually caused by high barr
 
 **How to remedy it**:
 - Check whether the cluster is experiencing high barrier latency. See [Troubleshoot high latency](/performance/troubleshoot-high-latency).
-- If you need the `DROP` or `CANCEL JOBS` operation to take effect immediately, run `RECOVER` in a separate session:
+- If normal cancellation is blocked by barrier progress, a superuser can consider an ad-hoc recovery in a separate session:
 
 ```sql
 RECOVER;
 ```
 
 <Note>
-`RECOVER` requires superuser permissions. See [RECOVER](/sql/commands/sql-recover) for details.
+`RECOVER` triggers recovery of streaming execution and can temporarily interrupt processing. It is an operational recovery action, not a general-purpose way to speed up every DDL statement. Diagnose the barrier delay first and review [RECOVER](/sql/commands/sql-recover) before running it.
 </Note>
 
 ## What does the memory and disk usage consist of?
@@ -156,7 +156,7 @@ For guidance on tuning memory allocation, see [Tune reserved memory](/operate/tu
           "name": "Why does DROP or CANCEL JOBS take a long time in RisingWave?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Long-running DROP and CANCEL JOBS statements are usually caused by high barrier latency because these operations need to synchronize with barriers before taking effect. Check cluster barrier latency, and if you need the operation to take effect immediately, run RECOVER in a separate session. RECOVER requires superuser permissions."
+            "text": "Long-running DROP and CANCEL JOBS statements are usually caused by high barrier latency because these operations need to synchronize with barriers before taking effect. Check barrier latency first. A superuser can consider RECOVER when normal cancellation is blocked, but recovery can interrupt streaming processing and is not a general-purpose DDL speedup."
           }
         },
         {
