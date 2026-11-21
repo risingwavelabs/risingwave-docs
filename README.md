@@ -52,3 +52,5 @@ Install our GitHub App to automatically propagate changes from your repo to your
 
 - Dev server isn't running — run `mint install` to reinstall dependencies.
 - Page loads as a 404 — make sure you're running in a folder with `docs.json` (the config was previously `mint.json`; Mintlify renamed it).
+
+For the SQL, sample data and diagnostic context to include in a bug report, see [Report and reproduce issues](https://docs.risingwave.com/troubleshoot/report-reproduce-issues).
