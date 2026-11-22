@@ -1,6 +1,6 @@
 ---
 title: "VACUUM"
-description: "Introduces VACUUM syntax for Iceberg tables and sinks to enable manual compaction, manifest rewrite, and snapshot expiration in RisingWave."
+description: "Introduces VACUUM syntax for Iceberg tables and sinks to enable manual compaction, manifest rewrite, snapshot expiration, and orphan file cleanup in RisingWave."
 ---
 
 RisingWave supports `VACUUM` syntax for Iceberg engine tables and Iceberg sinks. This allows you to manage storage, reclaim disk space, and optimize performance for Iceberg data within RisingWave.
@@ -8,14 +8,17 @@ RisingWave supports `VACUUM` syntax for Iceberg engine tables and Iceberg sinks.
 ## Syntax
 
 ```sql
-VACUUM [FULL] schema_name.object_name;
+VACUUM [FULL | ORPHAN] schema_name.object_name;
 ```
 
 - `VACUUM`: Rewrites eligible data manifests, then expires eligible old snapshots.
 - `VACUUM FULL`: **Compacts** the specified Iceberg table or sink first, then performs the same manifest rewrite and snapshot expiration steps. This operation takes longer and requires extra disk space, as a new copy is written before the old copy is released.
+- `VACUUM ORPHAN`: Removes orphan files, which are files under the table location that the table metadata does not reference and that are older than `orphan_file_cleanup_min_age_millis` (default: 7 days). It runs even when `enable_orphan_file_cleanup` is `false`, and returns a notice with the number of removed files. `VACUUM` and `VACUUM FULL` do not remove orphan files. Added in v3.2.0.
 
 <Note>
 The manifest rewrite and snapshot expiration steps do not override their maintenance settings. Manifest rewrite runs only when `enable_manifest_rewrite = true` and the configured rewrite thresholds select an eligible batch. Snapshot expiration runs only when `enable_snapshot_expiration = true`.
+
+`VACUUM ORPHAN` is not supported when `catalog.type = 'storage'`, or when the Iceberg table property `gc.enabled` is `false`. For details, see [Orphan file cleanup](/iceberg/maintenance#orphan-file-cleanup).
 
 `VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has an automatic or manual compaction task queued or running, the new `VACUUM FULL` request returns an error instead of scheduling another task.
 </Note>
@@ -25,6 +28,7 @@ The manifest rewrite and snapshot expiration steps do not override their mainten
 | Parameter             | Description     |
 | :-------------------- | :-------------- |
 | FULL | Optional. If specified, compacts the table first, then rewrites eligible manifests and expires eligible snapshots. |
+| ORPHAN | Optional. If specified, removes orphan files only. |
 | object_name | Can be an Iceberg engine table or an Iceberg sink. |
 
 
@@ -51,4 +55,7 @@ FLUSH;
 VACUUM t_vacuum_test;
 
 VACUUM FULL t_vacuum_test;
+
+-- Remove orphan files
+VACUUM ORPHAN t_vacuum_test;
 ```

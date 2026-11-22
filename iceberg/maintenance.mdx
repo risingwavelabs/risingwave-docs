@@ -1,14 +1,15 @@
 ---
 title: "Iceberg table maintenance"
 sidebarTitle: "Maintenance"
-description: "Configure compaction, manifest rewrite, and snapshot expiration for Iceberg sinks and internal tables in RisingWave."
+description: "Configure compaction, manifest rewrite, snapshot expiration, and orphan file cleanup for Iceberg sinks and internal tables in RisingWave."
 ---
 
-When RisingWave streams data into Iceberg, it generates many small data files, fragmented manifests, and frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction, manifest rewrite, and snapshot expiration.
+When RisingWave streams data into Iceberg, it generates many small data files, fragmented manifests, and frequent snapshots. Over time, this can degrade query performance and increase storage costs. To maintain healthy tables, RisingWave provides both automatic and manual maintenance features for compaction, manifest rewrite, snapshot expiration, and orphan file cleanup.
 
 - **Compaction**: Merges small data files and delete files into larger, optimized files to improve read performance.
 - **Manifest Rewrite**: Merges fragmented data manifests into fewer, better-sized manifests to reduce metadata overhead during planning.
 - **Snapshot Expiration**: Removes old, unneeded snapshots and their associated data files to reclaim storage space.
+- **Orphan File Cleanup**: Removes files under the table location that no table metadata references, such as files left behind by failed writes or commits.
 
 ## Automatic maintenance
 
@@ -17,15 +18,16 @@ When RisingWave streams data into Iceberg, it generates many small data files, f
 - RisingWave introduced Iceberg automatic maintenance (default) in v2.5.0 and added `compaction.type` with the `small-files` and `files-with-delete` compaction types in v2.7.0.
 - Newly created internal Iceberg tables (`CREATE TABLE ... ENGINE = iceberg`) using Iceberg format V2 enable `enable_manifest_rewrite` by default. External Iceberg sinks remain opt-in, and Iceberg format V3 does not support manifest rewrite.
 - `compaction.write_parquet_compression` and `compaction.write_parquet_max_row_group_rows` were added in v2.9.0. The `compaction.target_file_size_mb` parameter now also controls the output file size for sink writes (previously only applied to compaction).
+- Orphan file cleanup (`enable_orphan_file_cleanup`, `orphan_file_cleanup_min_age_millis`, and `VACUUM ORPHAN`) was added in v3.2.0.
 - Parameters prefixed with `compaction` are currently in **[technical preview](/changelog/product-lifecycle#product-release-lifecycle)** stage and may change in future releases.
 </Note>
 
-You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Periodic manifest rewrite and snapshot expiration run in the meta-node maintenance loop, rather than using the per-sink `compaction_interval_sec` parameter. Configure the interval with `iceberg_gc_interval_sec` in the `[meta]` section of `risingwave.toml` (default: `3600` seconds).
+You can enable automatic maintenance to run periodically in the background for your Iceberg sinks and internal tables. Periodic manifest rewrite and snapshot expiration run in the meta-node maintenance loop, rather than using the per-sink `compaction_interval_sec` parameter. Configure the interval with `iceberg_gc_interval_sec` in the `[meta]` section of `risingwave.toml` (default: `3600` seconds). Periodic orphan file cleanup runs in a separate meta-node loop, configured with `iceberg_orphan_file_cleanup_interval_sec` (default: `604800` seconds, 7 days).
 
 <Warning>
 **Dedicated compactor required for data file compaction**
 
-Automatic data file compaction requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. Manifest rewrite and snapshot expiration run on the meta node and do not require a dedicated compactor. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
+Automatic data file compaction requires a dedicated compactor node. Before enabling `enable_compaction = true`, ensure your cluster has at least one compactor node deployed. Manifest rewrite, snapshot expiration, and orphan file cleanup run on the meta node and do not require a dedicated compactor. For deployment instructions and sizing guidelines, see [Deploy a dedicated Iceberg compactor](/iceberg/deploy-iceberg-compactor).
 </Warning>
 
 ### Compaction triggers
@@ -74,6 +76,15 @@ Configure automatic maintenance by specifying the following parameters in the `W
 | `enable_manifest_rewrite` | Optional. Periodically rewrites fragmented Iceberg data manifests. Newly created internal Iceberg tables using Iceberg format V2 enable this by default unless explicitly set to `false`. External Iceberg sinks remain disabled by default. |
 | `manifest_rewrite_target_size_bytes` | Optional. The target size in bytes for rewritten manifests. Must be greater than `0`. Default: `8388608` (8 MiB). |
 | `manifest_rewrite_min_count_to_merge` | Optional. The minimum number of manifests required to rewrite an under-filled batch. Must be greater than `0`. Default: `100`. |
+
+#### Orphan file cleanup parameters
+
+| Parameter | Description |
+|:--|:--|
+| `enable_orphan_file_cleanup` | Optional. Set to `true` to periodically remove orphan files. Default: `false`. Supports dynamic updates via `ALTER SINK` and `ALTER TABLE`. |
+| `orphan_file_cleanup_min_age_millis` | Optional. The minimum age (in milliseconds) of an unreferenced file before it can be removed. Applies to both periodic cleanup and `VACUUM ORPHAN`. Must be at least `86400000` (24 hours). Default: `604800000` (7 days). Supports dynamic updates via `ALTER SINK` and `ALTER TABLE`. |
+
+See [Orphan file cleanup](#orphan-file-cleanup) for how files are selected and the limitations.
 
 #### Compaction parameters
 
@@ -196,6 +207,38 @@ WITH (
 );
 ```
 
+## Orphan file cleanup
+
+A file under the table location becomes an orphan when no table metadata references it, for example after a failed write, a failed commit, or an interrupted compaction. Snapshot expiration does not remove these files because no snapshot tracks them.
+
+Orphan file cleanup lists all files under the table location and removes a file when both conditions hold:
+
+- The table metadata does not reference it. Referenced files include the current and previous metadata files, statistics files, and the manifest lists, manifests, data files, and delete files of every retained snapshot.
+- Its last modified time is older than `orphan_file_cleanup_min_age_millis`.
+
+The age threshold protects files that a write or commit in progress has created but not yet committed. Keep it longer than the longest write or commit to the table, including writes from other engines.
+
+You can run orphan file cleanup in two ways:
+
+- **Periodically**: Set `enable_orphan_file_cleanup = true`. The meta node scans each enabled table every `iceberg_orphan_file_cleanup_interval_sec`.
+- **Manually**: Run [`VACUUM ORPHAN`](/sql/commands/sql-vacuum). It runs immediately, even when `enable_orphan_file_cleanup` is `false`, and returns a notice with the number of removed files.
+
+```sql
+-- Enable periodic orphan file cleanup for an existing sink
+ALTER SINK my_iceberg_sink CONNECTOR WITH (
+  'enable_orphan_file_cleanup' = 'true'
+);
+
+-- Remove orphan files now
+VACUUM ORPHAN my_iceberg_sink;
+```
+
+<Note>
+- Orphan file cleanup is not supported when `catalog.type = 'storage'`. Setting `enable_orphan_file_cleanup` or `orphan_file_cleanup_min_age_millis` for such a sink or table returns an error, and so does `VACUUM ORPHAN`.
+- Orphan file cleanup fails for tables with the Iceberg table property `gc.enabled = false`, because their files may be shared with other tables.
+- Each run lists every file under the table location, which can take a long time for large tables.
+</Note>
+
 ## Manual maintenance
 
 In addition to automatic background maintenance, you can trigger maintenance manually using the [`VACUUM`](/sql/commands/sql-vacuum) command.
@@ -210,7 +253,12 @@ VACUUM my_iceberg_table;
 
 -- Compact files, then rewrite eligible manifests and expire eligible snapshots
 VACUUM FULL my_iceberg_table;
+
+-- Remove orphan files
+VACUUM ORPHAN my_iceberg_table;
 ```
+
+`VACUUM` and `VACUUM FULL` do not remove orphan files. Use `VACUUM ORPHAN` instead. See [Orphan file cleanup](#orphan-file-cleanup).
 
 <Note>
 `VACUUM FULL` waits for the manual compaction task to finish before returning. If the target already has an automatic or manual compaction task queued or running, the new `VACUUM FULL` request returns an error instead of scheduling another task.
