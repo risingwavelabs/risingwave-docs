@@ -142,6 +142,17 @@ The following configuration controls how often the join hash map cache is evicte
 
 Storage configurations can be set in `[storage]` and `[storage.xxx]` sections.
 
+#### SSTable metadata fetching
+
+Set `sstable_meta_fetch_concurrency` in the `[storage]` section to control the maximum number of concurrent SSTable metadata fetches for each state store scan during iterator initialization. The default value is `1`, which fetches metadata sequentially. Set it to a value greater than `1` to enable concurrent fetching. The value must be greater than `0`.
+
+```toml
+[storage]
+sstable_meta_fetch_concurrency = 8
+```
+
+This setting does not affect point lookups or lazy metadata reads within concatenated SSTable iterators.
+
 #### File cache and block cache
 
 In RisingWave, several node-specific configurations are provided to control the refilling process of file cache and block cache.
