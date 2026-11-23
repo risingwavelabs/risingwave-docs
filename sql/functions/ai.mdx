@@ -42,6 +42,10 @@ All constructor arguments must be constant expressions. RisingWave evaluates and
 
 Choice questions return `STRUCT<choice VARCHAR, confidence DOUBLE PRECISION, probabilities MAP(VARCHAR, DOUBLE PRECISION)>`. Score questions return `STRUCT<score DOUBLE PRECISION, confidence DOUBLE PRECISION, probabilities DOUBLE PRECISION[]>`.
 
+An explicit provider `refusal` returns SQL NULL for that question's entire field, including the nested STRUCT for choice and score questions. Successful answers to other questions are preserved, and refusals do not trigger retries. NULL means unanswered, not a zero probability or a negative answer. If all questions are refused, the result is still a STRUCT with all fields NULL.
+
+For N score levels, `score` ranges from 0 to N - 1 and can be fractional. The `probabilities` array follows the declared level order; SQL array index 1 corresponds to the first level (level 0).
+
 The following example evaluates three questions for each row in `ticket_context` and materializes their typed answers:
 
 ```sql Example
@@ -89,7 +93,7 @@ FROM ticket_decisions;
 In streaming queries over retractable inputs, RisingWave stores each evaluated result so that updates and deletes retract the saved answer without another request. However, retries and recovery can repeat requests, so exactly-once remote inference is not guaranteed.
 
 <Warning>
-`ai_decide` retries remote failures and invalid responses indefinitely. A permanently failing service can block a batch query or delay streaming chunks and checkpoints. Each attempt has a 30-second timeout, and retries use exponential backoff from 100 milliseconds to 10 seconds.
+`ai_decide` retries remote failures and invalid responses indefinitely. A permanently failing service can block a batch query or delay streaming chunks and checkpoints. Each attempt has a 30-second timeout, and retries default to exponential backoff from 100 milliseconds to 10 seconds. On a non-success HTTP response, a valid integer-seconds `Retry-After` header overrides that delay, capped at 5 seconds; a value of 0 adds no retry wait.
 </Warning>
 
 ## Embedding functions
