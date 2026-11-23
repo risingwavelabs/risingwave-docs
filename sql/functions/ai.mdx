@@ -2,6 +2,104 @@
 title: "AI functions"
 ---
 
+<Note>
+RisingWave will add more AI functions in future releases.
+</Note>
+
+## Decision functions
+
+### `ai_decide`
+
+Use `ai_decide` to ask a fixed set of typed questions about a JSONB context through a System One-compatible HTTP service. The function works in batch and streaming queries and returns a named `STRUCT` with one field per question.
+
+```sql Syntax
+ai_decide(
+    state jsonb,
+    model_url varchar,
+    model varchar,
+    questions constant jsonb,
+    api_key varchar
+) → struct
+```
+
+| Parameter | Description |
+| --- | --- |
+| `state` | The JSONB context to evaluate. Each non-NULL row produces one logical request. |
+| `model_url` | The complete HTTP or HTTPS evaluation endpoint. |
+| `model` | The model identifier sent to the service. |
+| `questions` | A non-NULL constant JSONB question definition. Use the question constructors below or provide a JSONB object directly. |
+| `api_key` | The API key sent as a Bearer token. `SECRET` references are not supported. |
+
+If `state`, `model_url`, `model`, or `api_key` is SQL NULL, the function returns NULL without sending a request. JSON `null` in `state` is sent to the service as a value.
+
+#### Question constructors
+
+All constructor arguments must be constant expressions. RisingWave evaluates and validates them while binding the query; the constructors do not send HTTP requests.
+
+| Constructor | Description |
+| --- | --- |
+| `ai_questions(question, ...)` | Combines one or more question definitions. Question names must be unique. |
+| `ai_prob_question(name, instructions)` | Asks whether a statement is true and returns a `DOUBLE PRECISION` probability from 0 to 1. |
+| `ai_choice_question(name, instructions, options)` | Selects one option. Pass a `VARCHAR[]` of labels or a `JSONB[]` built with `ai_option`. |
+| `ai_option(label, description)` | Defines a choice label and its description. The description can be SQL NULL. |
+| `ai_score_question(name, instructions, levels)` | Scores against 2 to 10 distinct level descriptions, ordered from lowest to highest. |
+
+Choice questions return `STRUCT<choice VARCHAR, confidence DOUBLE PRECISION, probabilities MAP(VARCHAR, DOUBLE PRECISION)>`. Score questions return `STRUCT<score DOUBLE PRECISION, confidence DOUBLE PRECISION, probabilities DOUBLE PRECISION[]>`.
+
+An explicit provider `refusal` returns SQL NULL for that question's entire field, including the nested STRUCT for choice and score questions. Successful answers to other questions are preserved, and refusals do not trigger retries. NULL means unanswered, not a zero probability or a negative answer. If all questions are refused, the result is still a STRUCT with all fields NULL.
+
+For N score levels, `score` ranges from 0 to N - 1 and can be fractional. The `probabilities` array follows the declared level order; SQL array index 1 corresponds to the first level (level 0).
+
+The following example evaluates three questions for each row in `ticket_context` and materializes their typed answers:
+
+```sql Example
+CREATE MATERIALIZED VIEW ticket_decisions AS
+SELECT ticket_id,
+       ai_decide(
+           state,
+           model_url,
+           model,
+           ai_questions(
+               ai_prob_question(
+                   'refund',
+                   'Does the customer request a refund?'
+               ),
+               ai_choice_question(
+                   'team',
+                   'Which team should handle this?',
+                   ARRAY[
+                       ai_option('billing', 'Charges, invoices, and refunds'),
+                       ai_option('technical', 'Errors and integration problems')
+                   ]
+               ),
+               ai_score_question(
+                   'urgency',
+                   'How urgent is this?',
+                   ARRAY[
+                       'Can wait several days',
+                       'Needs attention today',
+                       'Service is blocked'
+                   ]
+               )
+           ),
+           api_key
+       ) AS decision
+FROM ticket_context;
+
+SELECT ticket_id,
+       (decision).refund AS refund_probability,
+       (decision).team.choice AS team,
+       (decision).team.confidence AS team_confidence,
+       (decision).urgency.score AS urgency
+FROM ticket_decisions;
+```
+
+In streaming queries over retractable inputs, RisingWave stores each evaluated result so that updates and deletes retract the saved answer without another request. However, retries and recovery can repeat requests, so exactly-once remote inference is not guaranteed.
+
+<Warning>
+`ai_decide` retries remote failures and invalid responses indefinitely. A permanently failing service can block a batch query or delay streaming chunks and checkpoints. Each attempt has a 30-second timeout, and retries default to exponential backoff from 100 milliseconds to 10 seconds. On a non-success HTTP response, a valid integer-seconds `Retry-After` header overrides that delay, capped at 5 seconds; a value of 0 adds no retry wait.
+</Warning>
+
 ## Embedding functions
 
 ### `openai_embedding`
