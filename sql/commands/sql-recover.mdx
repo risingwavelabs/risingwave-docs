@@ -1,16 +1,28 @@
 ---
 title: "RECOVER"
-description: "Use the `RECOVER` command to trigger an ad-hoc recovery manually. This is helpful when there is a high barrier latency and you need to force a recovery to activate. By doing this, commands like `CANCEL` or `DROP` can take effect immediately."
+description: "Trigger ad-hoc recovery of streaming execution and understand its reset waits and operational limitations."
 ---
+
+`RECOVER` requests ad-hoc recovery of streaming execution. It can help unblock `DROP` or `CANCEL JOBS` operations waiting on barriers, but recovery can interrupt processing and may itself take time.
 
 It requires superuser permissions, see [CREATE USER](/sql/commands/sql-create-user) on how to do so.
 
-```bash Syntax
+```sql Syntax
 RECOVER;
 ```
 
-```bash Syntax
+```sql Example
 RECOVER;
 ----RESULT
 RECOVER
 ```
+
+## Limitations
+
+`RECOVER` waits for every Compute Node to reset before streaming execution can be initialized again. A node with a large backlog of pending state-store writes can take a long time to reset, so `RECOVER` itself may appear stuck. This can occur during snapshot backfill when barrier latency is high.
+
+RisingWave v3.1.0 and later include [snapshot-backfill catch-up throttling](https://github.com/risingwavelabs/risingwave/pull/26423) and [pending-barrier limits](https://github.com/risingwavelabs/risingwave/pull/26467). These mitigations are also available on the v3.0 release line in builds containing [#27824](https://github.com/risingwavelabs/risingwave/pull/27824). They reduce pending-barrier growth and the risk of a large write backlog, but do not remove the reset wait or guarantee a fast recovery.
+
+If recovery remains blocked on this backlog, an operator of the Kubernetes deployment can restart the affected Compute Node pods, or the affected backfill pods for serverless backfill. Restarting the process discards its in-memory backlog and allows recovery to proceed after the node reconnects. Other recovery errors can still prevent completion. For a managed RisingWave Cloud cluster, contact [Cloud support](mailto:cloud-support@risingwave-labs.com) rather than restarting service-managed pods yourself.
+
+Issuing `CANCEL JOBS` during this wait does not bypass recovery: DDL operations wait for recovery to finish.
