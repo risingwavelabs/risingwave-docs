@@ -93,7 +93,7 @@ RECOVER;
 ```
 
 <Note>
-`RECOVER` triggers recovery of streaming execution and can temporarily interrupt processing. It is an operational recovery action, not a general-purpose way to speed up every DDL statement. Diagnose the barrier delay first and review [RECOVER](/sql/commands/sql-recover) before running it.
+`RECOVER` triggers recovery of streaming execution and can temporarily interrupt processing. It is an operational recovery action, not a general-purpose way to speed up every DDL statement. `RECOVER` can itself take a long time on a cluster with a large backlog of pending state-store writes. Diagnose the barrier delay first and review [RECOVER](/sql/commands/sql-recover) before running it.
 </Note>
 
 ## What does the memory and disk usage consist of?
@@ -156,7 +156,7 @@ For guidance on tuning memory allocation, see [Tune reserved memory](/operate/tu
           "name": "Why does DROP or CANCEL JOBS take a long time in RisingWave?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Long-running DROP and CANCEL JOBS statements are usually caused by high barrier latency because these operations need to synchronize with barriers before taking effect. Check barrier latency first. A superuser can consider RECOVER when normal cancellation is blocked, but recovery can interrupt streaming processing and is not a general-purpose DDL speedup."
+            "text": "Long-running DROP and CANCEL JOBS statements are usually caused by high barrier latency because these operations need to synchronize with barriers before taking effect. Check barrier latency first. A superuser can consider RECOVER when normal cancellation is blocked, but recovery can interrupt streaming processing and may itself take a long time if state-store writes have accumulated. It is not a general-purpose DDL speedup."
           }
         },
         {
