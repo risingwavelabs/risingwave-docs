@@ -1,0 +1,83 @@
+---
+title: "Iceberg PK-index sink"
+description: "Write upserts to Iceberg with a RisingWave-maintained primary-key index."
+---
+
+An Iceberg upsert sink needs to locate the previous version of a row when the upstream data changes. With the PK-index sink enabled, RisingWave maintains an index from the output key to the row's data-file location. It uses that location to write position deletes for updates and deletes, instead of equality deletes.
+
+Use this mode when you need to continuously apply inserts, updates, and deletes to an Iceberg table and want file-scoped deletes. For general sink setup and catalog options, see [Deliver data to Iceberg tables](/iceberg/deliver-to-iceberg).
+
+## Requirements
+
+- The upstream stream must have a key that uniquely identifies each output row. RisingWave derives the Iceberg primary key from the upstream stream key; do not set the sink's `primary_key` option.
+- If the upstream stream key contains hidden columns, RisingWave promotes them to columns in the Iceberg table. In that case, set `create_table_if_not_exists = 'true'`.
+- Use an upsert sink with Iceberg format version 2 or 3 and merge-on-read mode. Format version 1 and copy-on-write are not supported.
+- The `IcebergSinkWithPkIndex` license feature must be available to your deployment.
+- Configure access to the target Iceberg catalog and object storage. See [Iceberg catalog configuration](/iceberg/catalogs) and [Object storage configuration](/iceberg/object-storage).
+
+## Create a PK-index sink
+
+The following example creates an upstream table with a primary key, then writes its changes to an Iceberg table. Replace the storage credentials and paths with values for your deployment.
+
+```sql
+CREATE TABLE orders (
+    order_id BIGINT PRIMARY KEY,
+    customer_id BIGINT,
+    amount DECIMAL
+);
+
+CREATE SINK iceberg_orders FROM orders
+WITH (
+    connector = 'iceberg',
+    type = 'upsert',
+    catalog.type = 'storage',
+    catalog.name = 'my_catalog',
+    warehouse.path = 's3://my-bucket/warehouse',
+    database.name = 'analytics',
+    table.name = 'orders',
+    s3.region = 'us-west-2',
+    s3.access.key = 'your-access-key',
+    s3.secret.key = 'your-secret-key',
+    create_table_if_not_exists = 'true',
+    format_version = '2',
+    write_mode = 'merge-on-read',
+    enable_pk_index = 'true'
+);
+
+INSERT INTO orders VALUES (1, 10, 25.00);
+UPDATE orders SET amount = 30.00 WHERE order_id = 1;
+DELETE FROM orders WHERE order_id = 1;
+```
+
+`enable_pk_index` is the option that selects this write path. The upstream stream key supplies the target key, so do not provide a separate `primary_key` sink option. The sink commits on the configured checkpoint interval; see the general [Iceberg sink options](/iceberg/deliver-to-iceberg#configuration-parameters).
+
+You can read changes from a PK-index-written table with `streaming_updates = 'true'`. That reader mode has additional table-history and compatibility requirements; see [Stream updates and deletes from Iceberg](/iceberg/ingest-from-iceberg#stream-updates-and-deletes).
+
+## How it works
+
+The sink stores key-to-file-and-position entries in RisingWave state. When a row is updated or deleted, it looks up the previous row's location and writes a position delete for that row. Inserts write the new row to a data file and update the index. The index is maintained as part of the sink's coordinated write path, so recovery can resume from committed state.
+
+The delete representation depends on the Iceberg format version:
+
+- Iceberg v2 uses Parquet position-delete files.
+- Iceberg v3 uses deletion vectors.
+
+The position deletes represent changes to rows; this mode is not a general change-data-capture log. Downstream readers must support the Iceberg format and delete artifacts used by the table.
+
+## When to use it
+
+Use a PK-index sink for a mutable upstream stream whose key reliably identifies each output row. It is also suitable when downstream readers need standard Iceberg v2 or v3 position-delete semantics.
+
+Do not enable it for append-only output. Use the regular [append-only Iceberg sink](/iceberg/deliver-to-iceberg) for that case. If you need copy-on-write, Iceberg v1, or automatic schema evolution, use a different supported sink configuration; PK-index mode does not support those options.
+
+The index adds state maintained by RisingWave, and position-delete artifacts can accumulate as rows change. Account for the index's state and use the Iceberg maintenance options that fit your workload. See [Iceberg table maintenance](/iceberg/maintenance).
+
+## Operational considerations
+
+- Keep the Iceberg table's data location stable after creating the sink. The index depends on the locations of the data files; moving the table or changing its data path can prevent deletes from applying to the indexed rows.
+- `auto.schema.change = 'true'` is not supported with `enable_pk_index = 'true'`.
+- Use `type = 'upsert'`, `write_mode = 'merge-on-read'`, and `force_append_only = 'false'`. Append-only mode, copy-on-write, and `force_append_only = 'true'` are incompatible with the PK index.
+- Some writer and compaction properties, including Parquet compression and row-group settings, cannot be changed with `ALTER SINK` after creation. Set these options when you create the sink.
+- For exactly-once behavior and commit settings, follow the [Iceberg sink configuration](/iceberg/deliver-to-iceberg#configuration-parameters). Exactly-once delivery is enabled by default for Iceberg sinks when sink decoupling is enabled.
+
+If the sink fails validation, first check the format version, write mode, sink type, and license available to the deployment. If deletes stop taking effect after external table maintenance, verify that the table's data location has not changed.
