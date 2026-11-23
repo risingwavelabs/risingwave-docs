@@ -3,6 +3,45 @@ title: Release notes
 description: This page summarizes changes in each version of RisingWave, including new features and important bug fixes.
 ---
 
+<Update label="v3.1.2" description="Unreleased">
+
+This release improves asynchronous streaming projections, connector recovery, and storage reliability, and updates the Java runtime requirements for Docker builds.
+
+## Breaking changes and upgrade notes
+
+- The compute-node setting `streaming.developer.project_expr_inflight_request_concurrency` now counts visible rows being evaluated instead of chunks. Retune any nonzero value when upgrading. The default remains `0` (unlimited), and `project_expr_concurrency` remains a chunk window with default `1`. Projection splitting applies to newly planned jobs; recovery does not rewrite existing stored plans. [#28045](https://github.com/risingwavelabs/risingwave/pull/28045)
+- Standard and HDFS Docker image builds now require Ubuntu's OpenJDK 21 package `21.0.13.1+2-1~24.04.1` or newer. Private package mirrors must provide this update. To update a previously built image, rebuild with `--pull --no-cache` and replace the running containers; restarting an old image does not update its JDK. [#28112](https://github.com/risingwavelabs/risingwave/pull/28112)
+- Garbage collection now preserves SST files referenced by concurrent backups, retained time-travel snapshots, and retained change logs. This prevents future premature deletion; upgrading cannot restore files that have already been deleted. Check the usability of historical backups and time-travel snapshots if you suspect they were affected. [#27897](https://github.com/risingwavelabs/risingwave/pull/27897)
+
+## SQL and streaming
+
+- Separates synchronous and asynchronous streaming projections while preserving conditional evaluation and output order. Adds session and per-job overrides for the asynchronous chunk window and visible-row budget. Changes to an existing job's overrides take effect after recovery. [#28045](https://github.com/risingwavelabs/risingwave/pull/28045)
+- Fixes a `missing U- before U+` panic in delta join materialized views when an update matches multiple rows on the other side of the join. [#27962](https://github.com/risingwavelabs/risingwave/pull/27962)
+- Preserves the outer column's type when optimizing correlated scalar subqueries. [#28011](https://github.com/risingwavelabs/risingwave/pull/28011)
+- Eliminates no-op updates in cross-database table scans, reducing redundant downstream changes when row values remain unchanged. [#28105](https://github.com/risingwavelabs/risingwave/pull/28105)
+- Prevents rejected or no-op rescheduling commands from postponing periodic barriers and changing checkpoint cadence. [#27941](https://github.com/risingwavelabs/risingwave/pull/27941)
+- Updates timezone data to 2026f, including the updated UTC offset for `America/Vancouver`. [#28052](https://github.com/risingwavelabs/risingwave/pull/28052)
+
+## Connectors
+
+- Adds the opt-in `bigquery.change_sequence_number` sink option, disabled by default. When enabled for upsert sinks, `_CHANGE_SEQUENCE_NUMBER` orders changes for each key. The option can be altered while the sink is running. Once sequence-numbered rows have been written, disabling the option can cause BigQuery to ignore later unsequenced changes to those rows. [#27857](https://github.com/risingwavelabs/risingwave/pull/27857), [#28008](https://github.com/risingwavelabs/risingwave/pull/28008)
+- Prevents the BigQuery sink from sending empty `AppendRows` requests. [#27886](https://github.com/risingwavelabs/risingwave/pull/27886)
+- Fixes Iceberg sinks with `auto.schema.change` and exactly-once delivery failing after an upstream addition of nested columns. Newly added nested fields receive unique IDs, and recovery replays pending data and schema changes before writers start. [#27981](https://github.com/risingwavelabs/risingwave/pull/27981)
+- Allows Iceberg S3 access to use the pod's IRSA web-identity role when `enable_config_load` is unset or false, instead of skipping web identity and falling back to the node role. Also refreshes REST-vended credentials and aligns ADLS Gen2 settings across REST catalog paths. [#27986](https://github.com/risingwavelabs/risingwave/pull/27986)
+- Allows plain Avro sources on Kinesis to use AWS Glue Schema Registry. [#28051](https://github.com/risingwavelabs/risingwave/pull/28051)
+- Keeps the shared-source offset unchanged when backfill progress arrives after a split has entered the catching-up stage. [#28047](https://github.com/risingwavelabs/risingwave/pull/28047)
+
+## Administration and deployment
+
+- Rejects dropping, moving, or independently renaming a source owned by a connector-backed table. [#27923](https://github.com/risingwavelabs/risingwave/pull/27923)
+- Restores SST ID allocation after a canceled leader operation and prevents a panic when a write-limit notification arrives before the initial snapshot. [#27926](https://github.com/risingwavelabs/risingwave/pull/27926), [#27965](https://github.com/risingwavelabs/risingwave/pull/27965)
+- Adds `-nodwp` Docker image variants without the split debug-information layer. [#28049](https://github.com/risingwavelabs/risingwave/pull/28049)
+- Removes the obsolete `aws_sdk_retry_counts` metric, which did not track retries from the current AWS SDK. `object_store_request_retry_count` continues to count RisingWave wrapper retries, not retries performed internally by the SDK. [#27848](https://github.com/risingwavelabs/risingwave/pull/27848)
+
+See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/compare/v3.1.1...5c5b33c5b6d9007558d1ddafcba23c4932b4e4f0).
+
+</Update>
+
 <Update label="v3.1.1" description="2026-11-05">
 
 This patch release adds CDC upsert table sources and broadcast temporal joins, and improves connector reliability, backfill correctness, and access control.
