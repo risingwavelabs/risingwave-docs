@@ -58,6 +58,17 @@ In the figure above, we have allocated 12 GB of memory to the Streaming Node. Th
 2. If the memory is higher than 70% of the usable memory, we consider allocating more memory to speed up if the extra cost is acceptable. Additionally, we recommend taking the cache miss ratio below into consideration when making this decision. 
 See [Best Practices - Resource Allocation](/performance/best-practices#resource-allocation) for guidance on adjusting memory.  If you are experiencing high latency or slow stream processing, see [Troubleshooting - High Latency](/performance/troubleshoot-high-latency).
 
+## Streaming job and fragment metrics
+
+In the dev dashboard, use **Streaming Fragments** and **Streaming Relation Metrics** to compare activity across jobs and fragments:
+
+- **Top Fragments by Busy Rate** and **Top Fragments by CPU Rate** rank active fragments.
+- **Top Relations by Busy Rate** and **Top Relations by CPU Rate** provide the relation-level view.
+- **Actor Busy Rate** measures time not blocked by upstream or downstream; it can include both CPU work and I/O. A high busy rate alone does not prove CPU saturation.
+- **Executor Cache Memory Usage of Streaming Relations** helps compare state/cache memory across relations.
+
+Correlate these views with CPU, memory, cache misses and backpressure. High CPU and busy rate together suggest a compute constraint; lower CPU with high busy rate calls for further I/O/cache investigation. Use fragment IDs with [DESCRIBE FRAGMENTS](/sql/commands/sql-describe#describe-fragments) and [Workload analysis](/performance/workload-analysis) to locate the operator in the query graph.
+
 ## Cache performance
 
 Operators such as join and aggregation are stateful. They maintain intermediate states in their operator cache to facilitate incremental computation.  Efficient caching is crucial for minimizing latency and maximizing throughput.
