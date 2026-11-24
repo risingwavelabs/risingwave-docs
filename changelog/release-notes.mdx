@@ -575,6 +575,17 @@ Support for certain earlier versions will end following the release of v2.8. Ple
 Versions `v2.8.0-rc.1`, `v2.8.0`, and `v2.8.1` are deprecated. We recommend upgrading to `v2.8.2` or later.
 </Warning>
 
+## JSONB hash compatibility
+
+The JSONB hash compatibility fix is included in v2.7.4, v2.8.2, and later releases. It affects jobs that use JSONB in primary keys, grouping, or subqueries. The upgrade path depends on the version that created the affected state:
+
+| Source version | Upgrade guidance |
+| --- | --- |
+| v2.6.3 | Upgrade directly to v2.7.4, v2.8.2, or later. Avoid v2.7.0–v2.7.3 and v2.8.0–v2.8.1. |
+| v2.7.0–v2.7.3 or v2.8.0–v2.8.1 | Affected jobs cannot be carried across the hash-compatibility boundary by an in-place upgrade. Plan to drop and recreate them on the fixed version so their data is distributed using the corrected hash. |
+
+This is a job-rebuild requirement, not a manual reshuffling operation. Review the affected jobs and their data-reload requirements before planning the upgrade. See RisingWave [#25345](https://github.com/risingwavelabs/risingwave/pull/25345) and the v2.7 backport [#25369](https://github.com/risingwavelabs/risingwave/pull/25369).
+
 ## SQL features
 
 - SQL commands:
@@ -614,7 +625,7 @@ See the **Full Changelog** [here](https://github.com/risingwavelabs/risingwave/c
 Support for certain earlier versions will end following the release of v2.7. Please plan your upgrade to a newer version soon to ensure continued support and updates. For more details, see our [version support policy](/changelog/release-support-policy).
 
 <Warning>
-Versions `v2.7.0-rc.1`, `v2.7.0`, `v2.7.1`, `v2.7.2`, and `v2.7.3` are deprecated. We recommend upgrading to `v2.7.4` or later.
+Versions `v2.7.0-rc.1`, `v2.7.0`, `v2.7.1`, `v2.7.2`, and `v2.7.3` are deprecated. We recommend upgrading to `v2.7.4` or later. If you have jobs that use JSONB in primary keys, grouping, or subqueries, also review [JSONB hash compatibility](#jsonb-hash-compatibility) before upgrading.
 </Warning>
 
 ## Upgrade-time behavior changes
