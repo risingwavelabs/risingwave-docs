@@ -1,0 +1,53 @@
+---
+title: "Configure runtime log filters"
+description: "Use risectl to inspect, update, and reset stdout and stderr log filters on running RisingWave nodes."
+---
+
+Use `risectl log` to inspect or change the stdout and stderr log filters of a running RisingWave node without restarting it. Runtime changes apply to the entire node process and are lost when the process restarts.
+
+Before running these commands, set `RW_META_ADDR` to the address of the meta service.
+
+## Select nodes
+
+Each command requires one of the following selectors:
+
+- `--worker-id <ID>` selects specific worker IDs. You can provide a comma-separated list or repeat the option. The meta node has worker ID `0`. `--node-id` is an alias.
+- `--worker-type <TYPE>` selects all nodes of one or more types. Supported types are `frontend`, `compute-node` (or `compute`), `compactor`, and `meta`. You can provide a comma-separated list or repeat the option. `--node-type` is an alias.
+- `--all` selects all supported nodes in the cluster.
+
+You cannot combine different selector types. An unknown worker ID is rejected before any filter is updated.
+
+## Inspect log filters
+
+Use `risectl log get` to display the startup and current effective filters for the selected nodes:
+
+```bash
+risectl log get --worker-id 1,2
+risectl log get --worker-type frontend,compute-node
+```
+
+## Set log filters
+
+Pass a comma-separated filter string to `risectl log set`. You can specify a default level and override the level for individual Rust targets:
+
+```bash
+# Set the default level to info and enable debug logs for the storage target.
+risectl log set 'info,risingwave_storage=debug' --worker-id 2
+
+# Enable debug logs for the stream target on every compute node.
+risectl log set 'risingwave_stream=debug' --worker-type compute-node
+```
+
+The new directives replace the original `RUST_LOG` directives and any previous runtime directives. They are applied on top of RisingWave's built-in defaults and logger settings. For example, if a node starts with `RUST_LOG=risingwave_storage=debug`, setting the filter to `info` removes that target override.
+
+The runtime filter applies only to stdout and stderr logs. RisingWave keeps the `rw_tracing` target disabled in this output after applying the filter. Query-log files, Tokio console, and OpenTelemetry use separate filters. In `release` and `production` builds, `TRACE` events are compiled out and cannot be enabled at runtime.
+
+## Reset log filters
+
+Use `risectl log reset` to restore each selected node's startup filter, including its original `RUST_LOG` directives:
+
+```bash
+risectl log reset --all
+```
+
+When a command targets multiple nodes, RisingWave reports the result for each node. If an operation fails on one node, it continues on the other selected nodes and exits with an error after reporting all results. Successful updates remain applied.
