@@ -22,9 +22,9 @@ Here is a brief overview of each component:
 
 ## Serving Node
 
-This node serves as the PostgreSQL-compatible frontend. It handles user requests and delivers results with high concurrency and low latency. Clients like `psql` can connect to it seamlessly.
+The PostgreSQL-compatible frontend serves as the SQL gateway for clients such as `psql`. It parses and plans queries; batch execution can run on serving-role Compute Nodes. In embedded serving mode, frontend pods also host serving execution.
 
-- It executes batch queries directly.
+- It dispatches batch execution to serving compute resources, or executes it in the frontend pods when embedded serving mode is enabled.
 - For streaming queries, it creates an execution plan and sends it to the Streaming Engine.
 
 ### Batch query execution modes
