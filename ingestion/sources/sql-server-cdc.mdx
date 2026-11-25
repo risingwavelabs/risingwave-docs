@@ -103,7 +103,11 @@ Unless specified otherwise, the fields listed are required. Note that the value 
 | password      | Password of the database.    |
 | database.name | Name of the database.        |
 |database.encrypt| **Optional**. Specify whether to enable SSL encryption. Currently, `trustServerCertificate` is enabled regardless of the value of `database.encrypt`. |
+| database.connect.timeout.ms | **Optional**. Maximum time in milliseconds to establish a connection, including TCP connection, TLS, and login. If unset or `0`, RisingWave waits without a limit. |
+| database.command.timeout.ms | **Optional**. Maximum time in milliseconds to wait for each SQL Server response while a statement runs, including the first response. This does not limit the total statement duration. If unset or `0`, RisingWave waits without a limit. |
 | sqlserver_table_name | The identifier of SQL Server table in the format of `database_name.schema_name.table_name`. |
+
+The timeout options apply to connections that RisingWave opens for schema discovery, LSN queries, and backfill. They do not apply to the Debezium change stream.
 
 <Note>
 As noted earlier, RisingWave will use the available capture instance to create a CDC table. If multiple capture instances exist, RisingWave will randomly choose one. Specifying a particular capture instance is not supported.
